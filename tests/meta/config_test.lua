@@ -1,4 +1,5 @@
 local C = require("meta.config")
+local util = require("meta.util")
 local town = require("meta.town")
 local inventory = require("meta.inventory")
 local H = require("tests.meta.helper")
@@ -34,6 +35,16 @@ describe("meta config", function()
 		assert_eq(C.pack_size, 3)
 	end)
 
+	it("keys every difficulty table by exactly the listed difficulties", function()
+		assert_same(C.difficulties, { "easy", "medium", "hard", "super_hard" })
+		for _, tbl in ipairs({ C.stars, C.coins.win_mult }) do
+			local n = 0
+			for _ in pairs(tbl) do n = n + 1 end -- order-free: counting
+			assert_eq(n, #C.difficulties)
+			for _, d in ipairs(C.difficulties) do assert_true(util.is_int(tbl[d]) and tbl[d] > 0, d) end
+		end
+	end)
+
 	it("only refers to known boosters", function()
 		for _, id in ipairs(C.level_chest.rotation) do assert_true(inventory.def(id) ~= nil, id) end
 		assert_true(inventory.def(C.level_chest.fallback) ~= nil)
@@ -65,37 +76,98 @@ describe("meta source rules", function()
 	for line in p:lines() do files[#files + 1] = line end
 	p:close()
 
-	local function each_line(fn)
-		for _, path in ipairs(files) do
-			local n = 0
-			for line in io.lines(path) do
-				n = n + 1
-				fn(path .. ":" .. n, line)
+	-- Globals a meta module may read. Everything else (os, io, _G, next,
+	-- debug, load*, Defold modules, ...) is out, and no module sets a global.
+	local ALLOWED = {}
+	for _, name in ipairs({ "error", "ipairs", "math", "pairs", "pcall", "require", "setmetatable",
+		"string", "table", "tonumber", "tostring", "type" }) do ALLOWED[name] = true end
+
+	-- Global reads and writes of a file, from the bytecode listing of the VM
+	-- that runs the tests: {{op = "get"|"set", name}}; nil if no listing.
+	local function globals_of(path)
+		local cmd = (jit and "luajit -bl " or "luac5.1 -p -l ") .. path .. " 2>&1"
+		local pipe = io.popen(cmd)
+		local out, listed = {}, false
+		for line in pipe:lines() do
+			local op, name = line:match("([GS]ETGLOBAL)%s.-; (.+)$")
+			if not op then op, name = line:match("(G[GS]ET)%s.-; \"(.-)\"") end
+			if line:match("^%s*%d+%s") or line:match("^%d%d%d%d ") or line:match("^main <") or line:match("^%-%- BYTECODE") then
+				listed = true
+			end
+			if op then out[#out + 1] = { op = (op == "GETGLOBAL" or op == "GGET") and "get" or "set", name = name } end
+		end
+		pipe:close()
+		return listed and out or nil
+	end
+
+	-- Every rule a meta source must follow; returns a list of violations.
+	local function violations(path)
+		local found = {}
+		local globals = globals_of(path)
+		if not globals then return { path .. ": no bytecode listing (is luac5.1 / luajit on PATH?)" } end
+		for _, g in ipairs(globals) do
+			if g.op == "set" then
+				found[#found + 1] = path .. " sets the global " .. g.name
+			elseif not ALLOWED[g.name] then
+				found[#found + 1] = path .. " reads the global " .. g.name
 			end
 		end
+		local n = 0
+		for line in io.lines(path) do
+			n = n + 1
+			local where = path .. ":" .. n
+			if line:find("%[=*%[") then found[#found + 1] = where .. " uses a long bracket; keep sources line-checkable" end
+			local code = line:gsub("%-%-.*$", "")
+			local at = 1
+			while true do
+				local i = code:find("%f[%w_]require%f[^%w_]", at)
+				if not i then break end
+				if not code:find('^require%("meta%.[%w_]+"%)', i) then
+					found[#found + 1] = where .. " requires something other than a meta module"
+				end
+				at = i + 1
+			end
+			if code:find("%f[%w_]random") then found[#found + 1] = where .. " uses randomness" end
+			if code:find("%f[%w_]pairs%(") and not line:find("order%-free") then
+				found[#found + 1] = where .. " iterates with pairs() without an order-free note"
+			end
+		end
+		return found
 	end
 
 	it("finds the meta modules", function()
-		assert_true(#files >= 9)
+		assert_true(#files >= 10)
 	end)
 
-	it("uses no clock, randomness, IO or Defold API", function()
-		local forbidden = { "%f[%w_]os%.", "%f[%w_]io%.", "math%.random", "%f[%w_]sys%.", "%f[%w_]msg%.",
-			"%f[%w_]gui%.", "%f[%w_]go%.", "%f[%w_]vmath%.", "%f[%w_]json%.", "%f[%w_]socket%." }
-		each_line(function(where, line)
-			local code = line:gsub("%-%-.*$", "")
-			for _, pat in ipairs(forbidden) do
-				assert_false(code:find(pat), where .. " uses " .. pat .. ": " .. line)
-			end
-		end)
+	it("catch clocks, IO, globals and unordered iteration in a probe", function()
+		local probe = os.tmpname()
+		local f = assert(io.open(probe, "w"))
+		f:write(table.concat({
+			'local a = _G.os',
+			'local b = os["time"]',
+			'local c = require("os")',
+			'local r = require',
+			'for k in next, {} do end',
+			'for k in pairs({}) do end',
+			'local x = math.random(3)',
+			'counter = 1',
+			'local s = [[text]]',
+		}, "\n"))
+		f:close()
+		local found = table.concat(violations(probe), "\n")
+		os.remove(probe)
+		for _, what in ipairs({ "reads the global _G", "reads the global os", "reads the global next",
+			"sets the global counter", "requires something other", "without an order-free note",
+			"uses randomness", "long bracket" }) do
+			assert_true(found:find(what, 1, true) ~= nil, "the probe must trigger: " .. what .. "\n" .. found)
+		end
+		assert_true(select(2, found:gsub("requires something other", "")) == 2, "require(\"os\") and the alias")
 	end)
 
-	it("marks every pairs() loop as order-free", function()
-		each_line(function(where, line)
-			local code = line:gsub("%-%-.*$", "")
-			if code:find("%f[%w_]pairs%(") then
-				assert_true(line:find("order%-free"), where .. " iterates with pairs() without an order-free note")
-			end
-		end)
+	it("hold for every meta module: pure Lua, no clock, IO, randomness or Defold API", function()
+		for _, path in ipairs(files) do
+			local found = violations(path)
+			assert_eq(#found, 0, table.concat(found, "\n"))
+		end
 	end)
 end)

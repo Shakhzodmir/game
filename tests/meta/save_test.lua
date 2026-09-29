@@ -175,21 +175,31 @@ describe("save fallback", function()
 		assert_eq(m:salt(), 8)
 	end)
 
-	it("reads a save of a newer app version as far as it understands it", function()
+	it("reads a save of a newer app version and keeps its unknown top-level fields", function()
 		local t = H.json_round_trip(good)
 		t.version = 2
-		t.feature_from_the_future = { level = 3 }
+		t.feature_from_the_future = { level = 3, tags = { "a", "b" } }
 		t.wallet.gems = 40
 		local m, info = Meta.load(H.districts(), resign(t), older, 1, T)
 		assert_eq(info.source, "current")
 		assert_eq(info.version, 2)
 		assert_true(info.newer)
 		assert_false(info.migrated)
+		assert_false(m:dirty(), "a newer save is not rewritten until something changes")
 		assert_eq(m:level_to_play(), 5)
+		H.win(m, T)
 		local s = m:serialize()
 		assert_eq(s.version, 1)
-		assert_eq(s.feature_from_the_future, nil)
-		assert_eq(s.wallet.gems, nil)
+		assert_same(s.feature_from_the_future, { level = 3, tags = { "a", "b" } })
+		assert_eq(s.wallet.gems, nil, "unknown fields inside known ones are dropped")
+		-- the app is updated again: version 2 finds its field
+		local v2 = { [1] = function(x)
+			x.feature_from_the_future = x.feature_from_the_future or { level = 0 }
+			return x
+		end }
+		local data = save.decode(H.json_round_trip(s), { version = 2, migrations = v2 })
+		assert_same(data.feature_from_the_future, { level = 3, tags = { "a", "b" } })
+		assert_eq(data.progress.beaten, 5)
 	end)
 
 	it("rejects a bad version and a bad salt", function()
@@ -216,9 +226,11 @@ describe("save fallback", function()
 		t.wallet.coins = -50
 		t.wallet.stick = "many"
 		t.lives.count = 42
-		t.progress.levels = { ["3"] = { attempts = 2, fails = -1 }, bogus = { attempts = 1 }, ["0"] = {} }
+		t.progress.levels = { ["3"] = { attempts = 2, fails = -1 }, bogus = { attempts = 1 }, ["0"] = {}, ["03"] = { attempts = 9 } }
 		t.progress.run = { level_id = 77, difficulty = "easy" }
-		t.town = { cafe = { done = 99, view = "night" }, atlantis = { done = 3 } }
+		t.town = { cafe = { done = { "lamps", "zz", "turntable" }, chest_claimed = 1, view = "night" }, jazz = { done = 99 },
+			atlantis = { done = { "x" } } }
+		t.unlock_gifts = { "stick", "hammer", "stick" }
 		t.prefs = { settings = { music = 7, language = "fr", haptics = "yes" }, tutorial = { "b", "a", "b", 5 } }
 		t.stats = nil
 		local m, info = Meta.load(H.districts(), resign(t), nil, 1, T)
@@ -228,7 +240,10 @@ describe("save fallback", function()
 		assert_eq(m:lives(T).count, 5)
 		assert_same(m:attempts(3), { attempts = 2, fails = 0 })
 		assert_eq(m:run(), nil, "a run for a level that is not next is dropped")
-		assert_eq(m:district("cafe").done, 6)
+		assert_eq(m:district("cafe").done, 2)
+		assert_same(m:unmuted_stems("cafe"), { "beat", "vinyl" })
+		assert_false(m:district("cafe").chest_claimed)
+		assert_eq(m:district("jazz").done, 0)
 		assert_eq(m:view("cafe"), "day")
 		assert_same(m:settings(), { music = 1, sfx = 1.0, haptics = true, reduced_motion = false, input_mode = "swipe", language = "auto" })
 		assert_same(m:seen_tutorials(), { "a", "b" })
@@ -236,6 +251,8 @@ describe("save fallback", function()
 		local s = m:serialize()
 		assert_eq(s.town.atlantis, nil)
 		assert_eq(s.progress.levels.bogus, nil)
+		assert_eq(s.progress.levels["03"], nil)
+		assert_same(s.unlock_gifts, { "stick" })
 	end)
 end)
 
@@ -303,9 +320,119 @@ describe("player salt", function()
 		assert_error(function() Meta.new(H.districts(), nil) end, "seed")
 	end)
 
+	it("refuses seeds a double cannot hold exactly", function()
+		local limit = 2 ^ 53
+		assert_eq(Meta.new(H.districts(), limit - 1):salt(), (limit - 1) % 2147483646 + 1)
+		assert_eq(Meta.new(H.districts(), -(limit - 1)):salt(), (-(limit - 1)) % 2147483646 + 1)
+		for _, seed in ipairs({ limit, -limit, 2 ^ 62, 2 ^ 63, -2 ^ 62, 1e300, math.huge, 0 / 0 }) do
+			assert_error(function() Meta.new(H.districts(), seed) end, "|seed| < 2^53")
+			assert_error(function() Meta.load(H.districts(), nil, nil, seed, T) end, "|seed| < 2^53")
+		end
+		local salts = {}
+		for i = 0, 20 do
+			local salt = Meta.new(H.districts(), 1234567 * 2 ^ 20 + i):salt()
+			assert_true(salt >= 1 and salt <= 2147483646)
+			assert_eq(salts[salt], nil, "different seeds, different salts")
+			salts[salt] = true
+		end
+	end)
+
 	it("is kept by saves", function()
 		local m = Meta.new(H.districts(), 123456)
 		local m2 = Meta.load(H.districts(), m:serialize(), nil, 1, T)
 		assert_eq(m2:salt(), 123457)
+	end)
+end)
+
+describe("unsaved changes", function()
+	it("are flagged after new() and cleared by serialize()", function()
+		local m = H.new()
+		assert_true(m:dirty())
+		m:serialize()
+		assert_false(m:dirty())
+	end)
+
+	it("are not made by queries or by time passing", function()
+		local m = H.new()
+		H.advance_to(m, 21)
+		H.lose(m, T + 10000)
+		m:serialize()
+		local rev = m:revision()
+		m:lives(T + 20000)
+		m:can_start(21, T + 20000)
+		m:refill_offer(T + 20000)
+		m:level_to_play()
+		m:districts()
+		m:inventory()
+		m:streak()
+		m:continue_offer()
+		m:settings()
+		m:set_setting("music", m:settings().music)
+		m:mark_tutorial_seen("x")
+		m:serialize()
+		rev = m:revision()
+		m:mark_tutorial_seen("x")
+		m:set_view("cafe", "day")
+		local ok = m:start_level({ id = 21, difficulty = "easy" }, { "disco" }, T + 20000)
+		assert_false(ok, "a refused start changes nothing")
+		assert_eq(m:revision(), rev)
+		assert_false(m:dirty())
+	end)
+
+	it("are made by every state change", function()
+		local m = H.new()
+		H.advance_to(m, 21)
+		H.give(m, "coins", 10000)
+		local P = T + 10000
+		local steps = {
+			function() m:start_level({ id = 21, difficulty = "easy" }, { "riff" }, P) end,
+			function() m:note_move() end,
+			function() m:use_booster("stick") end,
+			function() m:grant_ad_moves() end,
+			function() m:buy_continue(1) end,
+			function() m:finish_level({ won = false, level_id = 21 }, P) end,
+			function() m:refill_lives(P) end,
+			function() m:buy_booster_pack("stick") end,
+			function() m:grant({ infinite_minutes = 5 }, "event", P) end,
+			function() m:complete_task("cafe", "turntable") end,
+			function() m:set_view("cafe", "concert") end,
+			function() m:set_setting("sfx", 0.5) end,
+			function() m:mark_tutorial_seen("first_swap") end,
+			function() m:start_level({ id = 21, difficulty = "easy" }, nil, P) end,
+			function() m:cancel_level() end,
+			function() m:start_level({ id = 21, difficulty = "easy" }, nil, P) end,
+			function() m:finish_level({ won = true, level_id = 21, moves_at_win = 0 }, P) end,
+		}
+		for i, step in ipairs(steps) do
+			m:serialize()
+			local rev = m:revision()
+			step()
+			assert_true(m:dirty(), "step " .. i)
+			assert_true(m:revision() > rev, "step " .. i)
+		end
+	end)
+
+	it("follow a load: clean from the current slot, dirty after a fallback or migration", function()
+		local m = H.new(5)
+		H.advance_to(m, 4)
+		local good = m:serialize()
+		local m2, info = Meta.load(H.districts(), good, nil, 1, T)
+		assert_eq(info.source, "current")
+		assert_false(m2:dirty())
+		m2 = Meta.load(H.districts(), nil, good, 1, T)
+		assert_true(m2:dirty(), "the current slot must be rewritten")
+		m2 = Meta.load(H.districts(), nil, nil, 1, T)
+		assert_true(m2:dirty(), "a fresh save")
+		-- pretend the format moved on to version 2
+		local C = require("meta.config")
+		C.save_version, save.migrations[1] = 2, function(t) return t end
+		local ok, err = pcall(function()
+			local m3, info3 = Meta.load(H.districts(), good, nil, 1, T)
+			assert_true(info3.migrated)
+			assert_true(m3:dirty(), "a migrated save is rewritten in the new format")
+			assert_eq(m3:serialize().version, 2)
+		end)
+		C.save_version, save.migrations[1] = 1, nil
+		if not ok then error(err, 0) end
 	end)
 end)
