@@ -1,0 +1,46 @@
+{
+  "1": {"steps": [
+    {"kind": "swap", "from": [3, 0], "to": [3, 1], "text": "tutorial.swap"},
+    {"kind": "swap", "from": [2, 4], "to": [1, 4], "text": "tutorial.swap"},
+    {"kind": "swap", "from": [3, 6], "to": [4, 6], "text": "tutorial.goals"}
+  ]},
+  "2": {"steps": [
+    {"kind": "swap", "from": [4, 6], "to": [4, 7], "text": "tutorial.riff"},
+    {"kind": "tap", "at": [4, 7], "text": "tutorial.tap_special"}
+  ]},
+  "4": {"steps": [
+    {"kind": "swap", "from": [4, 7], "to": [3, 7], "text": "tutorial.sub"},
+    {"kind": "tap", "at": [3, 7], "text": "tutorial.tap_special"}
+  ]},
+  "6": {"steps": [
+    {"kind": "swap", "from": [4, 7], "to": [3, 7], "text": "tutorial.bird"},
+    {"kind": "tap", "at": [3, 7], "text": "tutorial.tap_special"}
+  ]},
+  "8": {"steps": [
+    {"kind": "booster", "at": [0, 7], "booster": "stick", "text": "tutorial.booster"}
+  ]},
+  "9": {"steps": [
+    {"kind": "swap", "from": [3, 6], "to": [3, 7], "text": "tutorial.disco"},
+    {"kind": "swap", "from": [3, 7], "to": [3, 6], "text": "tutorial.disco_swap"}
+  ]},
+  "10": {"steps": [
+    {"kind": "tip", "at": [3, 6], "text": "tutorial.record_box"},
+    {"kind": "swap", "from": [5, 7], "to": [4, 7], "text": "tutorial.record_box_match"}
+  ]},
+  "11": {"steps": [
+    {"kind": "swap", "from": [4, 5], "to": [4, 4], "text": "tutorial.combo"}
+  ]},
+  "12": {"steps": [
+    {"kind": "tip", "text": "tutorial.pre_boosters"}
+  ]},
+  "13": {"steps": [
+    {"kind": "tip", "at": [1, 2], "text": "tutorial.record_box_layers"}
+  ]},
+  "15": {"steps": [
+    {"kind": "tip", "at": [4, 4], "text": "tutorial.dancefloor"},
+    {"kind": "swap", "from": [4, 5], "to": [4, 4], "text": "tutorial.dancefloor_match"}
+  ]},
+  "16": {"steps": [
+    {"kind": "tip", "at": [4, 6], "text": "tutorial.dancefloor_double"}
+  ]}
+}

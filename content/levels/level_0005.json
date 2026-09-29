@@ -1,0 +1,18 @@
+{
+  "id": 5, "version": 1,
+  "size": [8, 8],
+  "moves": 28,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "blue", "purple"],
+  "goals": [{"type": "collect", "color": "purple", "count": 26}],
+  "cells": [
+    "########",
+    "########",
+    "########",
+    "##.##.##",
+    "##.##.##",
+    "########",
+    "########",
+    "########"
+  ]
+}

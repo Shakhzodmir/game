@@ -12,10 +12,13 @@
 -- seq grows by one per executed command, so a test sets __glowCmd and waits
 -- until __glowState.seq changes and __glowState.app.transitioning is false.
 --
--- Commands (words separated by spaces):
+-- Commands (words separated by spaces; handlers live in main/app.script):
 --   state | goto <splash|town|level> [n] | level <n> | set_coins <n> |
---   lang <auto|en|ru> | reset_save | toast <text...> | music <district> |
---   sfx <name> | note <color> <wave> |
+--   lang <auto|en|ru> | volume <music> [sfx] | reset_save | meta_win [moves] |
+--   toast <text...> | toast_key <key> | modal [id] | save_fail <0|1> |
+--   stall <ms> | stray_fade <in|out> | music <district> [all] | music_stop |
+--   layer <tension|party> [0] | sfx <name> | note <color> <wave> |
+--   chord <wave> <color> <color> ... |
 --   hint_move | swap x1 y1 x2 y2 | tap x y | skip | win   (need the board: not yet)
 -- Handlers are supplied by main/app.script; parse/execute are pure and tested.
 

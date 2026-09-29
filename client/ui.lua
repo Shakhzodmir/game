@@ -371,6 +371,13 @@ function Scene:release_images(keep)
 			pcall(gui.delete_texture, img.id)
 			self.textures[img.id] = nil
 			self.images[key] = nil
+			for _, side in ipairs({ "left", "right", "top", "bottom" }) do
+				local ext = "ext:" .. key .. ":" .. side
+				if self.textures[ext] then
+					pcall(gui.delete_texture, ext)
+					self.textures[ext] = nil
+				end
+			end
 		end
 	end
 end

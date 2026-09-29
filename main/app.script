@@ -114,6 +114,7 @@ local function on_proxy_loaded(self, sender)
 	if self.phase ~= "loading" then return end
 	-- params first: the screen's init() reads app.params
 	app.params = self.target.params or {}
+	self.loads = (self.loads or 0) + 1
 	msg.post(sender, "init")
 	msg.post(sender, "enable")
 	self.current = self.target.name
@@ -152,7 +153,7 @@ end
 
 local function qa_handlers(self)
 	return {
-		state = function() return { ok = true, watchdog = self.watchdog_fired or 0 } end,
+		state = function() return { ok = true, watchdog = self.watchdog_fired or 0, loads = self.loads or 0 } end,
 		["goto"] = function(args)
 			local name = args[1]
 			local params = {}
@@ -220,6 +221,22 @@ local function qa_handlers(self)
 		music = function(args)
 			audio.music(args[1] or app.focus_district(), { all = args[2] == "all" })
 			return { ok = true }
+		end,
+		-- a won attempt of the next level through the meta's own start/finish
+		-- (no board yet): stars and coins for testing the town
+		meta_win = function(args)
+			local n = app.meta:level_to_play()
+			if not n then return { ok = false, error = "all_done" } end
+			local diff = "easy"
+			local data = sys.load_resource(string.format("/content/levels/level_%04d.json", n))
+			local okj, lvl = pcall(function() return data and json.decode(data) end)
+			if okj and type(lvl) == "table" and lvl.difficulty then diff = lvl.difficulty end
+			local run, why = app.meta:start_level({ id = n, difficulty = diff }, {}, app.now())
+			if not run then return { ok = false, error = why } end
+			app.meta:note_move()
+			local res = app.meta:finish_level({ won = true, level_id = n, moves_at_win = tonumber(args[1]) or 5 }, app.now())
+			app.commit("qa_win")
+			return { ok = res ~= false, level = n, stars = app.meta:stars(), coins = app.meta:coins() }
 		end,
 		music_stop = function()
 			audio.stop_music()

@@ -16,13 +16,19 @@
 --
 --   bus.publish("meta_changed", {revision = 12})
 --
--- Topics used by the client (see client/app.lua):
---   meta_changed      {revision}            the meta state changed (coins, lives, ...)
---   settings_changed  {key, value}          a setting changed
+-- Topics used by the client (see client/app.lua, main/app.script):
+--   meta_changed      {revision, reason}    the meta state changed (coins, lives, ...)
+--   settings_changed  {key, value}          a setting changed (key "*" after a save reset)
 --   language_changed  {language}            UI strings must be refreshed
+--   screen_leaving    {from, to}            a transition starts (modals of the old screen close)
 --   screen_changed    {name, prev, params}  a screen finished its fade-in
---   modal_result      {id, button}          an overlay modal was closed
+--   modal_result      {id, button}          an overlay modal was closed; button "close",
+--                                           "replaced", "screen_changed" or a button id
 --   lives_tick        {now}                 once per second, for timers
+--   save_failed       {error, streak}       a save write failed (retried every second)
+--   save_recovered    {after}               the first successful save after failures
+--   save_reset        {}                    debug: the save was wiped
+--   app_focus         {focused, event}      focus / iconify changes (client/hooks.lua)
 --
 -- A subscriber that stops draining (a disabled screen) cannot grow without
 -- bound: past max_queue the oldest events are dropped and counted.
