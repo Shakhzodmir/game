@@ -1,74 +1,83 @@
-"""GLOW wordmark (640x320): neon glow + stage-light gradient, Rubik Black."""
+"""GLOW wordmark (640x320): Rubik Black, rainbow-candy gradient, white outline, soft glow."""
 import math
 import os
 
 import numpy as np
 
-from artkit import (C, Canvas, INK, WHITE, gblur, ramp, sd_ellipse, sd_poly, sdf_from_mask, smoothstep, text_mask,
-                    U, opening, sd_star, shift, vol)
+from artkit import (C, Canvas, F32, LIGHT, WHITE, gblur, mix, ramp, sd_ellipse, sdf_from_mask, shift, smoothstep,
+                    sparkle4, text_mask, _t)
+from palette import PIECES, ORDER
 
 FONT = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts", "Rubik-Black.ttf")
 
 
-def _beam(cv, x0, y0, x1, y1, w0, w1, color, alpha):
-    X, Y = cv.X, cv.Y
-    dx, dy = x1 - x0, y1 - y0
-    L = math.hypot(dx, dy)
-    ux, uy = dx / L, dy / L
-    px, py = X - x0, Y - y0
-    along = px * ux + py * uy
-    across = np.abs(-px * uy + py * ux)
-    t = np.clip(along / L, 0, 1)
-    half = w0 + (w1 - w0) * t
-    v = smoothstep(half, half * 0.35, across) * (along > 0) * (1 - t) ** 0.8 * smoothstep(0, 40, along)
-    cv.paint(np.clip(v, 0, 1), C(color), alpha, "over")
+def _rainbow(t, which=1):
+    return ramp(t, [(i / 5, PIECES[k][which]) for i, k in enumerate(ORDER)])
 
 
 def draw_logo():
     cv = Canvas(640, 320)
     X, Y = cv.X, cv.Y
     ss = cv.ss
-    # stage beams behind the word
-    _beam(cv, 40, -30, 330, 330, 8, 120, "#3CF2FF", 0.30)
-    _beam(cv, 600, -30, 310, 330, 8, 120, "#FF4FD8", 0.30)
-    _beam(cv, 320, -60, 320, 330, 6, 90, "#FFE66D", 0.22)
-
-    mask = text_mask(cv, "GLOW", FONT, 196, 320, 158, tracking=4)
-    sd = sdf_from_mask(mask > 0.5, ss)
-    ys = np.flatnonzero((mask > 0.5).any(1))
+    mask = text_mask(cv, "GLOW", FONT, 188, 320, 150, tracking=6)
+    m = mask > 0.5
+    sd = sdf_from_mask(m, ss)
+    ys = np.flatnonzero(m.any(1))
+    xs = np.flatnonzero(m.any(0))
     top, bot = ys[0] / ss, ys[-1] / ss
-
-    # neon glow (magenta core, cyan halo)
-    core = np.clip(0.5 - (sd - 8) * ss, 0, 1)
-    cv.glow_from(core, 34, "#3CF2FF", 0.55, mode="over", gain=1.2)
-    cv.glow_from(core, 16, "#FF4FD8", 0.85, mode="over", gain=1.5)
-    # extrusion (depth)
-    ext = sdf_from_mask(shift((mask > 0.5).astype(np.float32), 0, 12 * ss) > 0.5, ss)
-    cv.fill(np.minimum(ext, sd) - 8, INK)
-    cv.fill_grad(ext - 1, [(0, "#8E3DFF"), (1, "#3A1680")], axis="y", p0=top, p1=bot + 12)
-    # outline
-    cv.fill(sd - 7, INK)
-    # face gradient: warm stage light from above
-    stops = [(0.0, "#FFFBE0"), (0.28, "#FFE66D"), (0.62, "#FF8E72"), (1.0, "#FF4FD8")]
-    cv.fill_grad(sd, stops, axis="y", p0=top, p1=bot)
-    # bevel: light rim on top-left edges, inner shade low
+    left, right = xs[0] / ss, xs[-1] / ss
+    depth = 12
+    ext_m = shift(m.astype(F32), 0, depth * ss) > 0.5
+    ext = sdf_from_mask(ext_m | m, ss)
+    # soft rainbow glow behind everything
+    tx = np.clip((X - left) / (right - left), 0, 1)
+    glow = gblur(np.clip(0.5 - (ext - 16) * ss, 0, 1), 16 * ss / 2)
+    cv.paint(np.clip(glow * 1.2, 0, 1), _rainbow(tx, 0), 0.75)
+    # white sticker outline around face + extrusion
+    cv.fill(ext - 11, "#FFFFFF", 1.0)
+    cv.fill(ext - 11.5, "#E9DDFF", 0.0)
+    # extrusion (candy side): darker rainbow
+    side = sdf_from_mask(ext_m & ~m, ss)
+    w = cv.win(ext < 1)
+    ecol = mix(_rainbow(tx[w], 2), C("#4B1FB0"), 0.25)
+    cv.paint(np.clip(0.5 - ext[w] * ss, 0, 1), ecol, 1.0, win=w)
+    _ = side
+    # face
     w = cv.win(sd < 1)
     s = sd[w]
-    gy, gx = np.gradient(s)
-    nrm = np.hypot(gx, gy) + 1e-6
-    up = np.clip((-gx * 0.5 - gy * 0.86) / nrm, 0, 1)
-    dn = np.clip((gx * 0.3 + gy * 0.95) / nrm, 0, 1)
-    edge = smoothstep(-6, -0.5, s) * (s < 0)
-    cv.paint(edge * up, WHITE, 0.75, "over", w)
-    cv.paint(edge * dn, C("#B0169A"), 0.45, "over", w)
-    # glossy band across the upper half
-    band = np.maximum(sd + 5, Y - (top + (bot - top) * 0.42))
+    Xw, Yw = X[w], Y[w]
+    txw = np.clip((Xw - left) / (right - left), 0, 1)
+    ty = np.clip((Yw - top) / (bot - top), 0, 1)
+    base = _rainbow(txw, 1)
+    lite = _rainbow(txw, 0)
+    dark = _rainbow(txw, 2)
+    line = _rainbow(txw, 3)
+    col = mix(base, lite, smoothstep(0.55, 0.0, ty) * 0.85)
+    col = mix(col, dark, smoothstep(0.55, 1.0, ty) * 0.7)
+    # bevel
+    d = np.maximum(-(s + 3.5), 0)
+    t = np.clip(d / 9.0, 0, 1)
+    h = 1 - (1 - t) ** 2
+    gy, gx = np.gradient(h)
+    k = 9.0 * ss
+    nx, ny = -gx * k, -gy * k
+    nl = np.sqrt(nx * nx + ny * ny + 1)
+    nx, ny, nz = nx / nl, ny / nl, 1 / nl
+    lam = nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2] - LIGHT[2]
+    col = mix(col, mix(lite, WHITE, 0.5), np.clip(lam * 2.4, 0, 1) * 0.8)
+    col = mix(col, dark, np.clip(-lam * 1.8, 0, 1) * 0.5)
+    rr = np.clip(nx * 0.4 + ny * 0.9, 0, 1) * (1 - t) ** 1.5
+    col = mix(col, lite, np.clip(rr * 2, 0, 1) * 0.5)
+    col = mix(line, col, np.clip(0.5 - (s + 3.5) * ss, 0, 1))
+    cv.paint(np.clip(0.5 - s * ss, 0, 1), col, 1.0, win=w)
+    # glossy band across the upper half of the letters
+    band = np.maximum(sd + 8, Y - (top + (bot - top) * 0.40))
     wb = cv.win(band < 1)
-    fade = smoothstep(top + (bot - top) * 0.45, top, Y[wb])
-    cv.paint(np.clip(0.5 - band[wb] * ss, 0, 1) * (0.35 + 0.65 * fade), WHITE, 0.35, win=wb)
+    fade = smoothstep(top + (bot - top) * 0.42, top + 4, Y[wb])
+    cv.paint(np.clip(0.5 - band[wb] * ss, 0, 1) * (0.25 + 0.75 * fade), WHITE, 0.45, win=wb)
     # sparkles
-    for (x, y, r) in ((92, 64, 18), (566, 250, 14), (470, 58, 10), (180, 262, 9)):
-        d = opening(sd_star(X, Y, x, y, r, r * 0.3, n=4, rot=-math.pi / 2), 0.5)
-        cv.glow_from(np.clip(0.5 - d * ss, 0, 1), 6, "#FFFFFF", 0.6, mode="over")
-        cv.fill(d, WHITE, 1.0)
+    for (x, y, r, c) in ((96, 62, 20, "#FFFFFF"), (560, 238, 15, "#FFFFFF"), (486, 52, 11, "#FFFFFF"),
+                         (170, 250, 9, "#FFFFFF")):
+        sparkle4(cv, x, y, r, C(c), glow=6, glow_color="#FFF3A6")
+    cv.shadow_under(0, 6, 6, "#7B4FFF", 0.3)
     return cv
