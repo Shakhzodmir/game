@@ -1,7 +1,7 @@
 [project]
 title = GLOW
 version = 0.1.0
-custom_resources = /content,/assets/images/districts,/assets/images/backgrounds
+custom_resources = /content,/assets/images/districts,/assets/images/backgrounds,/assets/images/bit,/assets/images/logo
 
 [bootstrap]
 main_collection = /main/main.collectionc

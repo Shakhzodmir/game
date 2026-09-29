@@ -24,10 +24,6 @@ textures {
   name: "ui"
   texture: "/assets/gen/ui.atlas"
 }
-textures {
-  name: "logo"
-  texture: "/assets/gen/logo.atlas"
-}
 material: "/builtins/materials/gui.material"
 adjust_reference: ADJUST_REFERENCE_DISABLED
 max_nodes: 1024

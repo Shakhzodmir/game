@@ -22,7 +22,7 @@ describe("client.assets and the generated index", function()
 				assert_eq(e.atlas, nil, key)
 				assert_eq(e.file, "/assets/images/" .. key .. ".png")
 				local top = string.match(key, "^([^/]+)/")
-				assert_true(top == "districts" or top == "backgrounds", key)
+				assert_true(top == "districts" or top == "backgrounds" or top == "bit" or top == "logo", key)
 			else
 				local atlas = index.atlases[e.atlas]
 				assert_true(atlas ~= nil, key .. " -> missing atlas " .. tostring(e.atlas))
