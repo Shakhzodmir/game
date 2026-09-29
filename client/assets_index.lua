@@ -4,21 +4,19 @@
 -- hard-coding names, so a missing image or sound is a nil, not a crash.
 return {
 	atlases = {
-		bit = { path = "/assets/gen/bit.atlas", anims = { "white", "bit_dance_a", "bit_dance_b", "bit_happy", "bit_idle", "bit_sad", "bit_scratch", "bit_worried" } },
 		game = { path = "/assets/gen/game.atlas", anims = { "white", "blockers_balloon_blue", "blockers_balloon_green", "blockers_balloon_orange", "blockers_balloon_purple", "blockers_balloon_red", "blockers_balloon_yellow", "blockers_column_1", "blockers_column_2", "blockers_column_3", "blockers_column_on", "blockers_concrete_1", "blockers_concrete_2", "blockers_floor_1", "blockers_floor_2", "blockers_floor_lit", "blockers_mic", "blockers_mic_stand", "blockers_noise", "blockers_record_box_1", "blockers_record_box_2", "blockers_record_box_3", "blockers_wires_1", "blockers_wires_2", "board_board_frame", "board_cell_a", "board_cell_b", "board_edge_diag", "board_edge_full", "board_edge_inner", "board_edge_outer", "board_edge_side", "fx_bolt", "fx_cloud", "fx_confetti", "fx_dust", "fx_flash", "fx_glow_dot", "fx_note", "fx_ray", "fx_ring", "fx_shock", "fx_spark", "fx_star_particle", "pieces_blue", "pieces_green", "pieces_orange", "pieces_purple", "pieces_red", "pieces_yellow", "specials_bird", "specials_disco", "specials_riff", "specials_sub" } },
-		logo = { path = "/assets/gen/logo.atlas", anims = { "white", "logo_logo" } },
 		ui = { path = "/assets/gen/ui.atlas", anims = { "white", "ui_badge_count", "ui_bunting", "ui_button_blue", "ui_button_gold", "ui_button_green", "ui_button_pink", "ui_button_purple", "ui_button_small_blue", "ui_button_small_gold", "ui_button_small_green", "ui_button_small_pink", "ui_button_small_purple", "ui_icons_arrow", "ui_icons_chart", "ui_icons_check", "ui_icons_chest_closed", "ui_icons_chest_open", "ui_icons_city", "ui_icons_close", "ui_icons_coin", "ui_icons_col_light", "ui_icons_gift", "ui_icons_goal_floor", "ui_icons_hand", "ui_icons_haptics", "ui_icons_heart", "ui_icons_heart_infinite", "ui_icons_home", "ui_icons_jukebox", "ui_icons_lock", "ui_icons_music_off", "ui_icons_music_on", "ui_icons_note_off", "ui_icons_note_on", "ui_icons_pause", "ui_icons_play", "ui_icons_plus", "ui_icons_remix", "ui_icons_retry", "ui_icons_row_light", "ui_icons_settings", "ui_icons_shop", "ui_icons_sound_off", "ui_icons_sound_on", "ui_icons_star", "ui_icons_star_empty", "ui_icons_stick", "ui_icons_streak", "ui_icons_team", "ui_moves_badge", "ui_panel", "ui_panel_tint", "ui_ribbon" } },
 	},
 	-- atlas images {atlas, anim, w, h, slice9?}; loose images {file, w, h}
 	images = {
 		["backgrounds/level_bg"] = { file = "/assets/images/backgrounds/level_bg.png", w = 720, h = 1280 },
-		["bit/dance_a"] = { atlas = "bit", anim = "bit_dance_a", w = 256, h = 256 },
-		["bit/dance_b"] = { atlas = "bit", anim = "bit_dance_b", w = 256, h = 256 },
-		["bit/happy"] = { atlas = "bit", anim = "bit_happy", w = 256, h = 256 },
-		["bit/idle"] = { atlas = "bit", anim = "bit_idle", w = 256, h = 256 },
-		["bit/sad"] = { atlas = "bit", anim = "bit_sad", w = 256, h = 256 },
-		["bit/scratch"] = { atlas = "bit", anim = "bit_scratch", w = 256, h = 256 },
-		["bit/worried"] = { atlas = "bit", anim = "bit_worried", w = 256, h = 256 },
+		["bit/dance_a"] = { file = "/assets/images/bit/dance_a.png", w = 256, h = 256 },
+		["bit/dance_b"] = { file = "/assets/images/bit/dance_b.png", w = 256, h = 256 },
+		["bit/happy"] = { file = "/assets/images/bit/happy.png", w = 256, h = 256 },
+		["bit/idle"] = { file = "/assets/images/bit/idle.png", w = 256, h = 256 },
+		["bit/sad"] = { file = "/assets/images/bit/sad.png", w = 256, h = 256 },
+		["bit/scratch"] = { file = "/assets/images/bit/scratch.png", w = 256, h = 256 },
+		["bit/worried"] = { file = "/assets/images/bit/worried.png", w = 256, h = 256 },
 		["blockers/balloon_blue"] = { atlas = "game", anim = "blockers_balloon_blue", w = 160, h = 160 },
 		["blockers/balloon_green"] = { atlas = "game", anim = "blockers_balloon_green", w = 160, h = 160 },
 		["blockers/balloon_orange"] = { atlas = "game", anim = "blockers_balloon_orange", w = 160, h = 160 },
@@ -148,7 +146,7 @@ return {
 		["fx/shock"] = { atlas = "game", anim = "fx_shock", w = 256, h = 256 },
 		["fx/spark"] = { atlas = "game", anim = "fx_spark", w = 32, h = 32 },
 		["fx/star_particle"] = { atlas = "game", anim = "fx_star_particle", w = 48, h = 48 },
-		["logo/logo"] = { atlas = "logo", anim = "logo_logo", w = 640, h = 320 },
+		["logo/logo"] = { file = "/assets/images/logo/logo.png", w = 640, h = 320 },
 		["pieces/blue"] = { atlas = "game", anim = "pieces_blue", w = 160, h = 160 },
 		["pieces/green"] = { atlas = "game", anim = "pieces_green", w = 160, h = 160 },
 		["pieces/orange"] = { atlas = "game", anim = "pieces_orange", w = 160, h = 160 },
@@ -287,8 +285,8 @@ return {
 	},
 	guis = {
 		["/main/overlay.gui"] = { textures = { "ui" }, materials = {} },
-		["/screens/level/level.gui"] = { textures = { "game", "ui", "bit" }, materials = {} },
-		["/screens/splash/splash.gui"] = { textures = { "ui", "logo" }, materials = {} },
+		["/screens/level/level.gui"] = { textures = { "game", "ui" }, materials = {} },
+		["/screens/splash/splash.gui"] = { textures = { "ui" }, materials = {} },
 		["/screens/town/town.gui"] = { textures = { "ui" }, materials = { "grey" } },
 	},
 }

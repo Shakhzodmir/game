@@ -31,13 +31,12 @@ Writes (never edit these by hand, re-run the generator instead):
 Atlas grouping:
   game  = pieces + specials + blockers + board + fx      (level)
   ui    = ui (incl. ui/icons)                            (every screen)
-  bit   = the mascot frames                               (level)
-  logo  = the logo                                        (splash)
   any other folder = an atlas named after the folder
-Loose images (not in any atlas): districts/** and backgrounds/**. They ship
-as custom resources (game.project) and screens load only the ones on display
-with image.load + gui.new_texture, so the town holds one district's pictures
-instead of all of them.
+Loose images (not in any atlas): districts/**, backgrounds/**, bit/** (the
+mascot) and logo/**. They ship as custom resources (game.project) and
+screens load only the ones on display with image.load + gui.new_texture, so
+the town holds one district's pictures instead of all of them, and a big
+picture used on one screen does not keep a whole atlas page in memory.
 Animation id of an image = its path under assets/images without ".png",
 "/" replaced by "_" (pieces/red.png -> "pieces_red"); two images that map to
 the same id get "_2", "_3", ... Output is sorted, so re-running on the same
@@ -63,8 +62,8 @@ AUDIO_SCRIPT = "/main/audio.script"
 
 GAME_GROUPS = ("pieces", "specials", "blockers", "board", "fx")
 UI_GROUPS = ("ui", "icons")
-LOOSE_GROUPS = ("districts", "backgrounds")  # custom resources, loaded on demand
-LOOSE_DIRS = ("/assets/images/districts", "/assets/images/backgrounds")
+LOOSE_GROUPS = ("districts", "backgrounds", "bit", "logo")  # custom resources, loaded on demand
+LOOSE_DIRS = tuple("/assets/images/" + g for g in LOOSE_GROUPS)
 MIN_BG = (720, 1280)  # backgrounds below this look soft on 3x phones
 
 # Nine-slice borders (left, top, right, bottom) when the images manifest has
@@ -98,9 +97,9 @@ FONT_SPECS = {
 # Materials: name -> material file (referenced only when the file exists).
 GUI_SPECS = {
     "main/overlay.gui": ("/main/overlay.gui_script", ["ui"], []),
-    "screens/splash/splash.gui": ("/screens/splash/splash.gui_script", ["ui", "logo"], []),
+    "screens/splash/splash.gui": ("/screens/splash/splash.gui_script", ["ui"], []),
     "screens/town/town.gui": ("/screens/town/town.gui_script", ["ui"], ["grey"]),
-    "screens/level/level.gui": ("/screens/level/level.gui_script", ["game", "ui", "bit"], []),
+    "screens/level/level.gui": ("/screens/level/level.gui_script", ["game", "ui"], []),
 }
 MATERIALS = {"grey": "render/gui_grey.material"}
 GUI_MAX_NODES = 1024
