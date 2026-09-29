@@ -1,10 +1,10 @@
 {
   "id": 4, "version": 1,
   "size": [8, 8],
-  "moves": 28,
+  "moves": 20,
   "difficulty": "easy",
   "colors": ["red", "yellow", "green", "blue"],
-  "goals": [{"type": "collect", "color": "green", "count": 25}],
+  "goals": [{"type": "collect", "color": "green", "count": 45}],
   "cells": [
     "#..##..#",
     "########",

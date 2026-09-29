@@ -137,7 +137,7 @@ local LEVELS = {
 	{ rows = { "######", "######", "######", "######", "######", "######", "######" },
 		extra = { moves = 20, colors = { "red", "green", "blue", "yellow" },
 			slots = { { at = { 1, 3 }, type = "record_box", hp = 2 }, { at = { 3, 2 }, type = "noise" },
-				{ at = { 4, 4 }, type = "column", hp = 6 } },
+				{ at = { 2, 4 }, type = "column", hp = 6 } },
 			goals = { { type = "break", item = "record_box", count = 1 }, { type = "collect", color = "blue", count = 80 } } } },
 	{ rows = { "..####..", ".######.", "########", "########", "########", "########" },
 		extra = { moves = 20, goals = { { type = "deliver", count = 3 } },
