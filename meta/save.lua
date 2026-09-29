@@ -14,13 +14,20 @@
 -- changes, bump it and add migrations[n] that turns a version-n table into a
 -- version n+1 table; older saves are upgraded step by step. The checksum is
 -- always verified before migrating, so the checksum algorithm must not change.
--- A save from a newer version (the app was rolled back) is read as far as
--- this version understands it: known fields are used, unknown ones dropped.
--- That is why format changes should add fields rather than rename them.
+--
+-- Rollbacks: a save from a newer version (the web build was rolled back) is
+-- read as far as this version understands it. Top-level fields it does not
+-- know are kept as they are (state.extra) and written back, so updating the
+-- app again finds them. Two rules follow for format changes:
+--   * add new data as new top-level fields; do not rename or reshape old
+--     ones (unknown fields inside known ones are dropped);
+--   * a migration must keep a field that already exists: a save that went
+--     through a rollback carries the newer version's fields already.
 
 local C = require("meta.config")
 local util = require("meta.util")
 local economy = require("meta.economy")
+local inventory = require("meta.inventory")
 local lives = require("meta.lives")
 local progress = require("meta.progress")
 local town = require("meta.town")
@@ -98,9 +105,18 @@ function M.checksum(t)
 	return hash("GLOW-save|" .. M.canonical(t))
 end
 
+-- Top-level fields of the state, i.e. of a save of this version.
+M.fields = { "salt", "wallet", "stats", "lives", "progress", "unlock_gifts", "town", "prefs" }
+
+local function is_known(k)
+	return k == "version" or k == "checksum" or util.index_of(M.fields, k) ~= nil
+end
+
 -- State -> save table. The result shares nothing with the state.
 function M.serialize(state)
-	local t = util.copy(state)
+	local t = {}
+	for k, v in pairs(state.extra) do t[k] = util.copy(v) end -- order-free: fills a map
+	for _, k in ipairs(M.fields) do t[k] = util.copy(state[k]) end
 	t.version = C.save_version
 	t.checksum = M.checksum(t)
 	return t
@@ -139,14 +155,21 @@ function M.restore(raw, districts)
 	if type(raw) ~= "table" then return nil, "missing" end
 	local salt = raw.salt
 	if not util.is_int(salt) or salt < C.salt.min or salt > C.salt.max then return nil, "bad_salt" end
+	local extra = {}
+	for k, v in pairs(raw) do -- order-free: fills a map
+		if not is_known(k) then extra[k] = util.copy(v) end
+	end
+	local p = progress.restore(raw.progress)
 	return {
 		salt = salt,
 		wallet = economy.restore_wallet(raw.wallet),
 		stats = economy.restore_stats(raw.stats),
 		lives = lives.restore(raw.lives),
-		progress = progress.restore(raw.progress),
+		progress = p,
+		unlock_gifts = inventory.restore_gifts(raw.unlock_gifts, progress.reached(p)),
 		town = town.restore(raw.town, districts),
 		prefs = prefs.restore(raw.prefs),
+		extra = extra,
 	}
 end
 

@@ -1,11 +1,18 @@
--- Booster catalogue rules: which boosters exist, when they unlock and which
--- free boosters the win streak gives. Counts live in the wallet (economy.lua).
+-- Booster catalogue rules: which boosters exist, when they unlock, their
+-- unlock gifts and the free boosters of the win streak. Counts live in the
+-- wallet (economy.lua).
 --
 -- "reached" is the level the player is about to play: beaten + 1 (it stays
 -- above the last level once everything is beaten). A booster is unlocked when
 -- its unlock level <= reached.
+--
+-- State `unlock_gifts`: ids of the boosters whose unlock gift was given, in
+-- catalogue order. The gift is due for every unlocked booster missing from
+-- this list, so it is paid exactly once even if an update moves an unlock
+-- level: lowered, the gift comes at once; raised, it is not paid again.
 
 local C = require("meta.config")
+local util = require("meta.util")
 
 local M = {}
 
@@ -34,11 +41,42 @@ function M.is_unlocked(id, reached)
 	return M.need(id).unlock <= reached
 end
 
--- Boosters that unlock when "reached" moves from `from` to `to`, in catalogue order.
-function M.newly_unlocked(from, to)
+-- Sorts a list of booster ids into catalogue order (duplicates are kept).
+function M.sort(list)
+	local out = {}
+	for _, id in ipairs(M.ids) do
+		for _, x in ipairs(list) do
+			if x == id then out[#out + 1] = x end
+		end
+	end
+	return out
+end
+
+-- Boosters unlocked at `reached`, in catalogue order.
+function M.unlocked(reached)
 	local out = {}
 	for _, def in ipairs(C.boosters) do
-		if def.unlock > from and def.unlock <= to then out[#out + 1] = def.id end
+		if def.unlock <= reached then out[#out + 1] = def.id end
+	end
+	return out
+end
+
+-- The stored gift list: known ids once each, in catalogue order. A save
+-- without the list counts every booster unlocked so far as gifted.
+function M.restore_gifts(t, reached)
+	if type(t) ~= "table" then return M.unlocked(reached) end
+	local out = {}
+	for _, id in ipairs(M.ids) do
+		if util.index_of(t, id) then out[#out + 1] = id end
+	end
+	return out
+end
+
+-- Unlocked boosters whose gift is still due, in catalogue order.
+function M.due_gifts(gifted, reached)
+	local out = {}
+	for _, id in ipairs(M.unlocked(reached)) do
+		if not util.index_of(gifted, id) then out[#out + 1] = id end
 	end
 	return out
 end
@@ -53,15 +91,43 @@ function M.streak_boosters(streak, level)
 	return out
 end
 
--- Sorts a list of booster ids into catalogue order (stable for duplicates).
-function M.sort(list)
+-- Inventory screen: [{id, kind, count, unlocked, unlock_level, pack_price,
+-- pack_size}] in catalogue order.
+function M.view(wallet, reached)
 	local out = {}
-	for _, id in ipairs(M.ids) do
-		for _, x in ipairs(list) do
-			if x == id then out[#out + 1] = x end
-		end
+	for i, def in ipairs(C.boosters) do
+		out[i] = {
+			id = def.id,
+			kind = def.kind,
+			count = wallet[def.id],
+			unlocked = def.unlock <= reached,
+			unlock_level = def.unlock,
+			pack_price = def.pack_price,
+			pack_size = C.pack_size,
+		}
 	end
 	return out
+end
+
+-- Win streak widget: {count, active, slots = [{booster, wins, lit, unlocked}],
+-- boosters = free boosters of the next start}. next_level is nil when every
+-- level is beaten.
+function M.streak_view(streak, reached, next_level)
+	local slots = {}
+	for i, r in ipairs(C.streak.rewards) do
+		slots[i] = {
+			booster = r.booster,
+			wins = r.wins,
+			lit = streak >= r.wins,
+			unlocked = M.is_unlocked(r.booster, reached),
+		}
+	end
+	return {
+		count = streak,
+		active = reached >= C.streak.from_level,
+		slots = slots,
+		boosters = next_level and M.streak_boosters(streak, next_level) or {},
+	}
 end
 
 return M

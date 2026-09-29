@@ -19,13 +19,13 @@ strongest; the bass relies on its 2nd–4th harmonics to stay audible on phone s
 | Colour | Instrument | Sounding range | Length s | Peak dBFS | Max abs cents | Fund. rel. dB (min) | Last 10 ms dBFS (max) |
 |---|---|---|---|---|---|---|---|
 | red | electric guitar pluck (Karplus-Strong + gentle overdrive) | C4–C6 | 1.10 | -2.95 | 1.3 | -21.5 | -90.8 |
-| orange | tuned percussion (marimba with steel-pan octave bloom) | C4–C6 | 0.90 | -2.97 | 0.7 | -0.0 | -81.1 |
-| yellow | bells (glockenspiel/celesta), sounds one octave up | C5–C7 | 1.20 | -2.96 | 0.5 | -0.0 | -84.9 |
-| green | warm FM electric piano | C4–C6 | 1.10 | -2.96 | 0.8 | -0.0 | -112.4 |
+| orange | tuned percussion (marimba with steel-pan octave bloom) | C4–C6 | 0.90 | -2.97 | 0.7 | -0.0 | -80.8 |
+| yellow | bells (glockenspiel/celesta), sounds one octave up | C5–C7 | 1.20 | -2.96 | 0.5 | -0.0 | -84.7 |
+| green | warm FM electric piano | C4–C6 | 1.10 | -2.96 | 0.8 | -0.0 | -109.9 |
 | blue | pluck bass, two octaves down (C2..C4) | C2–C4 | 0.95 | -2.95 | 1.6 | -0.1 | -93.1 |
-| purple | synth pad pluck through an 'ah' vowel formant (choir-like) | C4–C6 | 1.20 | -1.24 | 1.4 | -18.8 | -109.8 |
+| purple | synth pad pluck through an 'ah' vowel formant (choir-like) | C4–C6 | 1.20 | -2.96 | 1.5 | -18.8 | -109.8 |
 
-Worst pitch error: `assets/sounds/notes/blue_2.ogg` -1.56 cents. Every note starts at |x[0]| ≤ 0.0113 (fade-in) and ends in silence.
+Worst pitch error: `assets/sounds/notes/blue_2.ogg` -1.56 cents. Every note starts at |x[0]| ≤ 0.0112 (fade-in) and ends in silence.
 
 ## 2. Sound effects
 

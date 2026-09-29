@@ -88,8 +88,12 @@ function M.booster_changes(ids, sign, changes)
 	return changes
 end
 
+function M.is_difficulty(d)
+	return util.index_of(C.difficulties, d) ~= nil
+end
+
 function M.check_difficulty(d)
-	if not C.stars[d] then error("meta: unknown difficulty '" .. tostring(d) .. "'", 3) end
+	if not M.is_difficulty(d) then error("meta: unknown difficulty '" .. tostring(d) .. "'", 3) end
 	return d
 end
 
@@ -103,29 +107,39 @@ function M.win_reward(difficulty, moves_at_win)
 	return coins, C.stars[difficulty]
 end
 
--- Boosters dealt from the chest rotation starting at 1-based position `pos`.
-local function rotation_pick(pos, reached)
+-- Deals `n` chest boosters by walking the rotation from `cursor` (0-based
+-- position of the next entry), skipping boosters locked at `reached`.
+-- Returns the boosters and the new cursor.
+local function deal(cursor, n, reached)
 	local rot = C.level_chest.rotation
-	for step = 0, #rot - 1 do
-		local id = rot[(pos - 1 + step) % #rot + 1]
-		if inventory.is_unlocked(id, reached) then return id end
+	local out = {}
+	for _ = 1, n do
+		local picked
+		for step = 0, #rot - 1 do
+			local pos = (cursor + step) % #rot
+			if inventory.is_unlocked(rot[pos + 1], reached) then
+				picked, cursor = rot[pos + 1], (pos + 1) % #rot
+				break
+			end
+		end
+		out[#out + 1] = picked or C.level_chest.fallback
 	end
-	return C.level_chest.fallback
+	return out, cursor
 end
 
--- Content of the chest for beating `level_id`, or nil if that level has none.
--- `reached` is the level the player moves on to (decides which boosters are
--- unlocked). Chest k deals the next boosters of the rotation after the ones
--- chests 1..k-1 dealt, so the sequence is fixed and needs no saved state.
-function M.level_chest(level_id, reached)
+-- Content of the chest for beating `level_id`, or nil if that level has none:
+-- {k, coins, boosters = {ids}, infinite_minutes}. Levels are played in order,
+-- so chest j always opens when the player moves on to level j * every + 1;
+-- the walk over the rotation is replayed from chest 1 and needs no saved state.
+function M.level_chest(level_id)
 	local cfg = C.level_chest
-	if level_id % cfg.every ~= 0 then return nil end
+	if level_id < cfg.every or level_id % cfg.every ~= 0 then return nil end
 	local k = level_id / cfg.every
-	local function count(j) return j % 2 == 1 and cfg.boosters_odd or cfg.boosters_even end
-	local pos = 1
-	for j = 1, k - 1 do pos = pos + count(j) end
-	local boosters = {}
-	for i = 0, count(k) - 1 do boosters[#boosters + 1] = rotation_pick(pos + i, reached) end
+	local cursor, boosters = 0, nil
+	for j = 1, k do
+		local n = j % 2 == 1 and cfg.boosters_odd or cfg.boosters_even
+		boosters, cursor = deal(cursor, n, j * cfg.every + 1)
+	end
 	return {
 		k = k,
 		coins = cfg.coins_base + cfg.coins_per_k * k,
