@@ -174,9 +174,9 @@ function M.restore(raw, districts)
 end
 
 -- A new state with every field at its default. The facade adds the starting
--- coins through the ledger.
+-- coins and the gifts of boosters open from the start through the ledger.
 function M.fresh(salt, districts)
-	return (M.restore({ salt = salt }, districts))
+	return (M.restore({ salt = salt, unlock_gifts = {} }, districts))
 end
 
 -- Tries the current slot, then the previous one. Returns state, info or

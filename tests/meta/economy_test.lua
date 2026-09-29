@@ -1,3 +1,4 @@
+local C = require("meta.config")
 local economy = require("meta.economy")
 local H = require("tests.meta.helper")
 
@@ -71,6 +72,8 @@ end)
 
 describe("economy rewards", function()
 	it("pays 25 x difficulty + 5 per move left", function()
+		for _, d in ipairs(C.difficulties) do assert_true(economy.is_difficulty(d), d) end
+		assert_false(economy.is_difficulty("brutal"))
 		assert_same({ economy.win_reward("easy", 0) }, { 25, 1 })
 		assert_same({ economy.win_reward("medium", 4) }, { 45, 1 })
 		assert_same({ economy.win_reward("hard", 0) }, { 50, 2 })
@@ -94,20 +97,38 @@ describe("economy rewards", function()
 			{ 150, { "disco", "stick" }, 30 },
 		}
 		for k = 1, 10 do
-			local chest = economy.level_chest(10 * k, 10 * k + 1)
+			local chest = economy.level_chest(10 * k)
 			assert_same(chest, { k = k, coins = expected[k][1], boosters = expected[k][2], infinite_minutes = expected[k][3] }, "chest " .. k)
 		end
-		assert_eq(economy.level_chest(15, 16), nil)
-		assert_eq(economy.level_chest(1, 2), nil)
+		assert_eq(economy.level_chest(15), nil)
+		assert_eq(economy.level_chest(1), nil)
+		assert_eq(economy.level_chest(0), nil)
 	end)
 
-	it("skips locked boosters in the rotation and falls back to the stick", function()
-		-- chest 2 with only stick and riff unlocked: row_light is skipped -> riff, riff
-		assert_same(economy.level_chest(20, 13).boosters, { "riff", "riff" })
-		-- only the stick unlocked: every slot ends on the stick
-		assert_same(economy.level_chest(20, 9).boosters, { "stick", "stick" })
-		-- nothing unlocked at all: the fallback
-		assert_same(economy.level_chest(10, 1).boosters, { "stick" })
+	it("walks past a locked booster instead of dealing a neighbour twice", function()
+		-- row_light unlocks at 30: chest 2 (opened on the way to level 21) skips it
+		H.with_unlocks({ row_light = 30 }, function()
+			assert_same(economy.level_chest(10).boosters, { "stick" })
+			assert_same(economy.level_chest(20).boosters, { "riff", "col_light" }, "no riff twice")
+			assert_same(economy.level_chest(30).boosters, { "sub" }, "the walk goes on after col_light")
+			assert_same(economy.level_chest(40).boosters, { "remix", "disco" })
+			assert_same(economy.level_chest(50).boosters, { "stick" })
+			assert_same(economy.level_chest(60).boosters, { "row_light", "riff" }, "open now, dealt on the next lap")
+		end)
+	end)
+
+	it("gives the fallback while nothing is unlocked and then continues the walk", function()
+		H.with_unlocks({ stick = 15, row_light = 15, riff = 15, col_light = 15, sub = 15, remix = 15, disco = 15 }, function()
+			assert_same(economy.level_chest(10).boosters, { "stick" }, "fallback")
+			assert_same(economy.level_chest(20).boosters, { "stick", "row_light" }, "the walk did not move")
+		end)
+		H.with_unlocks({ stick = 50, row_light = 50, riff = 50, col_light = 50, sub = 50, remix = 50, disco = 50 }, function()
+			assert_same(economy.level_chest(20).boosters, { "stick", "stick" })
+		end)
+		-- only the stick open: every slot ends on it
+		H.with_unlocks({ row_light = 50, riff = 50, col_light = 50, sub = 50, remix = 50, disco = 50 }, function()
+			assert_same(economy.level_chest(20).boosters, { "stick", "stick" })
+		end)
 	end)
 
 	it("prices continues 700, 1400, 2100 and then stops", function()

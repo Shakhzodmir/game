@@ -56,6 +56,25 @@ function H.ledger_sum(entries, item, reason)
 	return sum
 end
 
+-- Runs fn with booster unlock levels changed ({[id] = level}), as a config
+-- update would, and restores them afterwards even if fn fails.
+function H.with_unlocks(levels, fn)
+	local C = require("meta.config")
+	local old = {}
+	for _, def in ipairs(C.boosters) do
+		old[def.id] = def.unlock
+		if levels[def.id] then def.unlock = levels[def.id] end
+	end
+	local ok, err = pcall(fn)
+	for _, def in ipairs(C.boosters) do def.unlock = old[def.id] end
+	if not ok then error(err, 0) end
+end
+
+-- A copy of content/districts.json to edit in a test.
+function H.districts_copy()
+	return json.decode(json.encode(H.districts()))
+end
+
 function H.json_round_trip(t)
 	return json.decode(json.encode(t))
 end
