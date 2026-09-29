@@ -1,0 +1,34 @@
+{
+  "id": 23, "version": 1,
+  "size": [9, 9],
+  "moves": 28,
+  "difficulty": "easy",
+  "colors": ["orange", "yellow", "green", "purple"],
+  "goals": [{"type": "break", "item": "record_box", "count": 13}],
+  "cells": [
+    "...###...",
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####..",
+    "...###..."
+  ],
+  "slots": [
+    {"at": [4, 1], "type": "record_box", "hp": 1},
+    {"at": [4, 2], "type": "record_box", "hp": 1},
+    {"at": [3, 3], "type": "record_box", "hp": 1},
+    {"at": [5, 3], "type": "record_box", "hp": 1},
+    {"at": [1, 4], "type": "record_box", "hp": 1},
+    {"at": [2, 4], "type": "record_box", "hp": 1},
+    {"at": [4, 4], "type": "record_box", "hp": 1},
+    {"at": [6, 4], "type": "record_box", "hp": 1},
+    {"at": [7, 4], "type": "record_box", "hp": 1},
+    {"at": [3, 5], "type": "record_box", "hp": 1},
+    {"at": [5, 5], "type": "record_box", "hp": 1},
+    {"at": [4, 6], "type": "record_box", "hp": 1},
+    {"at": [4, 7], "type": "record_box", "hp": 1}
+  ]
+}

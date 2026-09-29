@@ -24,10 +24,14 @@ textures {
   name: "ui"
   texture: "/assets/gen/ui.atlas"
 }
+textures {
+  name: "meta"
+  texture: "/assets/gen/meta.atlas"
+}
 materials {
   name: "grey"
   material: "/render/gui_grey.material"
 }
 material: "/builtins/materials/gui.material"
 adjust_reference: ADJUST_REFERENCE_DISABLED
-max_nodes: 1024
+max_nodes: 2048

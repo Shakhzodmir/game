@@ -1,7 +1,6 @@
 -- Start board (section 4).
 
 local C = require("core.const")
-local U = require("core.util")
 local B = require("core.board")
 local R = require("core.rng")
 local M = require("core.match")

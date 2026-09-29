@@ -251,6 +251,7 @@ function Scene:clear(node)
 	prune(self.anchored, "node")
 	prune(self.backdrops, "image")
 	if self.pressed and within(self.pressed.node, node) then self.pressed = nil end
+	if self.input_root and within(self.input_root, node) then self.input_root = nil end
 	gui.delete_node(node)
 end
 
@@ -387,14 +388,12 @@ end
 -- image (or its atlas in this GUI) is missing.
 function Scene:image(parent, key, x, y, opts)
 	opts = opts or {}
-	local e = assets.image(key)
+	local e = assets.for_gui(key, self.gui_path) -- a copy in another atlas of this GUI
 	if not e then return nil end
 	local tex
 	if e.file then
 		tex = self:loose_texture(key, e)
 		if not tex then return nil end
-	elseif self.gui_path and not assets.gui_has_texture(self.gui_path, e.atlas) then
-		return nil
 	end
 	local s = opts.scale or 1
 	local w, h = opts.w or e.w * s, opts.h or e.h * s
@@ -688,12 +687,36 @@ local function visible(node)
 	return true
 end
 
+-- Only buttons inside `node` take taps (nil: every button). A popup sets it
+-- to its own layer, so the screen under it cannot be tapped through.
+function Scene:set_input_root(node)
+	self.input_root = node
+	if self.pressed and node and not within(self.pressed.node, node) then self.pressed = nil end
+end
+
 function Scene:hit(action)
+	local root = self.input_root
 	for i = #self.buttons, 1, -1 do
 		local b = self.buttons[i]
-		if b.enabled and visible(b.node) and gui.pick_node(b.node, action.x, action.y) then return b end
+		if b.enabled and visible(b.node) and (not root or within(b.node, root))
+			and gui.pick_node(b.node, action.x, action.y) then
+			return b
+		end
 	end
 	return nil
+end
+
+-- Logical (720x1280, y up) coordinates of an input action.
+function Scene:logical(action)
+	return layout.screen_to_logical(self.fit, action.screen_x or action.x, action.screen_y or action.y)
+end
+
+-- Where a logical point anchored to an edge ("top" | "bottom") is now.
+function Scene:anchored_y(y, edge)
+	local sr = self.safe
+	if edge == "top" then return y + (sr.y1 - layout.H) end
+	if edge == "bottom" then return y + sr.y0 end
+	return y
 end
 
 -- small animations ------------------------------------------------------------------------------------

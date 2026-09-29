@@ -7,7 +7,7 @@
   "goals": [
     {"type": "break", "item": "record_box", "count": 12},
     {"type": "light"},
-    {"type": "collect", "color": "purple", "count": 30}
+    {"type": "collect", "color": "purple", "count": 40}
   ],
   "cells": [
     "..#####..",
@@ -40,10 +40,10 @@
     {"at": [6, 10], "hp": 1}
   ],
   "slots": [
-    {"at": [1, 5], "type": "record_box", "hp": 1},
-    {"at": [2, 5], "type": "record_box", "hp": 1},
-    {"at": [6, 5], "type": "record_box", "hp": 1},
-    {"at": [7, 5], "type": "record_box", "hp": 1},
+    {"at": [1, 5], "type": "record_box", "hp": 2},
+    {"at": [2, 5], "type": "record_box", "hp": 2},
+    {"at": [6, 5], "type": "record_box", "hp": 2},
+    {"at": [7, 5], "type": "record_box", "hp": 2},
     {"at": [1, 6], "type": "record_box", "hp": 2},
     {"at": [2, 6], "type": "record_box", "hp": 2},
     {"at": [6, 6], "type": "record_box", "hp": 2},

@@ -15,6 +15,8 @@
 --   assets.district_bg_key("cafe", "concert") --> "districts/cafe/bg_concert",
 --                                        falling back to the day bg | nil
 --   assets.district_bg("cafe", "concert") --> image entry of that key | nil
+--   assets.for_gui("pieces/red", "/screens/town/town.gui") --> the entry with the
+--                                        atlas this GUI has (a copy in "meta"), nil if none
 --   assets.gui_has_texture("/screens/level/level.gui", "game") --> bool
 --   assets.gui_has_material("/screens/town/town.gui", "grey")  --> bool
 
@@ -97,6 +99,29 @@ end
 function M.gui_has_material(gui_path, material)
 	local g = M.index.guis[gui_path]
 	return g ~= nil and listed(g.materials, material)
+end
+
+-- The image entry as a GUI can draw it: the primary atlas when the GUI has
+-- it, else a copy listed in `also` (the curated meta atlas), with the same
+-- animation id. Loose images and GUIs unknown to the registry pass through.
+-- nil when the image is missing or no atlas of it is in the GUI.
+local alt_cache = {}
+function M.for_gui(key, gui_path)
+	local e = M.index.images[key]
+	if not e or e.file or not gui_path or not M.index.guis[gui_path] then return e end
+	if M.gui_has_texture(gui_path, e.atlas) then return e end
+	for _, a in ipairs(e.also or {}) do
+		if M.gui_has_texture(gui_path, a) then
+			local ck = key .. "@" .. a
+			local c = alt_cache[ck]
+			if not c then
+				c = { atlas = a, anim = e.anim, w = e.w, h = e.h, slice9 = e.slice9 }
+				alt_cache[ck] = c
+			end
+			return c
+		end
+	end
+	return nil
 end
 
 function M.font_size(name)
