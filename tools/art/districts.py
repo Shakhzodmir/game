@@ -555,10 +555,10 @@ def bg_stadium():
     f = full(cv)
     sky(cv, f, 0, 200, sun=(300, 44, 18), clouds=[(70, 50, 0.3, 1.0), (240, 96, 0.2, 0.8)])
     # stands: curved tiers
-    for k, (y0, c) in enumerate(((100, "#FF9EC7"), (136, "#7FC8FF"), (172, "#FFD36E"), (208, "#C9A7FF"),
-                                  (244, "#8BE39A"), (280, "#FF9EC7"))):
+    for k, (y0, c) in enumerate(((90, "#FF9EC7"), (123, "#7FC8FF"), (156, "#FFD36E"), (189, "#C9A7FF"),
+                                  (222, "#8BE39A"), (255, "#FF9EC7"))):
         tier = sd_ellipse(X, Y, 180, y0 + 330, 420, 330)
-        tier = np.maximum(tier, -sd_ellipse(X, Y, 180, y0 + 366, 420, 330))
+        tier = np.maximum(tier, -sd_ellipse(X, Y, 180, y0 + 363, 420, 330))
         cc = C(c)
         cv.fill(tier, mix(cc, WHITE, 0.1))
         cv.fill(np.maximum(tier, -(tier + 3.0)), mix(cc, C("#7B4FFF"), 0.18), 0.55)
@@ -568,7 +568,7 @@ def bg_stadium():
     crowd = np.full(X.shape, 1e3, F32)
     for _ in range(170):
         x = g.random() * W
-        y = 110 + g.random() * 200
+        y = 100 + g.random() * 190
         crowd = np.minimum(crowd, sd_circle(X, Y, x, y, 2.1))
     cv.fill(np.maximum(crowd, Y - fy + 10), "#FFFFFF", 0.6)
     # roof truss
