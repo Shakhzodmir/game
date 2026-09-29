@@ -161,15 +161,16 @@ def bell_fm(f, dur, sr, ratio=3.5, index=2.0, t60=1.6):
 # ---------------------------------------------------------------- strings
 
 @lru_cache(maxsize=None)
-def guitar(midi, dur, sr, bright=0.55, t60=2.2, pick=0.14, mute=0.06, key=0, damp=0.5):
-    """Clean plucked string (tuned Karplus-Strong), damped at note-off."""
+def guitar(midi, dur, sr, bright=0.55, t60=2.2, pick=0.14, mute=0.06, key=0, damp=0.5, attack=0.0005):
+    """Clean plucked string (tuned Karplus-Strong), damped at note-off.
+    A longer `attack` (seconds) gives a softer, thumb-like pluck."""
     f = midi_hz(midi)
     n_rel = mute
     y = dsp.ks_pluck(f, dur + n_rel + 0.02, sr, t60=t60, bright=bright, pick=pick,
                      key=f"g{midi}/{key}", damp=damp)
     t = np.arange(len(y)) / sr
     y = y * np.exp(-LN1000 * np.maximum(t - dur, 0.0) / max(mute, 0.01))
-    return _ro(dsp.fade(y, sr, 0.0005, 0.008))
+    return _ro(dsp.fade(y, sr, attack, 0.008))
 
 
 def strum(midis, dur, sr, spread=0.012, up=False, vel=1.0, **kw):
@@ -435,33 +436,39 @@ def snap(sr, key=0):
     return dsp.fade(x, sr, 0.0002, 0.01)
 
 
-def ride(sr, key=0, t60=2.2, bell=0.35):
+def _metal(n, sr, key, scale=1.0):
+    """Six detuned square waves at the classic inharmonic 808 ratios: a dense,
+    non-pitched metallic spectrum (no single ringing partial)."""
+    r = dsp.rng("metal", key)
+    x = np.zeros(n)
+    for fr in (205.3, 304.4, 369.6, 522.7, 540.0, 800.0):
+        x += dsp.pulse(fr * scale * r.uniform(0.985, 1.015), n, sr, 0.5, r.uniform())
+    return x / 6.0
+
+
+def ride(sr, key=0, t60=2.0, bell=0.3):
     r = dsp.rng("ride", key)
     n = nsamp(t60, sr)
     t = np.arange(n) / sr
-    x = np.zeros(n)
-    for i in range(34):
-        f = r.uniform(420, min(9500, 0.45 * sr))
-        x += r.uniform(0.3, 1.0) * np.sin(TAU * f * t + r.uniform(0, TAU)) * np.exp(
-            -LN1000 * t / (t60 * r.uniform(0.25, 1.0)))
-    x /= 8.0
-    x += bell * (np.sin(TAU * 740 * t) + 0.6 * np.sin(TAU * 1105 * t)) * np.exp(-LN1000 * t / 0.9)
-    x += 0.6 * dsp.highpass(r.standard_normal(n), 4000, sr) * np.exp(-t / 0.012)
-    x = dsp.highpass(x, 300, sr)
-    return dsp.fade(x, sr, 0.0004, 0.05)
+    wash = dsp.bandpass(_metal(n, sr, f"r{key}", 3.4), 4000, min(10000, 0.45 * sr), sr)
+    wash *= dsp.env_perc(n, sr, t60, 0.001)
+    hiss = dsp.highpass(r.standard_normal(n), min(5000, 0.3 * sr), sr) * dsp.env_perc(n, sr, t60 * 0.5, 0.001)
+    ping = dsp.bandpass(r.standard_normal(n), 2500, 6000, sr) * np.exp(-t / 0.015)
+    bl = dsp.bandpass(_metal(n, sr, f"rb{key}", 1.3), 700, 2600, sr) * dsp.env_perc(n, sr, 0.45, 0.001)
+    x = wash / (dsp.peak(wash) + 1e-9) + 0.5 * hiss / (dsp.peak(hiss) + 1e-9) + 0.45 * ping / (dsp.peak(ping) + 1e-9)
+    x += bell * bl / (dsp.peak(bl) + 1e-9)
+    return dsp.fade(0.8 * x / dsp.peak(x), sr, 0.0004, 0.05)
 
 
 def crash(sr, key=0, t60=2.6):
     r = dsp.rng("crash", key)
     n = nsamp(t60, sr)
     t = np.arange(n) / sr
-    x = dsp.highpass(r.standard_normal(n), 2500, sr, 2)
-    x = dsp.lowpass(x, min(11000, 0.45 * sr), sr, 1)
-    for i in range(24):
-        f = r.uniform(600, min(8000, 0.44 * sr))
-        x += 0.35 * np.sin(TAU * f * t + r.uniform(0, 6))
-    x *= dsp.env_perc(n, sr, t60, 0.002) * (1 + 1.5 * np.exp(-t / 0.05))
-    return dsp.fade(x / 4.0, sr, 0.0005, 0.1)
+    metal = dsp.highpass(_metal(n, sr, f"c{key}", 2.6), 2200, sr, 2)
+    nz = dsp.lowpass(dsp.highpass(r.standard_normal(n), 2500, sr, 2), min(11000, 0.45 * sr), sr, 1)
+    x = 0.6 * metal / dsp.peak(metal) + nz / dsp.peak(nz)
+    x *= dsp.env_perc(n, sr, t60, 0.002) * (1 + 1.2 * np.exp(-t / 0.06))
+    return dsp.fade(0.8 * x / dsp.peak(x), sr, 0.0005, 0.1)
 
 
 def tom(sr, f0=110.0, t60=0.55, key=0):
@@ -507,12 +514,12 @@ def cowbell(sr, key=0, f1=587.3, f2=880.0, t60=0.35):
     return dsp.fade(x, sr, 0.0005, 0.01)
 
 
-def brush_tap(sr, key=0, dur=0.12):
+def brush_tap(sr, key=0, dur=0.12, tone=175.0):
     r = dsp.rng("brtap", key)
     n = nsamp(dur, sr)
     t = np.arange(n) / sr
     x = dsp.bandpass(r.standard_normal(n), 1500, 7000, sr) * (1 - np.exp(-t / 0.003)) * np.exp(-t / 0.035)
-    x += 0.25 * np.sin(TAU * 190 * t) * np.exp(-t / 0.03)
+    x += 0.2 * np.sin(TAU * tone * t) * np.exp(-t / 0.025)
     return dsp.fade(x, sr, 0.0005, 0.01)
 
 

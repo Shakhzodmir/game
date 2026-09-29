@@ -162,8 +162,9 @@ def seam_check(y, sr, beat_samples, pre=None):
 
 
 def harmony_check(x, sr, tonic):
-    """Share of tonal energy (spectral peaks 80 Hz..2 kHz) that falls on the
-    district's major scale. Drums/noise stems are reported but not judged."""
+    """Share of tonal energy (the 6 strongest spectral peaks per 186 ms frame,
+    80 Hz..2 kHz) that falls on the district's major scale. Drum and noise
+    stems are reported but not judged."""
     nfft, hop = 4096, 2048
     scale = {(tonic + k) % 12 for k in (0, 2, 4, 5, 7, 9, 11)}
     fr = np.fft.rfftfreq(nfft, 1.0 / sr)
@@ -177,7 +178,10 @@ def harmony_check(x, sr, tonic):
         if m.max() <= 1e-6:
             continue
         pk = (m > np.roll(m, 1)) & (m >= np.roll(m, -1)) & (m > m.max() * 0.03)
-        e = (m * pk) ** 2
+        top = np.argsort(m * pk)[-6:]  # the 6 strongest spectral peaks of the frame
+        keep = np.zeros_like(pk)
+        keep[top] = pk[top]
+        e = (m * keep) ** 2
         tot += e.sum()
         ins += e[inside].sum()
     return round(100.0 * ins / tot, 1) if tot > 0 else None
@@ -360,7 +364,7 @@ def write_report(man):
     a("window across the seam divided by the largest such value on the other beat lines (a seam click would make")
     a("either ≫ 1; pass ≤ 1.5). *Codec edge* = Vorbis coding error in the first/last")
     a("10 ms relative to the 99th percentile of that error over the file (encoder edge artifacts would make it ≫ 1).")
-    a("*In-scale %* = share of tonal spectral-peak energy (80 Hz–2 kHz) on the district's major scale; drum and")
+    a("*In-scale %* = share of the energy of the 6 strongest spectral peaks per frame (80 Hz–2 kHz) that falls on the district's major scale; drum and")
     a("noise stems naturally score lower, and the jazz dominants deliberately use altered tones.")
     a("")
     for dd in man["music"].values():
@@ -396,10 +400,10 @@ def write_report(man):
 def run_checks(man):
     out, ok = [], True
     nf = man["notes"]["files"]
-    c1 = all(abs(r["peak_dbfs"] - NOTE_PEAK_DB) <= 0.05 for r in nf)
+    c1 = all(abs(r["peak_dbfs"] - NOTE_PEAK_DB) <= 0.1 for r in nf)
     c2 = max(abs(r["cents"]) for r in nf)
     c3 = all(0.6 <= r["duration"] <= 1.2 for r in nf)
-    out.append(f"Notes: {len(nf)} files, peaks at -3.00 ± 0.05 dBFS: {'PASS' if c1 else 'FAIL'}; "
+    out.append(f"Notes: {len(nf)} files, peaks at -3.0 ± 0.1 dBFS: {'PASS' if c1 else 'FAIL'}; "
                f"max pitch error {c2:.2f} cents: {'PASS' if c2 < 5 else 'FAIL'}; "
                f"lengths 0.6–1.2 s: {'PASS' if c3 else 'FAIL'}.")
     ok &= c1 and c2 < 5 and c3

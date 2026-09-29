@@ -492,7 +492,7 @@ def cafe_lead(s):
     b = s.zeros()
     r = dsp.rng(s.id, "lead")
     for bt, du, m in CAFE_LEAD:
-        x = ins.guitar(m, s.sec(du) + 0.05, s.sr, bright=0.33, t60=1.6, pick=0.21, mute=0.1, key=m % 3)
+        x = ins.guitar(m, s.sec(du) + 0.05, s.sr, bright=0.22, t60=1.6, pick=0.21, mute=0.1, key=m % 3, attack=0.004)
         s.add(b, x, sw16(bt, 0.45), r.uniform(0.75, 0.95), dt=0.015 + r.normal(0, 0.004))
     b = loop_filter(s, b, "lp", 4200)
     b = loop_eq(s, b, "peak", 250, 2.0, 0.8)
@@ -595,6 +595,8 @@ def walking_line(s, lo=28, hi=50, start=38, seed="walk"):
         appr = tgt + (1 if (i % 3 == 0 and tgt + 1 <= hi) else -1)
         if i % 5 == 4:
             appr = nearest((nx.root + 7) % 12, prev, lo, hi)
+        if appr == prev:  # never repeat the 3rd beat: approach from the other side
+            appr = tgt + 1 if appr < tgt else tgt - 1
         notes.append(appr)
         prev = appr
         for k, m in enumerate(notes):
@@ -648,8 +650,8 @@ JAZZ_TPT = bars({
 
 
 def sax_voice(s, notes, key="sax"):
-    src, env, onset = render_line(s, notes, osc="saw", glide=0.03, attack=0.035, release=0.07,
-                                  vib_rate=5.0, vib_depth=0.16, vib_delay=0.22, key=key)
+    src, env, onset = render_line(s, notes, osc="saw", glide=0.015, legato_gap=0.005, attack=0.03,
+                                  release=0.06, vib_rate=5.0, vib_depth=0.16, vib_delay=0.22, key=key)
     x = src * env
     x = dsp.sweep_filter(x, 700.0 + 2600.0 * np.clip(env, 0, 1), s.sr, q=0.8)
     x = dsp.filt(x, "peak", 520, s.sr, q=1.0, gain_db=4.0)
@@ -667,7 +669,8 @@ def jazz_sax(s):
 
 
 def jazz_trumpet(s):
-    src, env, _ = render_line(s, events(s, JAZZ_TPT), osc="saw", glide=0.02, attack=0.02, release=0.06,
+    src, env, _ = render_line(s, events(s, JAZZ_TPT), osc="saw", glide=0.01, legato_gap=0.005, attack=0.02,
+                              release=0.06,
                               vib_rate=5.6, vib_depth=0.08, vib_delay=0.2, scoop=0.3, key="tpt")
     x = src * env
     x = dsp.highpass(x, 550, s.sr, 2)
@@ -839,7 +842,7 @@ SQ_CLAR = bars({
 def square_clarinet(s):
     ev = [(sw8(e[0], 0.18), e[1], e[2], 0.8) for e in SQ_CLAR]
     src, env, _ = render_line(s, events(s, ev), osc="pulse", pw=0.5,
-                              glide=0.025, attack=0.03, release=0.06, vib_rate=5.5, vib_depth=0.06,
+                              glide=0.008, legato_gap=0.004, attack=0.025, release=0.05, vib_rate=5.5, vib_depth=0.06,
                               vib_delay=0.3, key="clar")
     x = src * env
     x = dsp.sweep_filter(x, 900.0 + 2400.0 * np.clip(env, 0, 1), s.sr, q=0.7)
@@ -1015,7 +1018,8 @@ ST_HOOK = bars({
 
 
 def stadium_hook(s):
-    src, env, onset = render_line(s, events(s, ST_HOOK), osc="saw", detune=9.0, glide=0.03, attack=0.01,
+    src, env, onset = render_line(s, events(s, ST_HOOK), osc="saw", detune=9.0, glide=0.02, legato_gap=0.004,
+                                  attack=0.01,
                                   release=0.08, vib_rate=5.8, vib_depth=0.12, vib_delay=0.15, key="hook")
     x = src * env
     x = dsp.sweep_filter(x, 1800.0 + 2500.0 * onset, s.sr, q=1.0)
@@ -1128,10 +1132,12 @@ GA_LEAD = bars({
 
 
 def garage_lead(s):
-    src, env, onset = render_line(s, events(s, GA_LEAD), osc="saw", detune=6.0, glide=0.018, attack=0.004,
-                                  release=0.05, vib_rate=5.6, vib_depth=0.22, vib_delay=0.28, key="glead")
+    src, env, onset = render_line(s, events(s, GA_LEAD), osc="saw", glide=0.006, legato_gap=0.004, attack=0.003,
+                                  release=0.045, vib_rate=5.6, vib_depth=0.22, vib_delay=0.28, key="glead")
     x = src * (env * (0.55 + 0.45 * np.clip(onset, 0, 1)))
-    x = ins.amp_sim(x / dsp.peak(x), s.sr, gain=14.0, tone=4200, key_hz=1600)
+    x = dsp.highpass(x, 250, s.sr, 2)  # keep lows out of the distortion (no intermodulation rumble)
+    x = ins.amp_sim(x / dsp.peak(x), s.sr, gain=9.0, tone=4200, key_hz=1600)
+    x = dsp.highpass(x, 140, s.sr, 2)
     b = wrap(s, x / dsp.peak(x))
     b = echo(s, b, 0.5, 0.18, 0.3, 3, 2500)
     return room(s, b, 0.18, 1.2, "lead", damp=4000)

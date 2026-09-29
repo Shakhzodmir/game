@@ -135,8 +135,11 @@ def item_piano():
         cv.fill(sd_ellipse(X, Y, nx, ny, 3.2, 2.4, ang=-0.4), "#2B2345")
     # candles
     for cx in (30, 226):
-        P(cv, sd_rect(X, Y, cx - 4, 0, cx + 4, 18, 2), "#FFF3E0", "#FFFFFF", "#D9C4A0", lw=1.8, depth=3)
-        flame = sd_ellipse(X, Y, cx, -3 + 0, 3.2, 5.5)
+        P(cv, sd_rect(X, Y, cx - 4, 16, cx + 4, 30, 2), "#FFF3E0", "#FFFFFF", "#D9C4A0", lw=1.8, depth=3)
+    for cx in (30, 226):
+        fl = SU(sd_circle(X, Y, cx, 12, 4.2), sd_poly(X, Y, [(cx - 3, 11), (cx + 3, 11), (cx, 1)]), 2)
+        glow(cv, fl, "#FFD27A", 8, 0.8, mode="over")
+        P(cv, fl, "#FFD23F", "#FFFBD8", "#FF8C1A", lw=1.4, depth=3, spec=0.2)
     ledge = sd_rect(X, Y, 16, 112, 240, 126, 4)
     P(cv, ledge, "#7E4636", "#C17F66", "#34160F", depth=5)
     keys(cv, 24, 126, 232, 152, n=21)
@@ -238,16 +241,16 @@ def item_sign():
             bx, by = 16, 138 - (s - 530)
         glow(cv, sd_circle(X, Y, bx, by, 3), "#FFE66D", 5, 0.6, mode="over")
         P(cv, sd_circle(X, Y, bx, by, 4.2), "#FFF3B0", "#FFFFFF", "#E0A000", lw=1.5, depth=3, spec=0.5)
-    txt = text_sdf(cv, "CAFÉ", FONT, 50, 150, 88)
+    txt = text_sdf(cv, "CAFÉ", FONT, 44, 160, 90)
     glow(cv, txt, "#FF8E72", 10, 0.9, mode="over")
     cv.fill(txt - 2.5, "#7A1E3A")
     cv.fill_grad(txt, [(0, "#FFF4D0"), (1, "#FFB36B")], axis="y", p0=66, p1=110)
     # coffee cup
-    cup = U(I(sd_rect(X, Y, 42, 76, 82, 116, 10), Y - 76), sd_ring(X, Y, 84, 92, 8, 5))
+    cup = U(sd_rect(X, Y, 34, 82, 66, 116, 9), sd_ring(X, Y, 68, 96, 7, 4.5))
     P(cv, cup, "#FFF6E5", "#FFFFFF", "#D9C4A0", lw=2.2, depth=6)
-    cv.fill(sd_ellipse(X, Y, 62, 78, 18, 4), "#7A3E1A")
-    for sx in (54, 68):
-        line(cv, bez((sx, 70), (sx - 6, 60), (sx + 4, 52), (sx - 2, 42), n=10), 3, "#FFFFFF", 0.8)
+    cv.fill(sd_ellipse(X, Y, 50, 84, 14, 3.5), "#7A3E1A")
+    for sx in (44, 56):
+        line(cv, bez((sx, 76), (sx - 5, 66), (sx + 4, 58), (sx - 2, 48), n=10), 3, "#FFFFFF", 0.8)
     return cv
 
 
@@ -569,8 +572,8 @@ def _mirror(cv):
 def item_trumpets():
     """Two crossed trumpets with a ribbon."""
     base = item_trumpet(mute=False, h=210, rot=0)
-    right = base.transformed(-32, pivot=(120, 80), sx=0.86, sy=0.86, dx=6, dy=46)
-    left = _mirror(base).transformed(32, pivot=(120, 80), sx=0.86, sy=0.86, dx=-6, dy=46)
+    right = base.transformed(-32, pivot=(120, 80), sx=0.98, sy=0.98, dx=8, dy=40)
+    left = _mirror(base).transformed(32, pivot=(120, 80), sx=0.98, sy=0.98, dx=-8, dy=40)
     cv = Canvas(240, 210)
     cv.over(left)
     cv.over(right)
@@ -913,8 +916,6 @@ def item_drum_kit():
     P(cv, head, "#FFF6E5", "#FFFFFF", "#D9C4A0", lw=2.4, depth=16, spec=0.2)
     st = opening(sd_star(X, Y, 128, 160, 34, 15), 3)
     P(cv, st, "#FFD60A", "#FFF2A6", "#C29B00", lw=2.2, depth=8)
-    txt = text_sdf(cv, "GLOW", FONT, 13, 128, 162)
-    cv.fill(txt, "#8A0A28")
     for k in range(8):
         a = 2 * math.pi * k / 8 + 0.2
         P(cv, sd_circle(X, Y, 128 + 60 * math.cos(a), 156 + 60 * math.sin(a), 4.2), SILVER, lw=1.4, depth=2)
@@ -954,12 +955,14 @@ def item_bass_guitar():
     cv = Canvas(130, 256)
     lay = cv.blank()
     X, Y = lay.X, lay.Y
-    body_pts = bez((65, 150), (20, 136), (14, 172), (30, 190), n=10) + bez((30, 190), (8, 214), (26, 250), (65, 244), n=12)[1:] \
-        + bez((65, 244), (104, 250), (122, 214), (100, 192), n=12)[1:] + bez((100, 192), (116, 172), (110, 132), (65, 150), n=10)[1:]
-    body = opening(sd_poly(X, Y, body_pts), 3)
+    body = SU(sd_circle(X, Y, 65, 214, 38), sd_ellipse(X, Y, 65, 174, 28, 26), 14)
+    body = SU(body, sd_taper(X, Y, 44, 172, 36, 132, 13, 8), 10)
+    body = SU(body, sd_taper(X, Y, 88, 176, 92, 146, 12, 8), 10)
+    body = SUB(body, sd_ellipse(X, Y, 65, 142, 12, 16))
+    body = opening(body, 2)
     P(lay, body, ("#2F9BFF", "#A6D4FF", "#0A58B8"), depth=16, spec=0.7)
-    guard = opening(sd_poly(X, Y, bez((52, 156), (30, 170), (36, 196), n=8) + bez((36, 196), (40, 222), (70, 226), n=8)[1:]
-                              + [(78, 200), (70, 160)]), 3)
+    guard = I(opening(sd_poly(X, Y, [(52, 160), (40, 176), (38, 200), (50, 224), (78, 222), (76, 186), (74, 160)]), 5),
+              body + 3)
     P(lay, guard, "#FFF6E5", "#FFFFFF", "#D9C4A0", lw=1.8, depth=3, spec=0.3)
     neck = sd_rect(X, Y, 58, 30, 72, 196, 3)
     P(lay, neck, ("#E8B36A", "#FFE2B0", "#A8672A"), lw=2.2, depth=4)
@@ -977,9 +980,9 @@ def item_bass_guitar():
     for k in range(4):
         x = 61 + k * 2.7
         lay.fill(sd_capsule(X, Y, x, 34, x, 216, 0.5), "#F4F0E0", 0.9)
-    for (x, y) in ((90, 222), (34, 176)):
+    for (x, y) in ((90, 222), (84, 196)):
         P(lay, sd_circle(X, Y, x, y, 4.5), SILVER, lw=1.4, depth=2)
-    hl(lay, ((30, 214), (22, 190), (32, 172)), 3.5, 1.2, body + 3.5, alpha=0.6)
+    hl(lay, ((34, 222), (30, 196), (40, 178)), 3.5, 1.2, body + 3.5, alpha=0.6)
     cv.over(lay.transformed(-10, pivot=(65, 128)))
     return cv
 
