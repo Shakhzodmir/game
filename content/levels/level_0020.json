@@ -1,12 +1,13 @@
 {
   "id": 20, "version": 1,
   "size": [9, 11],
-  "moves": 30,
+  "moves": 28,
   "difficulty": "easy",
   "colors": ["red", "orange", "green", "blue", "purple"],
   "goals": [
     {"type": "break", "item": "record_box", "count": 12},
-    {"type": "light"}
+    {"type": "light"},
+    {"type": "collect", "color": "purple", "count": 30}
   ],
   "cells": [
     "..#####..",

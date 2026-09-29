@@ -142,6 +142,10 @@ local LEVELS = {
 	{ rows = { "..####..", ".######.", "########", "########", "########", "########" },
 		extra = { moves = 20, goals = { { type = "deliver", count = 3 } },
 			mic = { total = 3, on_board_max = 2, gap_moves = 1 }, slots = { { at = { 3, 2 }, type = "mic" } } } },
+	-- an easy goal: the concert runs
+	{ rows = { "#######", "#######", "#######", "#######", "#######", "#######" },
+		extra = { moves = 15, colors = { "red", "green", "blue", "yellow", "purple" },
+			goals = { { type = "collect", color = "red", count = 8 } } } },
 }
 
 describe("core property: group search", function()
