@@ -16,6 +16,11 @@
 --   app.modal(spec), app.close_modal(button) -- Defold: overlay helpers
 --   app.load_notices()           -- what the splash tells the player after a load
 --   app.free_levels()            -- levels 1..n cost no life (meta config)
+--   app.push_reward(result)      -- a level result for the town to show (client/rewards.lua)
+--   app.open_popup(name, params) -- asks the screen on display for a meta popup
+--   app.close_popup()            -- closes its top popup
+--   app.reduced_motion()         -- the "reduced motion" setting
+--   app.ui                       -- status of the town and its popups (QA / debug)
 --   app.snapshot()               -- plain table for debug / QA bridge
 --
 -- Messages between scripts carry at most 2 KB (msg.post), so specs and
@@ -31,6 +36,7 @@ local i18n = require("client.i18n")
 local platform = require("client.platform")
 local analytics = require("client.services.analytics")
 local audio = require("client.audio")
+local rewards = require("client.rewards")
 local config = require("meta.config")
 
 local M = {}
@@ -53,6 +59,7 @@ M.debug = false
 M.sys_language = nil
 M.settings_rev = 0     -- bumped when the settings may have changed
 M.overlay = {}         -- status written by main/overlay.gui_script (toast, modal, fade)
+M.ui = {}              -- status written by the town and its popup host (client/popups.lua)
 
 local rev_published = -1
 local clock = platform.now
@@ -162,6 +169,37 @@ function M.commit(reason, force)
 	return changed
 end
 
+-- The "reduced motion" setting (cached per settings revision).
+local motion_rev, motion_reduced = -1, false
+function M.reduced_motion()
+	if not M.meta then return false end
+	if motion_rev ~= M.settings_rev then
+		motion_rev = M.settings_rev
+		motion_reduced = M.meta:settings().reduced_motion and true or false
+	end
+	return motion_reduced
+end
+
+-- A level result for the town to show when the player is back (stars and
+-- coins fly into the top bar, chests open, gifts appear). The meta has
+-- already paid it (meta:finish_level); the town shows the balances without
+-- what is still queued. Bus: "reward_pushed" {count}. Returns the queue length.
+function M.push_reward(result)
+	local n = rewards.push(result)
+	if n then bus.publish("reward_pushed", { count = n }) end
+	return n
+end
+
+-- Asks the screen on display to open one of its meta popups (the town:
+-- start, lives, shop, settings, jukebox, concert, chest). Bus "popup_request".
+function M.open_popup(name, params)
+	bus.publish("popup_request", { name = name, params = params })
+end
+
+function M.close_popup()
+	bus.publish("popup_request", { close = true })
+end
+
 -- Changes a setting through the meta and applies it. true, or false and why.
 function M.set_setting(key, value)
 	local ok, why = M.meta:set_setting(key, value)
@@ -190,6 +228,7 @@ end
 -- settings_rev moves, so the audio re-applies the (default) volumes.
 function M.reset_save(seed, now)
 	M.store:wipe()
+	rewards.clear()
 	M.meta = Meta.new(M.districts, seed)
 	M.load_info = { source = "fresh", errors = {}, unlock_gifts = {}, district_chests = {} }
 	rev_published = -1
@@ -344,6 +383,8 @@ function M.snapshot(now)
 		overlay = M.overlay,
 		settings_rev = M.settings_rev,
 		save_failing = M.store and M.store.failing or 0,
+		ui = M.ui,
+		rewards_queued = rewards.count(),
 	}
 	if meta then
 		local lives = meta:lives(now)
@@ -361,6 +402,9 @@ function M.snapshot(now)
 		out.dirty = meta:dirty()
 		out.save_source = M.load_info and M.load_info.source or nil
 		out.streak = meta:streak().count
+		out.run = meta:run() and true or false
+		local st = meta:settings()
+		out.settings = st
 	end
 	return out
 end

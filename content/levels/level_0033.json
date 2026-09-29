@@ -4,7 +4,7 @@
   "moves": 28,
   "difficulty": "easy",
   "colors": ["red", "yellow", "green", "blue", "purple"],
-  "goals": [{"type": "deliver", "count": 5}],
+  "goals": [{"type": "deliver", "count": 4}],
   "cells": [
     "#########",
     "#########",
@@ -21,5 +21,5 @@
     {"at": [7, 1], "type": "mic"},
     {"at": [1, 2], "type": "mic"}
   ],
-  "mic": {"total": 5, "on_board_max": 2, "gap_moves": 2}
+  "mic": {"total": 4, "on_board_max": 3, "gap_moves": 1}
 }

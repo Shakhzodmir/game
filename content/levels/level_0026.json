@@ -3,10 +3,10 @@
   "size": [9, 9],
   "moves": 30,
   "difficulty": "easy",
-  "colors": ["red", "yellow", "green", "blue"],
+  "colors": ["red", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "collect", "color": "red", "count": 22},
-    {"type": "collect", "color": "yellow", "count": 22}
+    {"type": "collect", "color": "red", "count": 35},
+    {"type": "collect", "color": "yellow", "count": 35}
   ],
   "cells": [
     "#########",
