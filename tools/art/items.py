@@ -1282,7 +1282,7 @@ CONTACT = {
     "trumpet": (8, 0.2), "fountain": (8, 0.22), "truck_stage": (8, 0.24), "tuba": (14, 0.24),
     "clarinet": (14, 0.22), "lanterns": (18, 0.22), "confetti": (10, 0.22), "stage": (8, 0.24),
     "screens": (10, 0.2), "choir": (6, 0.22), "fog": (8, 0.22), "drum_kit": (8, 0.24), "amp": (8, 0.25),
-    "keyboard": (10, 0.24), "mic_stand": (16, 0.24), "dancers": (8, 0.22),
+    "keyboard": (10, 0.24), "mic_stand": (16, 0.24), "dancers": (8, 0.22), "lasers": (8, 0.22),
 }
 
 
