@@ -37,3 +37,36 @@ jobs:
         with:
           name: glow-web
           path: dist
+
+  pages:
+    name: Publish web build to gh-pages
+    needs: web
+    # Only builds that passed every test are published. GitHub Pages serves
+    # the gh-pages branch once it is enabled in Settings -> Pages
+    # (Source: Deploy from a branch, Branch: gh-pages, folder: / (root)).
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/claude/brave-maxwell-j19fpr')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: glow-web
+          path: dist
+      - name: Push the bundle to the gh-pages branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd "$(dirname "$(find dist -name index.html | head -1)")"
+          test ! -e DEBUG_BUILD_DO_NOT_PUBLISH
+          touch .nojekyll
+          git init -q
+          git checkout -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Web build of ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
