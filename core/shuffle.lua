@@ -205,7 +205,6 @@ function SH.in_game(s)
 				res.riff, res.riff_from = o, "noise"
 			else
 				-- 6. stuck
-				s.stuck = true
 				E.set_state(s, C.G_OUT, "stuck")
 				s.stuck = true
 				return res

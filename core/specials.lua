@@ -239,6 +239,15 @@ function SP.bird(s, src, o, cell, t0)
 	SP.run_hits(s, src, acts, t0)
 end
 
+-- Record kinds 4 and 5. STAGE B: nothing queues them yet.
+function SP.transform(s, d) -- luacheck: ignore
+	-- "Colour X" transform k (8.5): d = {source, k, piece id}
+end
+
+function SP.bird_impact(s, d) -- luacheck: ignore
+	-- bird impact or cargo activation (8.3): d = {source, cell, cargo, axis}
+end
+
 -- Combo (8.5). STAGE B: combo geometries are not implemented yet; the
 -- combo only hits its centre (which removes both specials) and `from`.
 function SP.combo(s, src, o, po, t0)

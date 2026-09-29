@@ -111,7 +111,7 @@ function ST.build(level, seed, boosters)
 		if n > 1 then unfill(s, free) end
 		fill(s, st, free)
 		report.fills = n
-		if not M.any_match(M.color_map(s), s.W, s.H) and #MV.pairs(s) >= 3 then
+		if not M.any_match(M.color_map(s), s.W, s.H) and #MV.pair_list(s) >= 3 then
 			passed = true
 			break
 		end

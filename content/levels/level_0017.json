@@ -5,7 +5,7 @@
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "purple"],
   "goals": [
-    {"type": "break", "item": "record_box", "count": 8},
+    {"type": "break", "item": "record_box", "count": 4},
     {"type": "light"}
   ],
   "cells": [

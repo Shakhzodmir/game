@@ -599,10 +599,6 @@ local function normalize(raw, errs)
 		col[i] = (p and p.kind == C.K_REGULAR) and p.color or 0
 	end
 	if M.any_match(col, W, H) then errs[#errs + 1] = "2.1.9 starting pieces form a line of 3 or a 2x2 square" end
-	lvl.wired_fill = {}
-	for i = 1, N do
-		lvl.wired_fill[i] = lvl.wires[i] > 0
-	end
 	return lvl, slot_at
 end
 

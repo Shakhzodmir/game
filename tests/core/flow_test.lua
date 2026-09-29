@@ -49,6 +49,43 @@ describe("core flow: rest (11)", function()
 	end)
 end)
 
+describe("core flow: microphones (10.4)", function()
+	it("delivers an idle mic on an exit in step 7 of every tick", function()
+		local deliver = { goals = { { type = "deliver", count = 2 } }, mic = { total = 2, on_board_max = 2, gap_moves = 0 },
+			slots = { { at = { 0, 3 }, type = "mic" } } }
+		local g = fresh({ "rrgrby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "Mrggbg" }, deliver)
+		g.s.on_board, g.s.released = 1, 1
+		local mic = H.obj_at(g, 1, 6)
+		assert_true(g.s.exit[31])
+		g:step()
+		local ev = g:drain_events()
+		assert_same(ev, {
+			{ t = 1, type = "mic_delivered", id = mic.id, x = 1, y = 6 },
+			{ t = 1, type = "goal", index = 1, left = 1 },
+		})
+		assert_eq(mic.state, C.S_CLEAR)
+		assert_eq(g.s.on_board, 0)
+		assert_same({ g.s.vac_mv[31], g.s.vac_wv[31] }, { mic.mv, mic.wv })
+		for _ = 1, 9 do g:step() end
+		assert_eq(g.s.objs[mic.id], nil)
+	end)
+end)
+
+describe("core flow: queries (17.3)", function()
+	it("cells() and status() describe the board and the game", function()
+		local g = fresh(nil, { floor = { { at = { 1, 0 }, hp = 2 } }, overlay = { { at = { 2, 2 }, type = "wires", hp = 1 } } })
+		local cells = g:cells()
+		assert_eq(#cells, 36)
+		assert_same(cells[2], { exists = true, spawner = true, exit = false, floor = 2, wires = 0 })
+		assert_same(cells[15], { exists = true, spawner = false, exit = false, floor = 0, wires = 1 })
+		assert_same(g:status(), { state = "playing", stuck = false, tick = 0, moves_left = 20, score = 0, goals = { 999 } })
+		assert_eq(g:result(), nil)
+		local p = g:pieces()[1]
+		assert_same(p, { id = 1, x = 1, y = 1, kind = "regular", color = "red", state = "idle", offx = 0, offy = 0,
+			hidden = false, pinned = false })
+	end)
+end)
+
 describe("core flow: noise growth (11)", function()
 	local ROWS = { "rrgrby", "yrgbyr", "rgNyrg", "gbyrgb", "byrgby", "yrggbg" }
 
@@ -68,7 +105,7 @@ describe("core flow: noise growth (11)", function()
 	end)
 
 	it("does not grow after an action whose cascade hit noise", function()
-		local g = fresh({ "rrgNby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrggbg" })
+		local g = fresh({ "rrgrby", "Nrgbyr", "rgbyrg", "gbyrgN", "byrgby", "yrggbg" })
 		g:input({ type = "swap", from = { 3, 1 }, to = { 4, 1 } })
 		g:run_to_rest()
 		local ev = g:drain_events()
@@ -188,6 +225,7 @@ describe("core flow: win and final concert (13)", function()
 		assert_same({ g:input({ type = "swap", from = { 5, 6 }, to = { 6, 6 } }) }, { false, "bad_state" })
 		-- run until the concert starts
 		while g.s.state == C.G_WON_WAIT do g:step() end
+		g:drain_events()
 		local s = g.s
 		local tc = s.tick
 		assert_eq(s.tc, tc)
@@ -219,10 +257,10 @@ describe("core flow: win and final concert (13)", function()
 		end
 		assert_eq(g.s.moves_left, 0)
 		local r = g:result()
-		assert_eq(r.moves_at_win, 2)
+		assert_eq(r.moves_at_win, 1, "2 - the winning swap")
 		assert_eq(r.stars, 1)
 		assert_true(r.won)
-		assert_true(r.score >= 600)
+		assert_true(r.score >= 60 + 300, "match + one concert Riff")
 		assert_same(r.unplaced, {})
 		assert_eq(g.s.rounds >= 1, true)
 	end)

@@ -336,7 +336,7 @@ function M.resolve(s, g, swaps)
 			end
 		end
 	end
-	table.sort(adj)
+	table.sort(adj) -- numbers
 	for k = 1, #adj do H.hit(s, adj[k], src_a) end
 	s.in_group = false
 	praise(s, Mv, Wv)

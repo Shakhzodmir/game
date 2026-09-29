@@ -24,7 +24,7 @@ describe("core start board (section 4)", function()
 			local g = core.new(lvl, { seed = seed })
 			local s = g.s
 			assert_false(M.any_match(M.color_map(s), s.W, s.H), "seed " .. seed)
-			assert_true(#MV.pairs(s) >= 3, "seed " .. seed)
+			assert_true(#MV.pair_list(s) >= 3, "seed " .. seed)
 			for _, p in ipairs(g:pieces()) do
 				assert_eq(p.state, "idle")
 				local o = s.objs[p.id]
