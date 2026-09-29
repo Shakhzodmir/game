@@ -76,8 +76,10 @@ def draw_logo():
     fade = smoothstep(top + (bot - top) * 0.42, top + 4, Y[wb])
     cv.paint(np.clip(0.5 - band[wb] * ss, 0, 1) * (0.25 + 0.75 * fade), WHITE, 0.45, win=wb)
     # sparkles
-    for (x, y, r, c) in ((96, 62, 20, "#FFFFFF"), (560, 238, 15, "#FFFFFF"), (486, 52, 11, "#FFFFFF"),
-                         (170, 250, 9, "#FFFFFF")):
-        sparkle4(cv, x, y, r, C(c), glow=6, glow_color="#FFF3A6")
+    for (x, y, r, c) in ((92, 58, 22, "#FFDB1A"), (566, 240, 16, "#FF5C9A"), (488, 48, 12, "#3CE0FF"),
+                         (172, 252, 10, "#9B52FF")):
+        sparkle4(cv, x, y, r + 3, WHITE)
+        sparkle4(cv, x, y, r, C(c))
+        sparkle4(cv, x, y, r * 0.45, WHITE)
     cv.shadow_under(0, 6, 6, "#7B4FFF", 0.3)
     return cv
