@@ -1,0 +1,13 @@
+# Defold
+/.internal
+/build
+/.editor_settings
+/manifest.private.der
+/manifest.public.der
+# local builds and tools
+/dist
+/bob.jar
+/tools/bin
+__pycache__/
+*.pyc
+.DS_Store

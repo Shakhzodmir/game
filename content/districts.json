@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "note": "Single source of truth for the meta layer. Each task costs stars, lights up one scene item and unmutes one music stem of the district track. Stars: sum(cost) per district. Art generator writes item positions to content/district_layouts.json; audio generator writes assets/music/<district>/<stem>.ogg.",
+  "districts": [
+    {
+      "id": "cafe",
+      "name": {"ru": "Lo-fi-кафе", "en": "Lo-fi Café"},
+      "bpm": 90, "key": "F", "semitones_from_c": 5, "bars": 8,
+      "mood": "warm lo-fi hip-hop, dusty, cozy evening",
+      "chest": {"coins": 300, "boosters": ["riff", "stick"]},
+      "tasks": [
+        {"id": "turntable", "name": {"ru": "Проигрыватель", "en": "Turntable"}, "cost": 1, "stem": "beat", "stem_desc": "lo-fi boom-bap drums, soft kick, snappy snare, swung hats"},
+        {"id": "lamps", "name": {"ru": "Тёплые лампы", "en": "Warm lamps"}, "cost": 1, "stem": "vinyl", "stem_desc": "vinyl crackle and room tone, very quiet"},
+        {"id": "piano", "name": {"ru": "Пианино", "en": "Upright piano"}, "cost": 2, "stem": "keys", "stem_desc": "mellow jazzy piano chords, 7ths and 9ths"},
+        {"id": "plants", "name": {"ru": "Растения", "en": "Plants"}, "cost": 2, "stem": "bass", "stem_desc": "round sub bass following chord roots"},
+        {"id": "cat", "name": {"ru": "Кот на подоконнике", "en": "Cat on the sill"}, "cost": 2, "stem": "lead", "stem_desc": "soft plucked guitar melody"},
+        {"id": "sign", "name": {"ru": "Вывеска кафе", "en": "Café sign"}, "cost": 3, "stem": "pad", "stem_desc": "warm tape-wobbly pad"}
+      ]
+    },
+    {
+      "id": "jazz",
+      "name": {"ru": "Джаз-бар", "en": "Jazz Bar"},
+      "bpm": 96, "key": "Bb", "semitones_from_c": -2, "bars": 8,
+      "mood": "late-night swing, smoky, elegant",
+      "chest": {"coins": 450, "boosters": ["sub", "row_light"]},
+      "tasks": [
+        {"id": "stage_light", "name": {"ru": "Свет на сцене", "en": "Stage light"}, "cost": 1, "stem": "brushes", "stem_desc": "brush snare swing, ride cymbal"},
+        {"id": "grand_piano", "name": {"ru": "Рояль", "en": "Grand piano"}, "cost": 2, "stem": "piano", "stem_desc": "swing piano comping"},
+        {"id": "double_bass", "name": {"ru": "Контрабас", "en": "Double bass"}, "cost": 2, "stem": "bass", "stem_desc": "walking upright bass"},
+        {"id": "neon", "name": {"ru": "Неоновая вывеска", "en": "Neon sign"}, "cost": 3, "stem": "organ", "stem_desc": "soft organ pad"},
+        {"id": "sax", "name": {"ru": "Саксофон", "en": "Saxophone"}, "cost": 3, "stem": "sax", "stem_desc": "breathy sax melody"},
+        {"id": "vibes", "name": {"ru": "Вибрафон у стойки", "en": "Vibraphone"}, "cost": 4, "stem": "vibes", "stem_desc": "vibraphone counter-melody"},
+        {"id": "trumpet", "name": {"ru": "Труба с сурдиной", "en": "Muted trumpet"}, "cost": 5, "stem": "trumpet", "stem_desc": "muted trumpet answers"}
+      ]
+    },
+    {
+      "id": "square",
+      "name": {"ru": "Площадь уличного оркестра", "en": "Street Band Square"},
+      "bpm": 104, "key": "G", "semitones_from_c": -5, "bars": 8,
+      "mood": "sunny brass-band funk, festive street",
+      "chest": {"coins": 600, "boosters": ["disco", "col_light"]},
+      "tasks": [
+        {"id": "fountain", "name": {"ru": "Фонтан", "en": "Fountain"}, "cost": 1, "stem": "drums", "stem_desc": "second-line street drums, snare rolls"},
+        {"id": "garlands", "name": {"ru": "Гирлянды", "en": "Garlands"}, "cost": 3, "stem": "shaker", "stem_desc": "shakers and cowbell"},
+        {"id": "truck_stage", "name": {"ru": "Сцена-грузовик", "en": "Truck stage"}, "cost": 3, "stem": "guitar", "stem_desc": "funky clean guitar chops"},
+        {"id": "tuba", "name": {"ru": "Туба", "en": "Tuba"}, "cost": 4, "stem": "tuba", "stem_desc": "sousaphone bass line"},
+        {"id": "trumpets", "name": {"ru": "Трубы", "en": "Trumpets"}, "cost": 4, "stem": "brass", "stem_desc": "brass section stabs"},
+        {"id": "clarinet", "name": {"ru": "Кларнет", "en": "Clarinet"}, "cost": 4, "stem": "clarinet", "stem_desc": "clarinet melody"},
+        {"id": "lanterns", "name": {"ru": "Фонари", "en": "Lanterns"}, "cost": 4, "stem": "claps", "stem_desc": "hand claps and crowd shouts"},
+        {"id": "confetti", "name": {"ru": "Конфетти-пушка", "en": "Confetti cannon"}, "cost": 5, "stem": "whistle", "stem_desc": "whistles and trombone slides"}
+      ]
+    },
+    {
+      "id": "stadium",
+      "name": {"ru": "K-pop-стадион", "en": "K-pop Stadium"},
+      "bpm": 110, "key": "A", "semitones_from_c": -3, "bars": 8,
+      "mood": "bright dance-pop, stadium energy, sparkling",
+      "chest": {"coins": 800, "boosters": ["disco", "sub", "remix"]},
+      "tasks": [
+        {"id": "stage", "name": {"ru": "Главная сцена", "en": "Main stage"}, "cost": 1, "stem": "beat", "stem_desc": "four-on-the-floor dance beat"},
+        {"id": "screens", "name": {"ru": "Экраны", "en": "Big screens"}, "cost": 4, "stem": "bass", "stem_desc": "pumping synth bass"},
+        {"id": "lightsticks", "name": {"ru": "Лайтстики в зале", "en": "Lightsticks"}, "cost": 4, "stem": "chords", "stem_desc": "bright supersaw chords"},
+        {"id": "lasers", "name": {"ru": "Лазеры", "en": "Lasers"}, "cost": 5, "stem": "arp", "stem_desc": "sparkly 16th arpeggio"},
+        {"id": "choir", "name": {"ru": "Хор на подиуме", "en": "Choir riser"}, "cost": 5, "stem": "choir", "stem_desc": "airy choir pad"},
+        {"id": "fog", "name": {"ru": "Дым-машина", "en": "Fog machine"}, "cost": 5, "stem": "fx", "stem_desc": "risers, sweeps, impacts"},
+        {"id": "dancers", "name": {"ru": "Танцоры", "en": "Dancers"}, "cost": 5, "stem": "hook", "stem_desc": "catchy synth lead hook"},
+        {"id": "fireworks", "name": {"ru": "Фейерверк", "en": "Fireworks"}, "cost": 5, "stem": "snaps", "stem_desc": "finger snaps and claps"}
+      ]
+    },
+    {
+      "id": "garage",
+      "name": {"ru": "Рок-гараж", "en": "Rock Garage"},
+      "bpm": 100, "key": "E", "semitones_from_c": 4, "bars": 8,
+      "mood": "garage rock, raw and fun, amp hum",
+      "chest": {"coins": 1000, "boosters": ["disco", "riff", "sub"]},
+      "tasks": [
+        {"id": "drum_kit", "name": {"ru": "Ударная установка", "en": "Drum kit"}, "cost": 1, "stem": "drums", "stem_desc": "rock drums"},
+        {"id": "amp", "name": {"ru": "Усилитель", "en": "Amp stack"}, "cost": 4, "stem": "rhythm", "stem_desc": "crunchy power-chord guitar"},
+        {"id": "bass_guitar", "name": {"ru": "Бас-гитара", "en": "Bass guitar"}, "cost": 5, "stem": "bass", "stem_desc": "picked bass guitar"},
+        {"id": "posters", "name": {"ru": "Стена постеров", "en": "Poster wall"}, "cost": 5, "stem": "lead", "stem_desc": "lead guitar riff"},
+        {"id": "keyboard", "name": {"ru": "Клавишные", "en": "Keyboard"}, "cost": 5, "stem": "organ", "stem_desc": "gritty organ"},
+        {"id": "tambourine", "name": {"ru": "Бубен на гвозде", "en": "Tambourine"}, "cost": 5, "stem": "tamb", "stem_desc": "tambourine 8ths"},
+        {"id": "garage_door", "name": {"ru": "Гаражные ворота", "en": "Garage door"}, "cost": 5, "stem": "toms", "stem_desc": "tom fills and crashes"},
+        {"id": "strings", "name": {"ru": "Гирлянда из ламп", "en": "Bulb string"}, "cost": 5, "stem": "strings", "stem_desc": "synth strings swell"},
+        {"id": "mic_stand", "name": {"ru": "Микрофон вокалиста", "en": "Singer's mic"}, "cost": 5, "stem": "gang", "stem_desc": "gang vocal 'hey' shouts (synthesized vowel)"}
+      ]
+    }
+  ],
+  "level_stems": {
+    "tension": "extra per-district stem, plays when 5 or fewer moves remain (pulsing, faster hats)",
+    "party": "extra per-district stem, plays during the final concert (full energy fill)"
+  }
+}

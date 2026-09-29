@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Core tests (Lua 5.1 + LuaJIT)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua VMs
+        run: sudo apt-get update && sudo apt-get install -y lua5.1 luajit
+      - name: Run tests
+        run: ./tools/test.sh
+
+  web:
+    name: HTML5 build
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Download Defold bob.jar 1.13.1
+        run: curl -sSL -o bob.jar https://github.com/defold/defold/releases/download/1.13.1/bob.jar
+      - name: Build
+        run: ./tools/build_web.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glow-web
+          path: dist
