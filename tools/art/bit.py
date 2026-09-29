@@ -54,9 +54,9 @@ def fur(cv, d, depth=None, lw=3.2, **kw):
 def fur_strokes(cv, body, seed=5):
     g = rng(seed)
     X, Y = cv.X, cv.Y
-    for _ in range(16):
+    for _ in range(9):
         a = g.random() * 2 * math.pi
-        rr = g.random() ** 0.6 * (R - 16)
+        rr = (0.55 + 0.45 * g.random()) * (R - 14)
         x, y = CX + rr * math.cos(a), CY + rr * math.sin(a)
         ang = a + (g.random() - 0.5) * 0.6
         L = 6 + g.random() * 6
@@ -64,7 +64,7 @@ def fur_strokes(cv, body, seed=5):
                   (x + math.cos(ang) * L, y + math.sin(ang) * L), n=6)
         d = np.maximum(sd_polyline(X, Y, pts, list(np.linspace(1.4, 0.4, len(pts)))), body + 7)
         lighter = y < CY + 6
-        cv.fill(d, "#FFF4E6" if lighter else "#F2A45C", 0.6 if lighter else 0.35)
+        cv.fill(d, "#FFF4E6" if lighter else "#F2A45C", 0.45 if lighter else 0.25)
 
 
 def _hand(cv, hx, hy, r=12.5, phase=0.0):
@@ -198,7 +198,7 @@ def _feet(cv, lift=(0.0, 0.0)):
 
 def _body(cv):
     X, Y = cv.X, cv.Y
-    body = fluff(X, Y, CX, CY, R - 2, R - 4, n=19, amp=6.5, p=0.9, seed=11)
+    body = fluff(X, Y, CX, CY, R - 1, R - 3, n=17, amp=4.5, p=1.1, seed=11)
     smooth = sd_ellipse(X, Y, CX, CY, R + 2, R)
     fur(cv, body, depth=58, lw=3.4, shade_sdf=smooth)
     fur_strokes(cv, body)
@@ -220,7 +220,7 @@ def _hair(cv, droop=0.0):
              bez((CX, y0 - 2), (CX - 2, y0 - 34), (CX + 16, y0 - 44), n=12),
              bez((CX + 10, y0), (CX + 22, y0 - 18), (CX + 34, y0 - 16), n=12)]
     h = None
-    for c, r0 in zip(curls, (10, 12, 9)):
+    for c, r0 in zip(curls, (9, 11, 8)):
         d = sd_polyline(X, Y, c, list(np.linspace(r0, 2.5, len(c))))
         h = d if h is None else SU(h, d, 3)
     fur(cv, h, depth=8, lw=3.0)
