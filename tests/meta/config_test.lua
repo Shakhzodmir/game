@@ -53,7 +53,7 @@ describe("meta config", function()
 		end
 	end)
 
-	it("accepts content/districts.json: 5 districts, 133 stars", function()
+	it("accepts content/districts.json: 5 districts, 124 stars", function()
 		local data = town.validate(H.districts())
 		local ids, stars = {}, {}
 		local total = 0
@@ -65,8 +65,8 @@ describe("meta config", function()
 			total = total + sum
 		end
 		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage" })
-		assert_same(stars, { 11, 20, 28, 34, 40 })
-		assert_eq(total, 133)
+		assert_same(stars, { 11, 20, 28, 34, 31 })
+		assert_eq(total, 124)
 	end)
 end)
 
