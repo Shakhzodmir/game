@@ -1,0 +1,43 @@
+{
+  "id": 34, "version": 1,
+  "size": [9, 11],
+  "moves": 24,
+  "difficulty": "hard",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "break", "item": "record_box", "count": 8}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "###...###",
+    "###...###",
+    "###...###"
+  ],
+  "overlay": [
+    {"at": [2, 3], "type": "wires", "hp": 2},
+    {"at": [6, 3], "type": "wires", "hp": 2},
+    {"at": [1, 5], "type": "wires", "hp": 2},
+    {"at": [4, 5], "type": "wires", "hp": 2},
+    {"at": [7, 5], "type": "wires", "hp": 2}
+  ],
+  "slots": [
+    {"at": [3, 1], "type": "mic"},
+    {"at": [1, 9], "type": "record_box", "hp": 2},
+    {"at": [7, 9], "type": "record_box", "hp": 2},
+    {"at": [0, 10], "type": "record_box", "hp": 2},
+    {"at": [1, 10], "type": "record_box", "hp": 2},
+    {"at": [2, 10], "type": "record_box", "hp": 2},
+    {"at": [6, 10], "type": "record_box", "hp": 2},
+    {"at": [7, 10], "type": "record_box", "hp": 2},
+    {"at": [8, 10], "type": "record_box", "hp": 2}
+  ],
+  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 3}
+}

@@ -5,8 +5,8 @@
   "difficulty": "easy",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "collect", "color": "orange", "count": 35},
-    {"type": "collect", "color": "purple", "count": 35}
+    {"type": "collect", "color": "orange", "count": 32},
+    {"type": "collect", "color": "purple", "count": 32}
   ],
   "cells": [
     ".###.###.",
