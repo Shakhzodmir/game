@@ -248,7 +248,7 @@
       "w": 720,
       "h": 1280,
       "alpha": false,
-      "bytes": 538871
+      "bytes": 526699
     },
     "districts/cafe/cat.png": {
       "w": 195,
@@ -350,13 +350,13 @@
       "w": 720,
       "h": 1280,
       "alpha": false,
-      "bytes": 235804
+      "bytes": 235662
     },
     "districts/garage/bg_concert.png": {
       "w": 720,
       "h": 1280,
       "alpha": false,
-      "bytes": 491800
+      "bytes": 482433
     },
     "districts/garage/drum_kit.png": {
       "w": 266,
@@ -452,7 +452,7 @@
       "w": 720,
       "h": 1280,
       "alpha": false,
-      "bytes": 528074
+      "bytes": 516265
     },
     "districts/jazz/double_bass.png": {
       "w": 122,
@@ -542,13 +542,13 @@
       "w": 720,
       "h": 1280,
       "alpha": false,
-      "bytes": 382548
+      "bytes": 383512
     },
     "districts/square/bg_concert.png": {
       "w": 720,
       "h": 1280,
       "alpha": false,
-      "bytes": 608790
+      "bytes": 590218
     },
     "districts/square/clarinet.png": {
       "w": 104,
@@ -587,16 +587,16 @@
       "bytes": 28265
     },
     "districts/square/garlands.png": {
-      "w": 256,
-      "h": 110,
+      "w": 300,
+      "h": 96,
       "alpha": true,
-      "bytes": 21630
+      "bytes": 22192
     },
     "districts/square/garlands_ghost.png": {
-      "w": 256,
-      "h": 110,
+      "w": 300,
+      "h": 96,
       "alpha": true,
-      "bytes": 16492
+      "bytes": 16741
     },
     "districts/square/lanterns.png": {
       "w": 188,
@@ -656,7 +656,7 @@
       "w": 720,
       "h": 1280,
       "alpha": false,
-      "bytes": 574967
+      "bytes": 569103
     },
     "districts/stadium/choir.png": {
       "w": 260,
