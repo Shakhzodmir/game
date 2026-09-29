@@ -148,10 +148,13 @@ local function exec(s, rec)
 		local src = owner(s, rec)
 		SP.disco_step(s, rec.d)
 		sched.retire_if_done(s, src)
-	elseif k == C.R_TRANSFORM or k == C.R_BIRD then
-		-- STAGE B: "Colour X" transforms (8.5) and bird impacts (8.3)
+	elseif k == C.R_TRANSFORM then
 		local src = owner(s, rec)
-		if SP.record then SP.record(s, rec) end
+		SP.transform(s, rec.d)
+		sched.retire_if_done(s, src)
+	elseif k == C.R_BIRD then
+		local src = owner(s, rec)
+		SP.bird_impact(s, rec.d)
 		sched.retire_if_done(s, src)
 	elseif k == C.R_CONCERT_A then
 		F.concert_a(s, rec.d[1])

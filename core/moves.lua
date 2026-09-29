@@ -68,7 +68,7 @@ end
 
 -- The list of 12.1: {a, b} cell pairs (right neighbour, then bottom).
 -- With `first_only` it stops at the first pair.
-function MV.pairs(s, first_only)
+function MV.pair_list(s, first_only)
 	local W, Hh = s.W, s.H
 	local col = MV.expected_colors(s)
 	local list = {}
@@ -90,7 +90,7 @@ function MV.pairs(s, first_only)
 end
 
 function MV.has_pair(s)
-	return #MV.pairs(s, true) > 0
+	return #MV.pair_list(s, true) > 0
 end
 
 function MV.has_free_special(s)

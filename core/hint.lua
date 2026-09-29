@@ -109,7 +109,7 @@ function HI.hint(s)
 	local W = s.W
 	local col = MV.expected_colors(s)
 	local best, bkey = nil, nil
-	local list = MV.pairs(s)
+	local list = MV.pair_list(s)
 	for k = 1, #list do
 		local a, b = list[k][1], list[k][2]
 		local key = pair_key(s, col, a, b)

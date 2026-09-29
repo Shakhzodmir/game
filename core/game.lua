@@ -130,7 +130,7 @@ end
 
 function Game:moves()
 	local s = self.s
-	local list = MV.pairs(s)
+	local list = MV.pair_list(s)
 	local out = {}
 	for k = 1, #list do
 		local ax, ay = U.xy(s.W, list[k][1])

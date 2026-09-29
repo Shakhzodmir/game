@@ -91,7 +91,7 @@ end
 function U.sorted_keys(t)
 	local keys = {}
 	for k in pairs(t) do keys[#keys + 1] = k end -- order-independent (sorted below)
-	table.sort(keys)
+	table.sort(keys) -- numbers
 	return keys
 end
 
