@@ -36,6 +36,24 @@ describe("districts data", function()
 		d.districts[1].chest.boosters = { "hammer" }
 		assert_error(function() town.validate(d) end, "unknown booster")
 	end)
+
+	it("accepts only coins and boosters in a district chest", function()
+		local d = small()
+		d.districts[1].chest.infinite_minutes = 30
+		assert_error(function() town.validate(d) end, "chest has unknown field 'infinite_minutes'")
+		d = small()
+		d.districts[1].chest = 300
+		assert_error(function() town.validate(d) end, "chest must be a table")
+		d = small()
+		d.districts[1].chest.boosters = "stick"
+		assert_error(function() town.validate(d) end, "boosters must be a list")
+		d = small()
+		d.districts[1].chest.coins = -1
+		assert_error(function() town.validate(d) end, "chest coins")
+		d = small()
+		d.districts[2].chest = nil
+		assert_same(town.validate(d).list[2].chest, { coins = 0, boosters = {} })
+	end)
 end)
 
 describe("town", function()
@@ -130,6 +148,10 @@ describe("town", function()
 		assert_eq(m2:view("a"), "concert")
 	end)
 
+	it("reports an unknown task as an error even in a locked district", function()
+		assert_error(function() m:complete_task("b", "zz") end, "no task")
+	end)
+
 	it("returns copies, not internal tables", function()
 		local v = m:district("a")
 		v.tasks[1].cost = 99
@@ -159,5 +181,102 @@ describe("town with the real districts", function()
 		assert_eq(m:stars(), 0)
 		assert_same(m:next_task(), { district = "jazz", id = "stage_light", name = { ru = "Свет на сцене", en = "Stage light" },
 			cost = 1, stem = "brushes", affordable = false })
+	end)
+end)
+
+describe("town after a content update", function()
+	local function finish_a(m)
+		H.give(m, "stars", 3)
+		assert(m:complete_task("a", "a1"))
+		return assert(m:complete_task("a", "a2"))
+	end
+
+	it("reopens a complete district that got a new task without paying its chest again", function()
+		local m = Meta.new(small(), 1)
+		assert_true(finish_a(m).chest ~= nil)
+		local d = small()
+		table.insert(d.districts[1].tasks, { id = "a3", cost = 2, stem = "lead" })
+		local m2, info = Meta.load(d, m:serialize(), nil, 1, H.T0)
+		assert_same(info.district_chests, {})
+		local a = m2:district("a")
+		assert_false(a.complete)
+		assert_true(a.chest_claimed)
+		assert_true(m2:district("b").available, "the next district stays open")
+		assert_eq(m2:current_district(), "a")
+		assert_eq(m2:next_task().id, "a3")
+		H.give(m2, "stars", 2)
+		m2:drain_ledger()
+		local coins = m2:coins()
+		local r = m2:complete_task("a", "a3")
+		assert_same(r, { district = "a", task = "a3", stem = "lead", district_complete = true, chest = nil, next_district = nil })
+		assert_eq(m2:coins(), coins)
+		assert_eq(H.ledger_sum(m2:drain_ledger(), "coins", "district_chest"), 0)
+		assert_eq(m2:current_district(), "b")
+	end)
+
+	it("keeps the done tasks by id when tasks are reordered", function()
+		local d = small()
+		table.insert(d.districts[1].tasks, { id = "a3", cost = 1, stem = "lead" })
+		local m = Meta.new(d, 1)
+		H.give(m, "stars", 3)
+		assert(m:complete_task("a", "a1"))
+		assert(m:complete_task("a", "a2"))
+		local d2 = small()
+		d2.districts[1].tasks = {
+			{ id = "a3", cost = 1, stem = "lead" },
+			{ id = "a1", cost = 1, stem = "beat" },
+			{ id = "a2", cost = 2, stem = "bass" },
+		}
+		local m2 = Meta.load(d2, m:serialize(), nil, 1, H.T0)
+		assert_same(m2:unmuted_stems("a"), { "beat", "bass" })
+		assert_same(m2:serialize().town.a.done, { "a1", "a2" })
+		assert_eq(m2:next_task().id, "a3")
+		local ok, why = m2:complete_task("a", "a1")
+		assert_false(ok)
+		assert_eq(why, "already_done")
+	end)
+
+	it("pays the chest on load when an update removed the last open task", function()
+		local m = Meta.new(small(), 1)
+		H.give(m, "stars", 1)
+		m:complete_task("a", "a1")
+		local d = small()
+		table.remove(d.districts[1].tasks, 2)
+		local coins = m:coins()
+		local m2, info = Meta.load(d, m:serialize(), nil, 1, H.T0)
+		assert_same(info.district_chests, { "a" })
+		assert_eq(m2:coins(), coins + 100)
+		assert_true(m2:district("a").chest_claimed)
+		assert_eq(m2:current_district(), "b")
+		assert_true(m2:dirty())
+		local _, again = Meta.load(d, m2:serialize(), nil, 1, H.T0)
+		assert_same(again.district_chests, {}, "only once")
+	end)
+
+	it("keeps a district with progress open when a district is inserted before it", function()
+		local m = Meta.new(small(), 1)
+		finish_a(m)
+		H.give(m, "stars", 1)
+		m:complete_task("b", "b1")
+		local d = small()
+		table.insert(d.districts, 2, { id = "n", chest = { coins = 50 }, tasks = { { id = "n1", cost = 1, stem = "pad" } } })
+		local m2 = Meta.load(d, m:serialize(), nil, 1, H.T0)
+		assert_true(m2:district("n").available)
+		assert_true(m2:district("b").available, "b has progress")
+		assert_eq(m2:current_district(), "n")
+		assert_same(m2:unmuted_stems("b"), { "drums" })
+	end)
+
+	it("restores the town from a partial or broken save", function()
+		local data = town.validate(small())
+		local t = town.restore({
+			a = { done = { "a2", "zz", "a1", "a1" }, view = "concert" },
+			b = { done = 3, chest_claimed = "yes" },
+		}, data)
+		assert_same(t.a, { done = { "a1", "a2" }, chest_claimed = true, view = "concert" },
+			"a complete district without the flag counts as claimed")
+		assert_same(t.b, { done = {}, chest_claimed = false, view = "day" })
+		t = town.restore({ a = { done = { "a1", "a2" }, chest_claimed = false } }, data)
+		assert_false(t.a.chest_claimed, "an explicit flag is kept")
 	end)
 end)

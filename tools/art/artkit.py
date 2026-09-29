@@ -871,3 +871,17 @@ def svg_path(d, scale=1.0, ox=0.0, oy=0.0, n=16):
     if cur:
         polys.append(cur)
     return polys
+
+
+def rim_gloss(cv, sdf, cx, cy, a_mid_deg, a_span_deg, inset_px, width, alpha=0.8, soft=0.6, color=WHITE,
+              power=0.6):
+    """Crescent highlight that hugs the inside of a silhouette around angle a_mid (deg, y down)."""
+    X, Y = cv.X, cv.Y
+    ang = np.arctan2(Y - cy, X - cx)
+    am, sp = math.radians(a_mid_deg), math.radians(a_span_deg)
+    da = (ang - am + math.pi) % (2 * math.pi) - math.pi
+    taper = np.clip(1 - (da / sp) ** 2, 0, 1) ** power
+    half = width / 2 * taper
+    d = np.abs(sdf + inset_px + width / 2) - half
+    d = np.where(taper <= 0.02, 1e3, d).astype(F32)
+    cv.fill(d, color, alpha, soft=soft)
