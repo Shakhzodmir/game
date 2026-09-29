@@ -1,0 +1,338 @@
+-- Town (placeholder, to be replaced by the full meta screen): district scene,
+-- top bar with lives / coins / stars, next task, the big "Level N" button and
+-- the bottom navigation. All numbers come from the meta; no rules here.
+
+local app = require("client.app")
+local ui = require("client.ui")
+local i18n = require("client.i18n")
+local bus = require("client.bus")
+local audio = require("client.audio")
+local assets = require("client.assets")
+
+local GUI = "/screens/town/town.gui"
+local layouts_cache
+
+local function district_layouts()
+	if layouts_cache == nil then
+		local data = sys.load_resource("/content/district_layouts.json")
+		layouts_cache = data and json.decode(data) or false
+	end
+	return layouts_cache or {}
+end
+
+local function level_difficulty(n)
+	local data = sys.load_resource(string.format("/content/levels/level_%04d.json", n))
+	if not data then return nil end
+	local ok, lvl = pcall(json.decode, data)
+	return ok and type(lvl) == "table" and lvl.difficulty or nil
+end
+
+-- scene parts ------------------------------------------------------------------------------
+
+local function build_scene(self, s)
+	local did = self.district
+	local view = app.meta:view(did)
+	local key = "districts/" .. did .. "/bg"
+	if view ~= "day" and assets.has_image(key .. "_" .. view) then key = key .. "_" .. view end
+	-- a cover-scaled copy fills the window beyond the design area; the exact
+	-- 720x1280 copy on top lines up with the item positions of the layout
+	local backdrop = s:image(s.root, key, 360, 640, { w = 720, h = 1280, color = "#FFFFFF", alpha = 0.9 })
+	if backdrop then
+		s:cover(backdrop, "cover", 720, 1280)
+		s:image(s.root, key, 360, 640, { w = 720, h = 1280 })
+	end
+
+	local lay = district_layouts()[did]
+	local d = app.meta:district(did)
+	self.items = {}
+	if lay and lay.items then
+		for _, t in ipairs(d.tasks) do
+			local it = lay.items[t.id]
+			if it then
+				local n = s:image(s.root, "districts/" .. did .. "/" .. t.id, it.x, 1280 - it.y, {
+					w = it.w * it.scale, h = it.h * it.scale,
+				})
+				if n then
+					if not t.done then gui.set_color(n, vmath.vector4(0.92, 0.92, 1, 0.42)) end
+					self.items[t.id] = n
+				end
+			end
+		end
+	end
+end
+
+local function stat_pill(s, parent, x, icon, fallback_color, text, max_width)
+	local ic = s:image(parent, icon, x, 0, { w = 70, h = 70 })
+	if not ic then ic = s:circle(parent, x, 0, 56, fallback_color) end
+	local label, info = s:text(parent, text, x + 44, 2, {
+		font = "number", size = 38, color = "text", outline = "white", pivot = gui.PIVOT_W, max_width = max_width or 120,
+	})
+	return label, info, ic
+end
+
+local function lives_text(lives)
+	if lives.infinite_seconds and lives.infinite_seconds > 0 then return i18n.duration(lives.infinite_seconds) end
+	if lives.count >= lives.max then return i18n.t("town.lives_full") end
+	return i18n.duration(lives.next_in_seconds)
+end
+
+local function build_top_bar(self, s)
+	local bar = s:round(s.root, 310, 1280 - 70, 580, 100, "white", { alpha = 0.96 })
+	s:anchor(bar, "top")
+	local lives = app.meta:lives(app.now())
+	local heart = s:image(bar, lives.infinite_seconds > 0 and "ui/icons/heart_infinite" or "ui/icons/heart", -230, 0,
+		{ w = 76, h = 76 }) or s:circle(bar, -230, 0, 60, "pink")
+	self.lives_count = s:text(heart, tostring(lives.count), 0, 2, {
+		font = "number", size = 34, color = "white", outline = "#B3122F",
+	})
+	self.lives_label, self.lives_info = s:text(bar, lives_text(lives), -182, 0, {
+		font = "number", size = 30, color = "text", pivot = gui.PIVOT_W, max_width = 100,
+	})
+	self.coins_label, self.coins_info = stat_pill(s, bar, -40, "ui/icons/coin", "coin", i18n.number(app.meta:coins()), 96)
+	self.stars_label, self.stars_info = stat_pill(s, bar, 190, "ui/icons/star", "yellow", i18n.number(app.meta:stars()), 54)
+
+	s:button({ parent = bar, x = 128, y = 0, w = 50, h = 50, style = "green",
+		image = "ui/icons/plus", text = not assets.has_image("ui/icons/plus") and "+" or nil, text_size = 34,
+		on_click = function() app.toast(i18n.t("toast.coming_soon")) end })
+	-- the heart area opens the lives info (an invisible button over it)
+	local hit = s:button({ parent = bar, x = -180, y = 0, w = 200, h = 96, style = "white", sfx = "tap", on_click = function()
+		local l = app.meta:lives(app.now())
+		local text
+		if l.infinite_seconds > 0 then
+			text = i18n.t("lives.infinite", { time = i18n.duration_words(l.infinite_seconds) })
+		elseif l.count >= l.max then
+			text = i18n.t("lives.full")
+		else
+			text = i18n.t("lives.next_in", { time = i18n.duration(l.next_in_seconds) })
+		end
+		app.modal({ id = "lives", title = i18n.t("lives.title"), text = text .. "\n" .. i18n.t("lives.free_levels", { n = 20 }),
+			buttons = { { id = "ok", text = i18n.t("common.ok"), style = "green" } } })
+	end })
+	gui.set_color(hit.node, vmath.vector4(1, 1, 1, 0))
+
+	local gear = s:button({ x = 660, y = 1280 - 70, w = 96, h = 96, style = "white", icon = "ui/icons/settings", icon_size = 68,
+		text = not assets.has_image("ui/icons/settings") and "..." or nil,
+		on_click = function()
+			app.modal({ id = "settings", title = i18n.t("settings.title"), text = i18n.t("settings.language"),
+				buttons = {
+					{ id = "en", text = i18n.t("settings.lang_en"), style = "blue" },
+					{ id = "ru", text = i18n.t("settings.lang_ru"), style = "blue" },
+					{ id = "auto", text = i18n.t("settings.lang_auto"), style = "purple" },
+					{ id = "close", text = i18n.t("common.close"), style = "green" },
+				} })
+		end })
+	s:anchor(gear.node, "top")
+end
+
+local function build_district_title(self, s, d)
+	local y = 1280 - 180
+	local name = i18n.name(app.district(self.district).name)
+	local ribbon = s:image(s.root, "ui/ribbon", 360, y, { w = 470, h = 88, slice9 = true })
+	if not ribbon then ribbon = s:round(s.root, 360, y, 440, 76, "pink") end
+	s:anchor(ribbon, "top")
+	s:text(ribbon, name, 0, 8, { font = "button", size = 38, color = "white", outline = "#B3122F", max_width = 300 })
+	s:text(ribbon, d.done .. " / " .. d.total, 0, -48, { font = "number", size = 24, color = "white", outline = "#2F80ED" })
+	local view = app.meta:view(self.district)
+	local toggle = s:button({ x = 640, y = y, w = 120, h = 64, style = view == "day" and "purple" or "gold",
+		text = i18n.t(view == "day" and "town.concert" or "town.day"), text_size = 24,
+		on_click = function()
+			app.meta:set_view(self.district, view == "day" and "concert" or "day")
+			app.commit("view")
+			self.rebuild = true
+		end })
+	s:anchor(toggle.node, "top")
+end
+
+local function build_task(self, s)
+	local task = app.meta:next_task()
+	local y = 420
+	if not task then
+		local card = s:round(s.root, 360, y, 600, 100, "white", { alpha = 0.95 })
+		s:text(card, i18n.t("town.town_done"), 0, 0, { font = "button", size = 36, color = "pink", outline = "white", max_width = 560 })
+		return
+	end
+	local card = s:button({ x = 360, y = y, w = 600, h = 124, style = "white", on_click = function() self:on_task(task) end })
+	local thumb = s:image(card.node, "districts/" .. task.district .. "/" .. task.id, -236, 2, { w = 96, h = 96 })
+	if not thumb then s:circle(card.node, -236, 2, 80, "lavender") end
+	s:text(card.node, i18n.name(task.name), -170, 22, {
+		font = "button", size = 32, color = "text", pivot = gui.PIVOT_W, max_width = 300,
+	})
+	local status
+	if task.affordable then
+		status = i18n.t("town.task_ready")
+	else
+		status = i18n.t("town.task_need", { n = task.cost - app.meta:stars() })
+	end
+	s:text(card.node, i18n.t("town.task_unlocks", { stem = i18n.t("stem." .. task.stem) }) .. " · " .. status, -170, -24, {
+		font = "small", size = 24, color = "text_soft", pivot = gui.PIVOT_W, max_width = 330,
+	})
+	local chip = s:round(card.node, 222, 0, 120, 70, task.affordable and "#FFD84D" or "lavender")
+	local star = s:image(chip, "ui/icons/star", -26, 0, { w = 54, h = 54 }) or s:circle(chip, -26, 0, 40, "yellow")
+	s:text(chip, tostring(task.cost), 22, 2, { font = "number", size = 36, color = "text", outline = "white" })
+	if task.affordable then ui.pulse(card.node, 0.035, 0.7) end
+end
+
+local function build_level_button(self, s)
+	local level = app.meta:level_to_play()
+	local y = 245
+	if not level then
+		s:button({ x = 360, y = y, w = 520, h = 130, style = "blue", text = i18n.t("town.all_done"), text_size = 36,
+			on_click = function() app.toast(i18n.t("town.all_done")) end })
+		return
+	end
+	local btn = s:button({ x = 360, y = y, w = 470, h = 136, style = "green", text = i18n.t("town.level", { n = level }),
+		text_size = 58, on_click = function() self:on_level(level) end })
+	ui.pulse(btn.node, 0.03, 0.9)
+	local diff = level_difficulty(level)
+	if diff == "hard" or diff == "super_hard" then
+		local tag = s:round(btn.node, 170, 66, 170, 50, diff == "hard" and "pink" or "purple")
+		s:text(tag, i18n.t(diff == "hard" and "town.hard" or "town.super_hard"), 0, 2, {
+			font = "button", size = 24, color = "white", max_width = 150,
+		})
+	end
+	-- three notes of the hit streak
+	local streak = app.meta:streak()
+	for i = 1, 3 do
+		local slot = streak.slots and streak.slots[i]
+		local lit = slot and slot.lit
+		local key = lit and "ui/icons/note_on" or "ui/icons/note_off"
+		local n = s:image(s.root, key, 360 + (i - 2) * 64, y + 100, { w = 54, h = 54 })
+		if not n then n = s:circle(s.root, 360 + (i - 2) * 64, y + 100, 34, lit and "yellow" or "lavender") end
+	end
+end
+
+local NAV = {
+	{ id = "shop", icon = "ui/icons/shop", label = "nav.shop" },
+	{ id = "band", icon = "ui/icons/team", label = "nav.band", soon = true },
+	{ id = "town", icon = "ui/icons/city", label = "nav.town", active = true },
+	{ id = "chart", icon = "ui/icons/chart", label = "nav.chart", soon = true },
+	{ id = "jukebox", icon = "ui/icons/jukebox", label = "nav.jukebox" },
+}
+
+local function build_nav(self, s)
+	local bar = s:round(s.root, 360, 58, 740, 150, "white", { alpha = 0.96 })
+	s:anchor(bar, "bottom")
+	for i, item in ipairs(NAV) do
+		local x = -288 + (i - 1) * 144
+		local b = s:button({ parent = bar, x = x, y = 12, w = 132, h = 112, style = item.active and "blue" or "white",
+			icon = item.icon, icon_size = 62, on_click = function() self:on_nav(item) end })
+		if b.icon then gui.set_position(b.icon, vmath.vector3(0, 14, 0)) end
+		s:text(b.node, i18n.t(item.label), 0, -34, {
+			font = "small", size = 21, color = item.active and "white" or "text", max_width = 124,
+		})
+		if item.soon then
+			local badge = s:round(b.node, 36, 46, 76, 30, "pink", { radius = 14 })
+			s:text(badge, i18n.t("nav.soon"), 0, 1, { font = "small", size = 17, color = "white", max_width = 70 })
+		end
+	end
+end
+
+local function build(self)
+	if self.ui then
+		gui.delete_node(self.ui.root)
+		self.ui:final()
+	end
+	local s = ui.scene({ gui = GUI })
+	self.ui = s
+	self.district = app.focus_district()
+	s:sky()
+	build_scene(self, s)
+	local d = app.meta:district(self.district)
+	build_top_bar(self, s)
+	build_district_title(self, s, d)
+	build_task(self, s)
+	build_level_button(self, s)
+	build_nav(self, s)
+	self.rebuild = false
+end
+
+local function refresh_stats(self)
+	local s = self.ui
+	local lives = app.meta:lives(app.now())
+	gui.set_text(self.lives_count, tostring(lives.count))
+	s:set_text(self.lives_label, lives_text(lives), self.lives_info)
+	s:set_text(self.coins_label, i18n.number(app.meta:coins()), self.coins_info)
+	s:set_text(self.stars_label, i18n.number(app.meta:stars()), self.stars_info)
+end
+
+-- actions ----------------------------------------------------------------------------------------
+
+local Town = {}
+
+function Town.on_level(self, level)
+	local ok, why = app.meta:can_start(level, app.now())
+	app.commit("can_start")
+	if not ok and why == "no_lives" then
+		app.modal({ id = "no_lives", title = i18n.t("lives.none"), text = i18n.t("start.no_lives"),
+			buttons = { { id = "ok", text = i18n.t("common.ok") } } })
+		return
+	end
+	app.show_screen("level", { level = level, from = "town" })
+end
+
+function Town.on_task(self, task)
+	if not task.affordable then
+		audio.sfx("swap_fail")
+		app.toast(i18n.t("town.task_need", { n = task.cost - app.meta:stars() }))
+		return
+	end
+	local res, why = app.meta:complete_task(task.district, task.id)
+	app.commit("task")
+	if not res then
+		app.toast(i18n.t(why == "not_enough_stars" and "common.not_enough_stars" or "common.error"))
+		return
+	end
+	audio.unlock_stem(res.district, res.stem)
+	audio.sfx("unlock")
+	app.toast(i18n.t("town.task_done", { item = i18n.name(task.name) }), { color = "gold" })
+	if res.district_complete then app.toast(i18n.t("town.district_done"), { color = "green" }) end
+	if res.next_district then
+		app.toast(i18n.t("town.new_district", { name = i18n.name(app.district(res.next_district).name) }))
+		audio.music(res.next_district)
+	end
+	self.rebuild = true
+end
+
+function Town.on_nav(self, item)
+	if item.id == "town" then return end
+	app.toast(i18n.t("toast.coming_soon"))
+end
+
+-- lifecycle ------------------------------------------------------------------------------------
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	self.on_level, self.on_task, self.on_nav = Town.on_level, Town.on_task, Town.on_nav
+	self.sub = bus.subscribe({ "meta_changed", "lives_tick", "language_changed", "modal_result" }, "town")
+	build(self)
+	audio.level_duck(false)
+	audio.layer("tension", false)
+	audio.music(self.district)
+end
+
+function final(self)
+	self.sub:close()
+	self.ui:final()
+end
+
+function update(self, dt)
+	self.sub:drain(function(topic, p)
+		if topic == "language_changed" then
+			self.rebuild = true
+		elseif topic == "modal_result" and p.id == "settings" then
+			if p.button == "en" or p.button == "ru" or p.button == "auto" then app.set_setting("language", p.button) end
+		elseif topic == "lives_tick" or topic == "meta_changed" then
+			if self.lives_label then refresh_stats(self) end
+		end
+	end)
+	if self.rebuild then
+		local before = self.district
+		build(self)
+		if self.district ~= before then audio.music(self.district) end
+	end
+	self.ui:update(dt)
+end
+
+function on_input(self, action_id, action)
+	return self.ui:on_input(action_id, action)
+end

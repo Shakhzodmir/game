@@ -18,6 +18,7 @@ from scipy import ndimage
 
 SS = 4
 F32 = np.float32
+BAYER4 = (np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], np.float32) + 0.5) / 16 - 0.5
 WHITE = np.array([1, 1, 1], F32)
 BLACK = np.array([0, 0, 0], F32)
 INK = "#2B2345"          # plan: text / heading outline colour
@@ -273,9 +274,12 @@ def SU(a, b, k):
 # canvas
 # --------------------------------------------------------------------------
 class Canvas:
-    def __init__(self, w, h, ss=SS, bg=None):
-        self.w, self.h, self.ss = int(w), int(h), ss
+    def __init__(self, w, h, ss=SS, bg=None, out=1):
+        """w, h: size in coordinate units; ss: samples per unit; out: output pixels per unit
+        (out=2 renders a 360x640 scene as a 720x1280 image with ss/out samples per output pixel)."""
+        self.w, self.h, self.ss, self.out = int(w), int(h), ss, int(out)
         self.H, self.W = self.h * ss, self.w * ss
+        self.cmap = None        # optional colour transform applied by paint() (e.g. a night re-light)
         self.rgb = np.zeros((self.H, self.W, 3), F32)
         self.a = np.zeros((self.H, self.W), F32)
         xs = (np.arange(self.W, dtype=F32) + 0.5) / ss
@@ -287,7 +291,9 @@ class Canvas:
 
     # ---- basic helpers ---------------------------------------------------
     def blank(self):
-        return Canvas(self.w, self.h, self.ss)
+        c = Canvas(self.w, self.h, self.ss, out=self.out)
+        c.cmap = self.cmap
+        return c
 
     def cov(self, sdf, soft=0.0):
         if soft <= 0:
@@ -310,6 +316,8 @@ class Canvas:
             win = (slice(None), slice(None))
         k = (cov * alpha).astype(F32)
         col = C(color) if isinstance(color, str) else np.asarray(color, F32)
+        if self.cmap is not None and mode not in ("erase",):
+            col = self.cmap(col)
         rgb, a = self.rgb[win], self.a[win]
         k3 = k[..., None]
         if mode == "over":
@@ -425,29 +433,95 @@ class Canvas:
         return out
 
     # ---- output ----------------------------------------------------------
-    def to_array(self, opaque=False):
-        """Downscale (LANCZOS, premultiplied) -> uint8 RGBA / RGB array."""
-        size = (self.w, self.h)
+    def to_array(self, opaque=False, dither=0.0):
+        """Downscale -> uint8 RGBA / RGB array.
+
+        Alpha and colour are resampled with LANCZOS in premultiplied space (sharp edges). Where the
+        result is only partly covered (soft shadows, glows, anti-aliased rims) the colour comes from
+        an exact box average instead, so LANCZOS ringing cannot tint faint pixels (e.g. a blue
+        fringe in a plum shadow). `dither` adds a deterministic ordered (Bayer) pattern of +-dither/2 levels
+        before the 8-bit rounding of opaque images (kills banding in long gradients)."""
+        ow, oh = self.w * self.out, self.h * self.out
+        f = self.ss // self.out if self.ss % self.out == 0 else 0
         chans = [self.rgb[..., 0], self.rgb[..., 1], self.rgb[..., 2], self.a]
         out = []
         for ch in chans:
             im = Image.fromarray(np.ascontiguousarray(ch, F32))
-            out.append(np.asarray(im.resize(size, Image.LANCZOS), F32))
+            out.append(np.asarray(im.resize((ow, oh), Image.LANCZOS), F32))
         a = np.clip(out[3], 0, 1)
         rgb = np.clip(np.stack(out[:3], -1), 0, None)
         if opaque:
-            rgb = rgb + (1 - a[..., None]) * 0  # background already painted
-            return (np.clip(rgb, 0, 1) * 255 + 0.5).astype(np.uint8)
+            rgb = np.clip(rgb, 0, 1) * 255
+            if dither > 0:
+                # ordered (Bayer 4x4) dither: breaks up banding, compresses far better than noise
+                th = np.tile(BAYER4, (-(-oh // 4), -(-ow // 4)))[:oh, :ow] * dither
+                rgb = rgb + th[..., None]
+            return np.clip(rgb + 0.5, 0, 255).astype(np.uint8)
         rgb = np.minimum(rgb, a[..., None])
-        rgb = np.where(a[..., None] > 1e-5, rgb / np.maximum(a[..., None], 1e-5), 0)
+        col = np.where(a[..., None] > 1e-5, rgb / np.maximum(a[..., None], 1e-5), 0)
+        if f >= 1:
+            bh, bw = oh, ow
+            box_rgb = self.rgb[:bh * f, :bw * f].reshape(bh, f, bw, f, 3).mean((1, 3))
+            box_a = self.a[:bh * f, :bw * f].reshape(bh, f, bw, f).mean((1, 3))
+            bcol = np.where(box_a[..., None] > 1e-6, box_rgb / np.maximum(box_a[..., None], 1e-6), 0)
+            k = smoothstep(0.3, 0.8, a)[..., None]
+            col = bcol + (col - bcol) * k
+            a = np.where(box_a <= 1e-4, 0, a)
         a8 = (a * 255 + 0.5).astype(np.uint8)
-        rgb8 = (np.clip(rgb, 0, 1) * 255 + 0.5).astype(np.uint8)
+        rgb8 = (np.clip(col, 0, 1) * 255 + 0.5).astype(np.uint8)
         rgb8[a8 == 0] = 0
         return np.dstack([rgb8, a8])
 
-    def image(self, opaque=False):
-        arr = self.to_array(opaque)
+    def image(self, opaque=False, dither=0.0):
+        arr = self.to_array(opaque, dither)
         return Image.fromarray(arr, "RGB" if opaque else "RGBA")
+
+
+def edge_fade(cv, px=10.0, sides="lrtb"):
+    """Fade everything to transparent within `px` of the canvas border (glows, beams, rays) so no
+    sprite ends in a hard straight edge."""
+    X, Y = cv.X, cv.Y
+    k = np.ones_like(X)
+    if "l" in sides:
+        k = k * smoothstep(0.5, px, X)
+    if "r" in sides:
+        k = k * smoothstep(cv.w - 0.5, cv.w - px, X)
+    if "t" in sides:
+        k = k * smoothstep(0.5, px, Y)
+    if "b" in sides:
+        k = k * smoothstep(cv.h - 0.5, cv.h - px, Y)
+    cv.rgb = cv.rgb * k[..., None]
+    cv.a = cv.a * k
+
+
+def grow(cv, l=0, t=0, r=0, b=0):
+    """Return a copy of the canvas with extra transparent margins (in coordinate units)."""
+    out = Canvas(cv.w + l + r, cv.h + t + b, cv.ss, out=cv.out)
+    ss = cv.ss
+    out.rgb[t * ss:t * ss + cv.H, l * ss:l * ss + cv.W] = cv.rgb
+    out.a[t * ss:t * ss + cv.H, l * ss:l * ss + cv.W] = cv.a
+    return out
+
+
+def contact_shadow(cv, cx, by, rx, ry=None, alpha=0.23, blur=10.0, color="#5A3FA0"):
+    """Soft ellipse under an object's base (painted beneath the drawing) so it sits on the floor."""
+    ry = ry if ry is not None else max(rx * 0.14, 5.0)
+    m = np.clip(0.5 - sd_ellipse(cv.X, cv.Y, cx, by, rx, ry) * cv.ss, 0, 1)
+    m = gblur(m, blur * cv.ss / 2.5)
+    cv.paint(np.clip(m * 1.15, 0, 1), C(color), alpha, mode="under")
+
+
+class raw:
+    """`with raw(cv): ...` paints without the canvas colour transform (lights, neon, lit windows)."""
+    def __init__(self, cv):
+        self.cv = cv
+
+    def __enter__(self):
+        self.m, self.cv.cmap = self.cv.cmap, None
+        return self.cv
+
+    def __exit__(self, *a):
+        self.cv.cmap = self.m
 
 
 def save_png(img, path):

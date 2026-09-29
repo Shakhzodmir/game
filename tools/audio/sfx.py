@@ -1,11 +1,16 @@
 """Sound effects (44.1 kHz mono).
 
 Each entry of SFX is name -> (render function, loudness target, key, description).
-Loudness targets are gated K-weighted dB (dsp.loudness); gen_audio.py applies
-them with a hard cap of -3 dBFS peak, so the files have a consistent perceived
-balance out of the box (tap/land quiet, drops and fanfares loud).
+Loudness targets are gated K-weighted dB (dsp.loudness); gen_audio.py reaches
+them with a true-peak limiter (ceiling -3 dBTP), so the files have a consistent
+perceived balance out of the box (tap/land quiet, drops and fanfares loud).
 Tonal effects are written in C (key "C") so the engine may transpose them to the
-district key exactly like the piece notes.
+district key exactly like the piece notes; effects without a key are unpitched
+or too short to carry a pitch.
+
+Phone speakers reproduce almost nothing below ~300 Hz, so every low "boom" is
+high-passed at 50 Hz, settles on C2 (65.4 Hz, transposed with the key) and
+carries 0.3-2 kHz harmonics/body that small speakers can play.
 """
 import numpy as np
 
@@ -15,6 +20,11 @@ from dsp import TAU, midi_hz, nsamp
 
 SR = 44100
 PENTA_HI = [84, 86, 88, 91, 93, 96, 98, 100]  # C6..E7, C major pentatonic
+
+# Effects that start together with match notes on (almost) every match get a
+# lower true-peak ceiling than the default -3 dBTP, leaving headroom for the
+# notes and the music (see gen_audio.MIXER and the headroom check).
+TP_CAP = {"clear": -12.0, "land": -9.0}
 
 _IR = {}
 
@@ -84,6 +94,35 @@ def thump(f_hi=150, f_lo=60, t60=0.15, click=0.2, key=0):
     return ins.kick(SR, f_hi, f_lo, 0.02, t60, click, 1.2, key=key)
 
 
+C2 = float(midi_hz(36))
+
+
+def boom(dur, t60, start=1.8, tau=0.05, drive=1.5, key="boom"):
+    """Sub 'boom' that falls from start*C2 and settles on C2 (65.4 Hz), with
+    the 2nd-6th harmonics spelled out (what a phone speaker actually plays)
+    and high-passed at 50 Hz (nothing below that is audible anywhere, it
+    only eats headroom)."""
+    n = nsamp(dur, SR)
+    t = tt(n)
+    f = C2 * (1.0 + (start - 1.0) * np.exp(-t / tau))
+    ph = TAU * np.cumsum(f) / SR
+    env = dsp.env_perc(n, SR, t60, 0.003)
+    x = np.sin(ph) * env
+    x = dsp.tube(x * drive, 1.5, SR, 0.2)
+    harm = sum(a * np.sin(k * ph + 0.3 * k) for k, a in ((2, 0.45), (3, 0.35), (4, 0.25), (5, 0.18), (6, 0.12)))
+    x = x + harm * dsp.env_perc(n, SR, t60 * 0.6, 0.003)
+    return dsp.highpass(x, 50, SR, 4)
+
+
+def body_hit(key, lo=700, hi=2600, tau=0.03, n_s=0.25):
+    """Short mid-range 'body' (a snare-like crack) that gives an impact its
+    presence on small speakers."""
+    n = nsamp(n_s, SR)
+    t = tt(n)
+    x = dsp.bandpass(nz(n, key), lo, hi, SR) * np.exp(-t / tau)
+    return x / dsp.peak(x)
+
+
 def bells(midis, dur=1.2, strum=0.03, vel=0.8, t60_scale=0.8):
     return dsp.mix(*[at(i * strum, ins.glock(m, SR, vel=vel, dur=dur, octave_up=False, t60_scale=t60_scale))
                      for i, m in enumerate(midis)])
@@ -118,7 +157,8 @@ def formant_chord(midis, dur, vowel="a_alto", attack=0.08, release=0.4, key=0):
 # ------------------------------------------------------------ board
 
 def tap():
-    x = ins.woodblock(SR, 1650, key="tap", t=0.05) * 0.8
+    # woodblock tuned to G6 (the fifth of C: transposed, it is the fifth of any district key)
+    x = ins.woodblock(SR, float(midi_hz(91)), key="tap", t=0.05) * 0.8
     x = dsp.mix(x, 0.3 * dsp.highpass(nz(nsamp(0.004, SR), "tapc"), 3000, SR) * np.linspace(1, 0, nsamp(0.004, SR)))
     return finish(x, 0.07, 0.01)
 
@@ -130,22 +170,28 @@ def swap():
 
 
 def swap_fail():
-    def bonk(f, key):
-        n = nsamp(0.14, SR)
+    """Cartoon spring 'boi-oing' G5 -> C5: the pieces bounce back. Pitch
+    wobble decays onto the written note, so it reads in key (key C)."""
+    def boing(m, dur, depth, rate):
+        n = nsamp(dur, SR)
         t = tt(n)
-        s = np.sin(TAU * np.cumsum(f * (1 + 0.35 * np.exp(-t / 0.015))) / SR) * np.exp(-t / 0.035)
-        s += 0.25 * dsp.lowpass(nz(n, key), 700, SR) * np.exp(-t / 0.01)
-        return s
-    x = dsp.mix(bonk(170, "f1"), 0.6 * at(0.12, bonk(125, "f2")))
-    x = dsp.lowpass(x, 1200, SR, 2)
-    return finish(verb(x, "room", 0.12), 0.32, 0.04)
+        f = midi_hz(m) * (1 + depth * np.sin(TAU * rate * t) * np.exp(-t / 0.07)) * (1 - 0.1 * np.exp(-t / 0.01))
+        ph = TAU * np.cumsum(f) / SR
+        s = np.sin(ph) + 0.5 * np.sin(2 * ph + 0.3) + 0.28 * np.sin(3 * ph + 0.6) + 0.14 * np.sin(4 * ph + 0.9)
+        return s * dsp.env_perc(n, SR, dur, 0.002)
+    knock = dsp.bandpass(nz(nsamp(0.03, SR), "sfk"), 900, 3000, SR) * np.exp(-tt(nsamp(0.03, SR)) / 0.006)
+    x = dsp.mix(0.2 * knock / dsp.peak(knock), boing(79, 0.2, 0.05, 17.0), 0.85 * at(0.11, boing(72, 0.26, 0.045, 14.0)))
+    x = dsp.filt(x, "peak", 1500, SR, q=0.8, gain_db=2.0)
+    return finish(verb(x, "room", 0.1), 0.42, 0.05)
 
 
 def land():
-    x = thump(140, 85, 0.07, 0.0, key="land")
-    n = nsamp(0.006, SR)
-    x[:n] += 0.2 * dsp.lowpass(nz(n, "landc"), 1800, SR) * np.linspace(1, 0, n)
-    return finish(dsp.lowpass(x, 2500, SR), 0.12, 0.02)
+    x = thump(150, 90, 0.07, 0.0, key="land")
+    n = nsamp(0.03, SR)
+    # soft plastic 'tock' (unpitched, 0.9-2.8 kHz): what a phone speaker hears of the landing
+    tock = dsp.bandpass(nz(n, "landc"), 900, 2800, SR) * np.exp(-tt(n) / 0.006)
+    x = dsp.mix(dsp.highpass(x, 80, SR, 2), 1.0 * tock / dsp.peak(tock))
+    return finish(dsp.lowpass(x, 5000, SR), 0.12, 0.02)
 
 
 def clear():
@@ -183,27 +229,37 @@ def riff():
 
 
 def sub():
-    k = ins.kick(SR, 170, 42, 0.03, 0.55, 0.35, 1.8, key="subk")
+    k = ins.kick(SR, 170, C2, 0.03, 0.5, 0.45, 1.8, key="subk")
     n = nsamp(0.55, SR)
     t = tt(n)
-    boom = np.sin(TAU * np.cumsum(44 + 30 * np.exp(-t / 0.05)) / SR) * dsp.env_perc(n, SR, 0.55, 0.004)
-    boom = dsp.tube(boom * 1.6, 1.5, SR, 0.2)  # harmonics so phones hear it
-    whump = dsp.lowpass(nz(n, "whump"), 300, SR) * np.exp(-t / 0.08)
-    x = dsp.mix(k, 0.8 * boom, 0.4 * whump / dsp.peak(whump))
-    x = dsp.filt(x, "peak", 160, SR, q=0.8, gain_db=3)
+    b = boom(0.55, 0.9, start=1.6, tau=0.05, drive=2.2)
+    # '808' growl on C2, saturated and band-limited to the 150-1200 Hz a phone can play
+    ph = TAU * np.cumsum(C2 * (1 + 0.6 * np.exp(-t / 0.05))) / SR
+    growl = dsp.bandpass(dsp.tube(np.sin(ph) * 3.0, 2.0, SR, 0.2), 150, 1200, SR) * dsp.env_perc(n, SR, 0.7, 0.004)
+    whump = dsp.lowpass(nz(n, "whump"), 500, SR) * np.exp(-t / 0.06)
+    punch = body_hit("subp", 600, 2200, 0.018)  # speaker-cone slap
+    x = dsp.mix(0.7 * dsp.highpass(k, 50, SR, 2), 0.6 * b, 1.4 * growl / dsp.peak(growl),
+                0.3 * whump / dsp.peak(whump), 0.45 * punch)
+    x = dsp.filt(x, "peak", 400, SR, q=0.8, gain_db=3)
     return finish(x, 0.55, 0.08)
 
 
 def bird():
+    """Songbird trill. Each chirp drops from at most +1 semitone onto its note
+    and holds it for the last ~65 % (so the trill is heard in key)."""
     out = np.zeros(nsamp(0.45, SR))
     r = dsp.rng("sfx", "bird")
     tones = [96, 100, 96, 100, 98, 103]  # C7 E7 C7 E7 D7 G7
+    up = 2 ** (1 / 12) - 1
     for i, m in enumerate(tones):
         dur = 0.045 if i < 5 else 0.09
         n = nsamp(dur, SR)
         f0 = midi_hz(m)
         u = np.linspace(0, 1, n)
-        f = f0 * (1.18 - 0.18 * u) if i < 5 else f0 * (0.85 + 0.15 * u ** 0.5)
+        if i < 5:
+            f = f0 * (1 + up * np.clip(1 - u / 0.35, 0, 1) ** 2)
+        else:  # the last chirp scoops up from -1 semitone and holds
+            f = f0 * (1 - (1 - 2 ** (-1 / 12)) * np.clip(1 - u / 0.3, 0, 1) ** 2)
         s = np.sin(TAU * np.cumsum(f) / SR) + 0.12 * np.sin(2 * TAU * np.cumsum(f) / SR)
         s *= np.sin(np.pi * u) ** 1.2
         dsp.place(out, s * (0.8 if i < 5 else 1.0), nsamp(i * 0.058 + r.uniform(0, 0.006), SR))
@@ -227,25 +283,36 @@ def combo_drop():
     rise_t = 0.92
     n = nsamp(rise_t, SR)
     u = np.linspace(0, 1, n)
-    riser = dsp.sweep_filter(nz(n, "cdr"), 300 * (9000 / 300) ** (u ** 1.3), SR, q=2.0, kind="bp") * u ** 2
-    tone = dsp.saw(midi_hz(48 + 24 * u ** 1.5), n, SR) * u ** 2.5
-    tone = dsp.lowpass(tone, 3000, SR)
+    riser = dsp.sweep_filter(nz(n, "cdr"), 300 * (9000 / 300) ** (u ** 1.3), SR, q=2.0, kind="bp") * u ** 1.3
+    tone = dsp.saw(midi_hz(48 + 24 * u ** 1.5), n, SR) * u ** 1.5
+    tone = dsp.lowpass(tone, 4000, SR)
     roll = np.zeros(n)
     tb = 0.0
     step = 0.12
     while tb < rise_t - 0.02:
-        dsp.place(roll, ins.snare(SR, 220, 0.06, 0.12, 0.9, 1500, 9000, key=int(tb * 100)) * (0.3 + 0.7 * tb / rise_t),
+        dsp.place(roll, ins.snare(SR, 220, 0.06, 0.12, 0.9, 1500, 9000, key=int(tb * 100)) * (0.45 + 0.55 * tb / rise_t),
                   nsamp(tb, SR))
         tb += step
         step = max(0.03, step * 0.85)
-    up = riser / dsp.peak(riser) * 0.6 + 0.25 * tone / dsp.peak(tone) + 0.45 * roll / dsp.peak(roll)
+    up = riser / dsp.peak(riser) * 0.6 + 0.35 * tone / dsp.peak(tone) + 0.5 * roll / dsp.peak(roll)
     dn = nsamp(0.9, SR)
     t = tt(dn)
-    boom = np.sin(TAU * np.cumsum(38 + 60 * np.exp(-t / 0.07)) / SR) * dsp.env_perc(dn, SR, 0.9, 0.002)
-    bass = dsp.lowpass(dsp.saw(midi_hz(36), dn, SR) + dsp.saw(midi_hz(36) * 1.006, dn, SR), 900, SR, 2)
-    bass *= dsp.env_perc(dn, SR, 0.8, 0.004)
-    drop = dsp.mix(1.0 * dsp.tube(boom * 1.5, 1.5, SR), 0.5 * dsp.tube(bass, 2.0, SR),
-                   0.6 * ins.kick(SR, 180, 45, 0.03, 0.5, 0.4, 2.0, key="cdk"), 0.35 * ins.crash(SR, key="cdc", t60=1.2))
+    b = boom(0.9, 0.9, start=1.9, tau=0.06, drive=1.5)
+    # growling C2 bass that 'wubs' twice (8th notes): the resonant filter opens to ~2 kHz on
+    # each wub, so the drop has a 0.3-2 kHz 'mouth' that small speakers reproduce
+    raw = dsp.saw(C2, dn, SR) + dsp.saw(C2 * 1.006, dn, SR, 0.3) + 0.6 * dsp.pulse(2 * C2, dn, SR, 0.3)
+    wub = np.exp(-t / 0.14) + np.exp(-np.maximum(t - 0.3, 0) / 0.14) * (t >= 0.3)
+    bass = dsp.sweep_filter(raw, 350 + 1650 * np.minimum(wub, 1.0), SR, q=3.0)
+    bass = dsp.highpass(dsp.tube(bass, 2.0, SR) * dsp.env_adsr(dn, SR, 0.004, 0.2, 0.7, 0.6, 0.25), 50, SR, 2)
+    stab = dsp.mix(*[ins.supersaw(m, 0.22, SR, attack=0.002, release=0.2, key=i)
+                     for i, m in enumerate((60, 64, 67, 72))])  # bright C major stab on each wub
+    stab = dsp.sweep_filter(stab, 1200 + 5000 * np.exp(-tt(len(stab)) / 0.1), SR, q=0.9)
+    stabs = dsp.mix(stab, 0.85 * at(0.3, stab))
+    claps = dsp.mix(ins.clap(SR, key="cd1", tail=0.15), 0.8 * at(0.3, ins.clap(SR, key="cd2", tail=0.15)))
+    kick = dsp.highpass(ins.kick(SR, 180, C2, 0.03, 0.5, 0.5, 2.0, key="cdk"), 50, SR, 2)
+    drop = dsp.mix(0.65 * b, 0.7 * bass / dsp.peak(bass), 0.6 * stabs / dsp.peak(stabs), 0.45 * kick,
+                   0.35 * claps / dsp.peak(claps), 0.35 * body_hit("cdb", 800, 3000, 0.04),
+                   0.35 * ins.crash(SR, key="cdc", t60=1.2))
     x = dsp.mix(up, at(rise_t, drop))
     return finish(verb(x, "hall", 0.15), 1.6, 0.25)
 
@@ -254,17 +321,26 @@ def finale():
     dur = 2.8
     n = nsamp(dur, SR)
     t = tt(n)
-    boom = np.sin(TAU * np.cumsum(32 + 70 * np.exp(-t / 0.09)) / SR) * dsp.env_perc(n, SR, 2.2, 0.002)
-    boom = dsp.tube(boom * 1.4, 1.5, SR)
-    burst = dsp.lowpass(nz(n, "fin"), 5000, SR) * np.exp(-t / 0.12)
-    chord = dsp.mix(*[ins.brass(m, 0.9, SR, vel=0.95, bright=1.1, release=0.5, key=i)
-                      for i, m in enumerate((48, 55, 60, 64, 67, 72))])
-    glk = bells([84, 88, 91, 96, 100], dur=2.0, strum=0.02, vel=0.9)
-    x = dsp.mix(boom, 0.6 * burst / dsp.peak(burst), 0.5 * ins.crash(SR, key="finc", t60=2.6),
-                0.6 * chord / dsp.peak(chord), 0.3 * glk / dsp.peak(glk),
-                0.8 * ins.kick(SR, 160, 40, 0.03, 0.7, 0.5, 2.0, key="fink"),
-                0.6 * ins.tom(SR, 80, 1.0, key="fint"))
-    return finish(verb(x, "big", 0.35), dur, 0.6)
+    b = boom(dur, 1.0, start=1.9, tau=0.08, drive=1.4)
+    burst = dsp.lowpass(nz(n, "fin"), 6000, SR) * np.exp(-t / 0.12)
+    # the grand C major chord is held at full strength for ~1.4 s (brass, supersaw, choir),
+    # over a timpani-style roll on C3: a big moment, not just a big peak
+    chord = dsp.mix(*[ins.brass(m, 1.4, SR, vel=0.95, bright=1.2, release=0.6, key=i)
+                      for i, m in enumerate((48, 55, 60, 64, 67, 72, 76))])
+    pad = dsp.mix(*[ins.supersaw(m, 1.3, SR, attack=0.003, release=0.6, key=i)
+                    for i, m in enumerate((64, 67, 72, 76, 79))])
+    choir = formant_chord([60, 64, 67, 72], 1.3, "a_sop", attack=0.04, release=0.6, key=11)
+    roll = np.zeros(nsamp(1.5, SR))
+    for i in range(20):
+        dsp.place(roll, ins.tom(SR, float(midi_hz(48)), 0.35, key=f"fr{i % 4}") * (0.9 - 0.03 * i), nsamp(0.06 * i, SR))
+    glk = bells([84, 88, 91, 96, 100], dur=2.0, strum=0.05, vel=0.9)
+    kick = dsp.highpass(ins.kick(SR, 160, C2, 0.03, 0.7, 0.5, 2.0, key="fink"), 50, SR, 2)
+    x = dsp.mix(0.6 * b, 0.3 * burst / dsp.peak(burst), 0.45 * ins.crash(SR, key="finc", t60=2.6),
+                0.9 * chord / dsp.peak(chord), 0.6 * pad / dsp.peak(pad), 0.5 * choir / dsp.peak(choir),
+                0.3 * dsp.highpass(roll, 60, SR, 2) / dsp.peak(roll), 0.35 * at(0.1, glk / dsp.peak(glk)),
+                0.45 * kick, 0.3 * body_hit("finb", 700, 2600, 0.05, 0.4),
+                0.25 * ins.snare(SR, 220, 0.12, 0.3, 1.0, 1300, 8000, key="fins"))
+    return finish(verb(x, "big", 0.3), dur, 0.6)
 
 
 # ------------------------------------------------------------ blockers
@@ -313,16 +389,17 @@ def concrete_break():
     n = nsamp(0.9, SR)
     t = tt(n)
     thud = np.sin(TAU * np.cumsum(70 + 60 * np.exp(-t / 0.03)) / SR) * np.exp(-t / 0.12)
-    crunch = dsp.bandpass(nz(n, "crunch"), 500, 4500, SR) * (0.2 + (r.uniform(size=n) < 0.25)) * np.exp(-t / 0.1)
-    x = dsp.mix(thud, 0.8 * crunch / dsp.peak(crunch), 0.7 * concrete_hit())
+    thud = dsp.highpass(thud, 50, SR, 2)
+    crunch = dsp.bandpass(nz(n, "crunch"), 500, 4500, SR) * (0.2 + (r.uniform(size=n) < 0.25)) * np.exp(-t / 0.16)
+    x = dsp.mix(0.45 * thud, 1.0 * crunch / dsp.peak(crunch), 0.4 * concrete_hit())
     for i in range(16):  # debris
         tb = 0.08 + r.uniform(0, 0.6) ** 1.5
         m = nsamp(0.03, SR)
         f = r.uniform(900, 4000)
         d = dsp.bandpass(nz(m, f"deb{i}"), f * 0.7, f * 1.4, SR) * np.exp(-tt(m) / 0.006)
-        x = dsp.mix(x, 0.3 * (1 - tb) * at(tb, d / dsp.peak(d)))
-    dust = dsp.lowpass(nz(n, "dust"), 1500, SR) * (1 - np.exp(-t / 0.03)) * np.exp(-t / 0.25)
-    x = dsp.mix(x, 0.15 * dust / dsp.peak(dust))
+        x = dsp.mix(x, 0.4 * (1 - tb) * at(tb, d / dsp.peak(d)))
+    dust = dsp.bandpass(nz(n, "dust"), 300, 2500, SR) * (1 - np.exp(-t / 0.03)) * np.exp(-t / 0.25)
+    x = dsp.mix(x, 0.25 * dust / dsp.peak(dust))
     return finish(verb(x, "room", 0.15), 0.85, 0.12)
 
 
@@ -332,10 +409,10 @@ def wires_snap():
     crack = dsp.highpass(nz(nsamp(0.004, SR), "crack"), 1500, SR)
     tw = dsp.saw(1300 * np.exp(-t / 0.12) + 250, n, SR) * np.exp(-t / 0.09)
     tw = dsp.lowpass(tw, 4000, SR)
-    buzz = dsp.saw(110, n, SR) * (dsp.rng("sfx", "buzz").uniform(size=n) < 0.6) * np.exp(-t / 0.12)
+    buzz = dsp.saw(110, n, SR) * (dsp.rng("sfx", "buzz").uniform(size=n) < 0.6) * np.exp(-t / 0.18)
     buzz = dsp.bandpass(buzz, 300, 3500, SR)
     sparks = dsp.bandpass(nz(n, "spark"), 3000, 9000, SR) * (dsp.rng("sfx", "sp").uniform(size=n) < 0.03) * np.exp(-t / 0.15)
-    x = dsp.mix(1.0 * crack, 0.6 * tw / dsp.peak(tw), 0.3 * buzz / dsp.peak(buzz), 0.4 * sparks / (dsp.peak(sparks) + 1e-9))
+    x = dsp.mix(0.45 * crack, 0.8 * tw / dsp.peak(tw), 0.5 * buzz / dsp.peak(buzz), 0.4 * sparks / (dsp.peak(sparks) + 1e-9))
     return finish(verb(x, "room", 0.1), 0.4, 0.06)
 
 
@@ -368,20 +445,24 @@ def balloon_pop():
     n = nsamp(0.25, SR)
     t = tt(n)
     burst = nz(n, "pop") * np.exp(-t / 0.004)
-    body = dsp.bandpass(nz(n, "pop2"), 900, 4000, SR) * np.exp(-t / 0.03)
+    body = dsp.bandpass(nz(n, "pop2"), 900, 4000, SR) * np.exp(-t / 0.05)
+    rush = dsp.bandpass(nz(n, "pop3"), 1200, 6000, SR) * (1 - np.exp(-t / 0.004)) * np.exp(-t / 0.07)  # air escaping
     whump = np.sin(TAU * 120 * t) * np.exp(-t / 0.04)
-    x = burst + 0.8 * body / dsp.peak(body) + 0.6 * whump
+    x = 0.5 * burst + 0.9 * body / dsp.peak(body) + 0.6 * rush / dsp.peak(rush) + 0.4 * whump
     return finish(verb(x, "room", 0.15), 0.28, 0.05)
 
 
 def column_hit():
     n = nsamp(0.4, SR)
     t = tt(n)
-    boom = np.sin(TAU * np.cumsum(70 + 40 * np.exp(-t / 0.02)) / SR) * np.exp(-t / 0.08)
-    cone = dsp.lowpass(dsp.pulse(72, n, SR, 0.5), 900, SR) * np.exp(-t / 0.05)
-    dust = dsp.lowpass(nz(n, "coldust"), 2200, SR) * (1 - np.exp(-t / 0.02)) * np.exp(-t / 0.1)
-    x = boom + 0.35 * cone + 0.35 * dust / dsp.peak(dust)
-    x = dsp.tube(x, 1.5, SR, 0.2)
+    thud = np.sin(TAU * np.cumsum(70 + 40 * np.exp(-t / 0.02)) / SR) * np.exp(-t / 0.08)
+    # the dusty cone rattles: a buzzy 72 Hz pulse heard through its 0.4-1.6 kHz 'mouth'
+    cone = dsp.bandpass(dsp.pulse(72, n, SR, 0.3), 400, 1600, SR) * np.exp(-t / 0.06)
+    knock = dsp.bandpass(nz(n, "colk"), 350, 1500, SR) * np.exp(-t / 0.02)  # cabinet knock
+    dust = dsp.bandpass(nz(n, "coldust"), 900, 4000, SR) * (1 - np.exp(-t / 0.02)) * np.exp(-t / 0.1)
+    x = (0.8 * thud + 0.6 * cone / dsp.peak(cone) + 0.5 * knock / dsp.peak(knock)
+         + 0.3 * dust / dsp.peak(dust))
+    x = dsp.highpass(dsp.tube(x, 1.5, SR, 0.2), 50, SR, 2)
     return finish(verb(x, "room", 0.12), 0.4, 0.06)
 
 
@@ -423,8 +504,9 @@ def goal_done():
 
 
 def moves_low():
-    a = ins.woodblock(SR, 1250, key="ml1", t=0.08)
-    b = ins.woodblock(SR, 940, key="ml2", t=0.08)
+    # tick-tock C6 -> G5 (key C: transposed with the district, never clashes with the tension stem)
+    a = ins.woodblock(SR, float(midi_hz(84)), key="ml1", t=0.13)
+    b = ins.woodblock(SR, float(midi_hz(79)), key="ml2", t=0.13)
     x = dsp.mix(a, 0.85 * at(0.16, b))
     return finish(verb(x, "room", 0.12), 0.36, 0.05)
 
@@ -449,8 +531,8 @@ def win():
 def lose():
     seq = [(0.0, 76), (0.28, 74), (0.56, 72), (0.84, 69)]
     x = dsp.mix(*[at(tb, ins.vibes(m, SR, vel=0.55, dur=1.1, trem=4.5, release=0.5)) for tb, m in seq])
-    ch = dsp.mix(*[at(1.12 + 0.03 * i, ins.epiano(m, 0.7, SR, vel=0.45, bright=0.6, release=0.5, t60_scale=0.7))
-                   for i, m in enumerate((57, 60, 64, 67))])  # soft Am7
+    ch = dsp.mix(*[at(1.12 + 0.03 * i, ins.epiano(m, 0.7, SR, vel=0.45, bright=0.7, release=0.5, t60_scale=0.7))
+                   for i, m in enumerate((53, 57, 60, 64))])  # soft Fmaj7: "try again", not sad
     x = dsp.mix(x / dsp.peak(x), 0.55 * ch / dsp.peak(ch))
     x = dsp.lowpass(x, 5000, SR)
     return finish(verb(x, "hall", 0.3), 2.2, 0.4)
@@ -578,18 +660,18 @@ def praise_5():  # legend
 
 # name -> (fn, loudness target, key, description)
 SFX = {
-    "tap": (tap, -26, None, "touch tick (woodblock)"),
+    "tap": (tap, -26, "C", "touch tick (woodblock G6)"),
     "swap": (swap, -24, None, "swap whoosh"),
-    "swap_fail": (swap_fail, -22, None, "dull double bonk"),
-    "land": (land, -28, None, "soft landing thump"),
-    "clear": (clear, -22, None, "pop + fizz + pings"),
+    "swap_fail": (swap_fail, -22, "C", "cartoon spring boing G5-C5"),
+    "land": (land, -28, None, "soft landing thump + plastic tock"),
+    "clear": (clear, -24, None, "pop + fizz + pings"),
     "special_create": (special_create, -18, "C", "bell arpeggio + whoosh"),
     "riff": (riff, -16, None, "guitar glissando E3-E5 + electric zap"),
-    "sub": (sub, -15, None, "kick + sub-bass boom"),
-    "bird": (bird, -20, "C", "songbird trill C7/E7/G7"),
+    "sub": (sub, -15, "C", "kick + sub boom settling on C2, cone slap"),
+    "bird": (bird, -20, "C", "songbird trill C7-E7-D7-G7"),
     "disco": (disco, -18, "C", "mirror-ball shimmer"),
-    "combo_drop": (combo_drop, -14, "C", "riser, then bass drop at 0.92 s"),
-    "finale": (finale, -13, "C", "huge impact + C major brass/bells tail"),
+    "combo_drop": (combo_drop, -14, "C", "riser, then C2 bass drop + bright stab at 0.92 s"),
+    "finale": (finale, -13, "C", "huge impact + C major brass/orchestra hit/bells tail"),
     "box_hit": (box_hit, -21, None, "cardboard thud"),
     "box_break": (box_break, -18, None, "box bursts, records clatter, tiny scratch"),
     "concrete_hit": (concrete_hit, -20, None, "stone knock"),
@@ -598,14 +680,14 @@ SFX = {
     "noise_fizz": (noise_fizz, -23, None, "static fizz"),
     "noise_break": (noise_break, -19, "C", "static dissolves into a bell"),
     "balloon_pop": (balloon_pop, -17, None, "pop"),
-    "column_hit": (column_hit, -19, None, "dusty speaker thump"),
+    "column_hit": (column_hit, -19, None, "dusty speaker thump + cone rattle"),
     "column_on": (column_on, -16, "C", "relay click, hum powers up, bass riff"),
     "floor_light": (floor_light, -20, "C", "chime G6+C7"),
     "mic_collect": (mic_collect, -17, "C", "mic tap + vocal 'ah-ha' C5-E5"),
     "goal_done": (goal_done, -16, "C", "bright Cadd9 chord"),
-    "moves_low": (moves_low, -18, None, "tick-tock warning"),
+    "moves_low": (moves_low, -18, "C", "tick-tock warning C6-G5"),
     "win": (win, -14, "C", "2 s brass fanfare G4-C5-E5-G5-C6"),
-    "lose": (lose, -19, "C", "gentle descending vibes E5-D5-C5-A4, soft Am7"),
+    "lose": (lose, -19, "C", "gentle descending vibes E5-D5-C5-A4, soft Fmaj7"),
     "star": (star, -17, "C", "star ding C7+G7"),
     "coin": (coin, -18, "C", "coin G6-C7"),
     "chest_open": (chest_open, -16, "C", "creak, clunk, bells, choir"),

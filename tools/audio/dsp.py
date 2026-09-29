@@ -304,6 +304,48 @@ def tube(x, amount, sr, bias=0.15):
     return highpass(y, 15.0, sr, 1) / np.tanh(amount)
 
 
+def tp_envelope(x, oversample=4):
+    """Per-sample true-peak envelope: the largest |x| of the band-limited
+    (4x oversampled) signal between sample n-1 and n+1."""
+    x = np.asarray(x, dtype=float)
+    os_ = np.abs(signal.resample_poly(x, oversample, 1))[: len(x) * oversample]
+    env = os_.reshape(-1, oversample).max(axis=1)
+    env = np.maximum(env, np.abs(x))
+    return np.maximum(env, np.concatenate([env[1:], env[-1:]]))
+
+
+def true_peak(x):
+    return float(np.max(tp_envelope(x))) if len(x) else 0.0
+
+
+def limiter(x, sr, ceiling_db, lookahead=0.0025, release=0.08):
+    """Look-ahead brick-wall limiter on the true peak.
+
+    Required gain g_req = min(1, ceiling / true-peak envelope). The gain
+    follows the minimum of g_req over the next `lookahead` seconds, recovers
+    exponentially (`release` = time constant) and is smoothed by a moving
+    average as long as the look-ahead, so it never exceeds g_req where the
+    peak is and changes smoothly (no clicks, little distortion).
+    Returns (limited signal, gain curve)."""
+    x = np.asarray(x, dtype=float)
+    c = db_amp(ceiling_db)
+    greq = np.minimum(1.0, c / np.maximum(tp_envelope(x), 1e-12))
+    L = max(1, nsamp(lookahead, sr))
+    padded = np.concatenate([greq, np.ones(L)])
+    ga = np.lib.stride_tricks.sliding_window_view(padded, L + 1).min(axis=1)[: len(x)]
+    # exponential recovery of the attenuation a = 1 - g, as a running max of
+    # a[n] * exp(n / tau) (log domain, so it vectorises)
+    lam = -1.0 / max(release * sr, 1.0)
+    a = np.maximum(1.0 - ga, 1e-30)
+    idx = np.arange(len(x))
+    ar = np.exp(np.maximum.accumulate(np.log(a) - idx * lam) + idx * lam)
+    gr = 1.0 - np.minimum(ar, 1.0)
+    k = np.ones(L + 1) / (L + 1)
+    g = np.convolve(np.concatenate([np.full(L, gr[0]), gr]), k, "valid")[: len(x)]
+    g = np.minimum(g, 1.0)
+    return x * g, g
+
+
 # ------------------------------------------------------------------ space
 
 def reverb_ir(sr, t60=1.4, predelay=0.012, damp_hz=3500.0, key="room", density=1.0):

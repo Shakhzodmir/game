@@ -1,0 +1,110 @@
+-- GLOW render pipeline.
+--
+-- The game is authored for a 720x1280 portrait "logical" screen. The world is
+-- drawn with a fit projection: the whole logical area is always visible,
+-- centred, without distortion. On other aspect ratios the extra space around
+-- it simply shows more world / the clear colour (bright sky #86DDFF), never
+-- black bars. client/layout.lua computes the same transform for scripts.
+--
+-- GUI is drawn in window pixels (Defold default). GUI scenes of this project
+-- disable engine node adjustment (adjust_reference: ADJUST_REFERENCE_DISABLED)
+-- and scale one root node by the same fit factor instead (client/ui.lua), so
+-- a GUI node at logical (x, y) lands exactly over the world point (x, y).
+--
+-- Messages (msg.post("@render:", ...)):
+--   clear_color {color = vmath.vector4(r, g, b, a)}
+--   window_resized (sent by the engine)
+
+local LOGICAL_W = 720
+local LOGICAL_H = 1280
+local NEAR, FAR = -100, 100
+
+local MSG_CLEAR_COLOR = hash("clear_color")
+local MSG_WINDOW_RESIZED = hash("window_resized")
+
+local function fit_projection(ww, wh)
+	local zoom = math.min(ww / LOGICAL_W, wh / LOGICAL_H)
+	local pw, ph = ww / zoom, wh / zoom
+	local left = -(pw - LOGICAL_W) / 2
+	local bottom = -(ph - LOGICAL_H) / 2
+	return vmath.matrix4_orthographic(left, left + pw, bottom, bottom + ph, NEAR, FAR)
+end
+
+local function update_window(self)
+	local ww, wh = render.get_window_width(), render.get_window_height()
+	if ww <= 0 or wh <= 0 then
+		self.valid = false
+		return
+	end
+	self.valid = true
+	if ww == self.ww and wh == self.wh then return end
+	self.ww, self.wh = ww, wh
+	self.world_proj = fit_projection(ww, wh)
+	self.world_frustum = { frustum = self.world_proj * self.world_view }
+	self.gui_proj = vmath.matrix4_orthographic(0, ww, 0, wh, -1, 1)
+	self.gui_frustum = { frustum = self.gui_proj * self.gui_view }
+end
+
+function init(self)
+	self.tile_pred = render.predicate({ "tile" })
+	self.particle_pred = render.predicate({ "particle" })
+	self.model_pred = render.predicate({ "model" })
+	self.gui_pred = render.predicate({ "gui" })
+	self.text_pred = render.predicate({ "text" })
+	self.debug_pred = render.predicate({ "debug_text" })
+
+	local color = vmath.vector4(
+		sys.get_config_number("render.clear_color_red", 0.525),
+		sys.get_config_number("render.clear_color_green", 0.867),
+		sys.get_config_number("render.clear_color_blue", 1.0),
+		sys.get_config_number("render.clear_color_alpha", 1.0))
+	self.clear = {
+		[graphics.BUFFER_TYPE_COLOR0_BIT] = color,
+		[graphics.BUFFER_TYPE_DEPTH_BIT] = 1,
+		[graphics.BUFFER_TYPE_STENCIL_BIT] = 0,
+	}
+	self.world_view = vmath.matrix4()
+	self.gui_view = vmath.matrix4()
+	update_window(self)
+end
+
+function update(self)
+	update_window(self)
+	if not self.valid then return end
+
+	render.set_depth_mask(true)
+	render.set_stencil_mask(0xff)
+	render.clear(self.clear)
+	render.set_viewport(0, 0, self.ww, self.wh)
+
+	-- world: sprites, particles (and models if ever used)
+	render.set_view(self.world_view)
+	render.set_projection(self.world_proj)
+	render.set_blend_func(graphics.BLEND_FACTOR_SRC_ALPHA, graphics.BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
+	render.enable_state(graphics.STATE_DEPTH_TEST)
+	render.set_depth_mask(false)
+	render.enable_state(graphics.STATE_BLEND)
+	render.draw(self.model_pred, self.world_frustum)
+	render.draw(self.tile_pred, self.world_frustum)
+	render.draw(self.particle_pred, self.world_frustum)
+	render.disable_state(graphics.STATE_DEPTH_TEST)
+	render.draw_debug3d()
+
+	-- GUI in window pixels
+	render.set_view(self.gui_view)
+	render.set_projection(self.gui_proj)
+	render.enable_state(graphics.STATE_STENCIL_TEST)
+	render.draw(self.gui_pred, self.gui_frustum)
+	render.draw(self.text_pred, self.gui_frustum)
+	render.draw(self.debug_pred, self.gui_frustum)
+	render.disable_state(graphics.STATE_STENCIL_TEST)
+	render.disable_state(graphics.STATE_BLEND)
+end
+
+function on_message(self, message_id, message)
+	if message_id == MSG_CLEAR_COLOR then
+		if message.color then self.clear[graphics.BUFFER_TYPE_COLOR0_BIT] = message.color end
+	elseif message_id == MSG_WINDOW_RESIZED then
+		update_window(self)
+	end
+end
