@@ -1,18 +1,26 @@
--- Application root: boots the shared state, owns the screen manager and the
--- QA bridge. Screens are collections behind collection proxies on "/screens";
--- switching fades the overlay out (0.25 s), unloads the old screen, loads the
--- new one and fades back in (0.25 s).
+-- Application root: boots the shared state, owns the screen manager, the
+-- engine hooks and the QA bridge. Screens are collections behind collection
+-- proxies on "/screens"; switching fades the overlay out (0.25 s), unloads
+-- the old screen, loads the new one and fades back in (0.25 s).
 --
 -- Message protocol (from any script, any collection):
---   msg.post("main:/app", "show_screen", {name = "splash"|"town"|"level", params = {...}})
+--   app.show_screen(name, params)  -- client/app.lua; posts
+--   msg.post("main:/app", "show_screen", {name = "splash"|"town"|"level", ticket = app.stash(params)})
+--   (small params may also be sent inline as {name, params}; msg.post payloads are capped at 2 KB)
 -- The params reach the new screen as require("client.app").params. A request
--- during a transition is queued (the last one wins).
+-- during a transition is queued (the last one wins); a request equal to the
+-- screen being loaded is dropped.
+-- Bus out: "screen_leaving" {from, to} when a transition starts (the overlay
+-- closes its modal), "screen_changed" {name, prev, params} after the fade-in
+-- (client/app.lua), "app_focus" {focused} on focus / iconify changes.
+-- A transition cannot hang: every fade phase has a watchdog.
 
 local app = require("client.app")
 local bus = require("client.bus")
 local i18n = require("client.i18n")
 local save_io = require("client.save_io")
 local platform = require("client.platform")
+local hooks = require("client.hooks")
 local audio = require("client.audio")
 local qa_bridge = require("client.qa_bridge")
 local analytics = require("client.services.analytics")
@@ -20,6 +28,7 @@ local iap = require("client.services.iap")
 local ads = require("client.services.ads")
 
 local FADE = 0.25
+local FADE_WATCHDOG = FADE + 1.5  -- seconds a fade may take before the manager moves on
 local OVERLAY = "main:/overlay#overlay"
 
 local MSG_SHOW_SCREEN = hash("show_screen")
@@ -39,8 +48,13 @@ local function load_districts()
 end
 
 -- screen state machine -------------------------------------------------------------------
+-- phases: nil (idle) -> "fade_out" -> "unloading" -> "loading" -> "fade_in" -> nil
 
-local begin_load
+local begin_load, on_fade_out_done, on_fade_in_done
+
+local function set_phase(self, phase)
+	self.phase, self.phase_t = phase, 0
+end
 
 local function start_transition(self, name, params)
 	self.busy = true
@@ -48,6 +62,8 @@ local function start_transition(self, name, params)
 	app.pending = { name = name, params = params }
 	self.target = { name = name, params = params }
 	if self.current then
+		bus.publish("screen_leaving", { from = self.current, to = name })
+		set_phase(self, "fade_out")
 		msg.post(OVERLAY, "fade_out", { duration = FADE })
 	else
 		begin_load(self)
@@ -55,6 +71,7 @@ local function start_transition(self, name, params)
 end
 
 begin_load = function(self)
+	set_phase(self, "loading")
 	msg.post(proxy_url(self.target.name), "async_load")
 end
 
@@ -63,16 +80,24 @@ local function show_screen(self, name, params)
 		print("WARNING: app: unknown screen '" .. tostring(name) .. "'")
 		return false
 	end
+	params = params or {}
 	if self.busy then
-		self.queued = { name = name, params = params }
+		local req = { name = name, params = params }
+		if app.same_request(req, self.target) then
+			self.queued = nil -- the screen being loaded is what was asked for (again)
+		else
+			self.queued = req
+		end
 		return true
 	end
-	start_transition(self, name, params or {})
+	start_transition(self, name, params)
 	return true
 end
 
-local function on_fade_out_done(self)
+on_fade_out_done = function(self)
+	if self.phase ~= "fade_out" then return end
 	if self.current then
+		set_phase(self, "unloading")
 		msg.post(proxy_url(self.current), "unload")
 	else
 		begin_load(self)
@@ -80,23 +105,28 @@ local function on_fade_out_done(self)
 end
 
 local function on_proxy_unloaded(self)
+	if self.phase ~= "unloading" then return end
 	self.current = nil
 	begin_load(self)
 end
 
 local function on_proxy_loaded(self, sender)
+	if self.phase ~= "loading" then return end
 	-- params first: the screen's init() reads app.params
 	app.params = self.target.params or {}
 	msg.post(sender, "init")
 	msg.post(sender, "enable")
 	self.current = self.target.name
+	set_phase(self, "fade_in")
 	msg.post(OVERLAY, "fade_in", { duration = FADE })
 end
 
-local function on_fade_in_done(self)
+on_fade_in_done = function(self)
+	if self.phase ~= "fade_in" then return end
 	local t = self.target
 	self.target = nil
 	self.busy = false
+	set_phase(self, nil)
 	app.transitioning = false
 	app.set_screen(t.name, t.params)
 	if self.queued then
@@ -106,11 +136,23 @@ local function on_fade_in_done(self)
 	end
 end
 
+-- A fade reply that never comes (another script took over the overlay, a
+-- lost message) must not leave the manager busy forever.
+local function watchdog(self, dt)
+	if not self.phase then return end
+	self.phase_t = self.phase_t + dt
+	if (self.phase == "fade_out" or self.phase == "fade_in") and self.phase_t > FADE_WATCHDOG then
+		print("WARNING: app: no reply to " .. self.phase .. " after " .. FADE_WATCHDOG .. " s; moving on")
+		self.watchdog_fired = (self.watchdog_fired or 0) + 1
+		if self.phase == "fade_out" then on_fade_out_done(self) else on_fade_in_done(self) end
+	end
+end
+
 -- QA bridge commands ------------------------------------------------------------------------
 
 local function qa_handlers(self)
 	return {
-		state = function() return { ok = true } end,
+		state = function() return { ok = true, watchdog = self.watchdog_fired or 0 } end,
 		["goto"] = function(args)
 			local name = args[1]
 			local params = {}
@@ -135,6 +177,11 @@ local function qa_handlers(self)
 			local ok, why = app.set_setting("language", args[1] or "auto")
 			return { ok = ok, error = why, language = i18n.language() }
 		end,
+		volume = function(args)
+			local ok = app.set_setting("music", tonumber(args[1]) or 0.8)
+			if args[2] then app.set_setting("sfx", tonumber(args[2]) or 1) end
+			return { ok = ok }
+		end,
 		reset_save = function()
 			app.reset_save(platform.random_seed(), app.now())
 			return { ok = true }
@@ -143,8 +190,39 @@ local function qa_handlers(self)
 			app.toast(string.sub(cmd, 7))
 			return { ok = true }
 		end,
+		toast_key = function(args)
+			app.toast_key(args[1] or "toast.coming_soon")
+			return { ok = true }
+		end,
+		modal = function(args)
+			app.modal({ id = args[1] or "qa", title = { key = "settings.title" }, text = { key = "lives.full" },
+				buttons = { { id = "ok", text = { key = "common.ok" } } } })
+			return { ok = true }
+		end,
+		-- makes the save backend fail (1) or work again (0): the retry and the notice
+		save_fail = function(args)
+			if not self.faulty then return { ok = false, error = "no faulty backend" } end
+			self.faulty.fail = args[1] == "1"
+			return { ok = true, fail = self.faulty.fail }
+		end,
+		-- blocks the engine loop for n ms (a hitch): the music must resync
+		stall = function(args)
+			local ms = math.max(0, math.min(3000, tonumber(args[1]) or 400))
+			local t0 = socket.gettime()
+			while socket.gettime() - t0 < ms / 1000 do end
+			return { ok = true, ms = ms }
+		end,
+		-- another script (the audio object) asks the overlay for a fade during a transition
+		stray_fade = function(args)
+			msg.post("main:/audio#audio", "qa_fade", { kind = args[1] == "out" and "fade_out" or "fade_in" })
+			return { ok = true }
+		end,
 		music = function(args)
 			audio.music(args[1] or app.focus_district(), { all = args[2] == "all" })
+			return { ok = true }
+		end,
+		layer = function(args)
+			audio.layer(args[1] or "tension", args[2] ~= "0")
 			return { ok = true }
 		end,
 		sfx = function(args)
@@ -153,6 +231,12 @@ local function qa_handlers(self)
 		end,
 		note = function(args)
 			audio.play_note(args[1] or "red", tonumber(args[2]) or 1)
+			return { ok = true }
+		end,
+		-- a cascade wave: several notes posted in the same frame
+		chord = function(args)
+			local wave = tonumber(args[1]) or 1
+			for i = 2, #args do audio.play_note(args[i], wave) end
 			return { ok = true }
 		end,
 	}
@@ -166,9 +250,15 @@ function init(self)
 
 	local debug = platform.is_debug()
 	analytics.init({ strict = debug, echo = false, clock = platform.now })
+	local backend = save_io.defold_backend()
+	if debug then
+		-- QA can make the writes fail (save_fail 1) to check the retry
+		self.faulty = save_io.faulty(backend)
+		backend = self.faulty
+	end
 	app.init({
 		districts = load_districts(),
-		store = save_io.new(save_io.defold_backend()),
+		store = save_io.new(backend),
 		seed = platform.random_seed(),
 		now = platform.now(),
 		clock = platform.now,
@@ -189,21 +279,27 @@ function init(self)
 	self.current = nil
 	self.tick = 0
 
+	local run_js = html5 and html5.run or nil
 	qa_bridge.init({
-		enabled = debug and platform.is_html5(),
-		run_js = html5 and html5.run or nil,
+		enabled = debug and platform.is_html5() and qa_bridge.page_allowed(run_js),
+		run_js = run_js,
 		encode = json.encode,
 		handlers = qa_handlers(self),
 		snapshot = function() return app.snapshot() end,
 	})
-	sys.set_error_handler(function(source, message, traceback)
+
+	-- the one window listener and error handler of the app (client/hooks.lua)
+	hooks.install(window, sys)
+	hooks.on_error(function(source, message)
 		qa_bridge.record_error(message)
 		pcall(analytics.log, "lua_error", { message = tostring(message) })
 	end)
-
-	window.set_listener(function(_, event)
-		if event == window.WINDOW_EVENT_FOCUS_LOST or event == window.WINDOW_EVENT_ICONIFIED then
+	hooks.on_window(function(event)
+		if event == "focus_lost" or event == "iconified" then
 			app.commit("background", true)
+			bus.publish("app_focus", { focused = false, event = event })
+		elseif event == "focus_gained" or event == "deiconified" then
+			bus.publish("app_focus", { focused = true, event = event })
 		end
 	end)
 
@@ -220,14 +316,16 @@ function update(self, dt)
 	self.tick = self.tick + dt
 	if self.tick >= 1 then
 		self.tick = self.tick - 1
-		app.tick(app.now())
+		app.tick(app.now()) -- lives regenerate; a failed save is retried here
 	end
+	watchdog(self, dt)
 	qa_bridge.update()
 end
 
 function on_message(self, message_id, message, sender)
 	if message_id == MSG_SHOW_SCREEN then
-		show_screen(self, message.name, message.params)
+		local params = message.ticket and app.claim(message.ticket) or message.params
+		show_screen(self, message.name, params)
 	elseif message_id == MSG_PROXY_LOADED then
 		on_proxy_loaded(self, sender)
 	elseif message_id == MSG_PROXY_UNLOADED then
@@ -247,15 +345,15 @@ local DEBUG_KEYS = {
 	[hash("debug_coins")] = function()
 		app.meta:grant({ coins = 1000 }, "debug_key", app.now())
 		app.commit("debug")
-		app.toast(i18n.t("toast.debug_coins", { n = 1000 }))
+		app.toast_key("toast.debug_coins", { n = 1000 })
 	end,
 	[hash("debug_language")] = function()
 		app.set_setting("language", i18n.language() == "ru" and "en" or "ru")
-		app.toast(i18n.t("toast.language"))
+		app.toast_key("toast.language")
 	end,
 	[hash("debug_reset_save")] = function(self)
 		app.reset_save(platform.random_seed(), app.now())
-		app.toast(i18n.t("toast.debug_reset"))
+		app.toast_key("toast.debug_reset")
 		show_screen(self, "splash", {})
 	end,
 }

@@ -130,4 +130,85 @@ function M.disc(size, softness, color)
 	return table.concat(out)
 end
 
+-- Average colour bands along one edge of a decoded image (image.load):
+-- buf = raw pixels, rows top first, bpp 3 (RGB) or 4 (RGBA, straight alpha,
+-- or premultiplied when premul is true). side = "left" | "right" | "top" |
+-- "bottom"; `bands` colours along that edge (first = top / left), each the
+-- average of the `depth` outermost pixels of its rows / columns.
+-- Returns {{r, g, b, a}, ...} with straight alpha, components 0..1.
+function M.edge_colors(buf, w, h, bpp, side, bands, depth, premul)
+	bands = math.max(1, math.floor(bands or 16))
+	depth = math.max(1, math.min(math.floor(depth or 4), (side == "left" or side == "right") and w or h))
+	local vertical = side == "left" or side == "right"
+	local along = vertical and h or w
+	local acc = {}
+	for b = 1, bands do acc[b] = { 0, 0, 0, 0, 0 } end
+	local byte = string.byte
+	for i = 0, along - 1 do
+		local band = acc[math.min(bands, math.floor(i * bands / along) + 1)]
+		for d = 0, depth - 1 do
+			local x, y
+			if side == "left" then x, y = d, i
+			elseif side == "right" then x, y = w - 1 - d, i
+			elseif side == "top" then x, y = i, d
+			else x, y = i, h - 1 - d end
+			local o = (y * w + x) * bpp + 1
+			local r, g, bl, a = byte(buf, o, o + bpp - 1)
+			a = bpp == 4 and a or 255
+			if not premul then
+				local k = a / 255
+				r, g, bl = r * k, g * k, bl * k
+			end
+			band[1], band[2], band[3], band[4] = band[1] + r, band[2] + g, band[3] + bl, band[4] + a
+			band[5] = band[5] + 1
+		end
+	end
+	local out = {}
+	for b = 1, bands do
+		local t = acc[b]
+		local n = math.max(1, t[5])
+		local a = t[4] / n
+		if a <= 0 then
+			out[b] = { 1, 1, 1, 0 }
+		else
+			out[b] = { min(1, t[1] / n / a), min(1, t[2] / n / a), min(1, t[3] / n / a), a / 255 }
+		end
+	end
+	return out
+end
+
+-- Texture that continues an image past one of its edges: the edge colours
+-- (from edge_colors) stretched outwards and blended into `haze` (a colour)
+-- by up to `amount` at the far end. side as in edge_colors; `steps` pixels
+-- from the image edge outwards. Returns buf, width, height (premultiplied).
+-- left/right: width = steps, height = #colors; top/bottom: the transpose.
+function M.edge_fill(colors, side, steps, haze, amount)
+	steps = math.max(2, math.floor(steps or 8))
+	haze = haze or { 1, 1, 1, 1 }
+	amount = amount or 0.4
+	local n = #colors
+	local vertical = side == "left" or side == "right"
+	local w, h = vertical and steps or n, vertical and n or steps
+	local rows = {}
+	for y = 0, h - 1 do
+		local row = {}
+		for x = 0, w - 1 do
+			local ci, s -- colour index and distance from the image edge (0..steps-1)
+			if vertical then
+				ci = y + 1
+				s = side == "left" and (steps - 1 - x) or x
+			else
+				ci = x + 1
+				s = side == "top" and (steps - 1 - y) or y
+			end
+			local t = s / (steps - 1)
+			local c = M.mix(colors[ci], haze, amount * t * t)
+			c[4] = 1
+			row[#row + 1] = px(c, 1)
+		end
+		rows[#rows + 1] = table.concat(row)
+	end
+	return table.concat(rows), w, h
+end
+
 return M

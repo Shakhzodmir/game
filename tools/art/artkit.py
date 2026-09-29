@@ -439,7 +439,7 @@ class Canvas:
         Alpha and colour are resampled with LANCZOS in premultiplied space (sharp edges). Where the
         result is only partly covered (soft shadows, glows, anti-aliased rims) the colour comes from
         an exact box average instead, so LANCZOS ringing cannot tint faint pixels (e.g. a blue
-        fringe in a plum shadow). `dither` adds a deterministic ordered (Bayer) pattern of +-dither/2 levels
+        fringe in a plum shadow). `dither` adds a deterministic ordered (Bayer 4x4) pattern spanning `dither`
         before the 8-bit rounding of opaque images (kills banding in long gradients)."""
         ow, oh = self.w * self.out, self.h * self.out
         f = self.ss // self.out if self.ss % self.out == 0 else 0

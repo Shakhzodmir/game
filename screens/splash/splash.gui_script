@@ -1,5 +1,7 @@
 -- Loader / splash (placeholder art): logo for 1.5 s, then the town, or level 1
--- straight away on the first launch (client-architecture.md, 3).
+-- straight away on the first launch (client-architecture.md, 3). On the way
+-- out it tells the player what the load did (app.load_notices: restored from
+-- the backup, save unreadable, interrupted level, gifts and chests).
 
 local app = require("client.app")
 local ui = require("client.ui")
@@ -8,9 +10,9 @@ local i18n = require("client.i18n")
 local DURATION = 1.5
 
 local function notices()
-	local info = app.load_info or {}
-	if info.source == "previous" then app.toast(i18n.t("splash.restored"), { color = "gold" }) end
-	if info.interrupted == "loss" then app.toast(i18n.t("splash.interrupted"), { color = "pink" }) end
+	for _, n in ipairs(app.load_notices()) do
+		app.toast({ key = n.key, vars = n.vars }, { color = n.color, duration = 3 })
+	end
 end
 
 function init(self)

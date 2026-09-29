@@ -126,4 +126,58 @@ describe("client.i18n", function()
 		assert_true(set["«"] and set["—"] and set["…"], "has typographic punctuation")
 		assert_true(#chars > 100)
 	end)
+
+	it("resolves text specs when they are shown", function()
+		i18n.set_language("en")
+		assert_eq(i18n.tr("plain"), "plain")
+		assert_eq(i18n.tr({ text = "plain" }), "plain")
+		assert_eq(i18n.tr({ key = "town.level", vars = { n = 4 } }), "Level 4")
+		assert_eq(i18n.tr({ key = "town.new_district", vars = { name = { en = "Jazz Bar", ru = "Джаз-бар" } } }),
+			"New district: Jazz Bar")
+		assert_eq(i18n.tr({ key = "splash.gift", vars = { name = { key = "booster.stick" } } }), "Gift: Drumstick boosters!")
+		i18n.set_language("ru")
+		assert_eq(i18n.tr({ key = "town.new_district", vars = { name = { en = "Jazz Bar", ru = "Джаз-бар" } } }),
+			"Открыт новый район: Джаз-бар")
+		assert_eq(i18n.tr(nil), "")
+		local lives = { lines = { { key = "lives.infinite", vars = { time = i18n.duration_words_spec(4800) } },
+			{ key = "lives.free_levels", vars = { n = 20 } } } }
+		assert_eq(i18n.tr(lives), "Бесконечные жизни: 1 ч 20 мин\nУровни 1–20 не тратят жизни")
+		i18n.set_language("en")
+		assert_eq(i18n.tr(lives), "Unlimited lives: 1 h 20 min\nLevels 1–20 don't cost lives")
+	end)
+
+	it("has a description and a tutorial line for every blocker", function()
+		for _, id in ipairs({ "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column" }) do
+			assert_true(i18n.has("blocker." .. id), id)
+			assert_true(i18n.has("blocker." .. id .. "_desc"), id .. "_desc")
+			assert_true(i18n.has("tutorial." .. id), "tutorial." .. id)
+		end
+	end)
+
+	it("has every literal key the client code uses", function()
+		local p = io.popen("find client main screens -name '*.lua' -o -name '*.script' -o -name '*.gui_script' | sort")
+		local files = {}
+		for line in p:lines() do files[#files + 1] = line end
+		p:close()
+		assert_true(#files > 5, "found the client sources")
+		local missing, seen = {}, 0
+		local patterns = {
+			'i18n%.t%(%s*"([%w_%.]+)"', 'i18n%.t%(%s*\'([%w_%.]+)\'', 'toast_key%(%s*"([%w_%.]+)"',
+			'[%s{,]key%s*=%s*"([%w_]+%.[%w_%.]+)"',
+		}
+		for _, f in ipairs(files) do
+			local fh = assert(io.open(f, "r"))
+			local src = fh:read("*a")
+			fh:close()
+			for _, pat in ipairs(patterns) do
+				for key in string.gmatch(src, pat) do
+					seen = seen + 1
+					-- "stem." .. id is built at run time: only whole keys are checked
+					if string.sub(key, -1) ~= "." and not i18n.has(key) then missing[#missing + 1] = f .. ": " .. key end
+				end
+			end
+		end
+		assert_true(seen > 20, "found the keys")
+		assert_same(missing, {})
+	end)
 end)

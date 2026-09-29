@@ -246,332 +246,332 @@ embedded_components {
 embedded_components {
   id: "note_blue_1"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_1.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_1.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_10"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_10.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_10.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_11"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_11.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_11.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_2"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_2.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_2.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_3"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_3.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_3.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_4"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_4.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_4.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_5"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_5.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_5.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_6"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_6.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_6.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_7"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_7.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_7.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_8"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_8.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_8.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_9"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/blue_9.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/blue_9.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_1"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_1.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_1.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_10"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_10.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_10.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_11"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_11.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_11.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_2"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_2.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_2.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_3"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_3.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_3.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_4"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_4.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_4.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_5"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_5.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_5.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_6"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_6.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_6.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_7"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_7.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_7.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_8"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_8.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_8.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_green_9"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/green_9.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/green_9.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_1"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_1.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_1.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_10"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_10.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_10.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_11"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_11.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_11.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_2"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_2.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_2.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_3"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_3.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_3.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_4"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_4.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_4.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_5"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_5.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_5.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_6"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_6.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_6.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_7"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_7.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_7.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_8"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_8.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_8.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_orange_9"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/orange_9.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/orange_9.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_1"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_1.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_1.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_10"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_10.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_10.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_11"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_11.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_11.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_2"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_2.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_2.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_3"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_3.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_3.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_4"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_4.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_4.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_5"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_5.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_5.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_6"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_6.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_6.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_7"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_7.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_7.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_8"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_8.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_8.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_purple_9"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/purple_9.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/purple_9.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_1"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_1.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_1.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_10"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_10.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_10.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_11"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_11.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_11.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_2"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_2.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_2.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_3"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_3.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_3.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_4"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_4.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_4.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_5"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_5.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_5.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_6"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_6.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_6.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_7"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_7.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_7.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_8"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_8.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_8.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_red_9"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/red_9.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/red_9.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_1"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_1.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_1.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_10"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_10.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_10.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_11"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_11.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_11.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_2"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_2.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_2.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_3"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_3.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_3.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_4"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_4.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_4.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_5"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_5.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_5.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_6"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_6.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_6.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_7"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_7.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_7.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_8"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_8.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_8.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_yellow_9"
   type: "sound"
-  data: "sound: \"/assets/sounds/notes/yellow_9.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+  data: "sound: \"/assets/sounds/notes/yellow_9.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "sfx_balloon_pop"

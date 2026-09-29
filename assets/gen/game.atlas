@@ -189,6 +189,41 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "board_edge_diag"
+  images {
+    image: "/assets/images/board/edge_diag.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "board_edge_full"
+  images {
+    image: "/assets/images/board/edge_full.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "board_edge_inner"
+  images {
+    image: "/assets/images/board/edge_inner.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "board_edge_outer"
+  images {
+    image: "/assets/images/board/edge_outer.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "board_edge_side"
+  images {
+    image: "/assets/images/board/edge_side.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "fx_bolt"
   images {
     image: "/assets/images/fx/bolt.png"

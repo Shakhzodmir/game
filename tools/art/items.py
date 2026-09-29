@@ -9,7 +9,7 @@ import os
 
 import numpy as np
 
-from artkit import (C, Canvas, WHITE, bez, candy, contact_shadow, darken, edge_fade, grow, lighten, droplet, gblur,
+from artkit import (C, Canvas, WHITE, bez, candy, contact_shadow, darken, grow, lighten, droplet, gblur,
                     gloss_drop, inset, mix, opening, ramp, rim_gloss, rng,
                     sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly, sd_polyline, sd_rect, sd_ring,
                     sd_star, sd_taper, smoothstep, soft_shadow, sparkle4, text_sdf, SU, SUB, U, I)

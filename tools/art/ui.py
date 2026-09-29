@@ -39,7 +39,8 @@ def draw_board_frame():
     sh = gblur(np.clip(0.5 - lav * cv.ss, 0, 1), 3.5 * cv.ss)
     from artkit import shift
     sh = shift(sh, 0, 3.0 * cv.ss)
-    cv.paint(np.clip(sh, 0, 1), np.array(FRAME_SHADOW, F32), 0.30)
+    outside = smoothstep(-0.5, 1.0, white_out)          # the shadow only shows outside the frame line
+    cv.paint(np.clip(sh, 0, 1) * outside, np.array(FRAME_SHADOW, F32), 0.30)
     ring = np.maximum(lav, -white_out)
     cv.fill(ring, np.array(FRAME_GLOW, F32), 0.25)
     cv.fill(np.maximum(white_out, -inner), "#FFFFFF", 1.0)
@@ -85,7 +86,7 @@ def draw_board_edge(kind):
     d = _edge_sdf(kind, X, Y)
     ds = _edge_sdf(kind, X, Y - 3.5)                       # shadow: region shifted down
     p0, p1, p2 = EDGE_PAD, EDGE_PAD + EDGE_LINE, EDGE_PAD + EDGE_LINE + EDGE_GLOW
-    cv.paint(smoothstep(p2 + 4, p0, ds), np.array(FRAME_SHADOW, F32), 0.30)
+    cv.paint(smoothstep(p2 + 4, p0, ds) * smoothstep(p1 - 0.5, p1 + 1.0, d), np.array(FRAME_SHADOW, F32), 0.30)
     cv.paint(np.clip(0.5 - np.maximum(d - p2, p1 - d) * cv.ss, 0, 1), np.array(FRAME_GLOW, F32), 0.25)
     cv.paint(np.clip(0.5 - np.maximum(d - p1, p0 - d) * cv.ss, 0, 1), WHITE, 1.0)
     cv.paint(np.clip(0.5 - (d - p0) * cv.ss, 0, 1), WHITE, 0.60)

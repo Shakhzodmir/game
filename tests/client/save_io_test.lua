@@ -86,6 +86,84 @@ describe("client.save_io", function()
 		assert_eq(m2:level_to_play(), 1)
 	end)
 
+	it("retries a failed save of a clean meta until a write succeeds", function()
+		local backend = save_io.memory_backend()
+		local store = save_io.new(backend)
+		store:load()
+		local m = Meta.new(H.districts(), 7)
+		assert_eq(store:save_meta(m), "saved")
+		local coins = m:coins()
+		m:grant({ coins = 100 }, "test_gift", H.T0)
+		backend.fail = true
+		local ok, err = store:save_meta(m)
+		assert_false(ok)
+		assert_eq(err, "disk full")
+		assert_false(m:dirty()) -- serialize() marked it clean anyway
+		assert_eq(store.failing, 1)
+		-- still failing: the store keeps trying instead of answering "clean"
+		assert_false((store:save_meta(m)))
+		assert_eq(store.failing, 2)
+		backend.fail = false
+		assert_eq(store:save_meta(m), "saved")
+		assert_eq(store.failing, 0)
+		assert_eq(store:save_meta(m), "clean")
+		local cur, prev = save_io.new(backend):load()
+		local m2 = Meta.load(H.districts(), cur, prev, 7, H.T0)
+		assert_eq(m2:coins(), coins + 100)
+	end)
+
+	it("keeps the good backup when the current slot was corrupt", function()
+		local backend = save_io.memory_backend()
+		local store = save_io.new(backend)
+		store:load()
+		local m = Meta.new(H.districts(), 7)
+		store:save_meta(m)
+		H.win(m, H.T0)
+		store:save_meta(m)
+		backend.files.current.data.checksum = "broken"
+		-- next launch: the meta rejects "current" and loads "previous"
+		local store2 = save_io.new(backend)
+		local cur, prev = store2:load()
+		local m2, info = Meta.load(H.districts(), cur, prev, 7, H.T0)
+		assert_eq(info.source, "previous")
+		store2:adopt(info.source)
+		store2:save_meta(m2, true)
+		-- the backup is still a valid save, not the corrupt one
+		local cur3, prev3 = save_io.new(backend):load()
+		assert_eq(prev3.checksum ~= "broken", true)
+		local m3, info3 = Meta.load(H.districts(), nil, prev3, 7, H.T0)
+		assert_eq(info3.source, "previous")
+		assert_eq(m3:level_to_play(), 1)
+		assert_true(cur3 ~= nil)
+	end)
+
+	it("does not move anything to the backup after a fresh start", function()
+		local backend = save_io.memory_backend({
+			current = { glow_save = 1, data = { junk = 1 } },
+			previous = { glow_save = 1, data = { junk = 2 } },
+		})
+		local store = save_io.new(backend)
+		local cur, prev = store:load()
+		local m, info = Meta.load(H.districts(), cur, prev, 7, H.T0)
+		assert_eq(info.source, "fresh")
+		store:adopt(info.source)
+		store:save_meta(m)
+		assert_same(backend.read("previous"), { junk = 2 })
+		assert_eq(backend.writes, 1)
+	end)
+
+	it("simulates write failures with the faulty wrapper", function()
+		local inner = save_io.memory_backend()
+		local w = save_io.faulty(inner)
+		local store = save_io.new(w)
+		store:load()
+		w.fail = true
+		assert_false((store:save({ n = 1 })))
+		w.fail = false
+		assert_true(store:save({ n = 1 }))
+		assert_same(inner.read("current"), { n = 1 })
+	end)
+
 	it("wipes both slots", function()
 		local backend = save_io.memory_backend()
 		local store = save_io.new(backend)

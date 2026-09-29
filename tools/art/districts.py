@@ -16,9 +16,9 @@ import math
 
 import numpy as np
 
-from artkit import (C, Canvas, F32, WHITE, bez, candy, gblur, inset, mix, noise2, opening, ramp, raw, rng,
+from artkit import (C, Canvas, F32, WHITE, bez, candy, gblur, mix, noise2, opening, ramp, raw, rng,
                     sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly, sd_polyline, sd_rect, shift,
-                    smoothstep, sparkle4, U, I)
+                    smoothstep, sparkle4, U)
 from palette import SKY, TOWN, CONCERT, SPOTS
 
 W, H = 360, 640          # drawing units; the image is rendered at BG_OUT x (720x1280)
@@ -673,6 +673,22 @@ CONCERT_CONES = {
 }
 
 
+# night floors: the day floor's light/dark pattern (planks, tiles, cobbles, pitch stripes) re-coloured with a
+# saturated ramp, so the stage floor is glossy and deep and the neon pools pop (no muddy half-tints)
+FLOOR_NIGHT = {
+    "cafe": ["#3B2A8F", "#6B4CE0", "#B09CFF"], "jazz": ["#4A1F8F", "#8E3DD8", "#D29CFF"],
+    "square": ["#34309A", "#5D5CE8", "#A7B0FF"], "stadium": ["#0F6E60", "#1FB88A", "#8FF5C8"],
+    "garage": ["#2E3A9A", "#4F66E0", "#A0B4FF"],
+}
+
+
+def _floor_mask(cv, district):
+    fy = FLOOR_Y[district]
+    if district == "stadium":
+        return np.clip(0.5 - sd_ellipse(cv.X, cv.Y, 180, fy + 380, 380, 380) * cv.ss, 0, 1)
+    return smoothstep(fy - 1, fy + 3, cv.Y)
+
+
 def concert(district):
     MODE.concert = True
     try:
@@ -681,11 +697,18 @@ def concert(district):
         MODE.concert = False
     X, Y = cv.X, cv.Y
     fy = FLOOR_Y[district]
+    # floor: keep the pattern, swap the colours
+    m = _floor_mask(cv, district)
+    lum = cv.rgb @ np.array([0.3, 0.55, 0.15], F32)
+    sel = m > 0.5
+    lo, hi = np.percentile(lum[sel], 2), np.percentile(lum[sel], 99)
+    t = np.clip((lum - lo) / max(hi - lo, 1e-3), 0, 1)
+    fc = ramp(0.15 + 0.7 * t, [(i / 2, c) for i, c in enumerate(FLOOR_NIGHT[district])])
+    k = (m * 0.92)[..., None]
+    cv.rgb = (cv.rgb * (1 - k) + fc * k).astype(F32)
     with raw(cv):
-        # a gentle darkening toward the top so the neon reads, nothing near black; the floor keeps its own
-        # hue but sinks toward the concert violet so the spotlight pools pop
+        # a gentle darkening toward the top so the neon reads, nothing near black
         cv.paint(smoothstep(fy, 0, Y) * 0.25, C(CONCERT[0][1]), 0.5)
-        cv.paint(smoothstep(fy - 2, fy + 10, Y), C(CONCERT[1][1]), 0.32)
         # spotlight cones (added as light) + their pools and reflections on the floor
         for (x0, x1, ci) in CONCERT_CONES[district]:
             col = SPOTS[ci]
@@ -743,7 +766,7 @@ LAYOUT = {
     },
     "garage": {
         "strings": (228, 302, 1.3), "posters": (112, 430, 0.5), "tambourine": (334, 420, 0.44),
-        "garage_door": (536, 372, 1.0), "bass_guitar": (232, 470, 0.56), "drum_kit": (300, 660, 0.7),
+        "garage_door": (536, 372, 1.0), "bass_guitar": (232, 470, 0.56), "drum_kit": (286, 662, 0.7),
         "amp": (112, 640, 0.56), "keyboard": (500, 730, 0.52), "mic_stand": (636, 690, 0.46),
     },
 }

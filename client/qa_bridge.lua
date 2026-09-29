@@ -1,5 +1,9 @@
 -- Debug bridge for automated browser tests (client-architecture.md, 8).
--- Only active in a debug build running in HTML5.
+-- Only active in a debug build running in HTML5, and only when the page is
+-- served from this machine (localhost / 127.0.0.1) or opened with ?glowqa in
+-- the URL: a debug bundle uploaded by mistake does not hand every page
+-- script set_coins / reset_save. Debug bundles must still never be
+-- published (tools/build_web.sh marks them).
 --
 -- Each frame the bridge reads window.__glowCmd (and clears it), runs the
 -- command and writes the result plus an app snapshot as JSON to
@@ -19,6 +23,23 @@ local M = {}
 
 M.READ_JS = "(function(){var c=window.__glowCmd;window.__glowCmd=null;"
 	.. "return (c===undefined||c===null)?'':String(c);})()"
+M.LOCATION_JS = "(function(){try{return location.hostname+' '+location.search;}catch(e){return '';}})()"
+
+-- Is the bridge allowed on a page at `hostname` with query `search`?
+function M.host_allowed(hostname, search)
+	hostname = string.lower(tostring(hostname or ""))
+	if hostname == "localhost" or hostname == "127.0.0.1" or hostname == "[::1]" or hostname == "::1" then return true end
+	return string.find(tostring(search or ""), "glowqa", 1, true) ~= nil
+end
+
+-- Reads the page location through run_js and applies host_allowed.
+function M.page_allowed(run_js)
+	if not run_js then return false end
+	local ok, loc = pcall(run_js, M.LOCATION_JS)
+	if not ok or type(loc) ~= "string" then return false end
+	local host, search = string.match(loc, "^(%S*)%s?(.*)$")
+	return M.host_allowed(host, search)
+end
 M.MAX_ERRORS = 20
 
 local state = {

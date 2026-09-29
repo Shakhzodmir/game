@@ -24,65 +24,9 @@ textures {
   name: "ui"
   texture: "/assets/gen/ui.atlas"
 }
-textures {
-  name: "district_cafe"
-  texture: "/assets/gen/district_cafe.atlas"
-}
-textures {
-  name: "district_garage"
-  texture: "/assets/gen/district_garage.atlas"
-}
-textures {
-  name: "district_jazz"
-  texture: "/assets/gen/district_jazz.atlas"
-}
-textures {
-  name: "district_square"
-  texture: "/assets/gen/district_square.atlas"
-}
-textures {
-  name: "district_stadium"
-  texture: "/assets/gen/district_stadium.atlas"
-}
-textures {
-  name: "bg_cafe"
-  texture: "/assets/gen/bg_cafe.atlas"
-}
-textures {
-  name: "bg_cafe_concert"
-  texture: "/assets/gen/bg_cafe_concert.atlas"
-}
-textures {
-  name: "bg_garage"
-  texture: "/assets/gen/bg_garage.atlas"
-}
-textures {
-  name: "bg_garage_concert"
-  texture: "/assets/gen/bg_garage_concert.atlas"
-}
-textures {
-  name: "bg_jazz"
-  texture: "/assets/gen/bg_jazz.atlas"
-}
-textures {
-  name: "bg_jazz_concert"
-  texture: "/assets/gen/bg_jazz_concert.atlas"
-}
-textures {
-  name: "bg_square"
-  texture: "/assets/gen/bg_square.atlas"
-}
-textures {
-  name: "bg_square_concert"
-  texture: "/assets/gen/bg_square_concert.atlas"
-}
-textures {
-  name: "bg_stadium"
-  texture: "/assets/gen/bg_stadium.atlas"
-}
-textures {
-  name: "bg_stadium_concert"
-  texture: "/assets/gen/bg_stadium_concert.atlas"
+materials {
+  name: "grey"
+  material: "/render/gui_grey.material"
 }
 material: "/builtins/materials/gui.material"
 adjust_reference: ADJUST_REFERENCE_DISABLED
