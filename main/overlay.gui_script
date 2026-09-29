@@ -187,6 +187,7 @@ local function close_modal(self, button)
 	self.modal = nil
 	destroy_modal_nodes(self, m)
 	bus.publish("modal_result", { id = m.id, button = button })
+	app.overlay.last_modal_result = { id = m.id, button = button }
 	publish_status(self)
 end
 

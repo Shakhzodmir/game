@@ -108,8 +108,7 @@ end
 local function build_scene(self)
 	local s = self.ui
 	if self.l_scene then s:clear(self.l_scene) end
-	self.l_scene = s:layer(s.root, "scene")
-	gui.move_below(self.l_scene, self.l_ui)
+	self.l_scene = s:layer(self.c_scene)
 	self.items = {}
 	s:release_images(district_images(self.district)) -- the previous district leaves memory
 	s:sky({ parent = self.l_scene })
@@ -303,7 +302,7 @@ end
 local function build_ui(self)
 	local s = self.ui
 	if self.l_ui then s:clear(self.l_ui) end
-	self.l_ui = s:layer(s.root, "ui")
+	self.l_ui = s:layer(self.c_ui)
 	local d = app.meta:district(self.district)
 	build_top_bar(self, s, self.l_ui)
 	build_district_title(self, s, self.l_ui, d)
@@ -396,9 +395,12 @@ function init(self)
 	self.sub = bus.subscribe({ "meta_changed", "lives_tick", "language_changed", "modal_result", "save_reset" }, "town")
 	self.on_bus = function(topic, p) on_bus(self, topic, p) end
 	self.ui = ui.scene({ gui = GUI })
+	-- fixed containers keep the draw order; their content is rebuilt
+	self.c_scene = self.ui:layer(self.ui.root, "scene")
+	self.c_ui = self.ui:layer(self.ui.root, "ui")
 	self.district = app.focus_district()
-	build_ui(self)
 	build_scene(self)
+	build_ui(self)
 	audio.level_duck(false)
 	audio.layer("tension", false)
 	audio.layer("party", false)
@@ -427,7 +429,6 @@ function update(self, dt)
 	end
 	if self.dirty_ui then
 		build_ui(self)
-		gui.move_above(self.l_ui, self.l_scene)
 		self.dirty_ui = false
 	end
 	self.ui:update(dt)
