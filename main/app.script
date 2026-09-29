@@ -221,6 +221,10 @@ local function qa_handlers(self)
 			audio.music(args[1] or app.focus_district(), { all = args[2] == "all" })
 			return { ok = true }
 		end,
+		music_stop = function()
+			audio.stop_music()
+			return { ok = true }
+		end,
 		layer = function(args)
 			audio.layer(args[1] or "tension", args[2] ~= "0")
 			return { ok = true }

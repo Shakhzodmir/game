@@ -450,31 +450,40 @@ end
 function Scene:backdrop(parent, key, opts)
 	opts = opts or {}
 	parent = parent or self.root
-	local n = self:image(parent, key, layout.W / 2, layout.H / 2, { w = layout.W, h = layout.H, color = opts.color })
-	if not n then return nil end
+	local e = assets.image(key)
+	if not e then return nil end
+	if e.file then self:loose_texture(key, e) end -- decodes it and reads its edges
 	local E = edge_cache[key]
-	if not E then return n end
-	local b = { image = n, strips = {} }
-	local haze = gfx.hex(opts.haze or M.EDGE_HAZE)
-	local amount = opts.haze_amount or M.EDGE_HAZE_AMOUNT
-	for _, side in ipairs(SIDES) do
-		local id = "ext:" .. key .. ":" .. side
-		if not self.textures[id] then
-			local buf, w, h = gfx.edge_fill(E[side], side, M.EDGE_STEPS, haze, amount)
-			if gui.new_texture(id, w, h, "rgba", buf, false) then self.textures[id] = true end
-		end
-		if self.textures[id] then
-			local s = gui.new_box_node(v3(0, 0), v3(1, 1))
-			gui.set_parent(s, parent)
-			gui.set_texture(s, id)
-			gui.set_color(s, vmath.vector4(1, 1, 1, 1))
-			b.strips[side] = s
+	local b = { strips = {} }
+	if E then
+		-- strips first: the picture is drawn over their 1 px overlap
+		local haze = gfx.hex(opts.haze or M.EDGE_HAZE)
+		local amount = opts.haze_amount or M.EDGE_HAZE_AMOUNT
+		for _, side in ipairs(SIDES) do
+			local id = "ext:" .. key .. ":" .. side
+			if not self.textures[id] then
+				local buf, w, h = gfx.edge_fill(E[side], side, M.EDGE_STEPS, haze, amount)
+				if gui.new_texture(id, w, h, "rgba", buf, false) then self.textures[id] = true end
+			end
+			if self.textures[id] then
+				local st = gui.new_box_node(v3(0, 0), v3(1, 1))
+				gui.set_parent(st, parent)
+				gui.set_texture(st, id)
+				gui.set_color(st, vmath.vector4(1, 1, 1, 1))
+				b.strips[side] = st
+			end
 		end
 	end
-	-- the picture above its strips
-	gui.move_above(n, nil)
-	self.backdrops[#self.backdrops + 1] = b
-	self:_fit_backdrop(b)
+	local n = self:image(parent, key, layout.W / 2, layout.H / 2, { w = layout.W, h = layout.H, color = opts.color })
+	if not n then
+		for _, st in pairs(b.strips) do gui.delete_node(st) end
+		return nil
+	end
+	b.image = n
+	if E then
+		self.backdrops[#self.backdrops + 1] = b
+		self:_fit_backdrop(b)
+	end
 	return n
 end
 
@@ -643,7 +652,7 @@ function Scene:button(spec)
 			color = dark and "text" or "white",
 			outline = dark and false or st[4],
 			shadow = not dark and st[4] or false,
-			max_width = math.max(10, w - 40 - (label_dx * 2)),
+			max_width = math.max(10, w - (w >= 120 and 40 or 12) - (label_dx * 2)),
 		})
 	end
 	self.buttons[#self.buttons + 1] = btn
