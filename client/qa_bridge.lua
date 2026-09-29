@@ -19,8 +19,10 @@
 --   stall <ms> | stray_fade <in|out> | music <district> [all] | music_stop |
 --   layer <tension|party> [0] | sfx <name> | note <color> <wave> |
 --   chord <wave> <color> <color> ... |
---   hint_move | swap x1 y1 x2 y2 | tap x y | skip | win   (need the board: not yet)
--- Handlers are supplied by main/app.script; parse/execute are pure and tested.
+--   hint_move | swap x1 y1 x2 y2 | tap x y | skip | state | booster ... |
+--   continue [n] [riff] | give_up   (the level screen, while it is on display)
+-- Handlers are supplied by main/app.script; a screen adds its own while it
+-- is on display (register below). parse/execute are pure and tested.
 
 local M = {}
 
@@ -86,13 +88,41 @@ end
 
 M.NOT_YET = { hint_move = true, swap = true, tap = true, skip = true, win = true }
 
+-- Commands a screen adds while it is on display (the level board):
+--   local off = qa_bridge.register({hint_move = fn(args, cmd, prev), ...})
+--   off()  -- in final()
+-- A registered handler shadows an older one with the same name and gets it
+-- as `prev` (nil if none), so "state" can merge the app's answer with its own.
+local layers = {} -- stack of {handlers}
+
+function M.register(handlers)
+	local layer = { handlers = handlers or {} }
+	layers[#layers + 1] = layer
+	return function()
+		for i = #layers, 1, -1 do
+			if layers[i] == layer then table.remove(layers, i) end
+		end
+	end
+end
+
+-- The handler for a name below stack position `depth` (nil = the top).
+local function find_handler(name, depth)
+	for i = (depth or #layers + 1) - 1, 1, -1 do
+		local h = layers[i].handlers[name]
+		if h then
+			return function(args, cmd) return h(args, cmd, find_handler(name, i)) end
+		end
+	end
+	return state.handlers[name]
+end
+
 -- Runs one command; returns a result table (never raises).
 function M.execute(cmd)
 	local name, args = M.parse(cmd)
 	if not name then return { ok = false, error = "empty command" } end
-	local h = state.handlers[name]
+	local h = find_handler(name)
 	if not h then
-		if M.NOT_YET[name] then return { ok = false, error = "not_implemented: needs the board" } end
+		if M.NOT_YET[name] then return { ok = false, error = "not_implemented: needs the board (the level screen is not on display)" } end
 		return { ok = false, error = "unknown command '" .. name .. "'" }
 	end
 	local ok, res = pcall(h, args, cmd)

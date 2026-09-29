@@ -4,7 +4,10 @@
   "moves": 26,
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "blue"],
-  "goals": [{"type": "break", "item": "record_box", "count": 12}],
+  "goals": [
+    {"type": "break", "item": "record_box", "count": 12},
+    {"type": "collect", "color": "orange", "count": 40}
+  ],
   "cells": [
     "...###...",
     "..#####..",

@@ -4,7 +4,7 @@
   "moves": 24,
   "difficulty": "medium",
   "colors": ["red", "orange", "yellow", "green", "blue"],
-  "goals": [{"type": "deliver", "count": 5}],
+  "goals": [{"type": "deliver", "count": 6}],
   "cells": [
     ".#######.",
     "#########",
@@ -77,5 +77,5 @@
     {"at": [7, 6], "type": "piece", "color": "yellow"},
     {"at": [8, 6], "type": "piece", "color": "blue"}
   ],
-  "mic": {"total": 5, "on_board_max": 2, "gap_moves": 2}
+  "mic": {"total": 6, "on_board_max": 2, "gap_moves": 3}
 }

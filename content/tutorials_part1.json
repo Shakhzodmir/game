@@ -41,6 +41,6 @@
     {"kind": "swap", "from": [4, 5], "to": [4, 4], "text": "tutorial.dancefloor_match"}
   ]},
   "16": {"steps": [
-    {"kind": "tip", "at": [4, 6], "text": "tutorial.dancefloor_double"}
+    {"kind": "tip", "at": [4, 5], "text": "tutorial.dancefloor_double"}
   ]}
 }
