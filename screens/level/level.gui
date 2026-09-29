@@ -29,8 +29,8 @@ textures {
   texture: "/assets/gen/ui.atlas"
 }
 textures {
-  name: "bg_level"
-  texture: "/assets/gen/bg_level.atlas"
+  name: "bit"
+  texture: "/assets/gen/bit.atlas"
 }
 material: "/builtins/materials/gui.material"
 adjust_reference: ADJUST_REFERENCE_DISABLED

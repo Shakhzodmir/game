@@ -248,7 +248,7 @@
         "y": 326,
         "scale": 0.6,
         "w": 238,
-        "h": 194
+        "h": 199
       },
       "choir": {
         "image": "assets/images/districts/stadium/choir.png",
@@ -296,8 +296,8 @@
       "drum_kit": {
         "image": "assets/images/districts/garage/drum_kit.png",
         "ghost": "assets/images/districts/garage/drum_kit_ghost.png",
-        "x": 300,
-        "y": 660,
+        "x": 286,
+        "y": 662,
         "scale": 0.7,
         "w": 266,
         "h": 214

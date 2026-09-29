@@ -10,10 +10,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install Lua VMs
-        run: sudo apt-get update && sudo apt-get install -y lua5.1 luajit
+      - name: Install Lua VMs and fontTools (the generator filters font glyphs with it)
+        run: sudo apt-get update && sudo apt-get install -y lua5.1 luajit python3-fonttools
       - name: Run tests
         run: ./tools/test.sh
+      - name: Generated Defold resources are up to date and the assets consistent
+        run: python3 tools/gen_defold.py --check
 
   web:
     name: HTML5 build
@@ -27,8 +29,10 @@ jobs:
           java-version: '25'
       - name: Download Defold bob.jar 1.13.1
         run: curl -sSL -o bob.jar https://github.com/defold/defold/releases/download/1.13.1/bob.jar
-      - name: Build
+      - name: Build (release)
         run: ./tools/build_web.sh
+      - name: No debug bundle in the artifact
+        run: test ! -e dist/GLOW/DEBUG_BUILD_DO_NOT_PUBLISH
       - uses: actions/upload-artifact@v4
         with:
           name: glow-web

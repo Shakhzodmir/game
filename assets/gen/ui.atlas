@@ -7,58 +7,9 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
-  id: "bit_dance_a"
+  id: "ui_badge_count"
   images {
-    image: "/assets/images/bit/dance_a.png"
-  }
-  playback: PLAYBACK_NONE
-}
-animations {
-  id: "bit_dance_b"
-  images {
-    image: "/assets/images/bit/dance_b.png"
-  }
-  playback: PLAYBACK_NONE
-}
-animations {
-  id: "bit_happy"
-  images {
-    image: "/assets/images/bit/happy.png"
-  }
-  playback: PLAYBACK_NONE
-}
-animations {
-  id: "bit_idle"
-  images {
-    image: "/assets/images/bit/idle.png"
-  }
-  playback: PLAYBACK_NONE
-}
-animations {
-  id: "bit_sad"
-  images {
-    image: "/assets/images/bit/sad.png"
-  }
-  playback: PLAYBACK_NONE
-}
-animations {
-  id: "bit_scratch"
-  images {
-    image: "/assets/images/bit/scratch.png"
-  }
-  playback: PLAYBACK_NONE
-}
-animations {
-  id: "bit_worried"
-  images {
-    image: "/assets/images/bit/worried.png"
-  }
-  playback: PLAYBACK_NONE
-}
-animations {
-  id: "logo_logo"
-  images {
-    image: "/assets/images/logo/logo.png"
+    image: "/assets/images/ui/badge_count.png"
   }
   playback: PLAYBACK_NONE
 }
@@ -101,6 +52,41 @@ animations {
   id: "ui_button_purple"
   images {
     image: "/assets/images/ui/button_purple.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_button_small_blue"
+  images {
+    image: "/assets/images/ui/button_small_blue.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_button_small_gold"
+  images {
+    image: "/assets/images/ui/button_small_gold.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_button_small_green"
+  images {
+    image: "/assets/images/ui/button_small_green.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_button_small_pink"
+  images {
+    image: "/assets/images/ui/button_small_pink.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_button_small_purple"
+  images {
+    image: "/assets/images/ui/button_small_purple.png"
   }
   playback: PLAYBACK_NONE
 }
@@ -171,6 +157,13 @@ animations {
   id: "ui_icons_gift"
   images {
     image: "/assets/images/ui/icons/gift.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_icons_goal_floor"
+  images {
+    image: "/assets/images/ui/icons/goal_floor.png"
   }
   playback: PLAYBACK_NONE
 }
@@ -339,6 +332,13 @@ animations {
   id: "ui_icons_stick"
   images {
     image: "/assets/images/ui/icons/stick.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_icons_streak"
+  images {
+    image: "/assets/images/ui/icons/streak.png"
   }
   playback: PLAYBACK_NONE
 }

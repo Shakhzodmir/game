@@ -15,17 +15,38 @@ describe("client.assets and the generated index", function()
 		end
 	end)
 
-	it("lists every image in its atlas", function()
+	it("lists every atlas image in its atlas and every other one as a file", function()
 		for key, e in pairs(index.images) do
-			local atlas = index.atlases[e.atlas]
-			assert_true(atlas ~= nil, key .. " -> missing atlas " .. tostring(e.atlas))
-			local found = false
-			for _, a in ipairs(atlas.anims) do
-				if a == e.anim then found = true end
+			if e.file then
+				-- loose images: districts and backgrounds, shipped as custom resources
+				assert_eq(e.atlas, nil, key)
+				assert_eq(e.file, "/assets/images/" .. key .. ".png")
+				local top = string.match(key, "^([^/]+)/")
+				assert_true(top == "districts" or top == "backgrounds", key)
+			else
+				local atlas = index.atlases[e.atlas]
+				assert_true(atlas ~= nil, key .. " -> missing atlas " .. tostring(e.atlas))
+				local found = false
+				for _, a in ipairs(atlas.anims) do
+					if a == e.anim then found = true end
+				end
+				assert_true(found, key .. " not in atlas " .. e.atlas)
+				local base = (string.gsub(key, "/", "_"))
+				assert_true(e.anim == base or string.match(e.anim, "^" .. base .. "_%d+$") ~= nil, key .. " anim " .. e.anim)
 			end
-			assert_true(found, key .. " not in atlas " .. e.atlas)
-			assert_eq(e.anim, (string.gsub(key, "/", "_")))
-			if e.slice9 then assert_eq(#e.slice9, 4, key .. " slice9") end
+			assert_true(e.w > 0 and e.h > 0, key)
+			if e.slice9 then
+				assert_eq(#e.slice9, 4, key .. " slice9")
+				assert_true(e.slice9[1] + e.slice9[3] < e.w and e.slice9[2] + e.slice9[4] < e.h, key .. " slice9 fits")
+			end
+		end
+		-- animation ids are unique within an atlas
+		for name, a in pairs(index.atlases) do
+			local seen = {}
+			for _, id in ipairs(a.anims) do
+				assert_eq(seen[id], nil, name .. " repeats " .. id)
+				seen[id] = true
+			end
 		end
 		for name, a in pairs(index.atlases) do
 			assert_eq(a.anims[1], "white", name .. " has the placeholder")
@@ -42,6 +63,11 @@ describe("client.assets and the generated index", function()
 		assert_true(assets.gui_has_texture("/screens/town/town.gui", "ui"))
 		assert_false(assets.gui_has_texture("/screens/town/town.gui", "nope"))
 		assert_false(assets.gui_has_texture("/nope.gui", "ui"))
+		assert_false(assets.gui_has_material("/nope.gui", "grey"))
+		-- the town holds no district atlas: its pictures are loaded on demand
+		for _, t in ipairs(index.guis["/screens/town/town.gui"].textures) do
+			assert_eq(string.match(t, "^district_") or string.match(t, "^bg_"), nil, t)
+		end
 	end)
 
 	it("names sounds the way the audio module expects", function()
@@ -65,6 +91,16 @@ describe("client.assets and the generated index", function()
 			local list = assets.music_stems(did)
 			for i = 2, #list do assert_true(list[i - 1] < list[i]) end
 		end
+		for name, key in pairs(index.sounds.sfx_keys or {}) do
+			assert_true(index.sounds.sfx[name] ~= nil, "key of a missing effect " .. name)
+			assert_true(audio.key_semitones(key) ~= nil, name .. " has key " .. tostring(key))
+			assert_eq(assets.sfx_key(name), key)
+		end
+		for did, loop in pairs(index.sounds.loops or {}) do
+			assert_true(loop > 0, did)
+			assert_eq(assets.music_loop(did), loop)
+		end
+		assert_eq(type(assets.mixer()), "table")
 		assert_eq(assets.note_id("nope", 1), nil)
 		assert_eq(assets.sfx_id("nope"), nil)
 		assert_same(assets.music_stems("nope"), {})
@@ -76,8 +112,10 @@ describe("client.assets and the generated index", function()
 			if did then
 				assert_eq(assets.district_bg(did, "no_such_view"), index.images[key])
 				assert_eq(assets.district_bg(did), index.images[key])
+				assert_eq(assets.district_bg_key(did, "no_such_view"), key)
 			end
 		end
 		assert_eq(assets.district_bg("nope"), nil)
+		assert_eq(assets.district_bg_key("nope", "concert"), nil)
 	end)
 end)

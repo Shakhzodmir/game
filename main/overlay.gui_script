@@ -1,21 +1,61 @@
--- Persistent overlay above every screen: fade transitions, toasts and simple
--- modal popups. Lives in main.collection, rendered last (render order 15).
+-- Persistent overlay above every screen: fade transitions, toasts, simple
+-- modal popups and app-wide notices. Lives in main.collection, rendered last
+-- (render order 15).
 --
--- Messages (msg.post("main:/overlay#overlay", ...)):
+-- Messages (msg.post("main:/overlay#overlay", ...)); use the client/app.lua
+-- helpers, which pass specs as tickets (msg.post payloads are capped at 2 KB):
 --   fade_out {duration}   -> fades to opaque, replies "fade_out_done" to the sender
 --   fade_in  {duration}   -> fades to clear,  replies "fade_in_done"  to the sender
---   toast    {text, duration = 2.2}
---   modal    {id, title, text, buttons = {{id, text, style}}}
---            -> replies "modal_result" {id, button} to the sender and publishes
---               bus "modal_result"; button "close" when dismissed outside
+--        Every request gets its reply: a fade that is superseded replies at
+--        once. During a screen transition of main:/app, fades asked by other
+--        scripts wait until the transition is over.
+--   toast    {ticket}     -> app.toast(text | {key, vars}, {color, duration})
+--   modal    {ticket}     -> app.modal({id, title, text, buttons = {{id, text, style}}})
+--        The answer is the bus event "modal_result" {id, button}; button
+--        "close" (dismissed), "replaced" (another modal), "screen_changed"
+--        (the screen went away: bus "screen_leaving"). No message is posted
+--        back to the sender (it may be gone).
+--   close_modal {button}
 --   take_focus            (re)acquire input focus so the overlay is on top
+-- Bus in: screen_leaving, language_changed, save_failed, save_recovered.
 -- While fading or showing a modal the overlay swallows all input.
+-- State for debug / QA: require("client.app").overlay (see publish_status).
 
 local ui = require("client.ui")
 local bus = require("client.bus")
 local i18n = require("client.i18n")
+local app = require("client.app")
 
 local FADE_COLOR = "#E4F7FF"
+local TOAST_Y = 1280 - 190      -- centre of a toast, below the top bar
+local TOAST_OFF = 290           -- start/end offset above it (off screen)
+local TOAST_IN, TOAST_OUT = 0.35, 0.3
+
+local MSG_FADE_OUT = hash("fade_out")
+local MSG_FADE_IN = hash("fade_in")
+local MSG_TOAST = hash("toast")
+local MSG_MODAL = hash("modal")
+local MSG_CLOSE_MODAL = hash("close_modal")
+local MSG_TAKE_FOCUS = hash("take_focus")
+local BACK = hash("back")
+
+local function publish_status(self)
+	local st = app.overlay
+	st.fading = self.fading
+	st.fade_alpha = self.fade_alpha
+	st.modal = self.modal and self.modal.id or nil
+	st.toasts_queued = #self.toast_queue
+	if self.toast then
+		st.toast = self.toast.shown_text
+		st.toast_phase = self.toast.phase
+		local p = gui.get_position(self.toast.panel)
+		st.toast_offset = p.y -- 0 = fully in view
+	else
+		st.toast, st.toast_phase, st.toast_offset = nil, nil, nil
+	end
+end
+
+-- fades -----------------------------------------------------------------------------------
 
 local function build_fade(self)
 	self.fade = gui.new_box_node(vmath.vector3(0, 0, 0), vmath.vector3(4, 4, 0))
@@ -30,83 +70,145 @@ local function fit_fade(self)
 	gui.set_size(self.fade, vmath.vector3(ww + 2, wh + 2, 0))
 end
 
-local function set_fade_alpha(self, a)
-	self.fade_alpha = a
-	local c = gui.get_color(self.fade)
-	c.w = a
-	gui.set_color(self.fade, c)
+local function from_app(self, sender)
+	return sender ~= nil and sender.socket == self.app_url.socket and sender.path == self.app_url.path
 end
 
-local function fade(self, to, duration, reply_to, reply)
+local function reply(req)
+	if req and req.sender and req.reply then msg.post(req.sender, req.reply) end
+end
+
+local run_fade_queue
+
+local function start_fade(self, req)
+	-- a running fade is superseded: its requester gets the reply now, so a
+	-- script waiting for it (the screen manager) can never wait forever
+	if self.fade_req then
+		local old = self.fade_req
+		self.fade_req = nil
+		reply(old)
+	end
+	self.fade_req = req
 	self.fading = true
 	gui.cancel_animations(self.fade, "color.w")
 	gui.set_enabled(self.fade, true)
-	gui.animate(self.fade, "color.w", to, gui.EASING_INOUTQUAD, duration or 0.25, 0, function()
+	gui.animate(self.fade, "color.w", req.to, gui.EASING_INOUTQUAD, req.duration or 0.25, 0, function()
 		self.fading = false
-		self.fade_alpha = to
-		if to <= 0 then gui.set_enabled(self.fade, false) end
-		if reply_to then msg.post(reply_to, reply) end
+		self.fade_alpha = req.to
+		if req.to <= 0 then gui.set_enabled(self.fade, false) end
+		if self.fade_req == req then self.fade_req = nil end
+		reply(req)
+		-- the screen manager's fade-in ends its transition: run what waited
+		if req.app and req.to <= 0 then run_fade_queue(self) end
 	end)
+end
+
+run_fade_queue = function(self)
+	local q = self.fade_queue
+	self.fade_queue = {}
+	for _, r in ipairs(q) do start_fade(self, r) end
+end
+
+local function request_fade(self, to, message, sender, reply_id)
+	local req = { to = to, duration = message.duration, sender = sender, reply = reply_id, app = from_app(self, sender) }
+	if not req.app and app.transitioning then
+		self.fade_queue[#self.fade_queue + 1] = req
+		return
+	end
+	start_fade(self, req)
 end
 
 -- toasts -----------------------------------------------------------------------------------
 
+local function toast_text(t)
+	if t.key then return i18n.tr({ key = t.key, vars = t.vars }) end
+	return t.text or ""
+end
+
 local function show_next_toast(self)
-	if self.toast_node or #self.toast_queue == 0 then return end
+	if self.toast or #self.toast_queue == 0 then return end
 	local t = table.remove(self.toast_queue, 1)
 	local s = self.ui
-	local panel = s:round(s.root, 360, 1280 - 190, 620, 96, "white", { alpha = 0.97 })
-	s:anchor(panel, "top")
-	local _, _ = s:text(panel, t.text or "", 0, 2, {
-		font = "body", size = 32, color = "text", max_width = 580,
+	-- holder: anchored to the safe top; the panel slides inside it
+	local holder = s:layer(s.root)
+	gui.set_position(holder, vmath.vector3(360, TOAST_Y, 0))
+	s:anchor(holder, "top")
+	local panel = s:round(holder, 0, TOAST_OFF, 620, 96, "white", { alpha = 0.97 })
+	local label, info = s:text(panel, "", 14, 2, {
+		font = "body", size = 32, color = "text", max_width = 560,
 	})
-	local accent = s:round(panel, -310 + 10, 0, 12, 60, t.color or "pink")
-	gui.set_pivot(accent, gui.PIVOT_W)
-	self.toast_node = panel
-	local p = gui.get_position(panel)
-	local from = vmath.vector3(p.x, p.y + 160, 0)
-	gui.set_position(panel, from)
-	gui.animate(panel, "position", p, gui.EASING_OUTBACK, 0.35)
-	gui.animate(panel, "position", from, gui.EASING_INBACK, 0.3, (t.duration or 2.2) + 0.35, function()
-		gui.delete_node(panel)
-		self.toast_node = nil
-		show_next_toast(self)
+	-- accent: a slim pill on the left, drawn with a matching small radius
+	s:round(panel, -310 + 18, 0, 12, 60, t.color or "pink")
+	t.holder, t.panel, t.label, t.info, t.phase = holder, panel, label, info, "in"
+	t.shown_text = toast_text(t)
+	s:set_text(label, t.shown_text, info)
+	self.toast = t
+	gui.animate(panel, "position.y", 0, gui.EASING_OUTBACK, TOAST_IN, 0, function()
+		-- the slide-out starts from the slide-in's end: a second animation of
+		-- the same property would cancel the first one
+		t.phase = "hold"
+		gui.animate(panel, "position.y", TOAST_OFF, gui.EASING_INBACK, TOAST_OUT, t.duration or 2.2, function()
+			if self.toast ~= t then return end
+			self.ui:clear(holder)
+			self.toast = nil
+			show_next_toast(self)
+		end)
 	end)
 end
 
+local function queue_toast(self, t)
+	if not t then return end
+	-- the same text twice in a row is shown once
+	local last = self.toast_queue[#self.toast_queue] or self.toast
+	if last and toast_text(last) == toast_text(t) then return end
+	self.toast_queue[#self.toast_queue + 1] = t
+	show_next_toast(self)
+end
+
+local function refresh_toast(self)
+	local t = self.toast
+	if t and t.key then
+		t.shown_text = toast_text(t)
+		self.ui:set_text(t.label, t.shown_text, t.info)
+	end
+end
+
 -- modal -------------------------------------------------------------------------------------
+
+local function destroy_modal_nodes(self, m)
+	if m.dim then self.ui:clear(m.dim) end
+	if m.panel then self.ui:clear(m.panel) end
+	m.dim, m.panel, m.buttons = nil, nil, {}
+end
 
 local function close_modal(self, button)
 	local m = self.modal
 	if not m then return end
 	self.modal = nil
-	for _, b in ipairs(m.buttons) do self.ui:remove_button(b) end
-	gui.delete_node(m.dim)
-	gui.delete_node(m.panel)
-	local result = { id = m.id, button = button }
-	if m.sender then msg.post(m.sender, "modal_result", result) end
-	bus.publish("modal_result", result)
+	destroy_modal_nodes(self, m)
+	bus.publish("modal_result", { id = m.id, button = button })
+	publish_status(self)
 end
 
-local function open_modal(self, spec, sender)
-	if self.modal then close_modal(self, "replaced") end
+local function build_modal(self, m)
 	local s = self.ui
-	local m = { id = spec.id, sender = sender, buttons = {} }
+	local spec = m.spec
 	m.dim = s:box(s.root, 360, 640, 720, 1280, { color = "#5B3FA0", alpha = 0.35 })
 	s:cover(m.dim, "stretch")
-	local buttons = spec.buttons or { { id = "ok", text = i18n.t("common.ok"), style = "green" } }
+	local buttons = spec.buttons or { { id = "ok", text = { key = "common.ok" }, style = "green" } }
 	local text_h = spec.text and 150 or 0
 	local h = 150 + text_h + 130 * math.ceil(#buttons / 2)
 	m.panel = s:round(s.root, 360, 660, 620, h, "white")
-	s:text(m.panel, spec.title or "", 0, h / 2 - 70, {
+	s:text(m.panel, i18n.tr(spec.title), 0, h / 2 - 70, {
 		font = "title", size = 50, color = "pink", outline = "white", shadow = "shadow", max_width = 560,
 	})
 	if spec.text then
-		s:text(m.panel, spec.text, 0, h / 2 - 150 - text_h / 2 + 30, {
+		s:text(m.panel, i18n.tr(spec.text), 0, h / 2 - 150 - text_h / 2 + 30, {
 			font = "body", size = 30, color = "text", width = 540, height = text_h,
 		})
 	end
 	local rows = math.ceil(#buttons / 2)
+	m.buttons = {}
 	for i, b in ipairs(buttons) do
 		local row = math.floor((i - 1) / 2)
 		local in_row = math.min(2, #buttons - row * 2)
@@ -116,47 +218,83 @@ local function open_modal(self, spec, sender)
 		local y = -h / 2 + 90 + (rows - 1 - row) * 130
 		m.buttons[#m.buttons + 1] = s:button({
 			parent = m.panel, x = x, y = y, w = bw, h = 104, style = b.style or "green",
-			text = b.text or b.id, text_size = 38,
+			text = i18n.tr(b.text or b.id), text_size = 38,
 			on_click = function() close_modal(self, b.id) end,
 		})
 	end
+end
+
+local function open_modal(self, spec)
+	if type(spec) ~= "table" then return end
+	if self.modal then close_modal(self, "replaced") end
+	local m = { id = spec.id, spec = spec, buttons = {} }
+	build_modal(self, m)
 	ui.pop_in(m.panel, 0, 0.7)
 	self.modal = m
+	publish_status(self)
+end
+
+local function refresh_modal(self)
+	local m = self.modal
+	if not m then return end
+	destroy_modal_nodes(self, m)
+	build_modal(self, m)
 end
 
 -- lifecycle ------------------------------------------------------------------------------------
 
+local function on_bus(self, topic, p)
+	if topic == "screen_leaving" then
+		close_modal(self, "screen_changed")
+	elseif topic == "language_changed" then
+		refresh_toast(self)
+		refresh_modal(self)
+	elseif topic == "save_failed" then
+		if p.streak == 1 then queue_toast(self, { key = "toast.saved_failed", color = "pink", duration = 3 }) end
+	elseif topic == "save_recovered" then
+		queue_toast(self, { key = "toast.saved_again", color = "green" })
+	end
+end
+
 function init(self)
 	gui.set_render_order(15)
-	self.ui = ui.scene({ gui = "/main/overlay.gui" })
+	self.app_url = msg.url(app.APP_URL)
+	self.ui = ui.scene({ gui = "/main/overlay.gui", on_resize = function() fit_fade(self) end })
 	build_fade(self)
 	fit_fade(self)
 	self.toast_queue = {}
+	self.fade_queue = {}
 	self.fading = false
+	app.overlay = app.overlay or {}
+	self.sub = bus.subscribe({ "screen_leaving", "language_changed", "save_failed", "save_recovered" }, "overlay")
+	self.on_bus = function(topic, p) on_bus(self, topic, p) end
 	msg.post(".", "acquire_input_focus")
 end
 
 function final(self)
+	self.sub:close()
 	self.ui:final()
 end
 
 function update(self, dt)
-	if self.ui:refit(false) then fit_fade(self) end
+	self.sub:drain(self.on_bus)
+	self.ui:update(dt)
+	publish_status(self)
 end
 
 function on_message(self, message_id, message, sender)
-	if message_id == hash("fade_out") then
-		fade(self, 1, message.duration, sender, "fade_out_done")
-	elseif message_id == hash("fade_in") then
-		fade(self, 0, message.duration, sender, "fade_in_done")
-	elseif message_id == hash("toast") then
-		self.toast_queue[#self.toast_queue + 1] = { text = message.text, duration = message.duration, color = message.color }
-		show_next_toast(self)
-	elseif message_id == hash("modal") then
-		open_modal(self, message, sender)
-	elseif message_id == hash("close_modal") then
+	if message_id == MSG_FADE_OUT then
+		request_fade(self, 1, message, sender, "fade_out_done")
+	elseif message_id == MSG_FADE_IN then
+		request_fade(self, 0, message, sender, "fade_in_done")
+	elseif message_id == MSG_TOAST then
+		local t = message.ticket and app.claim(message.ticket) or { text = message.text, color = message.color, duration = message.duration }
+		queue_toast(self, t)
+	elseif message_id == MSG_MODAL then
+		open_modal(self, message.ticket and app.claim(message.ticket) or message)
+	elseif message_id == MSG_CLOSE_MODAL then
 		close_modal(self, message.button or "close")
-	elseif message_id == hash("take_focus") then
+	elseif message_id == MSG_TAKE_FOCUS then
 		msg.post(".", "release_input_focus")
 		msg.post(".", "acquire_input_focus")
 	end
@@ -165,7 +303,7 @@ end
 function on_input(self, action_id, action)
 	if self.modal then
 		if self.ui:on_input(action_id, action) then return true end
-		if action_id == hash("back") and action.released then close_modal(self, "close") end
+		if action_id == BACK and action.released then close_modal(self, "close") end
 		return true
 	end
 	if self.fading or self.fade_alpha > 0.5 then return true end

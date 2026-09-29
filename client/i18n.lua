@@ -73,6 +73,20 @@ local S = {
 		en = "The last level was interrupted and counted as a loss",
 		ru = "Прошлый уровень прерван и засчитан как поражение",
 	},
+	["splash.cancelled"] = {
+		en = "The last level was closed before your first move: nothing was lost",
+		ru = "Прошлый уровень закрыт до первого хода: ничего не потеряно",
+	},
+	["splash.save_lost"] = {
+		en = "Your saved progress could not be read, so the game starts over",
+		ru = "Не удалось прочитать сохранение, игра начинается заново",
+	},
+	["splash.newer"] = {
+		en = "Your progress comes from a newer version of the game",
+		ru = "Прогресс сохранён более новой версией игры",
+	},
+	["splash.gift"] = { en = "Gift: {name} boosters!", ru = "Подарок: бустеры «{name}»!" },
+	["splash.chest"] = { en = "{name}: the district chest is yours!", ru = "{name}: сундук района твой!" },
 
 	-- town --------------------------------------------------------------------------
 	["town.level"] = { en = "Level {n}", ru = "Уровень {n}" },
@@ -91,7 +105,7 @@ local S = {
 	["town.new_district"] = { en = "New district: {name}", ru = "Открыт новый район: {name}" },
 	["town.day"] = { en = "Day", ru = "День" },
 	["town.concert"] = { en = "Concert", ru = "Концерт" },
-	["town.lives_full"] = { en = "Full", ru = "Полные" },
+	["town.lives_full"] = { en = "Full", ru = "Макс." },
 	["nav.shop"] = { en = "Shop", ru = "Магазин" },
 	["nav.band"] = { en = "Band", ru = "Группа" },
 	["nav.town"] = { en = "Town", ru = "Город" },
@@ -120,6 +134,8 @@ local S = {
 	["start.locked"] = { en = "Unlocks at level {n}", ru = "Откроется на уровне {n}" },
 	["start.no_lives"] = { en = "You need a life to play", ru = "Для игры нужна жизнь" },
 	["start.play"] = { en = "Play", ru = "Играть" },
+	["start.run_active"] = { en = "Finish the level in progress first", ru = "Сначала доиграй начатый уровень" },
+	["start.not_next"] = { en = "Play the levels in order", ru = "Уровни проходятся по порядку" },
 
 	-- level HUD ---------------------------------------------------------------------------
 	["hud.level"] = { en = "Level {n}", ru = "Уровень {n}" },
@@ -172,6 +188,38 @@ local S = {
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
 	["blocker.column"] = { en = "Dusty speaker", ru = "Пыльная колонка" },
+	["blocker.record_box_desc"] = {
+		en = "Match next to the box or hit it with a special to break it. Some boxes take up to 3 hits.",
+		ru = "Собирай рядом с коробкой или бей спецфишкой. Некоторым коробкам нужно до 3 ударов.",
+	},
+	["blocker.dancefloor_desc"] = {
+		en = "Make matches on the dance floor to light it up. A double outline needs two.",
+		ru = "Собирай фишки на танцполе, чтобы зажечь его. Двойной обводке нужно два раза.",
+	},
+	["blocker.wires_desc"] = {
+		en = "A piece in wires cannot move. Match it or hit it with a special to cut the wires.",
+		ru = "Фишка в проводах не двигается. Собери её в ряд или ударь спецфишкой, чтобы порвать провода.",
+	},
+	["blocker.mic_desc"] = {
+		en = "Bring the microphone down to its stand at the bottom of the board.",
+		ru = "Опусти микрофон на стойку внизу поля.",
+	},
+	["blocker.concrete_desc"] = {
+		en = "Plain matches can't crack concrete: use special pieces and boosters.",
+		ru = "Обычный матч бетон не берёт: нужны спецфишки и бустеры.",
+	},
+	["blocker.noise_desc"] = {
+		en = "Noise spreads after every move that doesn't hit it. Match next to it to clear it.",
+		ru = "Помехи растут после каждого хода, который их не задел. Собирай рядом, чтобы убрать их.",
+	},
+	["blocker.balloon_desc"] = {
+		en = "A balloon pops when you match its colour next to it, or with any special.",
+		ru = "Шарик лопается от матча его цвета рядом или от любой спецфишки.",
+	},
+	["blocker.column_desc"] = {
+		en = "A big dusty speaker: every match next to it and every special knocks off one point.",
+		ru = "Большая пыльная колонка: каждый матч рядом и каждая спецфишка снимают одно очко.",
+	},
 
 	-- pause -----------------------------------------------------------------------------------
 	["pause.title"] = { en = "Paused", ru = "Пауза" },
@@ -293,6 +341,14 @@ local S = {
 		ru = "Трать звёзды, чтобы вернуть городу жизнь",
 	},
 	["tutorial.booster"] = { en = "Tap a booster, then pick a target", ru = "Нажми на бустер, затем выбери цель" },
+	["tutorial.record_box"] = { en = "Break the record boxes!", ru = "Разбей коробки с пластинками!" },
+	["tutorial.dancefloor"] = { en = "Light up the whole dance floor!", ru = "Зажги весь танцпол!" },
+	["tutorial.wires"] = { en = "Cut the wires to free the pieces!", ru = "Порви провода, чтобы освободить фишки!" },
+	["tutorial.mic"] = { en = "Bring the microphones to the stage!", ru = "Доставь микрофоны на сцену!" },
+	["tutorial.concrete"] = { en = "Only specials break concrete!", ru = "Бетон ломают только спецфишки!" },
+	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
+	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
+	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
 
 	-- music stems (layer names shown by tasks and the jukebox) -------------------------------------------------------
 	["stem.beat"] = { en = "Beat", ru = "Бит" },
@@ -329,7 +385,11 @@ local S = {
 
 	-- toasts and errors --------------------------------------------------------------------------------------------------
 	["toast.coming_soon"] = { en = "Coming soon!", ru = "Скоро!" },
-	["toast.saved_failed"] = { en = "Could not save progress", ru = "Не удалось сохранить прогресс" },
+	["toast.saved_failed"] = {
+		en = "Could not save progress. Trying again…",
+		ru = "Не удалось сохранить прогресс. Пробуем ещё раз…",
+	},
+	["toast.saved_again"] = { en = "Progress saved", ru = "Прогресс сохранён" },
 	["toast.language"] = { en = "Language: English", ru = "Язык: русский" },
 	["toast.debug_coins"] = { en = "+{n} coins (debug)", ru = "+{n} монет (отладка)" },
 	["toast.debug_reset"] = { en = "Save reset (debug)", ru = "Сохранение сброшено (отладка)" },
@@ -414,6 +474,34 @@ function M.t(key, vars, lang)
 	return M.format(v, vars)
 end
 
+-- Resolves a UI text spec at display time, so it follows the language:
+--   "plain text"                         -> as is
+--   {text = "plain"}                     -> as is
+--   {key = "town.level", vars = {n = 3}} -> i18n.t with the vars, where a var
+--       may itself be a localized table {en, ru} (a content name) or
+--       {key = ..., vars = ...} (a nested translation)
+function M.tr(spec)
+	if type(spec) ~= "table" then return spec ~= nil and tostring(spec) or "" end
+	if spec.lines then -- {lines = {spec, spec, ...}}: one per line
+		local out = {}
+		for i, l in ipairs(spec.lines) do out[i] = M.tr(l) end
+		return table.concat(out, "\n")
+	end
+	if spec.key == nil then
+		if spec.text ~= nil then return tostring(spec.text) end
+		return M.name(spec)
+	end
+	local vars = spec.vars
+	if type(vars) == "table" then
+		local out = {}
+		for k, v in pairs(vars) do
+			if type(v) == "table" then out[k] = v.key and M.tr(v) or M.name(v) else out[k] = v end
+		end
+		vars = out
+	end
+	return M.t(spec.key, vars)
+end
+
 -- Localized name from a table like {en = "...", ru = "..."} (districts.json).
 function M.name(tbl, lang)
 	if type(tbl) ~= "table" then return tostring(tbl) end
@@ -457,11 +545,16 @@ end
 
 -- Longer spans in words: "45 min", "1 h 20 min".
 function M.duration_words(seconds)
+	return M.tr(M.duration_words_spec(seconds))
+end
+
+-- The same as a text spec for M.tr (follows later language changes).
+function M.duration_words_spec(seconds)
 	seconds = math.max(0, math.ceil(tonumber(seconds) or 0))
 	local total_min = math.ceil(seconds / 60)
 	local h, m = math.floor(total_min / 60), total_min % 60
-	if h > 0 then return M.t("time.hm", { h = h, m = m }) end
-	return M.t("time.min", { m = m })
+	if h > 0 then return { key = "time.hm", vars = { h = h, m = m } } end
+	return { key = "time.min", vars = { m = m } }
 end
 
 -- Every distinct character used by the strings (for font glyph checks).

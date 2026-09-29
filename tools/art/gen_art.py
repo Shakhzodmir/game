@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate every image GLOW needs (deterministic, re-runnable from the repo root).
 
-    python3 tools/art/gen_art.py              # everything (wipes assets/images first)
+    python3 tools/art/gen_art.py              # everything (stale files in assets/images are removed after)
     python3 tools/art/gen_art.py --only pieces,icons --jobs 4
     python3 tools/art/gen_art.py --only districts --match bg     # just the district backgrounds
     python3 tools/art/gen_art.py --layout-only                   # re-check layouts + district docs, no render
@@ -32,7 +32,6 @@ import argparse
 import importlib
 import json
 import os
-import shutil
 import sys
 import time
 from multiprocessing import Pool
@@ -64,7 +63,7 @@ UI_ZONES = {
 ZONE_ALPHA = 16       # alpha (0..255) above which an item pixel counts as "touching"
 OVERLAP_ALPHA = 64    # two items overlap if both are above this alpha at the same scene pixel
 EDGE_ALPHA = 30       # no sprite may have alpha above this on its outer 1 px ring ...
-EDGE_EXEMPT = ("board/cell_", "blockers/wires_", "ui/bunting", "/garlands", "/strings", "/lamps", "/sign",
+EDGE_EXEMPT = ("board/cell_", "board/edge_", "blockers/wires_", "ui/bunting", "/garlands", "/strings", "/lamps", "/sign",
                "/garage_door")   # ... except art meant to tile or to run off the edge
 GHOST_ALPHA = 0.75
 BG_DITHER = 0.5       # ordered dither on the opaque backgrounds (breaks gradient banding)
@@ -151,9 +150,10 @@ def ghost_image(img):
     lum = arr[..., :3] @ np.array([0.299, 0.587, 0.114], np.float32)
     g = 0.6 + 0.38 * lum
     a = arr[..., 3] * GHOST_ALPHA
-    out = np.dstack([np.clip(g * 255 + 0.5, 0, 255), np.clip(a * 255 + 0.5, 0, 255)]).astype(np.uint8)
-    out[out[..., 1] == 0] = 0
-    return Image.fromarray(out, "LA")      # grey + alpha: half the bytes of RGBA
+    g8 = np.clip(g * 255 + 0.5, 0, 255)
+    out = np.dstack([g8, g8, g8, np.clip(a * 255 + 0.5, 0, 255)]).astype(np.uint8)
+    out[out[..., 3] == 0] = 0
+    return Image.fromarray(out, "RGBA")    # plain RGBA like every other sprite (safest for the atlas pipeline)
 
 
 def run_job(job):
@@ -631,9 +631,10 @@ def level_preview():
             else:
                 t = ca if (x + y) % 2 == 0 else cb
             scr.alpha_composite(t, (px, py))
+    exit_markers = []
     for x in exits:
         st = _fit(_img("blockers/mic_stand.png"), cell)
-        scr.alpha_composite(st, (bx + x * cell, by + 8 * cell - st.height + 4))
+        exit_markers.append((st, (bx + x * cell, by + 8 * cell - 12)))
     for y in range(8):
         for x in range(8):
             k = grid[y][x]
@@ -652,6 +653,8 @@ def level_preview():
             _paste_c(scr, T(rel, size), cx, cy)
             if (x, y) in wires:
                 _paste_c(scr, T("blockers/wires_2.png", cell), cx, cy)
+    for st, pos in exit_markers:            # the exit marker sits under the bottom cell, on the frame
+        scr.alpha_composite(st, pos)
     # hint glow on two cells
     hint = Image.new("RGBA", scr.size, (0, 0, 0, 0))
     hd = ImageDraw.Draw(hint)
@@ -709,9 +712,6 @@ def main():
     if args.layout_only:
         jobs = []
     full = not groups and not args.match and not args.layout_only
-    if full and os.path.isdir(OUT):
-        # full run: start from a clean output folder so no stale files survive
-        shutil.rmtree(OUT)
     os.makedirs(OUT, exist_ok=True)
     heavy = ("districts", "backgrounds", "bit", "blockers", "logo")
     jobs.sort(key=lambda j: (j[0] not in heavy, "/bg" not in j[1], j[1]))
@@ -723,6 +723,17 @@ def main():
                 results.append(r)
     else:
         results = [run_job(j) for j in jobs]
+    if full:
+        # full run: remove stale files afterwards (the folder is never emptied while rendering)
+        keep = {j[1] for j in jobs} | {j[1][:-4] + "_ghost.png" for j in jobs if j[5].get("ghost")}
+        for dp, _, fns in os.walk(OUT):
+            for fn in fns:
+                rel = os.path.relpath(os.path.join(dp, fn), OUT).replace(os.sep, "/")
+                if fn.endswith(".png") and rel not in keep:
+                    os.remove(os.path.join(dp, fn))
+        for dp, dns, fns in sorted(os.walk(OUT), reverse=True):
+            if dp != OUT and not os.listdir(dp):
+                os.rmdir(dp)
     districts = load_districts()
     touches_districts = full or args.layout_only or "districts" in groups or (not groups and args.match)
     problems = write_layouts(districts) if touches_districts else []

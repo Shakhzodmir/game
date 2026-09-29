@@ -100,4 +100,19 @@ describe("client.layout", function()
 	it("rejects bad board sizes", function()
 		assert_error(function() layout.board(0, 5) end, "positive")
 	end)
+
+	it("keeps the play area clear of notches (safe-area insets)", function()
+		local f = layout.fit(1170, 2532)
+		local plain = layout.play_area(f)
+		local insets = { inset_top = 141, inset_bottom = 102 }
+		local notched = layout.play_area(f, { insets = insets })
+		local safe = layout.safe_rect(f, insets)
+		-- below the HUD anchored to the safe top, above the safe booster bar
+		assert_true(notched.y1 <= safe.y1 - layout.HUD_TOP + 1e-6)
+		assert_true(notched.y0 >= safe.y0 + layout.BOOSTER_BAR - 1e-6)
+		-- without the insets the board would reach under the HUD
+		assert_true(plain.y1 > safe.y1 - layout.HUD_TOP + 1)
+		local b = layout.board(9, 9, notched)
+		assert_true(b.y1 <= notched.y1 and b.y0 >= notched.y0)
+	end)
 end)

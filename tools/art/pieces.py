@@ -479,7 +479,8 @@ def draw_disco():
     h2 = _hash(row, col, 2.0)
     # silver mirror facets: environment = bright sky top-left, lavender floor bottom-right
     env = np.clip(0.5 - fy * 0.45 - fx * 0.25, 0, 1)
-    base = mix(C("#A7B0D3"), C("#FFFFFF"), np.clip(env * 0.65 + lam * 0.55 + (h1 - 0.5) * 0.5, 0, 1))
+    base = mix(mix(C(DISCO_LO), C("#8C96BC"), 0.3), C(DISCO_HI),
+               np.clip(env * 0.65 + lam * 0.55 + (h1 - 0.5) * 0.5, 0, 1))     # spec: #FFFFFF -> #B7C2DC
     base = mix(base, C("#FFFFFF"), np.clip((h2 > 0.86) * lam * 1.4, 0, 1))          # flashing facets
     base = mix(base, C("#FFB8EE"), np.clip(fy * 0.8 + fx * 0.4, 0, 1) * 0.35)      # pink bounce light
     base = mix(base, C("#9FEFFF"), np.clip(-fx * 0.9, 0, 1) * np.clip(fy + 0.3, 0, 1) * 0.35)

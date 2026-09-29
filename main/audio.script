@@ -4,13 +4,27 @@
 -- applies them with sound.play / sound.set_gain / sound.set_group_gain.
 --
 -- Messages: see client/audio.lua (music, stop_music, unlock_stem, layer,
--- duck, combo, note, sfx, volumes). The music clock starts when the stems
--- start; notes are delayed to the next 1/32 of it with sound.play{delay}.
+-- duck, combo, note, sfx, volumes, resync).
+--
+-- Music clock: wall time since the stems started. When the engine loop
+-- stalls (a hidden tab, the app in the background, a long frame) the mixer
+-- stops but the clock does not, so the stems restart at the clock position in
+-- one frame (sound.play start_time) when the app gets the focus back and,
+-- on HTML5 where mixing runs in the frame loop, after any stall > 0.25 s.
+--
+-- Notes follow the mixer contract of the audio manifest (client/audio.lua):
+-- every note waits for its 1/32 tick; all notes of one tick (from any number
+-- of frames) are played together: each file once, at most 3 voices, 10/22/34 ms
+-- apart, at 0 / -4.5 / -6.5 dB.
 
 local audio = require("client.audio")
 local assets = require("client.assets")
 local app = require("client.app")
 local bus = require("client.bus")
+local platform = require("client.platform")
+
+local STALL = 0.25 -- seconds between two frames that count as a stall
+local OVERLAY = "main:/overlay#overlay"
 
 local MSG = {
 	music = hash("music"),
@@ -22,14 +36,25 @@ local MSG = {
 	note = hash("note"),
 	sfx = hash("sfx"),
 	volumes = hash("volumes"),
+	resync = hash("resync"),
+	flush_notes = hash("flush_notes"),
+	qa_fade = hash("qa_fade"),
 }
+
+local GROUP_MUSIC, GROUP_SFX, GROUP_NOTES = hash("music"), hash("sfx"), hash("notes")
 
 local function now()
 	return socket.gettime()
 end
 
-local function comp(id)
-	return msg.url(nil, go.get_id(), id)
+-- component url, cached (no allocation per call)
+local function comp(self, id)
+	local u = self.urls[id]
+	if not u then
+		u = msg.url(nil, go.get_id(), id)
+		self.urls[id] = u
+	end
+	return u
 end
 
 local function set_group_gain(group, g)
@@ -39,20 +64,62 @@ end
 local function apply_volumes(self)
 	local s = app.meta and app.meta:settings() or {}
 	self.mixer:set_volumes(s.music or 0.8, s.sfx or 1)
+	self.settings_rev = app.settings_rev
+end
+
+-- semitones from C of the key the music plays in (or the focus district)
+local function semitones(self)
+	if self.mixer:playing() then return self.semitones end
+	local d = app.meta and app.district(app.focus_district())
+	return d and d.semitones_from_c or 0
+end
+
+local function play_voices(self, group, clock)
+	local st = audio.status
+	for _, v in ipairs(group.voices) do
+		local delay = v.offset
+		if clock then delay = delay + math.max(0, group.at - clock) end
+		sound.play(comp(self, v.id), { delay = delay, gain = v.gain, pan = v.pan, speed = v.speed })
+		st.last_delay = delay
+	end
+	st.note_groups = st.note_groups + 1
+	st.voices = st.voices + #group.voices
+	st.last_group_voices = #group.voices
+	if #group.voices > st.max_group_voices then st.max_group_voices = #group.voices end
+	st.deduped = st.deduped + group.stats.deduped
+	st.capped = st.capped + group.stats.capped
+end
+
+-- plays the tick groups that are due (all of them with force)
+local function flush_notes(self, force)
+	local clock = self.mixer:playing() and self.mixer:clock(now()) or nil
+	if self.sched:pending() > 0 then
+		local due = self.sched:take_due(force and nil or clock, audio.NOTE_HORIZON)
+		for _, g in ipairs(due) do play_voices(self, g, clock) end
+	end
+	if self.free:pending() > 0 then
+		for _, g in ipairs(self.free:take_due(nil)) do play_voices(self, g, nil) end
+		self.free_key = self.free_key + 1
+	end
 end
 
 local function stop_stems(self, stems)
 	for _, stem in ipairs(stems) do
 		local id = assets.music_id(self.district, stem)
-		if id then sound.stop(comp(id)) end
+		if id then sound.stop(comp(self, id)) end
 	end
+end
+
+local function stop_music(self)
+	flush_notes(self, true)
+	if self.mixer:playing() then stop_stems(self, self.mixer:stop()) end
+	self.district = nil
+	self.sched:reset()
 end
 
 -- Starts every stem of the district in this frame; locked stems at gain 0.
 local function start_music(self, district, all)
-	if self.mixer:playing() then
-		stop_stems(self, self.mixer:stop())
-	end
+	stop_music(self)
 	self.district = district
 	self.all = all and true or false
 	local data = app.district(district)
@@ -62,45 +129,73 @@ local function start_music(self, district, all)
 		return
 	end
 	local unmuted = {}
-	if all then
-		for _, s in ipairs(stems) do unmuted[s] = true end
-	elseif app.meta then
+	if not all and app.meta then
 		for _, s in ipairs(app.meta:unmuted_stems(district)) do unmuted[s] = true end
 	end
 	self.semitones = data.semitones_from_c or 0
-	local starts = self.mixer:start(district, data.bpm, stems, unmuted, now())
+	local starts = self.mixer:start(district, data.bpm, stems, unmuted, now(), {
+		all = all, loop = assets.music_loop(district),
+	})
 	for _, st in ipairs(starts) do
-		sound.play(comp(assets.music_id(district, st.stem)), { gain = st.gain })
+		sound.play(comp(self, assets.music_id(district, st.stem)), { gain = st.gain })
 	end
+end
+
+-- Restarts every stem at the clock position, all in this frame.
+local function resync(self, reason)
+	if not self.mixer:playing() then return end
+	flush_notes(self, true)
+	local t0 = now()
+	for _, r in ipairs(self.mixer:resync(t0)) do
+		local url = comp(self, assets.music_id(self.district, r.stem))
+		sound.stop(url)
+		sound.play(url, { gain = r.gain, start_time = r.start_time })
+	end
+	local st = audio.status
+	st.resyncs = st.resyncs + 1
+	st.last_resync = reason
+	st.last_resync_pos = self.mixer:position(t0)
 end
 
 local function play_note(self, m)
 	local id, step = audio.note_id(m.color, m.wave)
 	if not assets.note_id(m.color, step + 1) then return end
-	local semis = self.semitones
-	if not self.mixer:playing() then
-		local d = app.meta and app.district(app.focus_district())
-		semis = d and d.semitones_from_c or 0
-	end
-	local delay = 0
-	if m.quantize ~= false and self.mixer:playing() then
-		delay = audio.quantize_delay(self.mixer:clock(now()), self.mixer.bpm)
-	end
+	local note = {
+		id = id, step = step, gain = m.gain, pan = m.pan,
+		speed = audio.transpose_speed(semitones(self)),
+	}
 	audio.status.notes = audio.status.notes + 1
-	audio.status.last_delay = delay
-	sound.play(comp(id), {
-		delay = delay,
-		gain = m.gain or 0.8,
-		pan = m.pan or 0,
-		speed = audio.transpose_speed(semis),
-	})
+	if m.quantize ~= false and self.mixer:playing() then
+		local clock = self.mixer:clock(now())
+		local k, at = audio.tick_of(clock, self.mixer.bpm)
+		if not self.sched:add(k, at, note) then
+			-- that tick is already playing: the next one
+			self.sched:add(k + 1, at + audio.grid_step(self.mixer.bpm), note)
+		end
+	else
+		self.free:add(self.free_key, 0, note)
+	end
+	-- after the other messages of this frame (notes of the same wave arrive
+	-- together), play what is due
+	if not self.flush_posted then
+		self.flush_posted = true
+		msg.post("#", "flush_notes")
+	end
 end
 
 local function play_sfx(self, m)
 	local id = assets.sfx_id(m.name)
 	if not id then return end
-	audio.status.sfx = audio.status.sfx + 1
-	sound.play(comp(id), { gain = m.gain or 1, pan = m.pan or 0, speed = m.speed or 1, delay = m.delay or 0 })
+	local speed = m.speed or 1
+	if m.transpose ~= false then
+		local semis = audio.sfx_semitones(assets.sfx_key(m.name), semitones(self))
+		if semis then speed = speed * audio.transpose_speed(semis) end
+	end
+	local st = audio.status
+	st.sfx = st.sfx + 1
+	st.last_sfx = m.name
+	st.last_sfx_speed = speed
+	sound.play(comp(self, id), { gain = m.gain or 1, pan = m.pan or 0, speed = speed, delay = m.delay or 0 })
 end
 
 local function update_status(self, dt)
@@ -110,28 +205,50 @@ local function update_status(self, dt)
 	st.clock = self.mixer:clock(now()) or 0
 	st.music_gain = self.music_gain or 0
 	st.sfx_gain = self.sfx_gain or 0
+	st.layers = self.mixer.layers
+	st.loop = self.mixer.loop
 	local on = 0
 	for _, name in ipairs(self.mixer.order) do
 		if (self.mixer:gain(name) or 0) > 0 then on = on + 1 end
 	end
 	st.stems_on = on
+	st.stems = #self.mixer.order
 	self.rms_t = (self.rms_t or 0) + dt
 	if self.rms_t >= 0.25 then
 		self.rms_t = 0
-		local ok, l, r = pcall(sound.get_rms, hash("music"), 2048 / 48000)
+		local ok, l, r = pcall(sound.get_rms, GROUP_MUSIC, 2048 / 48000)
 		local v = ok and l and math.max(l, r or 0) or 0
 		if v ~= v or v == math.huge then v = 0 end -- silent group: NaN
 		st.music_rms = v
 	end
 end
 
+local function on_bus(self, topic, p)
+	if topic == "app_focus" then
+		if p.focused then self.want_resync = "focus" end
+	elseif topic == "settings_changed" then
+		if p.key == "music" or p.key == "sfx" or p.key == "*" then apply_volumes(self) end
+	end
+end
+
 function init(self)
+	self.urls = {}
 	self.mixer = audio.new_mixer()
+	local contract = assets.mixer()
+	self.mixer:configure(contract)
+	self.sched = audio.new_note_scheduler(contract.notes_same_tick)
+	self.free = audio.new_note_scheduler(contract.notes_same_tick) -- no music: one group per frame
+	self.free_key = 1
 	self.semitones = 0
 	self.district = nil
-	self.sub = bus.subscribe({ "settings_changed" }, "audio")
-	apply_volumes(self)
-	self.music_gain, self.sfx_gain = nil, nil
+	self.html5 = platform.is_html5()
+	self.sub = bus.subscribe({ "settings_changed", "app_focus" }, "audio")
+	self.on_bus = function(topic, p) on_bus(self, topic, p) end
+	-- the saved volumes: applied as soon as the meta exists, whatever the
+	-- init order of the scripts (settings_rev is polled in update)
+	self.settings_rev = -1
+	self.music_gain, self.sfx_gain, self.notes_gain = nil, nil, nil
+	self.last_wall = now()
 end
 
 function final(self)
@@ -139,38 +256,57 @@ function final(self)
 end
 
 function update(self, dt)
-	self.sub:drain(function(topic, p)
-		if p.key == "music" or p.key == "sfx" then apply_volumes(self) end
-	end)
-	for _, ch in ipairs(self.mixer:update(dt)) do
-		local id = assets.music_id(self.district, ch.stem)
-		if id then sound.set_gain(comp(id), ch.gain) end
+	local wall = now()
+	local gap = wall - self.last_wall
+	self.last_wall = wall
+	if gap > STALL and self.html5 then
+		audio.status.stalls = audio.status.stalls + 1
+		self.want_resync = self.want_resync or "stall"
 	end
-	local mg, sg = self.mixer:music_group_gain(), self.mixer:sfx_group_gain()
+	self.sub:drain(self.on_bus)
+	if app.meta and self.settings_rev ~= app.settings_rev then apply_volumes(self) end
+	if self.want_resync then
+		resync(self, self.want_resync)
+		self.want_resync = nil
+	end
+	local changed = self.mixer:update(dt)
+	for i = 1, #changed do
+		local ch = changed[i]
+		local id = assets.music_id(self.district, ch.stem)
+		if id then sound.set_gain(comp(self, id), ch.gain) end
+	end
+	local mg, sg, ng = self.mixer:music_group_gain(), self.mixer:sfx_group_gain(), self.mixer:notes_group_gain()
 	if mg ~= self.music_gain then
 		self.music_gain = mg
-		set_group_gain("music", mg)
+		set_group_gain(GROUP_MUSIC, mg)
 	end
 	if sg ~= self.sfx_gain then
 		self.sfx_gain = sg
-		set_group_gain("sfx", sg)
+		set_group_gain(GROUP_SFX, sg)
 	end
+	if ng ~= self.notes_gain then
+		self.notes_gain = ng
+		set_group_gain(GROUP_NOTES, ng)
+	end
+	flush_notes(self, false)
 	update_status(self, dt)
 end
 
 function on_message(self, message_id, message)
 	if message_id == MSG.note then
 		play_note(self, message)
+	elseif message_id == MSG.flush_notes then
+		self.flush_posted = false
+		flush_notes(self, false)
 	elseif message_id == MSG.sfx then
 		play_sfx(self, message)
 	elseif message_id == MSG.music then
 		local all = message.all and true or false
 		if message.district and (message.district ~= self.district or all ~= self.all or not self.mixer:playing()) then
-			start_music(self, message.district, message.all)
+			start_music(self, message.district, all)
 		end
 	elseif message_id == MSG.stop_music then
-		if self.mixer:playing() then stop_stems(self, self.mixer:stop()) end
-		self.district = nil
+		stop_music(self)
 	elseif message_id == MSG.unlock_stem then
 		if message.district == self.district then self.mixer:unlock(message.stem) end
 	elseif message_id == MSG.layer then
@@ -181,5 +317,10 @@ function on_message(self, message_id, message)
 		self.mixer:combo(message.waves)
 	elseif message_id == MSG.volumes then
 		self.mixer:set_volumes(message.music, message.sfx)
+	elseif message_id == MSG.resync then
+		self.want_resync = "request"
+	elseif message_id == MSG.qa_fade and app.debug then
+		-- QA: a fade asked by a script that is not the screen manager
+		msg.post(OVERLAY, message.kind, { duration = 0.25 })
 	end
 end
