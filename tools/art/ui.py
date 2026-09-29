@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from artkit import (C, Canvas, F32, WHITE, bez, candy, fit, gblur, gloss_drop, inset, mix, noise2, opening,
+from artkit import (C, Canvas, F32, WHITE, bbox_px, bez, candy, edge_fade, fit, gblur, gloss_drop, inset, mix, noise2, opening,
                     closing, ramp, rim_gloss, rng, sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly,
                     sd_polyline, sd_rect, sd_ring, sd_star, sd_taper, smoothstep, soft_shadow, sparkle4, SU, SUB,
                     U, I)
@@ -22,31 +22,74 @@ def draw_cell(color, alpha=0.95):
 
 
 FRAME_INNER = 14      # px from the texture edge to the inside of the white frame line
+FRAME_SIZE, FRAME_BORDER, FRAME_RADIUS = 128, 44, 30
 
 
 def draw_board_frame():
-    """96x96 nine-slice (24px borders): soft blue shadow, lavender glow ring, 4px white frame,
-    white 60 % backing inside."""
-    cv = Canvas(96, 96)
+    """128x128 nine-slice (44 px borders): soft blue shadow + lavender glow ring (6..10 px), 4 px white
+    frame line (10..14 px, outer corner radius 30), white 60 % backing inside (from 14 px). The rounded
+    corners end at 40 px, inside the 44 px border, so stretching never bends them."""
+    n = FRAME_SIZE
+    cv = Canvas(n, n)
     X, Y = cv.X, cv.Y
-    white_out = sd_rect(X, Y, 10, 10, 86, 86, 18)          # outer edge of the white line
-    inner = sd_rect(X, Y, FRAME_INNER, FRAME_INNER, 96 - FRAME_INNER, 96 - FRAME_INNER, 14)
-    lav = sd_rect(X, Y, 6, 6, 90, 90, 22)
-    # soft shadow (blue) below
-    sh = gblur(np.clip(0.5 - (lav - 0.0) * cv.ss, 0, 1), 3.5 * cv.ss)
+    r = FRAME_RADIUS
+    white_out = sd_rect(X, Y, 10, 10, n - 10, n - 10, r)                    # outer edge of the white line
+    inner = sd_rect(X, Y, FRAME_INNER, FRAME_INNER, n - FRAME_INNER, n - FRAME_INNER, r - 4)
+    lav = sd_rect(X, Y, 6, 6, n - 6, n - 6, r + 4)
+    sh = gblur(np.clip(0.5 - lav * cv.ss, 0, 1), 3.5 * cv.ss)
     from artkit import shift
-    sh = shift(sh, 0, 3.5 * cv.ss)
+    sh = shift(sh, 0, 3.0 * cv.ss)
     cv.paint(np.clip(sh, 0, 1), np.array(FRAME_SHADOW, F32), 0.30)
-    # lavender glow ring (outside the white line)
     ring = np.maximum(lav, -white_out)
     cv.fill(ring, np.array(FRAME_GLOW, F32), 0.25)
-    cv.paint(np.clip(gblur(np.clip(0.5 - lav * cv.ss, 0, 1), 1.5 * cv.ss), 0, 1) * (lav > 0), np.array(FRAME_GLOW, F32),
-             0.12)
-    # white line + backing
     cv.fill(np.maximum(white_out, -inner), "#FFFFFF", 1.0)
     cv.fill(inner, "#FFFFFF", 0.60)
-    # faint inner lavender edge on the backing for depth
     cv.fill(np.maximum(inner, -(inner + 3)), "#E6DAFF", 0.35)
+    return cv
+
+
+# --------------------------------------------------------------------------
+# board edge tiles for boards with gaps: drawn one per grid vertex (corner shared by 4 cells), cell-sized,
+# rotated in 90 degree steps. Everything is an analytic SDF of the cell quadrants around the vertex, so
+# neighbouring tiles join without seams. Profile (in a 96 px cell): backing to 7 px outside the cells,
+# white line 7..12 px, lavender glow 12..16 px, soft blue shadow below.
+# --------------------------------------------------------------------------
+EDGE_PAD, EDGE_LINE, EDGE_GLOW, EDGE_RC, EDGE_RI = 7.0, 5.0, 4.0, 10.0, 24.0
+EDGE_KINDS = ("outer", "side", "inner", "diag", "full")
+
+
+def _quadrant(X, Y, sx, sy, rc):
+    """SDF of the quarter plane on the (sx, sy) side of the vertex (48, 48), convex corner rounded by rc."""
+    u = (48 - X) * sx + rc
+    v = (48 - Y) * sy + rc
+    return np.where((u > 0) & (v > 0), np.hypot(u, v), np.maximum(u, v)) - rc
+
+
+def _edge_sdf(kind, X, Y):
+    if kind == "full":
+        return np.full(X.shape, -100.0, F32)
+    if kind == "side":        # cells below the vertex
+        return (48 - Y).astype(F32)
+    if kind == "outer":       # one cell, bottom-right
+        return _quadrant(X, Y, 1, 1, EDGE_RC)
+    if kind == "diag":        # top-left and bottom-right cells
+        return np.minimum(_quadrant(X, Y, 1, 1, EDGE_RC), _quadrant(X, Y, -1, -1, EDGE_RC))
+    if kind == "inner":       # every cell but the top-left one (concave corner, filleted)
+        return -_quadrant(X, Y, -1, -1, EDGE_RI)
+    raise ValueError(kind)
+
+
+def draw_board_edge(kind):
+    cv = Canvas(96, 96)
+    X, Y = cv.X, cv.Y
+    d = _edge_sdf(kind, X, Y)
+    ds = _edge_sdf(kind, X, Y - 3.5)                       # shadow: region shifted down
+    p0, p1, p2 = EDGE_PAD, EDGE_PAD + EDGE_LINE, EDGE_PAD + EDGE_LINE + EDGE_GLOW
+    cv.paint(smoothstep(p2 + 4, p0, ds), np.array(FRAME_SHADOW, F32), 0.30)
+    cv.paint(np.clip(0.5 - np.maximum(d - p2, p1 - d) * cv.ss, 0, 1), np.array(FRAME_GLOW, F32), 0.25)
+    cv.paint(np.clip(0.5 - np.maximum(d - p1, p0 - d) * cv.ss, 0, 1), WHITE, 1.0)
+    cv.paint(np.clip(0.5 - (d - p0) * cv.ss, 0, 1), WHITE, 0.60)
+    cv.paint(np.clip(0.5 - np.maximum(d - p0, (p0 - 3) - d) * cv.ss, 0, 1), C("#E6DAFF"), 0.35)
     return cv
 
 
@@ -213,7 +256,32 @@ def draw_button(kind):
     lo = np.maximum(face, 100 - Y)
     w = cv.win(lo < 1)
     cv.paint(np.clip(0.5 - lo[w] * cv.ss, 0, 1) * smoothstep(100, 117, Y[w]), C(shelf), 0.25, win=w)
-    cv.fill(sd_ellipse(X, Y, 26, 20, 7, 3.6, ang=-0.45), WHITE, 0.8, soft=0.6)
+    cv.fill(sd_ellipse(X, Y, 20, 20, 5.2, 3.0, ang=-0.45), WHITE, 0.8, soft=0.6)     # stays at x <= 26
+    return cv
+
+
+SMALL_SHELF = 6
+
+
+def draw_button_small(kind):
+    """64x64 nine-slice button (borders 16/16/16/22) for small square buttons such as the '+' (46 px)."""
+    top, bot, shelf = BUTTONS[kind]
+    cv = Canvas(64, 64)
+    X, Y = cv.X, cv.Y
+    outer = sd_rect(X, Y, 1, 1, 63, 63, 14)
+    cv.fill(outer, shelf)
+    face = sd_rect(X, Y, 1, 1, 63, 63 - SMALL_SHELF, 14)
+    cv.fill_grad(face, [(0, top), (1, bot)], axis="y", p0=2, p1=63 - SMALL_SHELF)
+    lip = np.maximum(np.abs(face + 1.6) - 1.6, Y - 16)
+    w = cv.win(lip < 1)
+    cv.paint(np.clip(0.5 - lip[w] * cv.ss, 0, 1) * smoothstep(16, 3, Y[w]), WHITE, 0.55, win=w)
+    gl = sd_rect(X, Y, 6, 4, 58, 25, 9)
+    w = cv.win(gl < 1)
+    cv.paint(np.clip(0.5 - gl[w] * cv.ss, 0, 1) * smoothstep(27, 5, Y[w]), WHITE, 0.30, win=w)
+    lo = np.maximum(face, 48 - Y)
+    w = cv.win(lo < 1)
+    cv.paint(np.clip(0.5 - lo[w] * cv.ss, 0, 1) * smoothstep(48, 57, Y[w]), C(shelf), 0.25, win=w)
+    cv.fill(sd_ellipse(X, Y, 10, 10, 3.0, 1.8, ang=-0.45), WHITE, 0.8, soft=0.4)      # inside the 16 px border
     return cv
 
 
@@ -255,8 +323,8 @@ def draw_ribbon():
     w = cv.win(gl < 1)
     cv.paint(np.clip(0.5 - gl[w] * cv.ss, 0, 1) * smoothstep(34, 12, Y[w]), WHITE, 0.45, win=w)
     for yy in (15, 53):
-        dash = np.maximum(np.abs(Y - yy) - 0.9, np.abs((X % 11) - 5.5) - 2.8)
-        cv.fill(np.maximum(dash, band + 5), "#F1E6FF", 0.75)
+        stitch = np.abs(Y - yy) - 0.9
+        cv.fill(np.maximum(stitch, band + 5), "#F1E6FF", 0.6)
     for sx in (52, 268):
         sparkle4(cv, sx, 34, 7, WHITE, 0.9)
     soft_shadow(cv, 0, 3, 3, PIECE_SHADOW, 0.3)
@@ -349,10 +417,23 @@ def obj(cv, d, pal, lw=3.0, depth=None, **kw):
     candy(cv, d, pal, lw=lw, depth=depth, **kw)
 
 
+ICON_SAFE = 88      # every icon (white sticker edge included) stays inside the central 88 px
+
+
 def finish(cv, sticker=3.0, shadow=0.3):
     if sticker > 0:
         cv.outline_under(sticker, "#FFFFFF", 1.0, thresh=0.35)
+    x0, y0, x1, y1 = bbox_px(cv, thresh=0.5)
+    m = (96 - ICON_SAFE) / 2
+    if x0 < m or y0 < m or x1 > 96 - m or y1 > 96 - m:
+        k = min(ICON_SAFE / (x1 - x0), ICON_SAFE / (y1 - y0), 1.0)
+        mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        hw, hh = (x1 - x0) * k / 2, (y1 - y0) * k / 2
+        tx = min(max(mx, m + hw), 96 - m - hw)
+        ty = min(max(my, m + hh), 96 - m - hh)
+        cv = cv.transformed(0, pivot=(mx, my), sx=k, sy=k, dx=tx - mx, dy=ty - my)
     soft_shadow(cv, 0, 2.2, 2.0, PIECE_SHADOW, shadow)
+    edge_fade(cv, 3.5)                 # glows / light rays never end in a hard edge
     return cv
 
 
@@ -698,30 +779,54 @@ def icon_hand():
 
 
 def icon_stick():
+    """Booster 'drumstick': a wooden stick (#FFD08A / #C56A1C) with a round bead tip striking a small drum
+    head, impact lines at the hit and motion arcs behind the swing."""
     cv = Canvas(96, 96)
     X, Y = cv.X, cv.Y
-    burst = opening(sd_star(X, Y, 74, 24, 19, 9.5, n=8), 1.2)
-    obj(cv, burst, PIECES["yellow"], lw=2.2, depth=5)
-    st = sd_taper(X, Y, 12, 86, 62, 34, 10, 5.5)
-    obj(cv, st, ("#FFF4E0", "#F7C98A", "#E09A50", "#A5601E"), depth=8, rim=0.35)
-    tip = sd_ellipse(X, Y, 66, 30, 9.5, 7.5, ang=-0.8)
-    obj(cv, tip, ("#FFFFFF", "#FFE8C4", "#F2BE7C", "#A5601E"), lw=2.6, depth=5)
-    grip = I(st, sd_capsule(X, Y, 12, 86, 28, 69, 13))
-    obj(cv, grip, PINK, lw=0, depth=5)
-    for t in (0.3, 0.55):
-        gx, gy = 12 + (28 - 12) * t, 86 + (69 - 86) * t
-        cv.fill(np.maximum(sd_capsule(X, Y, gx - 8, gy - 8, gx + 8, gy + 8, 0.9), grip + 1.5), "#A8124C", 0.6)
-    gloss_drop(cv, 40, 56, 11, 2.2, math.radians(-46), st + 3, alpha=0.8)
+    stick_pal = ("#FFF0D6", "#FFD08A", "#E8A057", "#C56A1C")
+    # small snare drum at the bottom right
+    shell = U(sd_rect(X, Y, 40, 62, 88, 84, 5), sd_ellipse(X, Y, 64, 84, 24, 6.5))
+    obj(cv, shell, ("#FFD1E6", "#FF7EB6", "#F0508F", "#C22A6C"), lw=2.4, depth=6, rim=0.35)
+    for k in range(4):
+        x = 45 + k * 13
+        cv.fill(np.maximum(sd_capsule(X, Y, x, 64, x + 6, 84, 1.3), shell + 2), "#FFFFFF", 0.8)
+    head = sd_ellipse(X, Y, 64, 62, 24, 7)
+    obj(cv, head, ("#FFFFFF", "#FFFFFF", "#E6DDF5", "#C22A6C"), lw=2.2, depth=3, rim=0.2)
+    # impact lines around the hit point
+    hx, hy = 58.0, 58.0
+    for a in (-150, -115, -75, -35, -10):
+        ar = math.radians(a)
+        cv.fill(sd_capsule(X, Y, hx + 13 * math.cos(ar), hy + 11 * math.sin(ar),
+                           hx + 22 * math.cos(ar), hy + 19 * math.sin(ar), 2.3), "#FFB020")
+    # motion arcs behind the swing
+    for r_, a_ in ((30, 0.95), (40, 0.7)):
+        arc = sd_arc(X, Y, 66, 70, r_, math.radians(-160), math.radians(-120), 3.0)
+        cv.fill(arc - 1.6, "#FFFFFF", a_)
+        cv.fill(arc, "#5CD6FF", a_)
+    # the stick: tapered shaft from the top-left, round bead on the head
+    shaft = sd_taper(X, Y, 12, 16, hx - 5, hy - 6, 6.8, 3.8)
+    obj(cv, shaft, stick_pal, lw=2.4, depth=6, rim=0.35, grad_dir=(1.0, 0.4))
+    grain = sd_polyline(X, Y, [(20, 24), (44, 44)]) - 0.6
+    cv.fill(np.maximum(grain, shaft + 2.0), "#E8A057", 0.55)
+    bead = sd_ellipse(X, Y, hx - 1, hy - 2, 7.6, 6.4, ang=0.75)
+    obj(cv, bead, stick_pal, lw=2.2, depth=5, rim=0.3)
+    cv.fill(sd_ellipse(X, Y, hx - 3.4, hy - 4.2, 2.4, 1.4, ang=0.75), WHITE, 0.9, soft=0.4)
+    band = I(shaft, sd_capsule(X, Y, 8, 12, 22, 26, 8))
+    obj(cv, band, ("#FFD9A3", "#E08A3A", "#C56A1C", "#9A4E10"), lw=0, depth=4)
+    gloss_drop(cv, 30, 30, 9, 1.6, math.radians(42), shaft + 2.2, alpha=0.8)
     return finish(cv)
 
 
 def _spotlight(cv, vertical):
     X, Y = cv.X, cv.Y
     lay = cv.blank()
-    beam = sd_poly(X, Y, [(48, 36), (94, 22), (94, 74), (48, 60)])
-    lay.fill(beam, "#FFF3A6", 0.9, soft=2)
-    beam2 = sd_poly(X, Y, [(48, 40), (94, 30), (94, 66), (48, 56)])
-    lay.fill(beam2, "#FFFFFF", 0.7, soft=3)
+    beam = cv.blank()
+    beam.fill(sd_poly(X, Y, [(48, 36), (92, 22), (92, 74), (48, 60)]), "#FFF3A6", 0.95, soft=2)
+    beam.fill(sd_poly(X, Y, [(48, 41), (92, 32), (92, 64), (48, 55)]), "#FFFFFF", 0.8, soft=3)
+    fade = smoothstep(86, 58, X)                       # light cone fades out before the icon edge
+    beam.rgb *= fade[..., None]
+    beam.a *= fade
+    lay.over(beam)
     body = sd_rect(X, Y, 8, 30, 50, 66, 10)
     candy(lay, body, PURPLE, lw=2.8, depth=8, rim=0.35)
     rim_ = sd_rect(X, Y, 42, 26, 56, 70, 5)
@@ -810,6 +915,9 @@ def icon_chest_open():
                                  (48 + 60 * math.cos(a + 0.12), 50 + 60 * math.sin(a + 0.12))]), "#FFE66D", 0.8,
                   soft=3)
     rays.paint(smoothstep(52, 14, np.hypot(X - 48, Y - 50)), C("#FFFFFF"), 1.0, "atop")
+    fade = smoothstep(44, 28, np.hypot(X - 48, Y - 50))
+    rays.rgb *= fade[..., None]
+    rays.a *= fade
     cv.over(rays)
     lid = opening(sd_poly(X, Y, [(12, 34), (84, 34), (78, 14), (18, 14)]), 5)
     obj(cv, lid, ("#FFE3BF", "#FFB46A", "#F08A3A", "#A5541A"), depth=8, rim=0.3)
@@ -829,8 +937,8 @@ def icon_chest_open():
 def icon_note(on=True):
     cv = Canvas(96, 96)
     X, Y = cv.X, cv.Y
-    s = 0.58
-    d = note_sdf(X, Y, 48 - 84 * s + 2, 48 - 70 * s, s)
+    s = 0.54
+    d = note_sdf(X, Y, 48 - 90 * s + 2, 48 - 66 * s, s, bold=True)
     if on:
         lay = cv.blank()
         obj(lay, d, PIECES["yellow"], depth=10, rim=0.4)
@@ -871,6 +979,56 @@ def icon_gift():
     return finish(cv)
 
 
+def icon_goal_floor():
+    """Goal icon for 'light the dance floor': a lit floor tile with rounded, transparent corners."""
+    cv = Canvas(96, 96)
+    X, Y = cv.X, cv.Y
+    tile = sd_rect(X, Y, 12, 12, 84, 84, 16)
+    cv.fill_grad(tile, [(0, "#FFF6B8"), (0.55, "#FFE680"), (1, "#FFD23F")], axis=(1, 1))
+    edge = sd_rect(X, Y, 16, 16, 80, 80, 12)
+    ring = smoothstep(-8, -2.5, edge) * (edge < -1)
+    w = cv.win(tile < 1)
+    cv.paint(ring[w] * np.clip(0.5 - tile[w] * cv.ss, 0, 1), C("#FF7EB6"), 0.3, win=w)
+    cv.stroke(edge, 2.6, "#FFFFFF", 1.0)
+    cv.stroke(tile + 1.2, 2.4, "#E0A000", 1.0)
+    cv.fill(np.maximum(sd_rect(X, Y, 30, 30, 66, 66, 14), tile + 6), "#FFFFFF", 0.45, soft=10)
+    for (sx, sy, sz) in ((34, 32, 8), (62, 62, 6), (62, 34, 4)):
+        sparkle4(cv, sx, sy, sz, WHITE, 0.95)
+    return finish(cv)
+
+
+def icon_streak():
+    """Hit streak: a golden note riding a pink flame."""
+    cv = Canvas(96, 96)
+    X, Y = cv.X, cv.Y
+    fl = SU(sd_circle(X, Y, 48, 60, 28), opening(sd_poly(X, Y, [(22, 58), (30, 16), (44, 40), (54, 6),
+                                                              (66, 38), (76, 22), (76, 60)]), 3), 10)
+    obj(cv, fl, ("#FFD1E6", "#FF7EB6", "#FF4D8D", "#C22A6C"), depth=16, rim=0.4)
+    inner = SU(sd_circle(X, Y, 48, 64, 18), opening(sd_poly(X, Y, [(34, 62), (44, 34), (52, 50), (62, 30),
+                                                                 (64, 64)]), 2), 6)
+    cv.fill(inner, "#FFB3D6", 0.9)
+    s = 0.36
+    d = note_sdf(X, Y, 48 - 90 * s + 1, 60 - 66 * s, s, bold=True)
+    cv.fill(d - 2.6, "#FFFFFF")
+    obj(cv, d, PIECES["yellow"], lw=2.2, depth=6, rim=0.35)
+    gloss_drop(cv, 36, 70, 4, 2.2, math.radians(-25), d + 3, alpha=0.9)
+    sparkle4(cv, 76, 20, 7, WHITE)
+    return finish(cv)
+
+
+def draw_badge_count():
+    """Booster count badge (56x56): candy green disc with a white ring; the client prints the number."""
+    cv = Canvas(56, 56)
+    X, Y = cv.X, cv.Y
+    ring = sd_circle(X, Y, 28, 27, 23)
+    cv.fill(ring, "#FFFFFF")
+    disc = sd_circle(X, Y, 28, 27, 19)
+    candy(cv, disc, ("#B5FFD0", "#3BE37F", "#18B85A", "#0E8A43"), lw=2.0, depth=10, rim=0.4)
+    gloss_drop(cv, 21, 18, 7, 3.2, math.radians(-30), disc + 3, alpha=0.85)
+    soft_shadow(cv, 0, 2.0, 1.8, PIECE_SHADOW, 0.35)
+    return cv
+
+
 ICON_FUNCS = {
     "coin": icon_coin, "star": icon_star, "star_empty": icon_star_empty, "heart": icon_heart,
     "heart_infinite": icon_heart_infinite, "pause": icon_pause, "settings": icon_settings,
@@ -882,5 +1040,5 @@ ICON_FUNCS = {
     "stick": icon_stick, "row_light": icon_row_light, "col_light": icon_col_light, "remix": icon_remix,
     "plus": icon_plus, "chest_closed": icon_chest_closed, "chest_open": icon_chest_open,
     "note_on": lambda: icon_note(True), "note_off": lambda: icon_note(False), "arrow": icon_arrow,
-    "gift": icon_gift,
+    "gift": icon_gift, "goal_floor": icon_goal_floor, "streak": icon_streak,
 }

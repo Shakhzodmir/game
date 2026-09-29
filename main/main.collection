@@ -1,0 +1,47 @@
+name: "main"
+instances {
+  id: "audio"
+  prototype: "/assets/gen/audio.go"
+}
+scale_along_z: 0
+embedded_instances {
+  id: "app"
+  data: "components {\n"
+  "  id: \"app\"\n"
+  "  component: \"/main/app.script\"\n"
+  "}\n"
+  ""
+}
+embedded_instances {
+  id: "screens"
+  data: "embedded_components {\n"
+  "  id: \"splash\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/screens/splash/splash.collection\\\"\\n"
+  "exclude: false\\n"
+  "\"\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"town\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/screens/town/town.collection\\\"\\n"
+  "exclude: false\\n"
+  "\"\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"level\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/screens/level/level.collection\\\"\\n"
+  "exclude: false\\n"
+  "\"\n"
+  "}\n"
+  ""
+}
+embedded_instances {
+  id: "overlay"
+  data: "components {\n"
+  "  id: \"overlay\"\n"
+  "  component: \"/main/overlay.gui\"\n"
+  "}\n"
+  ""
+}

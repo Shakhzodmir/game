@@ -5,7 +5,7 @@ import os
 
 import numpy as np
 
-from artkit import (C, Canvas, F32, WHITE, bez, candy, fit, gblur, gloss_drop, inset, mix, noise2, opening, ramp,
+from artkit import (C, Canvas, F32, WHITE, bez, candy, edge_fade, fit, gblur, gloss_drop, inset, mix, noise2, opening, ramp,
                     rim_gloss, rng, sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly, sd_polyline,
                     sd_rect, sd_ring, sd_star, sd_taper, smoothstep, soft_shadow, sparkle4, text_sdf, SU, SUB, U, I)
 from palette import PIECES, ORDER, PIECE_SHADOW, NOISE, WIRE, WIRE_CORE, CARD, CARD_DARK, FLOOR, FLOOR_LIT_A, \
@@ -211,39 +211,36 @@ def draw_concrete(hp):
 
 # ---------------------------------------------------------------- noise
 def draw_noise():
+    """Silence noise: the only grey element. Rounded TV-static tile #8A8FA3 with soft scanlines, a few
+    static dashes, fine 2 px grain (+-5 %), a lighter #6B7087 outline and the usual glossy highlight."""
     cv = Canvas(160, 160)
     X, Y = cv.X, cv.Y
     ss = cv.ss
+    body = sd_rect(X, Y, 14, 16, 146, 146, 28)
+    candy(cv, body, ("#C9CCD8", NOISE, "#747A90", "#6B7087"), lw=3.2, depth=18, lift=0.5, shade=0.35, rim=0.4)
+    inner = body + 3.2
+    w = cv.win(inner < 1)
+    k = np.clip(0.5 - inner[w] * ss, 0, 1)
+    # soft scanlines (a gentle 6 px sine, no hard stripes)
+    scan = 0.5 + 0.5 * np.sin(Y[w] * (2 * math.pi / 6.0))
+    cv.paint(k * scan, C("#FFFFFF"), 0.10, win=w)
+    # fine grain at a 2 px scale, +-5 %
     g = rng(99)
-    pts = []
-    for k in range(72):
-        a = 2 * math.pi * k / 72
-        r = 1 + 0.03 * math.sin(5 * a + 1.3) + 0.02 * math.sin(9 * a) + 0.015 * (g.random() - 0.5)
-        sq = 1 / max(abs(math.cos(a)), abs(math.sin(a))) ** 0.6
-        pts.append((80 + 60 * r * sq * math.cos(a), 80 + 60 * r * sq * math.sin(a)))
-    blob = opening(sd_poly(X, Y, pts), 14, ss)
-    grain1 = np.repeat(np.repeat(g.random((160, 160)).astype(F32), ss, 0), ss, 1)
-    grain2 = np.repeat(np.repeat(g.random((80, 80)).astype(F32), 2 * ss, 0), 2 * ss, 1)
-    v = 0.55 * grain1 + 0.45 * grain2
-    scan = ((np.floor(Y / 2.0) % 2) == 0).astype(F32)
-    v = v * (0.85 + 0.15 * scan)
-    for (y0, h, sh) in ((36, 5, 0.22), (90, 3, 0.3), (116, 6, -0.18)):
-        band = (Y >= y0) & (Y < y0 + h)
-        v = np.where(band, np.clip(v + sh, 0, 1), v)
-    basec = C(NOISE)
-    col = mix(mix(basec, C("#565A6C"), 0.55), mix(basec, WHITE, 0.62), v[..., None])
-    d = np.maximum(-blob, 0)
-    col = mix(col, C("#6E7386"), (1 - smoothstep(0, 14, d)) * 0.4)
-    cv.paint(np.clip(0.5 - blob * ss, 0, 1), col, 1.0)
+    grain = g.random((80, 80)).astype(F32)
+    grain = np.repeat(np.repeat(grain, 2 * ss, 0), 2 * ss, 1)
+    grain = gblur(grain, 0.6 * ss)[w]
+    gv = (grain - grain.mean()) / max(grain.std(), 1e-6)
+    cv.paint(k * np.clip(gv, 0, 3) / 3, C("#FFFFFF"), 0.10, win=w)
+    cv.paint(k * np.clip(-gv, 0, 3) / 3, C("#4E5368"), 0.10, win=w)
     # static dashes (as in the mockup)
-    for (x0, y0, w, c, a) in ((34, 44, 18, "#FFFFFF", 0.75), (70, 36, 26, "#4A4E60", 0.8), (46, 70, 34, "#FFFFFF", 0.7),
-                              (98, 62, 20, "#4A4E60", 0.8), (30, 98, 24, "#4A4E60", 0.8), (74, 106, 40, "#FFFFFF", 0.75),
-                              (44, 124, 18, "#4A4E60", 0.8), (104, 128, 16, "#FFFFFF", 0.7)):
-        cv.fill(np.maximum(sd_rect(X, Y, x0, y0, x0 + w, y0 + 5, 2), blob + 5), c, a)
-    cv.stroke(blob + 1.5, 3.0, "#5C6072", 1.0)
-    rim_gloss(cv, blob, 80, 80, -135, 36, 5, 6, alpha=0.45)
-    gloss_drop(cv, 44, 38, 10, 4, math.radians(-30), blob + 6, alpha=0.4)
-    soft_shadow(cv, 0, 2.6, 2.4, PIECE_SHADOW, 0.32)
+    for (x0, y0, wd, c, a) in ((36, 44, 26, "#FFFFFF", 0.8), (78, 40, 34, "#5E6378", 0.55), (46, 76, 40, "#FFFFFF", 0.7),
+                               (96, 96, 30, "#5E6378", 0.55), (40, 112, 22, "#FFFFFF", 0.75)):
+        dd = np.maximum(sd_rect(X, Y, x0, y0, x0 + wd, y0 + 6, 3), inner + 3)
+        cv.fill(dd, c, a, soft=0.4)
+    rim_gloss(cv, body, 80, 80, -140, 34, 5, 7, alpha=0.75)
+    gloss_drop(cv, 40, 36, 12, 4.5, math.radians(-28), body + 7, alpha=0.8)
+    gloss_drop(cv, 26, 58, 3.2, 3.0, 0, body + 7, alpha=0.7)
+    soft_shadow(cv, 0, 2.6, 2.4, PIECE_SHADOW, 0.4)
     return cv
 
 
@@ -322,50 +319,53 @@ def draw_column(stage):
     body, (cx, cy) = _column_base(cv, on)
     if not on:
         amount = {3: 0.95, 2: 0.62, 1: 0.3}[stage]
-        n = noise2(cv.a.shape, 44 * cv.ss, seed=300, octaves=4)
-        n2 = noise2(cv.a.shape, 3 * cv.ss, seed=301, octaves=2)
-        topness = smoothstep(220, 20, Y) * 0.35
-        edge = smoothstep(26, 0, -body) * 0.25
-        field = n * 0.8 + topness + edge
-        thr = np.quantile(field[cv.a > 0.5], 1 - amount * 0.9)
-        dust = smoothstep(thr - 0.25, thr + 0.15, field) * np.clip(cv.a, 0, 1)
-        dust = dust * (0.62 + 0.25 * amount) * (0.8 + 0.2 * n2)
-        dcol = mix(C("#D8CFC0"), C("#F3EDE2"), n2[..., None])
-        # desaturate what is under the dust first, then lay the powder on top
+        ss = cv.ss
+        # smooth dust field: big soft blobs + more dust near the top and the rim (no pixel-scale noise)
+        n = noise2(cv.a.shape, 56 * ss, seed=300, octaves=2)
+        topness = smoothstep(230, 30, Y) * 0.35
+        edge = smoothstep(30, 0, -body) * 0.2
+        field = n * 0.85 + topness + edge
+        thr = np.quantile(field[cv.a > 0.5], 1 - amount * 0.85)
+        dust = smoothstep(thr - 0.05, thr + 0.05, field)
+        dust = gblur(dust, 3.2 * ss) * np.clip(cv.a, 0, 1)        # 6-10 px feathered edges
+        dust = np.clip(dust, 0, 1) * (0.55 + 0.3 * amount)
+        tone = noise2(cv.a.shape, 30 * ss, seed=301, octaves=1)
+        dcol = mix(C("#E6DDF0"), C("#F3ECE4"), tone[..., None])
+        # soften what is under the dust (toward a pale lilac grey), then lay the powder on top
         lum = (cv.rgb @ np.array([0.3, 0.55, 0.15], F32))[..., None]
-        grey = np.repeat(lum, 3, -1)
-        k = (dust * 0.8)[..., None]
-        cv.rgb = cv.rgb * (1 - k) + grey * k
-        cv.paint(dust, dcol, 0.9, "atop")
-        g = rng(302)
-        grain = np.repeat(np.repeat(g.random((320, 320)).astype(F32), cv.ss, 0), cv.ss, 1)
-        cv.paint((dust > 0.3) * (grain > 0.93), C("#FFFFFF"), 0.45, "atop")
-        cv.paint((dust > 0.3) * (grain < 0.06), C("#A89880"), 0.35, "atop")
-        # powdery lumps on the top edge
+        grey = mix(np.repeat(lum, 3, -1), C("#E6DDF0") * cv.a[..., None], 0.35)
+        kk = (dust * 0.7)[..., None]
+        cv.rgb = cv.rgb * (1 - kk) + grey * kk
+        cv.paint(dust, dcol, 0.95, "atop")
+        # fluffy clumps on the top edge
         g2 = rng(303 + stage)
         lumps = None
-        n_l = {3: 14, 2: 9, 1: 4}[stage]
+        n_l = {3: 9, 2: 6, 1: 3}[stage]
         for k_ in range(n_l):
-            lx = 44 + (232 * (k_ + 0.5) / n_l) + (g2.random() - 0.5) * 12
-            lr = (4 + 2.5 * stage) + g2.random() * (3 + 3 * stage)
-            dl = sd_ellipse(X, Y, lx, 19, lr * 1.6, lr * 0.8)
-            lumps = dl if lumps is None else SU(lumps, dl, 6)
-        lumps = np.maximum(lumps, Y - 24)
-        candy(cv, lumps, ("#FFFFFF", "#EEE7DA", "#CFC3AE", "#A89880"), lw=1.4, depth=5, rim=0.2)
+            lx = 52 + (216 * (k_ + 0.5) / n_l) + (g2.random() - 0.5) * 14
+            lr = (6 + 2.5 * stage) + g2.random() * (2 + 2 * stage)
+            dl = U(sd_circle(X, Y, lx, 22 - lr * 0.2, lr), sd_circle(X, Y, lx - lr * 0.8, 24, lr * 0.7),
+                   sd_circle(X, Y, lx + lr * 0.8, 24, lr * 0.75))
+            lumps = dl if lumps is None else SU(lumps, dl, 5)
+        lumps = np.maximum(lumps, Y - 28)
+        candy(cv, lumps, ("#FFFFFF", "#F3ECE4", "#E0D4E8", "#BBAFCB"), lw=1.6, depth=7, rim=0.3, lift=0.6)
         # dust bunnies on the woofer rim
-        for (bx, by, br) in {3: [(92, 262, 11), (224, 250, 9), (250, 132, 8)], 2: [(96, 260, 9), (236, 140, 7)],
-                             1: [(100, 258, 7)]}[stage]:
-            bunny = sd_ellipse(X, Y, bx, by, br * 1.4, br)
-            candy(cv, bunny, ("#FFFFFF", "#EEE7DA", "#CFC3AE", "#A89880"), lw=1.2, depth=4, rim=0.2)
-        # cobwebs
-        webs = {3: [(40, 32, 1, 1), (280, 288, -1, -1)], 2: [(280, 32, -1, 1)], 1: []}[stage]
+        for (bx, by, br) in {3: [(92, 262, 12), (226, 250, 10), (252, 132, 9)], 2: [(96, 260, 10), (238, 140, 8)],
+                             1: [(100, 258, 8)]}[stage]:
+            bunny = U(sd_circle(X, Y, bx, by, br), sd_circle(X, Y, bx - br * 0.9, by + br * 0.25, br * 0.7),
+                      sd_circle(X, Y, bx + br * 0.9, by + br * 0.2, br * 0.72))
+            candy(cv, bunny, ("#FFFFFF", "#F3ECE4", "#E0D4E8", "#BBAFCB"), lw=1.4, depth=5, rim=0.3, lift=0.6)
+            for e in (-1, 1):
+                cv.fill(sd_circle(X, Y, bx + e * 3.5, by - 1, 1.6), "#8E82A8", 0.9)
+        # cobwebs (soft, pale)
+        webs = {3: [(40, 34, 1, 1), (280, 286, -1, -1)], 2: [(280, 34, -1, 1)], 1: []}[stage]
         for (wx, wy, sx, sy) in webs:
             spokes = []
             for k_ in range(5):
                 a = math.radians(4 + k_ * 20.5)
-                spokes.append(sd_capsule(X, Y, wx, wy, wx + sx * 66 * math.cos(a), wy + sy * 66 * math.sin(a), 0.8))
+                spokes.append(sd_capsule(X, Y, wx, wy, wx + sx * 60 * math.cos(a), wy + sy * 60 * math.sin(a), 0.8))
             web = U(*spokes)
-            for rr_ in (18, 32, 46, 60):
+            for rr_ in (18, 32, 46):
                 arc_pts = []
                 for k_ in range(5):
                     a = math.radians(4 + k_ * 20.5)
@@ -377,8 +377,8 @@ def draw_column(stage):
                     mx, my = (ax + bx) / 2 - sx * 3, (ay + by) / 2 - sy * 3
                     sag += bez((ax, ay), (mx, my), (bx, by), n=6)
                 web = np.minimum(web, sd_polyline(X, Y, sag) - 0.8)
-            cv.fill(web - 0.8, "#A89880", 0.35)
-            cv.fill(web, "#FFFFFF", 0.95)
+            cv.fill(web - 0.8, "#BBAFCB", 0.35, soft=0.6)
+            cv.fill(web, "#FFFFFF", 0.9, soft=0.4)
     else:
         glow = gblur(np.clip(0.5 - sd_circle(X, Y, cx, cy, 68) * cv.ss, 0, 1), 14 * cv.ss / 2)
         cv.paint(np.clip(glow, 0, 1) * np.clip(cv.a, 0, 1), C("#FFB8EE"), 0.35, "atop")
@@ -401,6 +401,7 @@ def draw_column(stage):
         cv.glow_under(22, "#FF6FD8", 0.8)
         cv.glow_under(10, "#3CF2FF", 0.5)
     soft_shadow(cv, 0, 4, 4, PIECE_SHADOW, 0.3)
+    edge_fade(cv, 12)
     return cv
 
 
@@ -490,7 +491,8 @@ def draw_mic(size=160, cx=80.0, top=10.0, cv=None, s=1.0):
 
 def draw_mic_cargo():
     cv = draw_mic()
-    cv = fit(cv, 134, 80, 78)
+    cv = cv.transformed(-24, pivot=(80, 84))
+    cv = fit(cv, 142, 80, 79)
     sparkle4(cv, 130, 30, 9, WHITE, glow=4, glow_color="#FFE66D")
     sparkle4(cv, 30, 118, 6, WHITE, glow=3, glow_color="#FFE66D")
     soft_shadow(cv, 0, 2.6, 2.4, PIECE_SHADOW, 0.32)
@@ -498,48 +500,63 @@ def draw_mic_cargo():
 
 
 def draw_mic_stand():
+    """Exit marker under the bottom cell of an exit column: a mini mic stand in a warm light pool with two
+    'drop here' chevrons. Everything stays 4 px inside the 160x96 canvas."""
     cv = Canvas(160, 96)
     X, Y = cv.X, cv.Y
-    pool = sd_ellipse(X, Y, 80, 82, 64, 12)
-    cv.fill(pool, "#FFE66D", 0.55, soft=10)
-    pole = sd_capsule(X, Y, 80, 44, 80, 84, 5.5)
+    pool = sd_ellipse(X, Y, 80, 76, 50, 9)
+    cv.fill(pool, "#FFE66D", 0.6, soft=7)
+    pole = sd_capsule(X, Y, 80, 50, 80, 76, 5.0)
     candy(cv, pole, CHROME, lw=2.0, depth=4, rim=0.3, grad_dir=(1.0, 0.0))
-    base = sd_ellipse(X, Y, 80, 86, 36, 8)
+    base = sd_ellipse(X, Y, 80, 78, 30, 7)
     candy(cv, base, PINK, lw=2.2, depth=5, rim=0.4)
-    cradle = sd_arc(X, Y, 80, 16, 26, math.radians(20), math.radians(160), 9)
-    candy(cv, cradle, GOLD, lw=2.4, depth=4.5, rim=0.3, lift=0.7)
-    knob = sd_box(X, Y, 80, 44, 10, 5.5, 3)
+    cradle = sd_arc(X, Y, 80, 30, 22, math.radians(22), math.radians(158), 8)
+    candy(cv, cradle, GOLD, lw=2.2, depth=4, rim=0.3, lift=0.7)
+    knob = sd_box(X, Y, 80, 50, 9, 5, 2.6)
     candy(cv, knob, GOLD, lw=1.8, depth=3, rim=0.3)
-    for k, yy in enumerate((4, 18)):
-        ch = sd_polyline(X, Y, [(67, yy), (80, yy + 10), (93, yy)]) - 3.4
+    for k, yy in enumerate((12, 25)):
+        ch = sd_polyline(X, Y, [(69, yy), (80, yy + 8), (91, yy)]) - 3.0
         cv.fill(ch - 1.8, "#FF4D8D", 0.9 - 0.3 * k)
         cv.fill(ch, "#FFFFFF", 1.0 - 0.3 * k)
-    cv.glow_under(8, "#FFE66D", 0.6)
+    cv.glow_under(6, "#FFE66D", 0.55)
     soft_shadow(cv, 0, 2, 2, PIECE_SHADOW, 0.25)
+    edge_fade(cv, 6)
     return cv
 
 
 # ------------------------------------------------------- dance floor tiles
 def draw_floor(kind):
-    """kind: 2 (double white border), 1 (single border), 'lit' (gold + pink glow). Opaque 160x160."""
+    """kind: 2 (double white border), 1 (single border), 'lit' (gold, thin pink inner glow). Opaque 160x160.
+    Unlit tiles carry a subtle 2x2 disco grid so they read against the lavender cells."""
     lit = kind == "lit"
-    cv = Canvas(160, 160, bg=FLOOR if not lit else FLOOR_LIT_A)
+    cv = Canvas(160, 160, bg=FLOOR if not lit else FLOOR_LIT_B)
     X, Y = cv.X, cv.Y
     full = sd_rect(X, Y, -4, -4, 164, 164, 0)
     if not lit:
-        cv.fill_grad(full, [(0, "#E6DDFF"), (0.5, FLOOR), (1, "#CDBFFA")], axis=(1, 1), p0=0, p1=320)
+        cv.fill_grad(full, [(0, "#E4DAFF"), (0.5, FLOOR), (1, "#C6B6FA")], axis=(1, 1), p0=0, p1=320)
+        # disco grid: four panels, alternate ones a touch lighter, soft seams + tiny coloured dots
+        for (px, py) in ((0, 0), (1, 1)):
+            cv.fill(sd_rect(X, Y, 10 + px * 70, 10 + py * 70, 80 + px * 70, 80 + py * 70, 8), "#FFFFFF", 0.22)
+        seam = np.minimum(np.abs(X - 80), np.abs(Y - 80))
+        cv.fill(np.maximum(seam - 1.4, sd_rect(X, Y, 8, 8, 152, 152, 10)), "#B5A3F2", 0.7)
+        cv.fill(np.maximum(np.minimum(np.abs(X - 81.4), np.abs(Y - 81.4)) - 0.8,
+                           sd_rect(X, Y, 8, 8, 152, 152, 10)), "#FFFFFF", 0.55)
+        for (dx, dy, c) in ((45, 45, "#FF7EB6"), (115, 115, "#5CD6FF"), (115, 45, "#FFD84D"), (45, 115, "#6CF08E")):
+            cv.fill(sd_circle(X, Y, dx, dy, 3.4), c, 0.55, soft=0.6)
         refl = np.maximum(np.abs((X - Y) * 0.7071 + 26) - 9, 0 * X)
-        cv.fill(refl, "#FFFFFF", 0.18, soft=6)
+        cv.fill(refl, "#FFFFFF", 0.16, soft=6)
         borders = (5.0, 19.0) if kind == 2 else (5.0,)
         for k, o in enumerate(borders):
             b = sd_rect(X, Y, o, o, 160 - o, 160 - o, 16 - k * 4)
             cv.stroke(b, 3.6 if k == 0 else 3.0, "#FFFFFF", 1.0)
     else:
-        cv.fill_grad(full, [(0, FLOOR_LIT_A), (1, FLOOR_LIT_B)], axis=(1, 1), p0=0, p1=320)
+        # gold everywhere (also in the corners outside the white rounded outline, so lit tiles join up)
+        cv.fill_grad(full, [(0, FLOOR_LIT_A), (0.55, "#FFE680"), (1, FLOOR_LIT_B)], axis=(1, 1), p0=0, p1=320)
         edge = sd_rect(X, Y, 5, 5, 155, 155, 16)
-        ig = smoothstep(-34, 0, edge)
-        cv.paint(ig ** 1.6, C("#FF6FD8"), 0.5)
-        cv.fill(sd_rect(X, Y, 34, 34, 126, 126, 30), "#FFFFFF", 0.35, soft=22)
+        # thin pink glow ring just inside the outline, <= 30 %
+        ring = smoothstep(-12, -3.5, edge) * (edge < -1.5)
+        cv.paint(ring, C("#FF7EB6"), 0.3)
+        cv.fill(sd_rect(X, Y, 34, 34, 126, 126, 30), "#FFFFFF", 0.4, soft=22)
         cv.stroke(edge, 3.6, "#FFFFFF", 1.0)
         for (sx, sy, sz) in ((44, 40, 13), (118, 116, 10), (116, 46, 6), (46, 112, 5)):
             sparkle4(cv, sx, sy, sz, WHITE, 0.95)

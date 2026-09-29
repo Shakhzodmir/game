@@ -24,6 +24,17 @@ import instruments as ins
 from dsp import TAU, midi_hz, nsamp
 
 SR = 22050
+SR_HI = 44100  # bright stems (hats, shakers, tambourines, arps, snaps) keep their 11-16 kHz sparkle
+
+# Stems rendered and stored at SR_HI. 44100 = 2 x 22050, so their loop is
+# exactly twice as many samples and exactly as long: they stay sample-locked.
+HI_RATE = {
+    "cafe": {"beat", "vinyl", "party"},
+    "jazz": {"brushes", "party"},
+    "square": {"shaker", "party"},
+    "stadium": {"arp", "snaps", "party"},
+    "garage": {"tamb", "party"},
+}
 
 
 # ------------------------------------------------------------------ grid
@@ -54,10 +65,16 @@ class Song:
         self.tonic = district["semitones_from_c"] % 12
         self.beats = self.bars * 4
         self.sr = sr
-        self.n = int(round(self.beats * 60.0 / self.bpm * sr))
+        # loop length is set on the 22.05 kHz grid, so a 44.1 kHz stem is exactly 2x as long in samples
+        assert sr % SR == 0, sr
+        self.n = int(round(self.beats * 60.0 / self.bpm * SR)) * (sr // SR)
         self.bs = self.n / sr / self.beats  # seconds per beat on the exact loop grid
         self.chords = chords
         assert abs(sum(c.dur for c in chords) - self.beats) < 1e-9
+
+    def at_rate(self, sr):
+        """The same song (grid, chords, loop duration) rendered at another rate."""
+        return Song(self.d, self.chords, sr)
 
     def sec(self, beat):
         return beat * self.bs
@@ -332,8 +349,8 @@ def kit(name, sr):
         if name == "lofi":
             k["kick"] = [dsp.lowpass(ins.kick(sr, 105, 50, 0.03, 0.34, 0.12, 1.4, key=i), 3500, sr) for i in range(2)]
             k["snare"] = [dsp.lowpass(ins.snare(sr, 195, 0.11, 0.19, 0.8, 1500, 6500, key=i), 6000, sr) for i in range(3)]
-            k["hat"] = [dsp.lowpass(ins.hat(sr, 0.04, key=i, lo=5500), 8500, sr) for i in range(4)]
-            k["ohat"] = [dsp.lowpass(ins.hat(sr, open_=True, key=9, lo=5500), 8000, sr) * 0.6]
+            k["hat"] = [dsp.lowpass(ins.hat(sr, 0.04, key=i, lo=5500), 13000, sr) for i in range(4)]
+            k["ohat"] = [dsp.lowpass(ins.hat(sr, open_=True, key=9, lo=5500), 12000, sr) * 0.6]
             k["clap"] = [ins.clap(sr, key=i) for i in range(2)]
             k["rim"] = [ins.rim(sr, key=i) for i in range(2)]
             k["shaker"] = [ins.shaker(sr, key=i) for i in range(3)]
@@ -384,11 +401,14 @@ def hit(s, buf, samples, beat, vel, r, jitter=0.004, key=None):
 # ======================================================== CAFE (F major)
 
 def cafe_song(d):
+    # sunny I-iii-IV-V: the loop opens on the tonic Fmaj9 and the C9sus4 at the end
+    # resolves into it again, so the café reads as F major (not D minor)
+    # (Am7 and C7sus4 without the added D: fewer D's, more C's, so it does not lean to D minor)
     Bb, A, G, F, C = 10, 9, 7, 5, 0
-    maj9, m7_11, m9, sus9 = [4, 7, 11, 14], [3, 7, 10, 17], [3, 7, 10, 14], [5, 7, 10, 14]
+    maj9, m7, m9, sus7 = [4, 7, 11, 14], [3, 7, 10, 12], [3, 7, 10, 14], [5, 7, 10, 12]
     return Song(d, progression([
-        (4, Bb, maj9, "Bbmaj9"), (4, A, m7_11, "Am7(11)"), (4, G, m9, "Gm9"), (4, F, maj9, "Fmaj9"),
-        (4, Bb, maj9, "Bbmaj9"), (4, A, m7_11, "Am7(11)"), (4, G, m9, "Gm9"), (4, C, sus9, "C9sus4"),
+        (4, F, maj9, "Fmaj9"), (4, A, m7, "Am7"), (4, Bb, maj9, "Bbmaj9"), (4, C, sus7, "C7sus4"),
+        (4, F, maj9, "Fmaj9"), (4, A, m7, "Am7"), (4, G, m9, "Gm9"), (4, C, sus7, "C7sus4"),
     ]))
 
 
@@ -414,16 +434,38 @@ def cafe_beat(s):
             hit(s, b, k["snare"], o + sw(2.25), 0.18, r)
         for i in range(8):
             bt = i * 0.5
-            v = 0.55 if i % 2 == 0 else 0.35
+            v = 0.8 if i % 2 == 0 else 0.55
             hit(s, b, k["hat"], o + sw(bt), v, r, 0.005)
         for bt in (1.75, 3.25):
-            hit(s, b, k["hat"], o + sw(bt), 0.18, r, 0.005)
+            hit(s, b, k["hat"], o + sw(bt), 0.3, r, 0.005)
+        for i in range(16):  # light shaker on the 16ths: air on top of the groove
+            hit(s, b, k["shaker"], o + sw(i * 0.25), 0.35 if i % 2 else 0.2, r, 0.004)
     b = dsp.drive(b / dsp.peak(b) * 1.2, 1.3)
-    b = loop_filter(s, b, "lp", 9000)
-    return room(s, b, 0.12, 0.6, "beat", damp=5000)
+    b = loop_eq(s, b, "highshelf", 5000, 3.0)
+    return room(s, b, 0.12, 0.6, "beat", damp=8000)
 
 
 def cafe_vinyl(s):
+    """Lamps: the café lights come on. A twinkling celesta figure on the
+    swung off-beats (G5-Bb6, chord tones), echoed, over a light vinyl crackle."""
+    tw = s.zeros()
+    r = dsp.rng(s.id, "twinkle")
+    steps = [(0.5, 0), (1.25, 1), (1.5, 2), (2.5, 3), (3.0, 2), (3.5, 1)]
+    for i, c in enumerate(s.chords):
+        pcs = {(c.root + t) % 12 for t in [0] + c.tones}
+        tones = sorted(m for m in range(79, 95) if m % 12 in pcs)
+        tones = tones[1:5] if i % 2 else tones[:4]
+        for bt, j in steps:
+            m = tones[j % len(tones)]
+            x = ins.glock(m, s.sr, vel=0.65, dur=1.0, octave_up=False, t60_scale=0.55)
+            s.add(tw, x, c.start + sw16(bt, 0.45), 0.9 if j == 0 else 0.6, dt=r.normal(0.004, 0.003))
+    tw = echo(s, tw, 0.75, 0.3, 0.35, 3, 7000)
+    tw = room(s, tw, 0.25, 1.4, "twinkle", damp=8000)
+    crackle = vinyl_crackle(s)
+    return tw / dsp.peak(tw) + 0.12 * crackle / dsp.peak(crackle)
+
+
+def vinyl_crackle(s):
     r = dsp.rng(s.id, "vinyl")
     n = s.n
     imp = np.zeros(n)
@@ -453,23 +495,23 @@ def cafe_keys(s):
         pat = pats[1] if i in (3, 7) else pats[0]
         for bt, du, v in pat:
             for j, m in enumerate(vo[i]):
-                x = ins.piano(m, s.sec(du), s.sr, vel=round(v + 0.04 * j, 2), bright=0.3, release=0.25)
+                x = ins.piano(m, s.sec(du), s.sr, vel=round(v + 0.04 * j, 2), bright=0.7, release=0.25)
                 s.add(b, x, o + sw16(bt, 0.45), 0.8, dt=0.012 + j * 0.018 + r.normal(0, 0.003))
         lh = nearest(c.root, 45, 40, 51)
-        s.add(b, ins.piano(lh, s.sec(3.6), s.sr, vel=0.45, bright=0.25, release=0.3), o, 0.7, dt=0.008)
-    b = loop_filter(s, b, "lp", 3800)
-    b = tape(s, b, 7.0, 0.42, 1.5)
+        s.add(b, ins.piano(lh, s.sec(3.6), s.sr, vel=0.45, bright=0.45, release=0.3), o, 0.6, dt=0.008)
+    b = loop_filter(s, b, "hp", 90)
+    b = loop_eq(s, b, "highshelf", 2500, 6.0)
+    b = tape(s, b, 5.0, 0.42, 1.0)
     b = dsp.drive(b / dsp.peak(b), 1.2)
-    return room(s, b, 0.22, 1.4, "keys", damp=3000)
+    return room(s, b, 0.2, 1.3, "keys", damp=6000)
 
 
 def cafe_bass(s):
     b = s.zeros()
     for i, c in enumerate(s.chords):
         R = nearest(c.root, 38, 33, 44)
-        pat = [(0, 1.6, R), (2.5, 0.42, R), (3.0, 0.8, R + (7 if i % 2 == 0 else 12))]
-        if R + 12 > 50:
-            pat[2] = (3.0, 0.8, R + 7)
+        # beat 4 walks to the chord's 3rd on minor chords (A -> C, G -> Bb), else to the 5th
+        pat = [(0, 1.6, R), (2.5, 0.42, R), (3.0, 0.8, R + (3 if c.tones[0] == 3 else 7))]
         for bt, du, m in pat:
             s.add(b, sub_note(m, s.sec(du), s.sr), c.start + sw16(bt, 0.45))
     b = loop_filter(s, b, "lp", 900)
@@ -492,25 +534,32 @@ def cafe_lead(s):
     b = s.zeros()
     r = dsp.rng(s.id, "lead")
     for bt, du, m in CAFE_LEAD:
-        x = ins.guitar(m, s.sec(du) + 0.05, s.sr, bright=0.22, t60=1.6, pick=0.21, mute=0.1, key=m % 3, attack=0.004)
+        x = ins.guitar(m, s.sec(du) + 0.05, s.sr, bright=0.42, t60=1.6, pick=0.18, mute=0.1, key=m % 3, attack=0.003)
         s.add(b, x, sw16(bt, 0.45), r.uniform(0.75, 0.95), dt=0.015 + r.normal(0, 0.004))
-    b = loop_filter(s, b, "lp", 4200)
-    b = loop_eq(s, b, "peak", 250, 2.0, 0.8)
-    b = tape(s, b, 6.0, 0.42)
-    b = echo(s, b, 0.75, 0.22, 0.35, 3, 2200)
-    return room(s, b, 0.2, 1.3, "lead", damp=3500)
+    b = loop_filter(s, b, "lp", 9000)
+    b = loop_eq(s, b, "peak", 2200, 3.0, 0.9)
+    b = tape(s, b, 5.0, 0.42)
+    b = echo(s, b, 0.75, 0.22, 0.35, 3, 4000)
+    return room(s, b, 0.2, 1.3, "lead", damp=5500)
 
 
 def cafe_pad(s):
     b = s.zeros()
-    shell = [[c.tones[0], c.tones[2], c.tones[3]] for c in s.chords]
+    def shell_of(c):  # 3rd, 7th, 9th/11th: three distinct pitch classes
+        out = []
+        for i in (0, 2, 3, 1):
+            if len(out) < 3 and c.tones[i] % 12 not in [t % 12 for t in out]:
+                out.append(c.tones[i])
+        return out
+    shell = [shell_of(c) for c in s.chords]
     vo = voice_lead([c.pcs(sh) for c, sh in zip(s.chords, shell)], 50, 70, 60)
     for c, v in zip(s.chords, vo):
         for j, m in enumerate(v):
-            s.add(b, pad_note(m, s.sec(c.dur) + 0.3, s.sr, cutoff=1000, attack=0.7, release=1.1, key=j), c.start)
-    b = tape(s, b, 14.0, 0.33, 2.0)
-    b = loop_filter(s, b, "lp", 1600)
-    return room(s, b, 0.35, 2.2, "pad", damp=2500)
+            s.add(b, pad_note(m, s.sec(c.dur) + 0.3, s.sr, cutoff=3200, attack=0.6, release=1.1, key=j), c.start)
+    b = tape(s, b, 8.0, 0.33, 1.5)
+    b = loop_filter(s, b, "lp", 6000)
+    b = loop_filter(s, b, "hp", 140)
+    return room(s, b, 0.3, 2.0, "pad", damp=5000)
 
 
 # ====================================================== JAZZ (Bb major)
@@ -951,10 +1000,14 @@ def stadium_arp(s):
         for i in range(int(c.dur * 4)):
             m = seq[i % len(seq)]
             v = 0.9 if i % 4 == 0 else 0.6
-            s.add(b, ins.pluck_synth(m, s.sr, dur=0.26, cutoff=3800, decay=0.07), c.start + i * 0.25, v)
-    b = echo(s, b, 0.75, 0.35, 0.4, 3, 4000)
+            s.add(b, ins.pluck_synth(m, s.sr, dur=0.26, cutoff=8000, decay=0.06), c.start + i * 0.25, v)
+            if i % 4 == 0:  # glassy sparkle an octave up on each beat (the 'lasers')
+                s.add(b, ins.glock(m + 12, s.sr, vel=0.5, dur=0.6, octave_up=False, t60_scale=0.4),
+                      c.start + i * 0.25, 0.35)
+    b = loop_eq(s, b, "highshelf", 4000, 3.0)
+    b = echo(s, b, 0.75, 0.35, 0.4, 3, 8000)
     b = sidechain(s, b, range(s.beats), 0.3, 0.1)
-    return room(s, b, 0.18, 1.4, "arp", damp=6000)
+    return room(s, b, 0.18, 1.4, "arp", damp=10000)
 
 
 def stadium_choir(s):
@@ -981,11 +1034,13 @@ def stadium_fx(s):
     rise *= t ** 2.2
     rise = dsp.fade(rise, sr, 0.01, 0.004)
     s.add(b, rise / dsp.peak(rise), s.beats - 8, 0.55)
-    # impact on the downbeat of bar 1
+    # impact on the downbeat of bar 1: settles on the tonic A1 (55 Hz), nothing below 40 Hz
     n = nsamp(2.0, sr)
     tt = np.arange(n) / sr
-    boom = np.sin(TAU * np.cumsum(35 + 60 * np.exp(-tt / 0.08)) / sr) * dsp.env_perc(n, sr, 1.6, 0.001)
-    boom += 0.4 * dsp.lowpass(r.standard_normal(n), 1200, sr) * np.exp(-tt / 0.15)
+    a1 = float(midi_hz(33))
+    boom = np.sin(TAU * np.cumsum(a1 * (1 + 0.9 * np.exp(-tt / 0.08))) / sr) * dsp.env_perc(n, sr, 1.6, 0.001)
+    boom = dsp.highpass(boom, 40, sr, 4)
+    boom += 0.4 * dsp.bandpass(r.standard_normal(n), 300, 3000, sr) * np.exp(-tt / 0.15)
     boom = dsp.convolve(boom, dsp.reverb_ir(sr, 2.2, key="stad-imp"))[:n] * 0.5 + boom
     s.add(b, dsp.fade(dsp.drive(boom / dsp.peak(boom), 1.5), sr, 0.001, 0.2), 0, 0.8)
     # downlifter into bar 5, short sweep up before bar 3
@@ -1236,18 +1291,20 @@ def tension_stem(s, style):
         for i in range(s.beats * 4):
             hit(s, b, hats, sw16(i * 0.25, 0.3 if style == "cafe" else 0.0), 0.55 if i % 2 == 0 else 0.35, r, 0.002)
     pb = s.zeros()
-    for bt, m, v in _pulse_notes(s, 50):
+    for bt, m, v in _pulse_notes(s, 62 if style == "cafe" else 50):
         if style == "garage":
             x = power_chord(m - 12 if m > 52 else m, s.sec(0.3), s.sr, muted=True, key=0)
         elif style == "jazz":
             x = upright(m - 12, s.sec(0.4), s.sr)
-        elif style == "cafe":
-            x = ins.epiano(m, s.sec(0.25), s.sr, vel=0.5, bright=0.6, release=0.08)
+        elif style == "cafe":  # bright e-piano pulse in the middle register (no low-mid mud)
+            x = ins.epiano(m, s.sec(0.25), s.sr, vel=0.6, bright=1.0, release=0.08)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
     if style == "garage":
         pb = dsp.loop_apply(pb / dsp.peak(pb), lambda z: ins.amp_sim(z, s.sr, gain=8.0))
+    if style == "cafe":
+        pb = loop_filter(s, pb, "hp", 180)
     b = b / dsp.peak(b) * 0.55 + pb / dsp.peak(pb)
     fifth = nearest((s.tonic + 7) % 12, 76, 70, 82)
     tr = s.zeros()
@@ -1255,6 +1312,45 @@ def tension_stem(s, style):
     tr *= 0.6 + 0.4 * np.sin(TAU * np.arange(s.n) / s.n * s.beats * 2) ** 2  # 8th-note tremolo
     b += 0.35 * tr / (dsp.peak(tr) + 1e-9)
     return room(s, b, 0.14, 1.0, "tension", damp=5000)
+
+
+def party_chords(s, style):
+    """Chords for the finale: the song's chords, except that jazz plays plain
+    G13 instead of the altered G7s and Bbmaj9 (the tonic) where the song has
+    Dm7(11) (Bbmaj9 contains it): triumphant and clearly in Bb, not G minor."""
+    out = []
+    for c in s.chords:
+        if style == "jazz" and c.name.startswith("G7("):
+            c = Chord(c.start, c.dur, c.root, [4, 10, 14, 21], "G13")
+        elif style == "jazz" and c.name == "Dm7(11)":
+            c = Chord(c.start, c.dur, (c.root + 8) % 12, [4, 7, 11, 14], "Bbmaj9")
+        out.append(c)
+    return out
+
+
+def party_voicing(c):
+    """Stab voicing: root at the bottom (~C4), the 7th (else the 5th) and a
+    second colour tone above it (never the 6th: G6 without a clear root is
+    Em7) and the 3rd on top, so every stab states root and quality."""
+    root = nearest(c.root % 12, 62, 57, 68)
+    ts = [t for t in c.tones if t % 12 != 0]
+    thirds = [t for t in ts if t % 12 in (3, 4)]
+    third = thirds[0] if thirds else ([t for t in ts if t % 12 == 5] or [4])[0]  # sus: the 4th
+    pref = ([t for t in ts if t % 12 in (10, 11)] + [t for t in ts if t % 12 == 7]
+            + [t for t in ts if t % 12 in (2, 5, 6, 8, 1) and t != third])
+    colour = []
+    for t in pref:
+        if len(colour) < 2 and t % 12 not in [u % 12 for u in colour]:
+            colour.append(t)
+    v = [root]
+    for t in colour:
+        pc = (c.root + t) % 12
+        v.append(min(m for m in range(root + 1, root + 13) if m % 12 == pc))
+    if len(v) < 3:
+        v.append(root + 12)  # double the root rather than add a 6th
+    top = max(v)
+    v.append(min(m for m in range(top + 1, top + 13) if m % 12 == (c.root + third) % 12))
+    return sorted(set(v))
 
 
 def party_stem(s, style):
@@ -1285,7 +1381,8 @@ def party_stem(s, style):
                 hit(s, b, dk["snare"], o + 2 + j * 0.25, 0.3 + 0.06 * j, r, 0.002)
     drums = b / dsp.peak(b)
     st = s.zeros()
-    vo = voice_lead([c.pcs([t for t in c.tones if t != 0][:3] or c.tones) for c in s.chords], 62, 81, 71)
+    chords = party_chords(s, style)
+    vo = [party_voicing(c) for c in chords]
     for bar in range(s.bars):
         for bt in (0.5, 1.5, 2.5, 3.5) if style != "jazz" else (T, 1 + T, 2 + T, 3 + T):
             beat = bar * 4 + bt
@@ -1301,8 +1398,9 @@ def party_stem(s, style):
                     x = ins.brass(m, s.sec(0.3), s.sr, vel=0.9, key=j)
                 s.add(st, x, beat, 1.0)
     arp = s.zeros()
-    for c in s.chords:
-        tones = sorted({m for m in range(76, 100) if (m - c.root) % 12 in [t % 12 for t in c.tones]})[:4]
+    for c in chords:  # root, 3rd, 5th and 7th only (no 6ths/9ths): a triumphant arpeggio that names the chord
+        pcs = [0] + [t % 12 for t in c.tones if t % 12 in (3, 4, 5, 7, 10, 11)]
+        tones = sorted({m for m in range(76, 100) if (m - c.root) % 12 in pcs})[:4]
         for i in range(int(c.dur * 2)):
             m = tones[i % len(tones)]
             if style == "jazz":
@@ -1337,31 +1435,39 @@ DISTRICTS = {
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
 # differences matter: gen_audio.py scales the whole district afterwards.
+# Expensive (4-5 star) tasks must be clearly heard when they unlock, so sparse
+# layers (gang shouts, toms, snaps, risers, whistles, shaker, strings) sit 3-6 dB
+# hotter than a plain balance would put them; tension (+3 dB) and party (+2 dB)
+# are up so the last-moves and finale moments are felt.
 LOUDNESS = {
-    "cafe": {"beat": -16, "vinyl": -34, "keys": -19, "bass": -20, "lead": -19, "pad": -23,
-             "tension": -21, "party": -18},
+    "cafe": {"beat": -16, "vinyl": -22, "keys": -18, "bass": -21, "lead": -19, "pad": -20,
+             "tension": -18, "party": -16},
     "jazz": {"brushes": -19, "piano": -18, "bass": -19, "organ": -24, "sax": -18, "vibes": -21,
-             "trumpet": -19, "tension": -21, "party": -18},
-    "square": {"drums": -16, "shaker": -24, "guitar": -20, "tuba": -19, "brass": -19, "clarinet": -19,
-               "claps": -21, "whistle": -23, "tension": -21, "party": -18},
-    "stadium": {"beat": -15, "bass": -19, "chords": -19, "arp": -22, "choir": -21, "fx": -22, "hook": -18,
-                "snaps": -22, "tension": -21, "party": -18},
-    "garage": {"drums": -15, "rhythm": -18, "bass": -19, "lead": -18, "organ": -21, "tamb": -24,
-               "toms": -20, "strings": -22, "gang": -20, "tension": -21, "party": -18},
+             "trumpet": -19, "tension": -18, "party": -16},
+    "square": {"drums": -16, "shaker": -21, "guitar": -20, "tuba": -19, "brass": -19, "clarinet": -19,
+               "claps": -17, "whistle": -18, "tension": -18, "party": -16},
+    "stadium": {"beat": -15, "bass": -19, "chords": -19, "arp": -21, "choir": -21, "fx": -17, "hook": -18,
+                "snaps": -17, "tension": -18, "party": -16},
+    "garage": {"drums": -15, "rhythm": -18, "bass": -19, "lead": -18, "organ": -21, "tamb": -19,
+               "toms": -15, "strings": -19, "gang": -15, "tension": -18, "party": -16},
 }
 
 
 def render_district(d):
     """Render every stem of district d (dict from districts.json).
-    Returns (song, {stem_id: raw signal}) in task order + tension + party."""
+    Returns (song, {stem_id: raw signal}, {stem_id: sample rate}) in task
+    order + tension + party. `song` is the 22.05 kHz grid; stems listed in
+    HI_RATE are rendered on the same grid at 44.1 kHz."""
     spec = DISTRICTS[d["id"]]
     s = spec["song"](d)
-    out = {}
-    for task in d["tasks"]:
-        out[task["stem"]] = np.asarray(spec["stems"][task["stem"]](s), dtype=float)
-    out["tension"] = tension_stem(s, d["id"])
-    out["party"] = party_stem(s, d["id"])
-    for k, v in out.items():
-        assert len(v) == s.n, (d["id"], k, len(v), s.n)
-        assert np.all(np.isfinite(v)), (d["id"], k)
-    return s, out
+    hi = s.at_rate(SR_HI)
+    fns = [(t["stem"], spec["stems"][t["stem"]]) for t in d["tasks"]]
+    fns += [("tension", lambda z: tension_stem(z, d["id"])), ("party", lambda z: party_stem(z, d["id"]))]
+    out, rates = {}, {}
+    for k, fn in fns:
+        ss = hi if k in HI_RATE.get(d["id"], ()) else s
+        out[k] = np.asarray(fn(ss), dtype=float)
+        rates[k] = ss.sr
+        assert len(out[k]) == ss.n, (d["id"], k, len(out[k]), ss.n)
+        assert np.all(np.isfinite(out[k])), (d["id"], k)
+    return s, out, rates

@@ -1,0 +1,173 @@
+-- Persistent overlay above every screen: fade transitions, toasts and simple
+-- modal popups. Lives in main.collection, rendered last (render order 15).
+--
+-- Messages (msg.post("main:/overlay#overlay", ...)):
+--   fade_out {duration}   -> fades to opaque, replies "fade_out_done" to the sender
+--   fade_in  {duration}   -> fades to clear,  replies "fade_in_done"  to the sender
+--   toast    {text, duration = 2.2}
+--   modal    {id, title, text, buttons = {{id, text, style}}}
+--            -> replies "modal_result" {id, button} to the sender and publishes
+--               bus "modal_result"; button "close" when dismissed outside
+--   take_focus            (re)acquire input focus so the overlay is on top
+-- While fading or showing a modal the overlay swallows all input.
+
+local ui = require("client.ui")
+local bus = require("client.bus")
+local i18n = require("client.i18n")
+
+local FADE_COLOR = "#E4F7FF"
+
+local function build_fade(self)
+	self.fade = gui.new_box_node(vmath.vector3(0, 0, 0), vmath.vector3(4, 4, 0))
+	gui.set_pivot(self.fade, gui.PIVOT_SW)
+	gui.set_color(self.fade, ui.color(FADE_COLOR, 1))
+	self.fade_alpha = 1
+end
+
+local function fit_fade(self)
+	local ww, wh = window.get_size()
+	gui.set_position(self.fade, vmath.vector3(0, 0, 0))
+	gui.set_size(self.fade, vmath.vector3(ww + 2, wh + 2, 0))
+end
+
+local function set_fade_alpha(self, a)
+	self.fade_alpha = a
+	local c = gui.get_color(self.fade)
+	c.w = a
+	gui.set_color(self.fade, c)
+end
+
+local function fade(self, to, duration, reply_to, reply)
+	self.fading = true
+	gui.cancel_animations(self.fade, "color.w")
+	gui.set_enabled(self.fade, true)
+	gui.animate(self.fade, "color.w", to, gui.EASING_INOUTQUAD, duration or 0.25, 0, function()
+		self.fading = false
+		self.fade_alpha = to
+		if to <= 0 then gui.set_enabled(self.fade, false) end
+		if reply_to then msg.post(reply_to, reply) end
+	end)
+end
+
+-- toasts -----------------------------------------------------------------------------------
+
+local function show_next_toast(self)
+	if self.toast_node or #self.toast_queue == 0 then return end
+	local t = table.remove(self.toast_queue, 1)
+	local s = self.ui
+	local panel = s:round(s.root, 360, 1280 - 190, 620, 96, "white", { alpha = 0.97 })
+	s:anchor(panel, "top")
+	local _, _ = s:text(panel, t.text or "", 0, 2, {
+		font = "body", size = 32, color = "text", max_width = 580,
+	})
+	local accent = s:round(panel, -310 + 10, 0, 12, 60, t.color or "pink")
+	gui.set_pivot(accent, gui.PIVOT_W)
+	self.toast_node = panel
+	local p = gui.get_position(panel)
+	local from = vmath.vector3(p.x, p.y + 160, 0)
+	gui.set_position(panel, from)
+	gui.animate(panel, "position", p, gui.EASING_OUTBACK, 0.35)
+	gui.animate(panel, "position", from, gui.EASING_INBACK, 0.3, (t.duration or 2.2) + 0.35, function()
+		gui.delete_node(panel)
+		self.toast_node = nil
+		show_next_toast(self)
+	end)
+end
+
+-- modal -------------------------------------------------------------------------------------
+
+local function close_modal(self, button)
+	local m = self.modal
+	if not m then return end
+	self.modal = nil
+	for _, b in ipairs(m.buttons) do self.ui:remove_button(b) end
+	gui.delete_node(m.dim)
+	gui.delete_node(m.panel)
+	local result = { id = m.id, button = button }
+	if m.sender then msg.post(m.sender, "modal_result", result) end
+	bus.publish("modal_result", result)
+end
+
+local function open_modal(self, spec, sender)
+	if self.modal then close_modal(self, "replaced") end
+	local s = self.ui
+	local m = { id = spec.id, sender = sender, buttons = {} }
+	m.dim = s:box(s.root, 360, 640, 720, 1280, { color = "#5B3FA0", alpha = 0.35 })
+	s:cover(m.dim, "stretch")
+	local buttons = spec.buttons or { { id = "ok", text = i18n.t("common.ok"), style = "green" } }
+	local text_h = spec.text and 150 or 0
+	local h = 150 + text_h + 130 * math.ceil(#buttons / 2)
+	m.panel = s:round(s.root, 360, 660, 620, h, "white")
+	s:text(m.panel, spec.title or "", 0, h / 2 - 70, {
+		font = "title", size = 50, color = "pink", outline = "white", shadow = "shadow", max_width = 560,
+	})
+	if spec.text then
+		s:text(m.panel, spec.text, 0, h / 2 - 150 - text_h / 2 + 30, {
+			font = "body", size = 30, color = "text", width = 540, height = text_h,
+		})
+	end
+	local rows = math.ceil(#buttons / 2)
+	for i, b in ipairs(buttons) do
+		local row = math.floor((i - 1) / 2)
+		local in_row = math.min(2, #buttons - row * 2)
+		local col = (i - 1) % 2
+		local bw = in_row == 1 and 420 or 260
+		local x = in_row == 1 and 0 or (col == 0 and -140 or 140)
+		local y = -h / 2 + 90 + (rows - 1 - row) * 130
+		m.buttons[#m.buttons + 1] = s:button({
+			parent = m.panel, x = x, y = y, w = bw, h = 104, style = b.style or "green",
+			text = b.text or b.id, text_size = 38,
+			on_click = function() close_modal(self, b.id) end,
+		})
+	end
+	ui.pop_in(m.panel, 0, 0.7)
+	self.modal = m
+end
+
+-- lifecycle ------------------------------------------------------------------------------------
+
+function init(self)
+	gui.set_render_order(15)
+	self.ui = ui.scene({ gui = "/main/overlay.gui" })
+	build_fade(self)
+	fit_fade(self)
+	self.toast_queue = {}
+	self.fading = false
+	msg.post(".", "acquire_input_focus")
+end
+
+function final(self)
+	self.ui:final()
+end
+
+function update(self, dt)
+	if self.ui:refit(false) then fit_fade(self) end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("fade_out") then
+		fade(self, 1, message.duration, sender, "fade_out_done")
+	elseif message_id == hash("fade_in") then
+		fade(self, 0, message.duration, sender, "fade_in_done")
+	elseif message_id == hash("toast") then
+		self.toast_queue[#self.toast_queue + 1] = { text = message.text, duration = message.duration, color = message.color }
+		show_next_toast(self)
+	elseif message_id == hash("modal") then
+		open_modal(self, message, sender)
+	elseif message_id == hash("close_modal") then
+		close_modal(self, message.button or "close")
+	elseif message_id == hash("take_focus") then
+		msg.post(".", "release_input_focus")
+		msg.post(".", "acquire_input_focus")
+	end
+end
+
+function on_input(self, action_id, action)
+	if self.modal then
+		if self.ui:on_input(action_id, action) then return true end
+		if action_id == hash("back") and action.released then close_modal(self, "close") end
+		return true
+	end
+	if self.fading or self.fade_alpha > 0.5 then return true end
+	return false
+end

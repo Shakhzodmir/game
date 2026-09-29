@@ -1,0 +1,40 @@
+mouse_trigger {
+  input: MOUSE_BUTTON_1
+  action: "touch"
+}
+touch_trigger {
+  input: TOUCH_MULTI
+  action: "multi_touch"
+}
+key_trigger {
+  input: KEY_BACK
+  action: "back"
+}
+key_trigger {
+  input: KEY_ESC
+  action: "back"
+}
+key_trigger {
+  input: KEY_F1
+  action: "debug_town"
+}
+key_trigger {
+  input: KEY_F2
+  action: "debug_level"
+}
+key_trigger {
+  input: KEY_F3
+  action: "debug_splash"
+}
+key_trigger {
+  input: KEY_F5
+  action: "debug_coins"
+}
+key_trigger {
+  input: KEY_F6
+  action: "debug_language"
+}
+key_trigger {
+  input: KEY_F9
+  action: "debug_reset_save"
+}

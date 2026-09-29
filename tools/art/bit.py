@@ -125,12 +125,14 @@ def _mouth(cv, kind):
     if kind == "smile":
         cv.fill(sd_arc(X, Y, mx, my - 8, 11, math.radians(30), math.radians(150), 4.2), EYE)
     elif kind in ("open", "grin"):
-        m = I(sd_ellipse(X, Y, mx, my, 15, 14), Y - (my - 3))
-        m = opening(m, 2)
+        # round-bottom "D" smile: flat (slightly smiling) top edge, full round bottom, tongue
+        top = my - 5
+        m = I(sd_ellipse(X, Y, mx, top, 16, 17), top - Y - 0.02 * (X - mx) ** 2)
+        m = opening(m, 2.5)
         cv.fill(m, MOUTH)
-        cv.fill(I(sd_ellipse(X, Y, mx, my + 10, 9.5, 6.5), m + 1), TONGUE)
+        cv.fill(I(sd_ellipse(X, Y, mx + 1, top + 14, 9.5, 6.5), m + 1.2), TONGUE)
         if kind == "grin":
-            cv.fill(I(sd_rect(X, Y, mx - 13, my - 4, mx + 13, my + 1.5, 0), m + 1.5), WHITE)
+            cv.fill(I(sd_rect(X, Y, mx - 14, top - 2, mx + 14, top + 4.5, 0), m + 1.4), WHITE)
         cv.stroke(m, 2.6, EYE)
     elif kind == "o":
         m = sd_ellipse(X, Y, mx, my + 2, 7.5, 9)
@@ -196,6 +198,18 @@ def _feet(cv, lift=(0.0, 0.0)):
             cv.fill(sd_circle(X, Y, fx + k * 9, fy - 3, 3), "#FFB3C6", 0.8)
 
 
+def _ears(cv, droop=0.0):
+    """Small rounded ears peeking out above the cups (behind the head and the headband)."""
+    X, Y = cv.X, cv.Y
+    for side in (-1, 1):
+        bx, by = CX + side * 58, CY - 40 + droop
+        tx, ty = CX + side * 92, CY - 74 + droop
+        ear = opening(sd_poly(X, Y, [(bx - side * 16, by - 10), (tx, ty), (bx + side * 16, by + 8)]), 6)
+        fur(cv, ear, depth=7, lw=3.0)
+        inner = opening(sd_poly(X, Y, [(bx - side * 6, by - 6), (tx - side * 5, ty + 8), (bx + side * 9, by + 3)]), 3)
+        cv.fill(inner, "#FFB3C6", 0.85)
+
+
 def _body(cv):
     X, Y = cv.X, cv.Y
     body = fluff(X, Y, CX, CY, R - 1, R - 3, n=17, amp=4.5, p=1.1, seed=11)
@@ -214,16 +228,18 @@ def _body(cv):
 
 
 def _hair(cv, droop=0.0):
+    """Fluffy three-lobed fur tuft on top of the head."""
     X, Y = cv.X, cv.Y
-    y0 = CY - 58 + droop
-    curls = [bez((CX - 10, y0), (CX - 20, y0 - 22), (CX - 34, y0 - 26), n=12),
-             bez((CX, y0 - 2), (CX - 2, y0 - 34), (CX + 16, y0 - 44), n=12),
-             bez((CX + 10, y0), (CX + 22, y0 - 18), (CX + 34, y0 - 16), n=12)]
-    h = None
-    for c, r0 in zip(curls, (9, 11, 8)):
-        d = sd_polyline(X, Y, c, list(np.linspace(r0, 2.5, len(c))))
-        h = d if h is None else SU(h, d, 3)
-    fur(cv, h, depth=8, lw=3.0)
+    y0 = CY - 60 + droop
+    lobes = [sd_ellipse(X, Y, CX - 15, y0 - 7, 11, 13, ang=math.radians(-30)),
+             sd_ellipse(X, Y, CX + 1, y0 - 15, 12, 16, ang=math.radians(4)),
+             sd_ellipse(X, Y, CX + 16, y0 - 6, 10, 12, ang=math.radians(32))]
+    h = SU(SU(lobes[0], lobes[1], 5), lobes[2], 5)
+    h = SU(h, sd_ellipse(X, Y, CX, y0 + 6, 22, 9), 6)
+    fur(cv, h, depth=9, lw=3.0)
+    for (a, b) in (((CX - 8, y0 - 6), (CX - 4, y0 + 2)), ((CX + 8, y0 - 6), (CX + 5, y0 + 2))):
+        cv.fill(np.maximum(sd_capsule(X, Y, *a, *b, 1.2), h + 3.5), "#F2A45C", 0.5)
+    cv.fill(np.maximum(sd_ellipse(X, Y, CX - 3, y0 - 20, 4, 2.4, ang=-0.4), h + 2), "#FFF4E6", 0.8, soft=0.6)
 
 
 # ------------------------------------------------------------------ extras
@@ -252,22 +268,26 @@ def _drop(cv, x, y, s, col="#8FE6FF"):
     candy(cv, d, ("#FFFFFF", col, "#3AA4FF", "#1775E8"), lw=2.0, depth=4, rim=0.3)
 
 
+DECK_C = (160.0, 206.0)      # platter centre of the DJ deck (scratch pose)
+
+
 def _deck(cv):
     X, Y = cv.X, cv.Y
-    base = sd_rect(X, Y, 66, 204, 252, 252, 12)
-    candy(cv, base, ("#E4D6FF", "#B89CFF", "#8B6BF0", "#5A2FE0"), lw=3.0, depth=10, rim=0.4)
-    led = sd_capsule(X, Y, 82, 243, 238, 243, 1.8)
+    px, py = DECK_C
+    base = sd_rect(X, Y, 78, 196, 236, 236, 11)
+    candy(cv, base, ("#E4D6FF", "#B89CFF", "#8B6BF0", "#5A2FE0"), lw=3.0, depth=9, rim=0.4)
+    led = sd_capsule(X, Y, 92, 228, 222, 228, 1.6)
     cv.fill(led, "#3CE0FF", 1)
-    plat = sd_ellipse(X, Y, 172, 216, 54, 17)
-    candy(cv, plat, ("#FFB3D6", "#FF7EB6", "#F0508F", "#C22A6C"), lw=2.6, depth=6, rim=0.3)
-    rr = np.hypot((X - 172) / 54, (Y - 216) / 17)
-    gro = np.maximum(np.abs(((rr * 9) % 1.0) - 0.5) - 0.18, np.maximum(plat + 3, 0.38 - rr))
+    plat = sd_ellipse(X, Y, px, py, 46, 14.5)
+    candy(cv, plat, ("#FFB3D6", "#FF7EB6", "#F0508F", "#C22A6C"), lw=2.4, depth=5, rim=0.3)
+    rr = np.hypot((X - px) / 46, (Y - py) / 14.5)
+    gro = np.maximum(np.abs(((rr * 8) % 1.0) - 0.5) - 0.18, np.maximum(plat + 3, 0.38 - rr))
     cv.fill(gro * 3, "#FFD1E6", 0.6)
-    cv.fill(sd_ellipse(X, Y, 172, 216, 17, 5.6), "#FFDB1A")
-    cv.fill(sd_ellipse(X, Y, 172, 216, 2.5, 1.2), "#C22A6C")
-    cv.fill(np.maximum(sd_arc(X, Y, 172, 216, 40, math.radians(200), math.radians(250), 3), plat + 3), WHITE, 0.6)
-    for kx, pal in ((90, LIGHT), (108, ("#C7FAFF", "#3CE0FF", "#12A9E0", "#0B7DB8"))):
-        candy(cv, sd_circle(X, Y, kx, 226, 5.5), pal, lw=1.6, depth=3)
+    cv.fill(sd_ellipse(X, Y, px, py, 14.5, 4.8), "#FFDB1A")
+    cv.fill(sd_ellipse(X, Y, px, py, 2.2, 1.1), "#C22A6C")
+    cv.fill(np.maximum(sd_arc(X, Y, px, py, 34, math.radians(200), math.radians(250), 2.6), plat + 3), WHITE, 0.6)
+    for kx, pal in ((98, LIGHT), (114, ("#C7FAFF", "#3CE0FF", "#12A9E0", "#0B7DB8"))):
+        candy(cv, sd_circle(X, Y, kx, 216, 4.8), pal, lw=1.5, depth=3)
 
 
 def draw_bit(pose):
@@ -278,6 +298,7 @@ def draw_bit(pose):
     droop = P["droop"]
     if not P["deck"]:
         _feet(lay, P["feet"])
+    _ears(lay, droop)
     _body(lay)
     _eyes(lay, P["eyes"], P["look"])
     _mouth(lay, P["mouth"])
@@ -294,11 +315,11 @@ def draw_bit(pose):
         _arm_to(lay, 1, CX + 82, CY - 8 + droop)
     elif P["deck"]:
         _arm_to(lay, -1, CX - 80, CY - 20)
-        _arm_to(lay, 1, 184, 206)
+        _arm_to(lay, 1, DECK_C[0] + 14, DECK_C[1] - 6)
     else:
         _arm(lay, -1, P["arms"][0])
         _arm(lay, 1, P["arms"][1])
-    out = lay.transformed(P["lean"], pivot=(128, 236), sx=P["sx"] * 0.97, sy=P["sy"] * 0.97, dy=P["dy"] + 2)
+    out = lay.transformed(P["lean"], pivot=(128, 236), sx=P["sx"] * 0.93, sy=P["sy"] * 0.93, dy=P["dy"] + 2)
     for fn in P.get("extras", []):
         fn(out)
     soft_shadow(out, 0, 3, 3, PIECE_SHADOW, 0.3)
@@ -335,10 +356,10 @@ def _extras_worried(cv):
 def _extras_scratch(cv):
     X, Y = cv.X, cv.Y
     for k in range(3):
-        arc = sd_arc(X, Y, 172, 214, 68 + k * 9, math.radians(-42), math.radians(8), 3.4)
+        arc = sd_arc(X, Y, 158, 204, 56 + k * 8, math.radians(-48), math.radians(-4), 3.0)
         cv.fill(arc - 1.6, "#FFFFFF", 0.9 - 0.25 * k)
         cv.fill(arc, "#3CE0FF", 0.95 - 0.25 * k)
-    _note(cv, 228, 150, 0.2, PIECES["yellow"], ang=14)
+    _note(cv, 222, 138, 0.2, PIECES["yellow"], ang=14)
     _sparkle(cv, 30, 70, 9, "#FF5C9A")
 
 

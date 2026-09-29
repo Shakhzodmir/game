@@ -1,0 +1,185 @@
+-- Audio engine (attached to the generated game object assets/gen/audio.go,
+-- which also holds one sound component per note / sfx / music stem).
+-- The maths and the mixer state live in client/audio.lua; this script
+-- applies them with sound.play / sound.set_gain / sound.set_group_gain.
+--
+-- Messages: see client/audio.lua (music, stop_music, unlock_stem, layer,
+-- duck, combo, note, sfx, volumes). The music clock starts when the stems
+-- start; notes are delayed to the next 1/32 of it with sound.play{delay}.
+
+local audio = require("client.audio")
+local assets = require("client.assets")
+local app = require("client.app")
+local bus = require("client.bus")
+
+local MSG = {
+	music = hash("music"),
+	stop_music = hash("stop_music"),
+	unlock_stem = hash("unlock_stem"),
+	layer = hash("layer"),
+	duck = hash("duck"),
+	combo = hash("combo"),
+	note = hash("note"),
+	sfx = hash("sfx"),
+	volumes = hash("volumes"),
+}
+
+local function now()
+	return socket.gettime()
+end
+
+local function comp(id)
+	return msg.url(nil, go.get_id(), id)
+end
+
+local function set_group_gain(group, g)
+	pcall(sound.set_group_gain, group, g)
+end
+
+local function apply_volumes(self)
+	local s = app.meta and app.meta:settings() or {}
+	self.mixer:set_volumes(s.music or 0.8, s.sfx or 1)
+end
+
+local function stop_stems(self, stems)
+	for _, stem in ipairs(stems) do
+		local id = assets.music_id(self.district, stem)
+		if id then sound.stop(comp(id)) end
+	end
+end
+
+-- Starts every stem of the district in this frame; locked stems at gain 0.
+local function start_music(self, district, all)
+	if self.mixer:playing() then
+		stop_stems(self, self.mixer:stop())
+	end
+	self.district = district
+	self.all = all and true or false
+	local data = app.district(district)
+	local stems = assets.music_stems(district)
+	if #stems == 0 or not data then
+		self.district = nil
+		return
+	end
+	local unmuted = {}
+	if all then
+		for _, s in ipairs(stems) do unmuted[s] = true end
+	elseif app.meta then
+		for _, s in ipairs(app.meta:unmuted_stems(district)) do unmuted[s] = true end
+	end
+	self.semitones = data.semitones_from_c or 0
+	local starts = self.mixer:start(district, data.bpm, stems, unmuted, now())
+	for _, st in ipairs(starts) do
+		sound.play(comp(assets.music_id(district, st.stem)), { gain = st.gain })
+	end
+end
+
+local function play_note(self, m)
+	local id, step = audio.note_id(m.color, m.wave)
+	if not assets.note_id(m.color, step + 1) then return end
+	local semis = self.semitones
+	if not self.mixer:playing() then
+		local d = app.meta and app.district(app.focus_district())
+		semis = d and d.semitones_from_c or 0
+	end
+	local delay = 0
+	if m.quantize ~= false and self.mixer:playing() then
+		delay = audio.quantize_delay(self.mixer:clock(now()), self.mixer.bpm)
+	end
+	audio.status.notes = audio.status.notes + 1
+	audio.status.last_delay = delay
+	sound.play(comp(id), {
+		delay = delay,
+		gain = m.gain or 0.8,
+		pan = m.pan or 0,
+		speed = audio.transpose_speed(semis),
+	})
+end
+
+local function play_sfx(self, m)
+	local id = assets.sfx_id(m.name)
+	if not id then return end
+	audio.status.sfx = audio.status.sfx + 1
+	sound.play(comp(id), { gain = m.gain or 1, pan = m.pan or 0, speed = m.speed or 1, delay = m.delay or 0 })
+end
+
+local function update_status(self, dt)
+	local st = audio.status
+	st.district = self.district
+	st.playing = self.mixer:playing()
+	st.clock = self.mixer:clock(now()) or 0
+	st.music_gain = self.music_gain or 0
+	st.sfx_gain = self.sfx_gain or 0
+	local on = 0
+	for _, name in ipairs(self.mixer.order) do
+		if (self.mixer:gain(name) or 0) > 0 then on = on + 1 end
+	end
+	st.stems_on = on
+	self.rms_t = (self.rms_t or 0) + dt
+	if self.rms_t >= 0.25 then
+		self.rms_t = 0
+		local ok, l, r = pcall(sound.get_rms, hash("music"), 2048 / 48000)
+		local v = ok and l and math.max(l, r or 0) or 0
+		if v ~= v or v == math.huge then v = 0 end -- silent group: NaN
+		st.music_rms = v
+	end
+end
+
+function init(self)
+	self.mixer = audio.new_mixer()
+	self.semitones = 0
+	self.district = nil
+	self.sub = bus.subscribe({ "settings_changed" }, "audio")
+	apply_volumes(self)
+	self.music_gain, self.sfx_gain = nil, nil
+end
+
+function final(self)
+	self.sub:close()
+end
+
+function update(self, dt)
+	self.sub:drain(function(topic, p)
+		if p.key == "music" or p.key == "sfx" then apply_volumes(self) end
+	end)
+	for _, ch in ipairs(self.mixer:update(dt)) do
+		local id = assets.music_id(self.district, ch.stem)
+		if id then sound.set_gain(comp(id), ch.gain) end
+	end
+	local mg, sg = self.mixer:music_group_gain(), self.mixer:sfx_group_gain()
+	if mg ~= self.music_gain then
+		self.music_gain = mg
+		set_group_gain("music", mg)
+	end
+	if sg ~= self.sfx_gain then
+		self.sfx_gain = sg
+		set_group_gain("sfx", sg)
+	end
+	update_status(self, dt)
+end
+
+function on_message(self, message_id, message)
+	if message_id == MSG.note then
+		play_note(self, message)
+	elseif message_id == MSG.sfx then
+		play_sfx(self, message)
+	elseif message_id == MSG.music then
+		local all = message.all and true or false
+		if message.district and (message.district ~= self.district or all ~= self.all or not self.mixer:playing()) then
+			start_music(self, message.district, message.all)
+		end
+	elseif message_id == MSG.stop_music then
+		if self.mixer:playing() then stop_stems(self, self.mixer:stop()) end
+		self.district = nil
+	elseif message_id == MSG.unlock_stem then
+		if message.district == self.district then self.mixer:unlock(message.stem) end
+	elseif message_id == MSG.layer then
+		self.mixer:set_layer(message.name, message.on)
+	elseif message_id == MSG.duck then
+		self.mixer:set_level_duck(message.on)
+	elseif message_id == MSG.combo then
+		self.mixer:combo(message.waves)
+	elseif message_id == MSG.volumes then
+		self.mixer:set_volumes(message.music, message.sfx)
+	end
+end

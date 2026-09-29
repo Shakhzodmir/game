@@ -1,0 +1,41 @@
+	html, body {
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		overflow: hidden;
+		overscroll-behavior: none;
+		touch-action: none;
+		background-color: #86DDFF;
+	}
+
+	.canvas-app-container {
+		background: linear-gradient(180deg, #43BFFF 0%, #86DDFF 40%, #C9F2FF 75%, #FFF4C9 100%);
+	}
+
+	.canvas-app-canvas {
+		display: block;
+		background-color: transparent;
+		background-image: none;
+	}
+
+	.buttons-background {
+		display: none;
+	}
+
+	.canvas-app-progress {
+		position: absolute;
+		background-color: #FFFFFF;
+		height: 10px;
+		margin-top: -10px;
+		width: 100%;
+	}
+
+	.canvas-app-progress-bar {
+		font-size: 0;
+		height: 10px;
+		background: linear-gradient(90deg, #FF7EB6, #FF4D8D);
+		transition: transform 0.4s ease;
+		transform-origin: left;
+		transform: scaleX(1.0);
+	}

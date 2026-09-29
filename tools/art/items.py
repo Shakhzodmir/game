@@ -1,39 +1,65 @@
-"""District task items: one sticker-style object per task (<= 256x256).
+"""District task items: one bright candy-style object per task (<= 256x256).
 
-Every item uses dark INK outlines and strong value contrast so it still reads
-when the engine shows it desaturated/darkened as "not yet restored".
+Colourful objects with outlines in a darker shade of their own colour (never black), so they read
+on the pastel scenes and still read when the engine shows them desaturated and semi-transparent
+as "not yet restored".
 """
 import math
 import os
 
 import numpy as np
 
-from artkit import (C, Canvas, INK, WHITE, bez, darken, droplet, gblur, inset, lighten, mix, opening, ramp, rng,
+from artkit import (C, Canvas, WHITE, bez, candy, contact_shadow, darken, edge_fade, grow, lighten, droplet, gblur,
+                    gloss_drop, inset, mix, opening, ramp, rim_gloss, rng,
                     sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly, sd_polyline, sd_rect, sd_ring,
-                    sd_star, sd_taper, smoothstep, text_sdf, SU, SUB, U, I, vol)
+                    sd_star, sd_taper, smoothstep, soft_shadow, sparkle4, text_sdf, SU, SUB, U, I)
 from pieces import note_sdf, pick_sdf
+from palette import PIECES
 import blockers
 
 FONT = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts", "Rubik-Black.ttf")
+INK = "#4A3B6B"          # soft plum ink for small details (never pure black)
+EYE = "#2B2345"
 
-BRASS = ("#FFC23D", "#FFF0B0", "#B86E00")
-SILVER = ("#D5DAE6", "#FFFFFF", "#7C8399")
-WOOD = ("#B8703E", "#EFA96E", "#6A3616")
-DKWOOD = ("#6B3A2E", "#A8674E", "#34160F")
-BLACK = ("#2B2640", "#6A6390", "#120F20")
+# candy palettes: (light, base, shadow, outline)
+BRASS = ("#FFF6C2", "#FFD23F", "#F5A300", "#B86E00")
+SILVER = ("#FFFFFF", "#E3E9F7", "#AEB9D3", "#6E7A9C")
+WOOD = ("#FFD9A3", "#F5A45A", "#DB7A30", "#A5541A")
+DKWOOD = ("#FFC79A", "#E08A50", "#C06A30", "#8A4418")
+BLACK = ("#C9BCFF", "#8C7BEA", "#6A58D0", "#4632A8")      # "dark" hardware is lavender-violet here
+PINKP = ("#FFD1E6", "#FF7EB6", "#F0508F", "#C22A6C")
+CREAMP = ("#FFFFFF", "#FFF4E0", "#F2D7B0", "#C28A4E")
+SKIN = ("#FFF6EC", "#FFD9B8", "#F2B48A", "#C77A4A")
+PIECE_COLS = [PIECES[k][1] for k in ("red", "orange", "yellow", "green", "blue", "purple")]
 
 
-def P(cv, d, col, light=None, dark=None, lw=2.6, depth=None, spec=0.35, line=INK, **kw):
-    if isinstance(col, tuple):
+def _pal(col, light=None, dark=None, line=None):
+    if isinstance(col, tuple) and len(col) == 4:
+        return col
+    if isinstance(col, tuple) and len(col) == 3:
         col, light, dark = col
-    vol(cv, d, col, light=light, dark=dark, line=line, lw=lw, depth=depth, spec=spec, **kw)
+    b = C(col)
+    lt = C(light) if light is not None else mix(b, WHITE, 0.55)
+    dk0 = C(dark) if dark is not None else mix(b, C("#3B1E8A"), 0.35)
+    sh = mix(b, dk0, 0.5)
+    ln = C(line) if line is not None else mix(dk0, C("#2A1650"), 0.15)
+    return (lt, b, sh, ln)
+
+
+def P(cv, d, col, light=None, dark=None, lw=2.6, depth=None, spec=None, line=None, **kw):
+    pal = _pal(col, light, dark, line)
+    for k in ("grad", "lift_", "spec_pow", "grad_dir_"):
+        kw.pop(k, None)
+    kw.setdefault("rim", 0.35)
+    candy(cv, d, pal, lw=lw, depth=depth, **kw)
 
 
 def glow(cv, d, color, radius=10, alpha=0.6, mode="under"):
     cv.glow_from(np.clip(0.5 - d * cv.ss, 0, 1), radius, color, alpha, mode=mode)
 
 
-def hl(cv, pts, r0, r1, clip, alpha=0.6):
+def hl(cv, pts, r0, r1, clip, alpha=0.7):
+    from artkit import droplet
     droplet(cv, bez(*pts, n=10), np.linspace(r0, r1, 11), alpha=alpha, clip_sdf=clip)
 
 
@@ -46,23 +72,24 @@ def line(cv, pts, w, color=INK, alpha=1.0, clip=None):
 
 def sparkle(cv, x, y, r, color="#FFFFFF"):
     d = opening(sd_star(cv.X, cv.Y, x, y, r, r * 0.3, n=4, rot=-math.pi / 2), 0.4)
+    cv.fill(d - 1.6, "#FFFFFF", 1.0)
     cv.fill(d, color, 1.0)
 
 
 def keys(cv, x0, y0, x1, y1, n=14, black=True):
     X, Y = cv.X, cv.Y
     bed = sd_rect(X, Y, x0, y0, x1, y1, 1.5)
-    cv.fill(bed, "#FFFDF6")
+    cv.fill(bed, "#FFFFFF")
     kw = (x1 - x0) / n
     for i in range(1, n):
-        line(cv, [(x0 + i * kw, y0), (x0 + i * kw, y1)], 1.2, "#8A84A8")
+        line(cv, [(x0 + i * kw, y0), (x0 + i * kw, y1)], 1.2, "#B9AEDD")
     if black:
         for i in range(n - 1):
             if i % 7 in (2, 6):
                 continue
             bx = x0 + (i + 1) * kw
-            cv.fill(sd_rect(X, Y, bx - kw * 0.3, y0, bx + kw * 0.3, y0 + (y1 - y0) * 0.6, 1), "#1A1433")
-    cv.stroke(bed, 2.2, INK)
+            cv.fill(sd_rect(X, Y, bx - kw * 0.3, y0, bx + kw * 0.3, y0 + (y1 - y0) * 0.6, 1.2), "#4A3B6B")
+    cv.stroke(bed, 2.0, INK)
 
 
 # ============================================================== CAFE
@@ -74,19 +101,19 @@ def item_turntable():
     cab = sd_rect(X, Y, 26, 110, 214, 204, 10)
     P(cv, cab, WOOD, depth=12)
     shelf = sd_rect(X, Y, 40, 124, 200, 192, 6)
-    inset(cv, shelf, "#4A2412", depth=8, shadow=0.6)
+    inset(cv, shelf, "#FFE3C2", depth=8, shadow=0.45, dark="#E0A060", light="#FFFFFF")
     for k, c in enumerate(("#FF4FD8", "#3CF2FF", "#FFE66D", "#22D98A", "#FF8C1A", "#8E3DFF")):
         x = 48 + k * 25
         sl = sd_rect(X, Y, x, 132 + (k % 2) * 6, x + 20, 190, 2)
         P(cv, sl, c, lw=1.8, depth=4, spec=0.2)
-        cv.fill(np.maximum(sd_circle(X, Y, x + 10, 158 + (k % 2) * 3, 5.5), sl + 2), "#1A1433", 0.7)
+        cv.fill(np.maximum(sd_circle(X, Y, x + 10, 158 + (k % 2) * 3, 5.5), sl + 2), "#FFFFFF", 0.85)
     base = sd_rect(X, Y, 34, 70, 206, 112, 8)
-    P(cv, base, "#3A2E4E", "#7A6C9E", "#18122A", depth=10)
+    P(cv, base, ("#E4D6FF", "#B89CFF", "#8B6BF0", "#5A2FE0"), depth=10)
     plat = sd_ellipse(X, Y, 108, 82, 60, 17)
-    P(cv, plat, "#1E1A2E", "#5D5585", "#0B0916", lw=2.4, depth=6, spec=0.6)
+    P(cv, plat, ("#9C8CFF", "#6B4CE0", "#4B35C0", "#3B2A8F"), lw=2.4, depth=6)
     rr = np.hypot((X - 108) / 60, (Y - 82) / 17)
     gro = np.maximum(np.abs(((rr * 10) % 1.0) - 0.5) - 0.2, np.maximum(plat + 3, 0.36 - rr))
-    cv.fill(gro * 2, "#4A4270", 0.7)
+    cv.fill(gro * 2, "#A99AFF", 0.7)
     cv.fill(sd_ellipse(X, Y, 108, 82, 20, 6), "#FF4FD8")
     cv.fill(sd_ellipse(X, Y, 108, 82, 3, 1.5), INK)
     cv.fill(np.maximum(sd_arc(X, Y, 108, 82, 44, math.radians(200), math.radians(250), 3), plat + 3), WHITE, 0.35)
@@ -121,11 +148,11 @@ def item_piano():
     cv = Canvas(256, 240)
     X, Y = cv.X, cv.Y
     body = sd_rect(X, Y, 20, 26, 236, 222, 10)
-    P(cv, body, DKWOOD, depth=14)
+    P(cv, body, PINKP, depth=14)
     top = sd_rect(X, Y, 12, 16, 244, 36, 6)
-    P(cv, top, "#7E4636", "#C17F66", "#34160F", depth=6)
+    P(cv, top, ("#FFE1EE", "#FF9CC6", "#F0508F", "#C22A6C"), depth=6)
     panel = sd_rect(X, Y, 40, 44, 216, 110, 8)
-    inset(cv, panel, "#57291F", depth=6, shadow=0.55, light="#8C5040")
+    inset(cv, panel, "#FFB3D1", depth=6, shadow=0.45, dark="#F0508F", light="#FFFFFF")
     # sheet music
     sheet = sd_box(X, Y, 128, 76, 34, 26, 2, ang=-0.04)
     P(cv, sheet, "#FFF8E8", "#FFFFFF", "#D8C8A8", lw=2, depth=4, spec=0.0)
@@ -141,11 +168,11 @@ def item_piano():
         glow(cv, fl, "#FFD27A", 8, 0.8, mode="over")
         P(cv, fl, "#FFD23F", "#FFFBD8", "#FF8C1A", lw=1.4, depth=3, spec=0.2)
     ledge = sd_rect(X, Y, 16, 112, 240, 126, 4)
-    P(cv, ledge, "#7E4636", "#C17F66", "#34160F", depth=5)
+    P(cv, ledge, ("#FFE1EE", "#FF9CC6", "#F0508F", "#C22A6C"), depth=5)
     keys(cv, 24, 126, 232, 152, n=21)
     lower = sd_rect(X, Y, 40, 160, 216, 208, 8)
-    inset(cv, lower, "#57291F", depth=6, shadow=0.5, light="#8C5040")
-    cv.stroke(sd_rect(X, Y, 54, 170, 202, 198, 6), 2.0, "#8C5040", 0.8)
+    inset(cv, lower, "#FFB3D1", depth=6, shadow=0.45, dark="#F0508F", light="#FFFFFF")
+    cv.stroke(sd_rect(X, Y, 54, 170, 202, 198, 6), 2.4, "#FFE1EE", 0.9)
     for px in (112, 128, 144):
         P(cv, sd_box(X, Y, px, 220, 4, 6, 2), BRASS, lw=1.6, depth=3)
     hl(cv, ((30, 170), (28, 90), (40, 40)), 4, 1.5, body + 4, alpha=0.3)
@@ -223,9 +250,9 @@ def item_sign():
     for x in (70, 186):
         line(cv, [(x, 0), (x, 24)], 3.0, "#3A3050")
     board = sd_rect(X, Y, 10, 20, 246, 150, 18)
-    P(cv, board, "#3A2360", "#7A5AB0", "#1A0F30", depth=10)
+    P(cv, board, PINKP, depth=10)
     face = sd_rect(X, Y, 22, 32, 234, 138, 12)
-    inset(cv, face, "#23143F", depth=8, shadow=0.6, light="#4A3380")
+    inset(cv, face, "#FFFFFF", depth=8, shadow=0.35, dark="#FFB3D1", light="#FFFFFF")
     # marquee bulbs
     for k in range(18):
         t = k / 18
@@ -242,15 +269,14 @@ def item_sign():
         glow(cv, sd_circle(X, Y, bx, by, 3), "#FFE66D", 5, 0.6, mode="over")
         P(cv, sd_circle(X, Y, bx, by, 4.2), "#FFF3B0", "#FFFFFF", "#E0A000", lw=1.5, depth=3, spec=0.5)
     txt = text_sdf(cv, "CAFÉ", FONT, 44, 160, 90)
-    glow(cv, txt, "#FF8E72", 10, 0.9, mode="over")
-    cv.fill(txt - 2.5, "#7A1E3A")
-    cv.fill_grad(txt, [(0, "#FFF4D0"), (1, "#FFB36B")], axis="y", p0=66, p1=110)
+    cv.fill(txt - 3.0, "#FFFFFF")
+    P(cv, txt, ("#FFB3D6", "#FF5C9A", "#E0306F", "#A8124C"), lw=2.2, depth=5)
     # coffee cup
     cup = U(sd_rect(X, Y, 34, 82, 66, 116, 9), sd_ring(X, Y, 68, 96, 7, 4.5))
     P(cv, cup, "#FFF6E5", "#FFFFFF", "#D9C4A0", lw=2.2, depth=6)
-    cv.fill(sd_ellipse(X, Y, 50, 84, 14, 3.5), "#7A3E1A")
+    cv.fill(sd_ellipse(X, Y, 50, 84, 14, 3.5), "#C77A4A")
     for sx in (44, 56):
-        line(cv, bez((sx, 76), (sx - 5, 66), (sx + 4, 58), (sx - 2, 48), n=10), 3, "#FFFFFF", 0.8)
+        line(cv, bez((sx, 76), (sx - 5, 66), (sx + 4, 58), (sx - 2, 48), n=10), 3, "#FFB3D1", 0.9)
     return cv
 
 
@@ -262,8 +288,10 @@ def item_stage_light():
     for (x, ang) in ((62, 0.25), (158, -0.25)):
         ca, sa = math.sin(ang), math.cos(ang)
         pts = [(x - 10, 70), (x + 10, 70), (x + 10 + 150 * ca + 44, 70 + 150 * sa), (x - 10 + 150 * ca - 44, 70 + 150 * sa)]
-        beams.fill(sd_poly(X, Y, pts), "#FFE9A8", 0.45, soft=6)
-    beams.paint(smoothstep(80, 236, Y), C("#000000"), 1.0, "erase")
+        beams.fill(sd_poly(X, Y, pts), "#FFE066", 0.7, soft=6)
+        core = [(x - 5, 70), (x + 5, 70), (x + 5 + 150 * ca + 18, 70 + 150 * sa), (x - 5 + 150 * ca - 18, 70 + 150 * sa)]
+        beams.fill(sd_poly(X, Y, core), "#FFFFFF", 0.6, soft=5)
+    beams.paint(smoothstep(90, 236, Y), C("#000000"), 1.0, "erase")
     cv.over(beams)
     truss = sd_rect(X, Y, 4, 10, 216, 26, 4)
     P(cv, truss, SILVER, depth=5)
@@ -334,15 +362,15 @@ def item_double_bass():
         lay.fill(sd_capsule(Xl, Yl, x, 30, x + (k - 1.5) * 1.2, 232, 0.55), "#F4F0E0", 0.9)
     P(lay, sd_capsule(Xl, Yl, 75, 240, 75, 254, 3), SILVER, lw=1.5, depth=2)
     hl(lay, ((36, 196), (36, 164), (52, 146)), 4, 1.5, body + 4, alpha=0.5)
-    cv.over(lay.transformed(8, pivot=(75, 246)))
-    return cv
+    lay = grow(lay, 10, 0, 10, 16)
+    return lay.transformed(8, pivot=(85, 250))
 
 
 def item_neon():
     cv = Canvas(256, 150)
     X, Y = cv.X, cv.Y
     board = sd_rect(X, Y, 8, 14, 248, 138, 16)
-    P(cv, board, "#1E1B3B", "#4A4480", "#0A0918", depth=8, spec=0.3)
+    P(cv, board, ("#9C8CFF", "#6B4CE0", "#4B35C0", "#3B2A8F"), depth=8)
     for (x, y) in ((22, 26), (234, 26), (22, 126), (234, 126)):
         P(cv, sd_circle(X, Y, x, y, 4), SILVER, lw=1.4, depth=2)
     txt = text_sdf(cv, "JAZZ", FONT, 64, 128, 70, tracking=4)
@@ -368,7 +396,7 @@ def item_sax():
     bell = sd_ellipse(X, Y, 138, 162, 26, 12, ang=-0.25)
     body = SU(tube, bell, 6)
     P(cv, body, BRASS, depth=14, spec=0.8)
-    inset(cv, sd_ellipse(X, Y, 138, 160, 20, 7, ang=-0.25), "#8A4E00", depth=4, shadow=0.6, light="#FFD27A")
+    inset(cv, sd_ellipse(X, Y, 138, 160, 20, 7, ang=-0.25), "#F5B530", depth=4, shadow=0.45, dark="#C27400", light="#FFF3B0")
     neck = sd_polyline(X, Y, bez((96, 44), (96, 20), (70, 12), (52, 20), n=14), list(np.linspace(7, 4, 15)))
     P(cv, neck, BRASS, lw=2.2, depth=5, spec=0.8)
     P(cv, sd_box(X, Y, 44, 24, 12, 5, 3, ang=0.3), BLACK, lw=2, depth=3)
@@ -424,8 +452,8 @@ def item_trumpet(mute=True, h=150, rot=-10):
         P(lay, sd_ellipse(Xl, Yl, x, 54, 9, 5), "#FFF6E0", "#FFFFFF", "#B8904A", lw=1.8, depth=3)
     if mute:
         m = opening(sd_poly(Xl, Yl, [(198, 58), (198, 94), (230, 86), (230, 66)]), 4)
-        P(lay, m, "#5A5070", "#9A90B8", "#241E36", lw=2.4, depth=8, spec=0.4)
-        P(lay, sd_ellipse(Xl, Yl, 230, 76, 6, 11), "#3A3450", lw=2, depth=4)
+        P(lay, m, PINKP, lw=2.4, depth=8)
+        P(lay, sd_ellipse(Xl, Yl, 230, 76, 6, 11), ("#FFB3D6", "#F0508F", "#C22A6C", "#8A1450"), lw=2, depth=4)
     hl(lay, ((160, 64), (180, 58), (196, 52)), 2.6, 1.0, bell + 3, alpha=0.7)
     cv.over(lay.transformed(rot, pivot=(120, 80)) if rot else lay)
     return cv
@@ -474,27 +502,28 @@ PIECE_COLS = ["#FF3B5C", "#FF8C1A", "#FFD60A", "#22D98A", "#2F9BFF", "#8E3DFF"]
 
 
 def item_garlands():
-    cv = Canvas(256, 110)
+    """Bunting strung between the two side houses of the square (hooks drawn by the background)."""
+    cv = Canvas(300, 96)
     X, Y = cv.X, cv.Y
-    pts = bez((2, 12), (128, 70), (254, 12), n=40)
-    for k in range(11):
-        t = (k + 0.5) / 11
-        i = int(t * 40)
+    pts = bez((2, 10), (150, 50), (298, 10), n=48)
+    for k in range(13):
+        t = (k + 0.5) / 13
+        i = int(t * 48)
         x, y = pts[i]
-        (xa, ya), (xb, yb) = pts[max(i - 1, 0)], pts[min(i + 1, 40)]
+        (xa, ya), (xb, yb) = pts[max(i - 1, 0)], pts[min(i + 1, 48)]
         ang = math.atan2(yb - ya, xb - xa)
         ca, sa = math.cos(ang), math.sin(ang)
-        w, h = 10, 30
+        w, h = 9.5, 27
         tri = [(x - ca * w, y - sa * w), (x + ca * w, y + sa * w), (x - sa * h, y + ca * h)]
         d = opening(sd_poly(X, Y, tri), 1.5)
         col = PIECE_COLS[k % 6]
         P(cv, d, col, lw=2.0, depth=5, spec=0.4)
-    line(cv, pts, 3.0, INK)
-    for k in range(10):
-        t = (k + 1) / 11
-        x, y = pts[int(t * 40)]
-        glow(cv, sd_circle(X, Y, x, y + 5, 3), "#FFE66D", 6, 0.8, mode="over")
-        P(cv, sd_circle(X, Y, x, y + 5, 4.2), "#FFF3B0", "#FFFFFF", "#E0A000", lw=1.4, depth=3, spec=0.6)
+    line(cv, pts, 2.6, INK)
+    for k in range(12):
+        t = (k + 1) / 13
+        x, y = pts[int(t * 48)]
+        glow(cv, sd_circle(X, Y, x, y + 4, 2.6), "#FFE66D", 5, 0.8, mode="over")
+        P(cv, sd_circle(X, Y, x, y + 4, 3.6), "#FFF3B0", "#FFFFFF", "#E0A000", lw=1.3, depth=3, spec=0.6)
     return cv
 
 
@@ -511,7 +540,7 @@ def item_truck_stage():
     box = sd_rect(X, Y, 6, 60, 190, 186, 8)
     P(cv, box, "#8E3DFF", "#C9A3FF", "#4A0FA0", depth=12)
     inner = sd_rect(X, Y, 18, 72, 178, 164, 6)
-    inset(cv, inner, "#2B1A55", depth=10, shadow=0.6, light="#6A4AB0")
+    inset(cv, inner, "#E6DAFF", depth=10, shadow=0.45, dark="#9B7BF0", light="#FFFFFF")
     floor = sd_rect(X, Y, 14, 160, 182, 176, 3)
     P(cv, floor, WOOD, lw=2.2, depth=4)
     for x in (34, 158):
@@ -540,25 +569,44 @@ def item_truck_stage():
 
 
 def item_tuba():
-    cv = Canvas(210, 250)
+    """Upright tuba: big bell opening upward, conical body, bottom bow, valve cluster, leadpipe."""
+    cv = Canvas(200, 262)
     X, Y = cv.X, cv.Y
-    coil = sd_ring(X, Y, 96, 150, 56, 22)
-    P(cv, coil, BRASS, depth=10, spec=0.8)
-    inner = sd_ring(X, Y, 96, 150, 56, 6)
-    cv.fill(np.maximum(inner, coil + 3), "#FFF0B0", 0.5)
-    tube = sd_polyline(X, Y, bez((150, 136), (190, 110), (170, 60), (130, 44), n=16), list(np.linspace(12, 18, 17)))
-    P(cv, tube, BRASS, depth=10, spec=0.8)
-    bell = SU(sd_ellipse(X, Y, 118, 38, 58, 26, ang=-0.2), sd_capsule(X, Y, 130, 50, 140, 70, 16), 8)
-    P(cv, bell, BRASS, depth=16, spec=0.9)
-    inset(cv, sd_ellipse(X, Y, 116, 34, 46, 16, ang=-0.2), "#8A4E00", depth=8, shadow=0.7, light="#FFD27A")
+    # bottom bow + second branch that climbs to the valves (drawn behind the body)
+    bow = sd_polyline(X, Y, bez((118, 196), (118, 240), (52, 244), (50, 196), n=24),
+                      list(np.linspace(21, 14, 25)))
+    P(cv, bow, BRASS, depth=10, spec=0.8)
+    branch = sd_capsule(X, Y, 50, 196, 50, 150, 13)
+    P(cv, branch, BRASS, depth=8, spec=0.8)
+    # tuning slide loop on the right
+    loop = sd_polyline(X, Y, [(138, 120)] + bez((150, 120), (184, 120), (184, 150), (150, 150), n=12)
+                       + [(138, 150)]) - 7
+    P(cv, loop, BRASS, lw=2.2, depth=5, spec=0.8)
+    # main conical body flaring into the bell
+    prof = [(96, 206), (94, 150), (90, 104), (78, 70), (58, 44), (46, 30)]
+    right = [(2 * 110 - x, y) for (x, y) in prof]
+    body = opening(sd_poly(X, Y, prof + right[::-1]), 6)
+    mouth = sd_ellipse(X, Y, 110, 30, 66, 17)
+    body = SU(body, mouth, 6)
+    P(cv, body, BRASS, depth=22, spec=0.9)
+    inset(cv, sd_ellipse(X, Y, 110, 28, 56, 11), "#F5B530", depth=7, shadow=0.5, dark="#C27400", light="#FFF3B0")
+    cv.stroke(sd_ellipse(X, Y, 110, 30, 66, 17), 2.4, "#B86E00", 0.9)
+    for yy in (116, 176):
+        band = I(sd_rect(X, Y, 80, yy - 4, 140, yy + 4, 0), body + 0.5)
+        P(cv, band, ("#FFFBE0", "#FFE680", "#F5B800", "#B86E00"), lw=1.6, depth=3, spec=0.9)
+    # valve cluster on the left branch
     for k in range(3):
-        x = 80 + k * 16
-        P(cv, sd_rect(X, Y, x - 6, 118, x + 6, 172, 3), BRASS, lw=2, depth=4, spec=0.8)
-        P(cv, sd_ellipse(X, Y, x, 114, 8.5, 5), "#FFF6E0", "#FFFFFF", "#B8904A", lw=1.8, depth=3)
-    mp = sd_polyline(X, Y, bez((52, 136), (26, 120), (22, 96), n=10), list(np.linspace(6, 4, 11)))
-    P(cv, mp, BRASS, lw=2.2, depth=4)
-    P(cv, sd_box(X, Y, 22, 90, 6, 8, 3), SILVER, lw=2, depth=3)
-    hl(cv, ((70, 26), (96, 16), (126, 14)), 3.5, 1.2, bell + 4, alpha=0.7)
+        vx = 36 + k * 15
+        P(cv, sd_rect(X, Y, vx - 6.5, 112, vx + 6.5, 168, 3.5), BRASS, lw=2, depth=4, spec=0.8)
+        P(cv, sd_capsule(X, Y, vx, 98, vx, 110, 3.2), SILVER, lw=1.6, depth=2)
+        P(cv, sd_ellipse(X, Y, vx, 96, 7.5, 4.2), ("#FFFFFF", "#FFF6E0", "#E8D8B0", "#B8904A"), lw=1.6, depth=2)
+    P(cv, sd_rect(X, Y, 26, 126, 84, 134, 3), BRASS, lw=1.8, depth=3, spec=0.8)
+    # leadpipe + mouthpiece
+    lp = sd_polyline(X, Y, bez((30, 150), (12, 136), (14, 96), (26, 80), n=14), list(np.linspace(6, 4.2, 15)))
+    P(cv, lp, BRASS, lw=2, depth=4, spec=0.8)
+    P(cv, sd_taper(X, Y, 26, 80, 34, 66, 4.2, 6.5), SILVER, lw=1.8, depth=3)
+    hl(cv, ((78, 190), (74, 120), (58, 60)), 4.5, 1.5, body + 5, alpha=0.75)
+    hl(cv, ((60, 36), (84, 24), (116, 20)), 3.0, 1.0, mouth + 3, alpha=0.6)
     return cv
 
 
@@ -607,9 +655,9 @@ def item_clarinet():
 
 
 def item_lanterns():
-    cv = Canvas(180, 256)
+    cv = Canvas(180, 272)
     X, Y = cv.X, cv.Y
-    iron = ("#2E5A4A", "#6FAF95", "#10281F")
+    iron = ("#C4F7E6", "#4FD1AE", "#2BA888", "#17806A")
     P(cv, sd_rect(X, Y, 84, 40, 96, 236, 3), iron, depth=4)
     P(cv, opening(sd_poly(X, Y, [(62, 256), (118, 256), (106, 226), (74, 226)]), 3), iron, depth=6)
     for sgn in (-1, 1):
@@ -631,39 +679,41 @@ def item_lanterns():
 
 
 def item_confetti():
-    cv = Canvas(220, 210)
+    cv = Canvas(220, 214)
     X, Y = cv.X, cv.Y
     g = rng(77)
     burst = cv.blank()
-    for k in range(36):
-        a = math.radians(-60 + (g.random() - 0.5) * 70)
-        r = 40 + g.random() * 120
-        x, y = 120 + r * math.cos(a), 96 + r * math.sin(a)
-        if not (6 < x < 214 and 4 < y < 150):
+    mx, my = 84 + 50 * math.cos(math.radians(-35)), 130 + 50 * math.sin(math.radians(-35))
+    for k in range(3):
+        a = math.radians(-78 + k * 24)
+        s_ = bez((mx, my), (mx + 50 * math.cos(a) - 16, my + 50 * math.sin(a)),
+                 (mx + 86 * math.cos(a), my + 86 * math.sin(a) + 12), n=20)
+        line(burst, s_, 4.5, PIECE_COLS[(k * 2 + 1) % 6])
+    for k in range(40):
+        a = math.radians(-40 + (g.random() - 0.5) * 80)
+        r = 26 + g.random() * 96
+        x, y = mx + r * math.cos(a), my + r * math.sin(a)
+        if not (18 < x < 202 and 16 < y < 150):
             continue
         col = PIECE_COLS[k % 6]
-        d = sd_box(burst.X, burst.Y, x, y, 5, 3, 1, ang=g.random() * 3)
+        if k % 3 == 0:
+            d = sd_circle(burst.X, burst.Y, x, y, 4.2)
+        else:
+            d = sd_box(burst.X, burst.Y, x, y, 5.5, 3.2, 1.2, ang=g.random() * 3)
         P(burst, d, col, lw=1.4, depth=2, spec=0.2)
-    for k in range(3):
-        a = math.radians(-70 + k * 22)
-        pts = [(120 + 40 * math.cos(a) + 8 * math.sin(t * 1.4) * math.sin(a), 96 + 40 * math.sin(a) + t * 12 * math.sin(a))
-               for t in range(1)]
-        s = bez((126, 88), (126 + 60 * math.cos(a) - 20, 88 + 60 * math.sin(a)),
-                (126 + 110 * math.cos(a), 88 + 110 * math.sin(a) + 10), n=20)
-        line(burst, s, 4, PIECE_COLS[(k * 2 + 1) % 6])
-        del pts
+    for (x, y, r) in ((196, 30, 7), (140, 22, 5)):
+        sparkle(burst, x, y, r, "#FFE66D")
     cv.over(burst)
     # tripod + barrel
     for (x0, x1) in ((60, 30), (60, 90)):
-        P(cv, sd_capsule(X, Y, 60, 160, x1, 204, 4), BLACK, lw=2, depth=3)
+        P(cv, sd_capsule(X, Y, 60, 160, x1, 204, 4.5), BLACK, lw=2, depth=3)
     barrel = sd_box(X, Y, 84, 130, 50, 20, 10, ang=math.radians(-35))
     P(cv, barrel, "#FF4FD8", "#FFB8F1", "#8E1680", depth=10, spec=0.6)
     for t in (-26, 0, 26):
         cx, cy = 84 + t * math.cos(math.radians(-35)), 130 + t * math.sin(math.radians(-35))
         band = I(sd_box(X, Y, cx, cy, 4, 22, 2, ang=math.radians(-35)), barrel + 0.5)
         P(cv, band, BRASS, lw=1.6, depth=3)
-    mouth = sd_ellipse(X, Y, 84 + 50 * math.cos(math.radians(-35)), 130 + 50 * math.sin(math.radians(-35)), 8, 21,
-                       ang=math.radians(-35))
+    mouth = sd_ellipse(X, Y, mx, my, 8, 21, ang=math.radians(-35))
     P(cv, mouth, BRASS, lw=2.2, depth=4)
     P(cv, sd_circle(X, Y, 60, 158, 8), SILVER, lw=2, depth=4)
     return cv
@@ -674,7 +724,7 @@ def item_stage():
     cv = Canvas(256, 210)
     X, Y = cv.X, cv.Y
     back = sd_rect(X, Y, 40, 40, 216, 150, 8)
-    inset(cv, back, "#2B1A55", depth=10, shadow=0.5, light="#6A4AB0")
+    inset(cv, back, "#D9CCFF", depth=10, shadow=0.45, dark="#9B7BF0", light="#FFFFFF")
     st = opening(sd_star(X, Y, 128, 100, 42, 18), 3)
     glow(cv, st, "#FF4FD8", 14, 0.9, mode="over")
     P(cv, st, "#FF4FD8", "#FFB8F1", "#8E1680", depth=10)
@@ -690,9 +740,9 @@ def item_stage():
         spk = sd_rect(X, Y, x - 24, 120, x + 24, 180, 5)
         P(cv, spk, BLACK, depth=6)
         for yy in (136, 162):
-            P(cv, sd_circle(X, Y, x, yy, 10), "#3A3456", "#8A80B8", "#15112A", lw=2, depth=5)
+            P(cv, sd_circle(X, Y, x, yy, 10), PINKP, lw=2, depth=5)
     deck = sd_rect(X, Y, 20, 166, 236, 204, 6)
-    P(cv, deck, "#3A2E6E", "#7A6CC8", "#1A1238", depth=8)
+    P(cv, deck, ("#E4D6FF", "#B89CFF", "#8B6BF0", "#5A2FE0"), depth=8)
     for k in range(10):
         x = 32 + k * 21.5
         glow(cv, sd_rect(X, Y, x, 176, x + 12, 182, 2), PIECE_COLS[k % 6], 5, 0.9, mode="over")
@@ -710,7 +760,7 @@ def item_screens():
     scr = sd_rect(X, Y, 16, 18, 240, 126, 5)
     w = cv.win(scr < 1)
     t = np.clip((cv.X[w] - 16) / 224, 0, 1)
-    grad = ramp(t, [(0, "#2B1A70"), (0.5, "#8E3DFF"), (1, "#FF4FD8")])
+    grad = ramp(t, [(0, "#6B4CE0"), (0.5, "#9B52FF"), (1, "#FF6FD8")])
     cv.paint(np.clip(0.5 - scr[w] * cv.ss, 0, 1), grad, 1.0, win=w)
     # equaliser + heart
     for k in range(14):
@@ -728,50 +778,110 @@ def item_screens():
     return cv
 
 
-def item_lightsticks():
-    cv = Canvas(240, 210)
+HAIR = [("#FFE0B8", "#C9864A", "#A8683C", "#7A4520"), ("#FFD1E6", "#FF7EB6", "#F0508F", "#C22A6C"),
+        ("#FFF3B0", "#F5C542", "#D9A21A", "#9C6E00"), ("#E3CCFF", "#9B6BFF", "#7B45E0", "#5A2FB0"),
+        ("#C7FAFF", "#3CC8F0", "#1A9AD0", "#0B6E9C")]
+SKIN_P = ("#FFF3E8", "#FFD9B8", "#F2B48A", "#C77A4A")
+
+
+def _fan(cv, x, y, shirt, hair, stick, lean=0.0, style=0, s=1.0):
+    """A concert-goer seen from behind: shoulders, head with hair, one arm up with a glowing stick."""
     X, Y = cv.X, cv.Y
-    cols = ["#FF4FD8", "#3CF2FF", "#FFE66D", "#C6FF4D", "#FF4FD8", "#3CF2FF"]
-    people = [(30, 150, "#5A4FCF"), (78, 160, "#8E3DFF"), (126, 150, "#3D8BFF"), (174, 162, "#5A4FCF"),
-              (216, 152, "#8E3DFF")]
-    for k, (x, y, c) in enumerate(people):
-        ang = math.radians((-1) ** k * 12)
-        hx, hy = x + 20 * math.sin(ang), y - 70
-        stick_top = (hx + 8 * math.sin(ang), hy - 36)
-        s = sd_capsule(X, Y, hx, hy, *stick_top, 4.5)
-        glow(cv, s, cols[k], 12, 0.9, mode="over")
-        P(cv, s, cols[k], "#FFFFFF", darken(cols[k], 0.3), lw=2, depth=3, spec=0.2)
-        P(cv, sd_capsule(X, Y, hx, hy, hx, hy + 12, 4), BLACK, lw=2, depth=3)
-        arm = sd_capsule(X, Y, x + 10, y - 20, hx, hy + 10, 6)
-        P(cv, arm, c, depth=5, spec=0.2)
-        P(cv, sd_circle(X, Y, hx, hy + 10, 7), "#FFD9B8", "#FFF3E8", "#D99A70", lw=2, depth=4)
-    for k, (x, y, c) in enumerate(people):
-        body = I(sd_ellipse(X, Y, x, y + 40, 28, 44), Y - 210)
-        P(cv, body, c, depth=12, spec=0.2)
-        P(cv, sd_circle(X, Y, x, y - 6, 17), "#2B2345", "#6A6390", "#120F20", depth=8, spec=0.3)
+    # raised arm from the shoulder, hand above the head, stick on top
+    side = 1 if lean >= 0 else -1
+    shx, shy = x + side * 17 * s, y + 20 * s
+    hx, hy = x + side * 30 * s + lean * 10, y - 44 * s
+    st_top = (hx + lean * 14 + side * 4, hy - 40 * s)
+    stick_d = sd_capsule(X, Y, hx, hy - 4 * s, st_top[0], st_top[1], 5.2 * s)
+    glow(cv, stick_d, stick, 14, 0.95, mode="over")
+    P(cv, stick_d, stick, "#FFFFFF", darken(stick, 0.25), lw=2.0, depth=3, spec=0.2)
+    cv.fill(np.maximum(sd_capsule(X, Y, hx, hy - 10 * s, st_top[0], st_top[1] + 6, 1.8 * s), stick_d + 2), WHITE, 0.9)
+    P(cv, sd_capsule(X, Y, hx, hy - 6 * s, hx, hy + 6 * s, 4.6 * s), BLACK, lw=1.8, depth=2)
+    arm = sd_polyline(X, Y, [(shx, shy), (shx + side * 10 * s, y - 8 * s), (hx, hy + 4 * s)]) - 7.5 * s
+    P(cv, arm, shirt, depth=6, spec=0.2)
+    P(cv, sd_circle(X, Y, hx, hy + 2 * s, 8.5 * s), SKIN_P, lw=2.2, depth=4)
+    # body (shoulders) - fades out at the bottom of the canvas
+    body = SU(sd_ellipse(X, Y, x, y + 58 * s, 34 * s, 50 * s), sd_capsule(X, Y, x - 18 * s, y + 22 * s,
+                                                                         x + 18 * s, y + 22 * s, 13 * s), 8)
+    P(cv, body, shirt, depth=14, spec=0.2)
+    # neck + head from behind: mostly hair
+    P(cv, sd_capsule(X, Y, x, y + 4 * s, x, y + 14 * s, 7 * s), SKIN_P, lw=2.0, depth=3)
+    head = sd_circle(X, Y, x, y - 8 * s, 17 * s)
+    P(cv, head, SKIN_P, lw=2.2, depth=8)
+    if style == 0:        # short fluffy hair
+        hr = SU(sd_circle(X, Y, x, y - 12 * s, 18 * s), sd_ellipse(X, Y, x, y - 2 * s, 17 * s, 11 * s), 5)
+    elif style == 1:      # ponytail
+        hr = SU(sd_circle(X, Y, x, y - 11 * s, 18 * s),
+                sd_taper(X, Y, x + 4 * s, y - 20 * s, x - 14 * s, y + 18 * s, 9 * s, 5 * s), 6)
+    elif style == 2:      # two buns
+        hr = U(sd_circle(X, Y, x, y - 11 * s, 18 * s), sd_circle(X, Y, x - 16 * s, y - 26 * s, 9 * s),
+               sd_circle(X, Y, x + 16 * s, y - 26 * s, 9 * s))
+    else:                 # spiky
+        pts = []
+        for k in range(15):
+            a = math.pi + k * math.pi / 14
+            r = (22 if k % 2 == 0 else 16) * s
+            pts.append((x + r * math.cos(a), y - 10 * s + r * math.sin(a)))
+        hr = SU(opening(sd_poly(X, Y, pts + [(x + 17 * s, y), (x - 17 * s, y)]), 2),
+                sd_circle(X, Y, x, y - 10 * s, 17 * s), 3)
+    hr = np.maximum(hr, Y - (y + 4 * s))
+    P(cv, hr, hair, depth=8, spec=0.3)
+    cv.fill(np.maximum(sd_arc(X, Y, x - 4 * s, y - 12 * s, 10 * s, math.radians(200), math.radians(250), 3.0),
+                       hr + 2), WHITE, 0.55)
+
+
+def item_lightsticks():
+    cv = Canvas(240, 236)
+    back = cv.blank()
+    sticks = ["#FF4FD8", "#3CF2FF", "#FFE66D", "#C6FF4D", "#FF4FD8"]
+    shirts = ["#8E3DFF", "#3D8BFF", "#FF5C9A", "#22C58A", "#FF8C1A"]
+    for k, (x, y, lean, st) in enumerate(((84, 132, -0.3, 1), (160, 128, 0.4, 2))):
+        _fan(back, x, y, shirts[k + 3], HAIR[k + 3], sticks[k + 3], lean, st, 0.86)
+    cv.over(back)
+    for k, (x, y, lean, st) in enumerate(((52, 160, 0.2, 0), (122, 150, -0.3, 3), (190, 164, -0.2, 1))):
+        _fan(cv, x, y, shirts[k], HAIR[k], sticks[k], lean, st, 1.0)
+    # the crowd fades out toward the bottom (no hard edge), sticks stay bright
+    k = smoothstep(234, 188, cv.Y)
+    cv.rgb *= k[..., None]
+    cv.a *= k
     return cv
 
 
 def item_lasers():
-    cv = Canvas(256, 200)
+    cv = Canvas(256, 208)
     X, Y = cv.X, cv.Y
     beams = cv.blank()
     cols = ["#C6FF4D", "#3CF2FF", "#FF4FD8", "#FFE66D", "#3CF2FF", "#C6FF4D", "#FF4FD8"]
+    ox, oy = 128.0, 158.0
     for k in range(7):
         a = math.radians(-160 + k * 23.3)
-        x1, y1 = 128 + 260 * math.cos(a), 160 + 260 * math.sin(a)
-        d = sd_capsule(X, Y, 128, 160, x1, y1, 2.2)
-        beams.glow_from(np.clip(0.5 - d * cv.ss, 0, 1), 6, cols[k], 0.9, mode="over")
-        beams.fill(d, lighten(cols[k], 0.5))
-        beams.fill(d + 1.2, "#FFFFFF", 0.9)
+        # beam length: stop well inside the canvas, then fade over the last 25 %
+        L = 0.0
+        while True:
+            L += 2
+            x, y = ox + L * math.cos(a), oy + L * math.sin(a)
+            if not (10 < x < 246 and 10 < y < 198):
+                break
+        L -= 6
+        ux, uy = math.cos(a), math.sin(a)
+        along = (X - ox) * ux + (Y - oy) * uy
+        fade = smoothstep(L, L * 0.75, along)
+        lay = cv.blank()
+        d = sd_capsule(X, Y, ox, oy, ox + L * ux, oy + L * uy, 2.2)
+        lay.glow_from(np.clip(0.5 - d * cv.ss, 0, 1), 6, cols[k], 0.9, mode="over")
+        lay.fill(d, lighten(cols[k], 0.5))
+        lay.fill(d + 1.2, "#FFFFFF", 0.9)
+        lay.rgb *= fade[..., None]
+        lay.a *= fade
+        beams.over(lay)
     cv.over(beams)
-    box = sd_rect(X, Y, 84, 150, 172, 196, 8)
+    box = sd_rect(X, Y, 84, 148, 172, 194, 8)
     P(cv, box, BLACK, depth=8)
-    lens = sd_circle(X, Y, 128, 160, 12)
+    lens = sd_circle(X, Y, ox, oy, 12)
     glow(cv, lens, "#FFFFFF", 10, 0.9, mode="over")
     P(cv, lens, "#E0FFFF", "#FFFFFF", "#3CF2FF", lw=2.2, depth=6)
     for x in (96, 160):
-        P(cv, sd_circle(X, Y, x, 180, 4), "#FF4FD8", lw=1.4, depth=2)
+        P(cv, sd_circle(X, Y, x, 178, 4), "#FF4FD8", lw=1.4, depth=2)
     return cv
 
 
@@ -809,7 +919,7 @@ def _singer(cv, x, y, s, robe):
     for ex in (-6, 6):
         cv.fill(sd_arc(X, Y, x + ex * s, y - 14 * s, 3.5 * s, math.radians(200), math.radians(340), 1.8), INK)
     hair = I(sd_circle(X, Y, x, y - 14 * s, 16 * s), Y - (y - 18 * s))
-    P(cv, hair, "#3A2440", "#7A5480", "#1A0F20", lw=2, depth=5)
+    P(cv, hair, ("#E0B08A", "#A8683C", "#8A5028", "#5E3414"), lw=2, depth=5)
 
 
 def item_fog():
@@ -824,7 +934,7 @@ def item_fog():
     box = sd_rect(X, Y, 20, 116, 150, 172, 8)
     P(cv, box, BLACK, depth=8)
     for k in range(5):
-        line(cv, [(34 + k * 10, 128), (34 + k * 10, 160)], 3, "#15112A")
+        line(cv, [(34 + k * 10, 128), (34 + k * 10, 160)], 3, "#4632A8")
     noz = sd_rect(X, Y, 146, 126, 176, 148, 5)
     P(cv, noz, SILVER, lw=2.2, depth=4)
     for (x, c) in ((96, "#C6FF4D"), (116, "#FF4D6D")):
@@ -832,35 +942,58 @@ def item_fog():
     return cv
 
 
-def _dancer(cv, x, y, outfit, hair, flip=1):
+def _dancer(cv, x, y, outfit, hair, flip=1, style=0):
     X, Y = cv.X, cv.Y
-    # legs
-    for (dx, ang) in ((-8, -0.35 * flip), (8, 0.3 * flip)):
-        lx0, ly0 = x + dx, y + 40
-        lx1, ly1 = lx0 + 52 * math.sin(ang), ly0 + 52 * math.cos(ang)
-        P(cv, sd_capsule(X, Y, lx0, ly0, lx1, ly1, 7), "#2B2345", "#6A6390", "#120F20", depth=4)
-        P(cv, sd_ellipse(X, Y, lx1 + 4 * flip, ly1 + 4, 10, 6), "#FFFFFF", "#FFFFFF", "#C7BFEA", lw=2, depth=3)
-    torso = sd_taper(X, Y, x, y - 12, x, y + 40, 16, 13)
-    P(cv, torso, outfit, depth=8, spec=0.4)
-    # arms: one up, one out
-    a1 = sd_polyline(X, Y, [(x - 12 * flip, y - 6), (x - 30 * flip, y - 30), (x - 26 * flip, y - 62)]) - 5.5
-    a2 = sd_polyline(X, Y, [(x + 12 * flip, y - 4), (x + 38 * flip, y + 4), (x + 54 * flip, y - 12)]) - 5.5
-    P(cv, U(a1, a2), "#FFD9B8", "#FFF3E8", "#D99A70", depth=4)
-    head = sd_circle(X, Y, x + 2 * flip, y - 34, 15)
-    P(cv, head, "#FFD9B8", "#FFF3E8", "#D99A70", depth=8)
-    hr = SU(I(sd_circle(X, Y, x + 2 * flip, y - 36, 17), Y - (y - 34)),
-            sd_ellipse(X, Y, x - 12 * flip, y - 28, 7, 14), 4)
-    P(cv, hr, hair, depth=6)
-    for ex in (-5, 7):
-        cv.fill(sd_arc(X, Y, x + (ex + 2) * flip, y - 30, 3.5, math.radians(200), math.radians(340), 1.8), INK)
-    cv.fill(sd_arc(X, Y, x + 3 * flip, y - 26, 5, math.radians(30), math.radians(150), 1.8), INK)
+    skin = SKIN_P
+    pants = ("#C9BCFF", "#7B6BEA", "#5A48C9", "#3B2A8F")
+    # legs (thick, with sneakers)
+    for (dx, ang) in ((-9, -0.32 * flip), (9, 0.28 * flip)):
+        lx0, ly0 = x + dx, y + 36
+        lx1, ly1 = lx0 + 50 * math.sin(ang), ly0 + 50 * math.cos(ang)
+        P(cv, sd_taper(X, Y, lx0, ly0, lx1, ly1, 10, 8), pants, depth=5)
+        shoe = sd_ellipse(X, Y, lx1 + 5 * flip * (1 if dx > 0 else -1), ly1 + 4, 13, 7.5)
+        P(cv, shoe, ("#FFFFFF", "#FFFFFF", "#DCD3F5", "#7B6AAE"), lw=2.2, depth=3)
+        cv.fill(np.maximum(np.abs(Y - (ly1 + 7)) - 1.4, shoe + 1.5), "#FF4FD8", 0.9)
+    # arms from the shoulders: one up with an open hand, one out
+    sh = y - 12
+    a_up = sd_polyline(X, Y, [(x - 14 * flip, sh), (x - 30 * flip, sh - 22), (x - 28 * flip, sh - 52)]) - 7
+    a_out = sd_polyline(X, Y, [(x + 14 * flip, sh + 2), (x + 38 * flip, sh + 12), (x + 56 * flip, sh - 4)]) - 7
+    P(cv, U(a_up, a_out), outfit, depth=5, spec=0.3)
+    for (hx, hy) in ((x - 28 * flip, sh - 58), (x + 60 * flip, sh - 8)):
+        P(cv, sd_circle(X, Y, hx, hy, 8), skin, lw=2.2, depth=4)
+    torso = SU(sd_taper(X, Y, x, y - 14, x, y + 38, 18, 15), sd_capsule(X, Y, x - 14, sh, x + 14, sh, 9), 6)
+    P(cv, torso, outfit, depth=9, spec=0.4)
+    cv.fill(np.maximum(sd_star(X, Y, x, y + 8, 9, 4), torso + 2), "#FFFFFF", 0.9)
+    P(cv, sd_capsule(X, Y, x, y - 22, x, y - 14, 6), skin, lw=2, depth=3)
+    hx, hy = x + 2 * flip, y - 38
+    head = sd_circle(X, Y, hx, hy, 16)
+    if style == 0:        # two bouncy pigtails
+        for sd_ in (-1, 1):
+            tail = sd_taper(X, Y, hx + sd_ * 14, hy - 8, hx + sd_ * 30, hy + 14, 8.5, 5)
+            P(cv, tail, hair, depth=6, spec=0.3)
+            P(cv, sd_circle(X, Y, hx + sd_ * 15, hy - 8, 4.5), "#FFE66D", lw=1.6, depth=2)
+    else:                 # high ponytail
+        tail = sd_taper(X, Y, hx - 6 * flip, hy - 16, hx - 30 * flip, hy + 10, 9, 4)
+        P(cv, tail, hair, depth=6, spec=0.3)
+    P(cv, head, skin, depth=8)
+    fringe = SU(I(sd_circle(X, Y, hx, hy - 3, 18), Y - (hy - 6)), sd_ellipse(X, Y, hx - 10 * flip, hy - 4, 7, 9), 3)
+    P(cv, fringe, hair, depth=6, spec=0.3)
+    for ex in (-6, 6):
+        cv.fill(sd_arc(X, Y, hx + ex, hy + 2, 3.8, math.radians(200), math.radians(340), 2.0), INK)
+    m = I(sd_ellipse(X, Y, hx + 1 * flip, hy + 6, 6.5, 6), (hy + 6) - Y)     # round-bottom "D" smile
+    cv.fill(m, "#8A2F4E")
+    cv.fill(I(sd_ellipse(X, Y, hx + 1 * flip, hy + 12, 4, 3), m + 0.8), "#FF7E9E")
+    for ex in (-9, 9):
+        cv.fill(sd_ellipse(X, Y, hx + ex, hy + 6, 3.6, 2.4), "#FF8FAE", 0.7, soft=0.8)
 
 
 def item_dancers():
-    cv = Canvas(240, 220)
-    _dancer(cv, 72, 110, ("#FF4FD8", "#FFB8F1", "#8E1680"), ("#3CF2FF", "#E0FFFF", "#1A8AA8"), flip=1)
-    _dancer(cv, 170, 116, ("#3CF2FF", "#E0FFFF", "#1A8AA8"), ("#8E3DFF", "#C9A3FF", "#4A0FA0"), flip=-1)
-    for (x, y, r) in ((120, 30, 8), (220, 40, 6), (20, 60, 6)):
+    cv = Canvas(248, 232)
+    _dancer(cv, 70, 120, ("#FFB8F1", "#FF4FD8", "#D12FB0", "#8E1680"), ("#C7FAFF", "#3CC8F0", "#1A9AD0", "#0B6E9C"),
+            flip=1, style=0)
+    _dancer(cv, 176, 124, ("#C7FAFF", "#3CF2FF", "#1AB8D8", "#0B7DA0"), ("#E3CCFF", "#9B6BFF", "#7B45E0", "#5A2FB0"),
+            flip=-1, style=1)
+    for (x, y, r) in ((124, 26, 8), (224, 36, 6), (22, 52, 6)):
         sparkle(cv, x, y, r, "#FFE66D")
     return cv
 
@@ -892,7 +1025,7 @@ def item_drum_kit():
     shell = ("#FF3B5C", "#FF8FA3", "#8A0A28")
     # cymbals + stands
     for (x, y, r, tilt) in ((34, 70, 30, 0.25), (222, 50, 34, -0.2)):
-        line(cv, [(x, y), (x, 222)], 3.4, "#6A6F85")
+        line(cv, [(x, y), (x, 222)], 3.6, "#AEB9D3")
         P(cv, sd_ellipse(X, Y, x, y, r, 7, ang=tilt), BRASS, lw=2.2, depth=4, spec=0.8)
         P(cv, sd_circle(X, Y, x, y - 1, 3), SILVER, lw=1.2, depth=2)
     for x in (34, 222):
@@ -928,23 +1061,23 @@ def item_amp():
     cv = Canvas(200, 240)
     X, Y = cv.X, cv.Y
     cab = sd_rect(X, Y, 10, 86, 190, 236, 10)
-    P(cv, cab, BLACK, depth=10)
+    P(cv, cab, ("#E3FFF6", "#7FE3C8", "#4FC4A6", "#2A8F76"), depth=10)
     grill = sd_rect(X, Y, 22, 98, 178, 224, 6)
-    inset(cv, grill, "#3A3050", depth=6, shadow=0.5, light="#6A5E90")
+    inset(cv, grill, "#FFF4E0", depth=6, shadow=0.4, dark="#E8C9A0", light="#FFFFFF")
     for (x, y) in ((61, 130), (139, 130), (61, 192), (139, 192)):
-        cv.fill(np.maximum(sd_circle(X, Y, x, y, 28), grill + 3), "#2A2240", 0.8)
-        cv.stroke(np.maximum(sd_circle(X, Y, x, y, 28), grill + 3), 2.2, "#51467A", 0.9)
+        cv.fill(np.maximum(sd_circle(X, Y, x, y, 28), grill + 3), "#FFD1E6", 0.9)
+        cv.stroke(np.maximum(sd_circle(X, Y, x, y, 28), grill + 3), 2.6, "#F0508F", 0.9)
     wv = np.abs(((X + Y) % 5.0) - 2.5) - 0.6
-    cv.fill(np.maximum(wv, grill + 3), "#4E4470", 0.35)
+    cv.fill(np.maximum(wv, grill + 3), "#E8C9A0", 0.35)
     head = sd_rect(X, Y, 14, 18, 186, 84, 8)
-    P(cv, head, BLACK, depth=8)
+    P(cv, head, ("#E3FFF6", "#7FE3C8", "#4FC4A6", "#2A8F76"), depth=8)
     panel = sd_rect(X, Y, 24, 48, 176, 76, 4)
     P(cv, panel, BRASS, lw=2, depth=4, spec=0.7)
     for k in range(7):
-        P(cv, sd_circle(X, Y, 40 + k * 20, 62, 6.5), "#2B2345", "#8A80B8", "#0B0816", lw=1.8, depth=3, spec=0.6)
+        P(cv, sd_circle(X, Y, 40 + k * 20, 62, 6.5), CREAMP, lw=1.8, depth=3)
     txt = text_sdf(cv, "ROCK", FONT, 20, 100, 33, tracking=2)
-    cv.fill(txt - 1.5, "#0B0816")
-    cv.fill(txt, "#FFE66D")
+    cv.fill(txt - 1.8, "#2A8F76")
+    cv.fill(txt, "#FFFFFF")
     P(cv, sd_rect(X, Y, 80, 6, 120, 20, 5), BLACK, lw=2, depth=3)
     P(cv, sd_circle(X, Y, 166, 32, 4.5), "#FF3B5C", lw=1.6, depth=2)
     glow(cv, sd_circle(X, Y, 166, 32, 3), "#FF3B5C", 5, 0.7, mode="over")
@@ -983,6 +1116,12 @@ def item_bass_guitar():
     for (x, y) in ((90, 222), (84, 196)):
         P(lay, sd_circle(X, Y, x, y, 4.5), SILVER, lw=1.4, depth=2)
     hl(lay, ((34, 222), (30, 196), (40, 178)), 3.5, 1.2, body + 3.5, alpha=0.6)
+    # wall hanger: round plate with a padded yoke holding the neck under the headstock
+    plate = sd_circle(X, Y, 65, 46, 10)
+    P(lay, plate, CREAMP, lw=2, depth=4, mode="under")
+    for sx in (-1, 1):
+        P(lay, sd_capsule(X, Y, 65 + sx * 11, 36, 65 + sx * 11, 48, 3.6), PINKP, lw=1.6, depth=2)
+    P(lay, sd_capsule(X, Y, 54, 48, 76, 48, 3.2), PINKP, lw=1.6, depth=2)
     cv.over(lay.transformed(-10, pivot=(65, 128)))
     return cv
 
@@ -1021,16 +1160,16 @@ def item_posters():
 
 
 def item_keyboard():
-    cv = Canvas(256, 160)
+    cv = Canvas(256, 178)
     X, Y = cv.X, cv.Y
     for (a, b) in (((40, 88), (200, 158)), ((216, 88), (56, 158))):
         P(cv, sd_capsule(X, Y, *a, *b, 5), SILVER, lw=2, depth=3)
     P(cv, sd_circle(X, Y, 128, 124, 7), BLACK, lw=2, depth=3)
     body = sd_rect(X, Y, 6, 30, 250, 96, 10)
-    P(cv, body, ("#3A2E6E", "#7A6CC8", "#1A1238"), depth=10)
+    P(cv, body, ("#FFB3C6", "#FF5C7A", "#E0304F", "#A8123A"), depth=10)
     keys(cv, 18, 62, 238, 90, n=22)
     for k in range(6):
-        P(cv, sd_circle(X, Y, 28 + k * 18, 45, 5.5), "#2B2345", "#8A80B8", "#0B0816", lw=1.6, depth=3, spec=0.6)
+        P(cv, sd_circle(X, Y, 28 + k * 18, 45, 5.5), CREAMP, lw=1.6, depth=3)
     scr = sd_rect(X, Y, 142, 38, 196, 54, 3)
     inset(cv, scr, "#1AE0C0", depth=3, shadow=0.3, dark="#0A7A6A", light="#B8FFF0")
     for k in range(3):
@@ -1064,34 +1203,31 @@ def item_tambourine():
 
 
 def item_garage_door():
-    cv = Canvas(256, 256)
+    """Roll-up garage shutter, half raised, painted with a bolt and stars (sits in the door opening)."""
+    cv = Canvas(256, 150)
     X, Y = cv.X, cv.Y
-    frame = sd_rect(X, Y, 4, 4, 252, 252, 8)
-    P(cv, frame, ("#B34A3A", "#E8826A", "#5A1A12"), depth=8, spec=0.1)
-    for r in range(12):
-        y = 8 + r * 21
-        for c in range(6):
-            x = 8 + c * 42 + (21 if r % 2 else 0)
-            b = np.maximum(sd_rect(X, Y, x, y, x + 38, y + 18, 2), frame + 3)
-            cv.fill(b, "#C65A46" if (r * 3 + c) % 4 else "#A8412F", 0.6)
-    opening_ = sd_rect(X, Y, 26, 36, 230, 252, 4)
-    inset(cv, opening_, "#2B1F3A", depth=6, shadow=0.7)
-    door = sd_rect(X, Y, 30, 40, 226, 252, 3)
-    t = np.clip((cv.X - 30) / 196, 0, 1)
-    P(cv, door, ("#6A7ACF", "#B8C4FF", "#2E3780"), depth=6, spec=0.3, grad=0.3)
-    for k in range(10):
-        y = 40 + k * 21.2
-        cv.fill(np.maximum(np.abs(Y - y) - 1.6, door + 1), "#2E3780", 0.8)
-        cv.fill(np.maximum(np.abs(Y - (y + 3)) - 1.0, door + 1), "#B8C4FF", 0.6)
-    # graffiti: lightning + star
-    bolt = opening(sd_poly(X, Y, [(130, 70), (96, 150), (124, 150), (106, 226), (164, 128), (134, 128), (156, 70)]), 2)
-    glow(cv, bolt, "#FFE66D", 8, 0.8, mode="over")
-    P(cv, bolt, "#FFE66D", "#FFFBD8", "#E0A000", lw=3, depth=6)
-    for (x, y, r, c) in ((70, 96, 22, "#FF4FD8"), (188, 190, 18, "#3CF2FF")):
-        P(cv, opening(sd_star(X, Y, x, y, r, r * 0.45), 2), c, lw=2.4, depth=6)
-    hnd = sd_rect(X, Y, 108, 236, 148, 246, 4)
-    P(cv, hnd, SILVER, lw=2, depth=3)
-    del t
+    blue = ("#D6EEFF", "#7FC8FF", "#4FA6EE", "#2F7FD0")
+    drum = sd_rect(X, Y, 0, 0, 256, 26, 8)
+    P(cv, drum, PINKP, lw=2.4, depth=8)
+    cv.fill(np.maximum(sd_rect(X, Y, 8, 6, 248, 10, 2), drum + 3), "#FFFFFF", 0.6)
+    door = sd_rect(X, Y, 6, 22, 250, 140, 4)
+    P(cv, door, blue, lw=2.6, depth=6, grad_dir=(0.0, 1.0))
+    for k in range(7):
+        y = 30 + k * 15.5
+        cv.fill(np.maximum(np.abs(Y - y) - 1.4, door + 2), "#2F7FD0", 0.55)
+        cv.fill(np.maximum(np.abs(Y - (y + 3)) - 1.0, door + 2), "#FFFFFF", 0.55)
+    bolt = opening(sd_poly(X, Y, [(136, 30), (104, 84), (126, 84), (110, 136), (160, 72), (136, 72), (158, 30)]), 2)
+    cv.fill(bolt - 3, "#FFFFFF")
+    P(cv, bolt, ("#FFFBD6", "#FFDB1A", "#F5B800", "#C28A00"), lw=2.4, depth=6)
+    for (x, y, r, c) in ((56, 70, 18, PINKP), (206, 96, 15, ("#E3CCFF", "#B78AFF", "#8B55F0", "#6230C2")),
+                         (200, 44, 8, PINKP)):
+        st = opening(sd_star(X, Y, x, y, r, r * 0.45), 1.5)
+        cv.fill(st - 2.5, "#FFFFFF")
+        P(cv, st, c, lw=2.0, depth=5)
+    bar = sd_rect(X, Y, 4, 132, 252, 148, 5)
+    P(cv, bar, SILVER, lw=2.2, depth=4, grad_dir=(0.0, 1.0))
+    hnd = sd_rect(X, Y, 108, 136, 148, 144, 4)
+    P(cv, hnd, PINKP, lw=1.8, depth=3)
     return cv
 
 
@@ -1105,7 +1241,7 @@ def item_strings():
         t = (k + 0.5) / 9
         x, y = pts[int(t * 40)]
         col = cols[k % len(cols)]
-        P(cv, sd_rect(X, Y, x - 4, y, x + 4, y + 10, 1.5), "#3A3456", lw=1.6, depth=2)
+        P(cv, sd_rect(X, Y, x - 4, y, x + 4, y + 10, 1.5), BLACK, lw=1.6, depth=2)
         b = sd_ellipse(X, Y, x, y + 22, 9, 12)
         glow(cv, b, col, 10, 0.9, mode="over")
         P(cv, b, lighten(col, 0.55), "#FFFFFF", col, lw=2.0, depth=6, spec=0.6)
@@ -1136,3 +1272,43 @@ ITEM_FUNCS = {
     "keyboard": item_keyboard, "tambourine": item_tambourine, "garage_door": item_garage_door,
     "strings": item_strings, "mic_stand": item_mic_stand,
 }
+
+
+# Items that stand on the floor get a soft contact shadow under their base (found from the drawing:
+# the x-extent of the lowest few pixels), value = (extra half-width px, shadow alpha).
+CONTACT = {
+    "turntable": (10, 0.24), "piano": (10, 0.24), "plants": (8, 0.24), "cat": (6, 0.2),
+    "grand_piano": (10, 0.24), "double_bass": (18, 0.24), "vibes": (10, 0.24), "sax": (16, 0.22),
+    "trumpet": (8, 0.2), "fountain": (8, 0.22), "truck_stage": (8, 0.24), "tuba": (14, 0.24),
+    "clarinet": (14, 0.22), "lanterns": (18, 0.22), "confetti": (10, 0.22), "stage": (8, 0.24),
+    "screens": (10, 0.2), "choir": (6, 0.22), "fog": (8, 0.22), "drum_kit": (8, 0.24), "amp": (8, 0.25),
+    "keyboard": (10, 0.24), "mic_stand": (16, 0.24), "dancers": (8, 0.22),
+}
+
+
+def _contact(cv, extra, alpha, band=7.0):
+    a = cv.a > 0.5
+    rows = np.flatnonzero(a.any(1))
+    ss = cv.ss
+    ybot = (rows[-1] + 1) / ss
+    lo = max(int((ybot - band) * ss), 0)
+    cols = np.flatnonzero(a[lo:].any(0))
+    x0, x1 = cols[0] / ss, (cols[-1] + 1) / ss
+    rx = (x1 - x0) / 2 + extra
+    ry = max(min(rx * 0.13, 12.0), 5.0)
+    contact_shadow(cv, (x0 + x1) / 2, ybot - ry * 0.35, rx, ry, alpha=alpha, blur=10.0)
+
+
+def _with_shadow(fn, name):
+    def f():
+        cv = fn()
+        if name in CONTACT:
+            cv = grow(cv, 16, 0, 16, 18)
+            _contact(cv, *CONTACT[name])
+        soft_shadow(cv, 0, 3, 3, "#5A3FA0", 0.22)
+        return cv
+    return f
+
+
+ITEM_FUNCS = {k: _with_shadow(v, k) for k, v in ITEM_FUNCS.items()}
+NO_TRIM = {"lamps", "garlands", "strings", "garage_door"}   # anchored to the scene: keep the canvas as drawn

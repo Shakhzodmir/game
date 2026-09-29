@@ -1,97 +1,187 @@
-"""District backgrounds (360x640, upscaled 2x by the engine) and scene layouts.
+"""Level background and district scenes, rendered at 720x1280 (drawn in 360x640 units, BG_OUT = 2).
 
-Each district has an evening scene (bg.png) and a concert-night variant
-(bg_night.png). Item positions live in LAYOUT (720x1280 scene pixels, y down).
+Bright daytime scenes (art-direction v2): pastel walls and buildings with white windows, the
+level-sky gradient, soft light. The town screen covers the top (stats bar, district ribbon) and the
+bottom (task card, level button, navigation) of every scene, so each scene is composed around the free
+band SAFE = y 236..786 (scene px): walls and windows above, the floor line at ~y 600-650 and the items'
+bases on the floor inside the band.
+
+bg_concert is the same scene re-lit for the final concert, not a tint: sky and walls in the spec
+gradient #3B2A8F -> #6B4CE0, buildings and props in their own hues but more saturated, lit windows
+#FFE66D, 3-5 neon spotlight cones (#FF4FD8, #3CF2FF, #FFE66D) added as light, with their pools and
+reflections on the floor.
+Item positions live in LAYOUT (720x1280 scene pixels, y down, centre of the item image).
 """
 import math
 
 import numpy as np
 
-from artkit import (C, Canvas, F32, INK, WHITE, bez, darken, gblur, lighten, mix, noise2, opening, ramp, rng,
-                    sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly, sd_polyline, sd_rect, sd_ring,
-                    sd_star, smoothstep, U, I, SUB, SU, vol, inset)
+from artkit import (C, Canvas, F32, WHITE, bez, candy, gblur, inset, mix, noise2, opening, ramp, raw, rng,
+                    sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly, sd_polyline, sd_rect, shift,
+                    smoothstep, sparkle4, U, I)
+from palette import SKY, TOWN, CONCERT, SPOTS
 
-W, H = 360, 640
-EVE_SKY = [(0.0, "#2B2D6E"), (0.38, "#7B4FA3"), (0.72, "#FF8E72"), (1.0, "#FFC89B")]
-NIGHT_SKY = [(0.0, "#0D0F2B"), (1.0, "#1E1B4B")]
-SPOTS = ["#FF4FD8", "#3CF2FF", "#FFE66D"]
-
-
-def pick(night, eve, nig):
-    return nig if night else eve
+W, H = 360, 640          # drawing units; the image is rendered at BG_OUT x (720x1280)
+BG_OUT = 2
+SUN_COL = "#FFF6BE"
+SHADOW_PINK = "#D66E8C"
+ROOFS = ["#FF7EB6", "#C18CFF", "#FF8E72", "#FF9EC7"]     # gable roofs: pink / lilac / coral, never olive
 
 
-# --------------------------------------------------------------- helpers
-def sky(cv, region, y0, y1, night, sun=(250, None), seed=1):
-    cv.fill_grad(region, NIGHT_SKY if night else EVE_SKY, axis="y", p0=y0, p1=y1)
-    X, Y = cv.X, cv.Y
-    w = cv.win(region < 1)
-    if w is None:
-        return
-    inside = np.clip(0.5 - region[w] * cv.ss, 0, 1)
-    if night:
-        g = rng(seed)
-        k = np.zeros_like(inside)
-        for _ in range(int(60 * (y1 - y0) / 300 + 20)):
-            sx, sy = g.random() * W, y0 + g.random() * (y1 - y0) * 0.85
-            r = 0.5 + g.random() * 0.9
-            k = np.maximum(k, (1 - smoothstep(0, r, np.hypot(X[w] - sx, Y[w] - sy))) * (0.4 + 0.6 * g.random()))
-        cv.paint(k * inside, WHITE, 1.0, win=w)
+# ==========================================================================
+# day / concert mode
+# ==========================================================================
+class _Mode:
+    concert = False
+
+
+MODE = _Mode()
+LAVENDER_LO, LAVENDER_HI = C("#7A68E8"), C("#D6CBFF")
+NIGHT_TINT = C("#3B2A8F")
+
+
+def night(col):
+    """Concert re-light of an object colour: same hue, more saturated, slightly deeper; whites and greys
+    become lavender (they catch the violet ambient light) - never grey, never black."""
+    c = np.asarray(col, F32)
+    mx = c.max(-1, keepdims=True)
+    mn = c.min(-1, keepdims=True)
+    s = (mx - mn) / np.maximum(mx, 1e-4)
+    s2 = np.clip(s * 1.35 + 0.2, 0, 1)
+    v2 = mx * 0.9
+    hue = v2 * (1 - s2 * (mx - c) / np.maximum(mx - mn, 1e-4))
+    grey = LAVENDER_LO + (LAVENDER_HI - LAVENDER_LO) * mx
+    k = smoothstep(0.06, 0.2, s)
+    out = grey + (hue - grey) * k
+    return (out + (NIGHT_TINT - out) * 0.1).astype(F32)
+
+
+def new_canvas():
+    cv = Canvas(W, H, out=BG_OUT)
+    if MODE.concert:
+        cv.cmap = night
+    return cv
+
+
+def window_col():
+    return "#FFE66D" if MODE.concert else "#FFFFFF"
+
+
+def lit_window(cv, d, alpha=1.0):
+    """A window: white by day; lit #FFE66D with a warm glow at the concert."""
+    if MODE.concert:
+        with raw(cv):
+            cv.glow_from(np.clip(0.5 - d * cv.ss, 0, 1), 5, "#FFD23F", 0.55, mode="over")
+            cv.fill(d, "#FFE66D", alpha)
+            cv.fill(d + 1.6, "#FFF6C2", 0.6 * alpha)
     else:
-        sx = sun[0]
-        sy = sun[1] if sun[1] is not None else y1 - 10
-        r = np.hypot(X[w] - sx, Y[w] - sy)
-        cv.paint(inside * np.exp(-(r / 70) ** 2), C("#FFE3B0"), 0.55, win=w)
-        cv.paint(inside * (1 - smoothstep(18, 20, r)), C("#FFF1D6"), 0.9, win=w)
+        cv.fill(d, "#FFFFFF", alpha)
 
 
-def moon(cv, x, y, r, clip=None):
-    d = SUB(sd_circle(cv.X, cv.Y, x, y, r), sd_circle(cv.X, cv.Y, x + r * 0.45, y - r * 0.2, r * 0.85))
-    if clip is not None:
-        d = np.maximum(d, clip)
-    cv.glow_from(np.clip(0.5 - sd_circle(cv.X, cv.Y, x, y, r) * cv.ss, 0, 1) * (1 if clip is None else np.clip(0.5 - clip * cv.ss, 0, 1)),
-                 18, "#8C84FF", 0.35, mode="over")
-    cv.fill(d, "#FFF4D6", 1.0, soft=0.5)
+# ==========================================================================
+# helpers
+# ==========================================================================
+def full(cv):
+    return sd_rect(cv.X, cv.Y, -8, -8, W + 8, H + 8, 0)
 
 
-def skyline(cv, base_y, seed, color, hmin, hmax, night, clip=None, wmin=18, wmax=44, lit=0.0, win_col="#FFD27A",
-            x0=-10, x1=W + 10):
-    """Row of building silhouettes; lit>0 draws warm windows."""
-    g = rng(seed)
+def rect(cv, x0, y0, x1, y1, r=0.0):
+    return sd_rect(cv.X, cv.Y, x0, y0, x1, y1, r)
+
+
+def wall(cv, region, stops, y0, y1):
+    """A wall: pastel gradient by day, the concert gradient at night."""
+    if MODE.concert:
+        with raw(cv):
+            cv.fill_grad(region, [(0, CONCERT[0][1]), (1, CONCERT[1][1])], axis="y", p0=y0 - 60, p1=y1 + 40)
+    else:
+        cv.fill_grad(region, stops, axis="y", p0=y0, p1=y1)
+
+
+def sky(cv, region, y0, y1, sun=None, clouds=(), stops=None):
     X, Y = cv.X, cv.Y
-    x = x0
-    shapes = None
-    wins = []
-    while x < x1:
-        bw = wmin + g.random() * (wmax - wmin)
-        bh = hmin + g.random() * (hmax - hmin)
-        d = sd_rect(X, Y, x, base_y - bh, x + bw, base_y + 400, 1.5)
-        roof = g.random()
-        if roof < 0.25:
-            d = U(d, sd_poly(X, Y, [(x - 2, base_y - bh), (x + bw + 2, base_y - bh), (x + bw / 2, base_y - bh - bw * 0.45)]))
-        elif roof < 0.4:
-            d = U(d, sd_rect(X, Y, x + bw * 0.6, base_y - bh - 14, x + bw * 0.6 + 4, base_y - bh, 0))
-        shapes = d if shapes is None else np.minimum(shapes, d)
-        if lit > 0:
-            for wy in np.arange(base_y - bh + 8, base_y - 6, 10):
-                for wx in np.arange(x + 5, x + bw - 7, 9):
-                    if g.random() < lit:
-                        wins.append((wx, wy))
-        x += bw + g.random() * 3
-    if clip is not None:
-        shapes = np.maximum(shapes, clip)
-    cv.fill(shapes, color, 1.0, soft=0.4)
-    if wins:
-        m = np.full_like(X, 1e3)
-        for (wx, wy) in wins:
-            m = np.minimum(m, sd_rect(X, Y, wx, wy, wx + 4, wy + 5, 0.8))
-        m = np.maximum(m, shapes)
-        if night:
-            cv.glow_from(np.clip(0.5 - m * cv.ss, 0, 1), 4, win_col, 0.5, mode="over")
-        cv.fill(m, win_col, 0.95 if night else 0.55)
+    if MODE.concert:
+        with raw(cv):
+            cv.fill_grad(region, [(0, CONCERT[0][1]), (1, CONCERT[1][1])], axis="y", p0=y0 - 40, p1=y1 + 60)
+            w = cv.win(region < 1)
+            inside = np.clip(0.5 - region[w] * cv.ss, 0, 1)
+            g = rng(int(y0 * 7 + y1 * 3 + 11))
+            xs0, xs1 = float(X[w].min()), float(X[w].max())
+            ys0, ys1 = float(Y[w].min()), float(Y[w].max())
+            n = int((xs1 - xs0) * (ys1 - ys0) / 900) + 4
+            stars = np.full(X[w].shape, 1e3, F32)
+            for _ in range(n):
+                sx, sy = xs0 + g.random() * (xs1 - xs0), ys0 + g.random() * (ys1 - ys0)
+                stars = np.minimum(stars, np.hypot(X[w] - sx, Y[w] - sy) - (0.5 + g.random() * 0.8))
+            cv.paint(inside * np.clip(0.5 - stars * cv.ss, 0, 1), C("#FFF6D6"), 0.85, win=w)
+            for (cx, by, s, a) in clouds:
+                d = np.maximum(sd_cloud(X, Y, cx, by, s), region)
+                cv.fill(d, "#8E78F0", a * 0.35, soft=2 * s + 1)
+        return
+    cv.fill_grad(region, stops or SKY, axis="y", p0=y0, p1=y1)
+    w = cv.win(region < 1)
+    inside = np.clip(0.5 - region[w] * cv.ss, 0, 1)
+    if sun is not None:
+        sx, sy, sr = sun
+        r = np.hypot(X[w] - sx, Y[w] - sy)
+        cv.paint(inside * np.exp(-(r / (sr * 3.2)) ** 2), C("#FFF2B0"), 0.75, win=w)
+        cv.paint(inside * (1 - smoothstep(sr - 1.2, sr + 0.8, r)), C(SUN_COL), 1.0, win=w)
+        cv.paint(inside * np.exp(-(r / (sr * 1.4)) ** 2), C("#FFFFFF"), 0.35, win=w)
+    for (cx, by, s, a) in clouds:
+        d = np.maximum(sd_cloud(X, Y, cx, by, s), region)
+        cv.fill(d + 1.0, "#DCEFFF", a * 0.7, soft=1.5 * s + 0.8)
+        cv.fill(d, "#FFFFFF", a, soft=1.2 * s + 0.5)
 
 
-def beam(cv, x0, y0, x1, y1, w0, w1, color, alpha, clip=None):
+def sd_cloud(X, Y, cx, base_y, s=1.0):
+    from ui import cloud_sdf
+    return cloud_sdf(X, Y, cx, base_y, s)
+
+
+def town(cv, base_y, specs, clip=None, win_alpha=1.0, shade=True):
+    """Pastel buildings with white windows (like the approved mockup).
+    specs: (x0, x1, height, colour, roof) with roof in 'flat', 'round', 'arch', 'gable'."""
+    X, Y = cv.X, cv.Y
+    for i, (x0, x1, h, col, roof) in enumerate(specs):
+        top = base_y - h
+        wdt = x1 - x0
+        if roof == "round":
+            d = rect(cv, x0, top, x1, base_y + 40, wdt / 2)
+        elif roof == "arch":
+            d = rect(cv, x0, top, x1, base_y + 40, min(18, wdt / 2))
+        else:
+            d = rect(cv, x0, top, x1, base_y + 40, 5 if roof == "flat" else 3)
+        if clip is not None:
+            d = np.maximum(d, clip)
+        c = C(col)
+        cv.fill_grad(d, [(0, mix(c, WHITE, 0.18)), (1, c)], axis="y", p0=top - 10, p1=base_y)
+        if shade:
+            # soft shade on the right side of each building
+            sh = np.maximum(d, (x0 + x1) / 2 + wdt * 0.28 - X)
+            cv.fill(sh, mix(c, C("#7B4FFF"), 0.15), 0.35, soft=4)
+        if roof == "gable":
+            rf = opening(sd_poly(X, Y, [(x0 - 4, top + 3), (x1 + 4, top + 3), ((x0 + x1) / 2, top - wdt * 0.44)]), 2.0)
+            if clip is not None:
+                rf = np.maximum(rf, clip)
+            cv.fill(rf, ROOFS[i % len(ROOFS)], 1.0)
+            cv.fill(np.maximum(rf + 1.5, top - 2 - Y), "#FFFFFF", 0.35)
+        # windows
+        nx = max(int((wdt - 8) // 14), 1)
+        gap = (wdt - nx * 8) / (nx + 1)
+        rows = max(int((h - 16) // 20), 1)
+        for r in range(rows):
+            wy = top + 12 + r * 20 + (8 if roof in ("round", "arch") else 0)
+            if wy + 10 > base_y - 4:
+                continue
+            for k in range(nx):
+                wx = x0 + gap + k * (8 + gap)
+                wd = rect(cv, wx, wy, wx + 8, wy + 10, 2.5 if roof != "round" else 4)
+                if clip is not None:
+                    wd = np.maximum(wd, clip)
+                lit_window(cv, wd, win_alpha)
+
+
+def beam(cv, x0, y0, x1, y1, w0, w1, color, alpha, clip=None, mode="add", fade=0.6):
     X, Y = cv.X, cv.Y
     dx, dy = x1 - x0, y1 - y0
     L = math.hypot(dx, dy)
@@ -101,37 +191,17 @@ def beam(cv, x0, y0, x1, y1, w0, w1, color, alpha, clip=None):
     across = np.abs(-px * uy + py * ux)
     t = np.clip(along / L, 0, 1)
     half = w0 + (w1 - w0) * t
-    v = smoothstep(half, half * 0.2, across) * (along > 0) * (1 - t * 0.7) * smoothstep(0, 30, along)
+    v = smoothstep(half, half * 0.15, across) * (along > 0) * (1 - t * fade) * smoothstep(0, 24, along)
+    v = v * (along < L)
     if clip is not None:
         v = v * np.clip(0.5 - clip * cv.ss, 0, 1)
-    cv.paint(np.clip(v, 0, 1), C(color), alpha, "add")
-
-
-def bricks(cv, region, bw, bh, ca, cb, mortar, alpha=1.0, seed=3):
-    X, Y = cv.X, cv.Y
-    w = cv.win(region < 1)
-    if w is None:
-        return
-    x, y = X[w], Y[w]
-    row = np.floor(y / bh)
-    xo = x + (row % 2) * bw / 2
-    col = np.floor(xo / bw)
-    lx = xo - col * bw
-    ly = y - row * bh
-    h = ((row * 73 + col * 31 + seed) % 7) / 6.0
-    colr = mix(C(ca), C(cb), h)
-    m = np.minimum(np.minimum(lx, bw - lx), np.minimum(ly, bh - ly))
-    colr = mix(colr, C(mortar), smoothstep(1.2, 0.4, m))
-    colr = mix(colr, lighten(ca, 0.3), smoothstep(2.2, 1.2, ly) * (ly < bh / 2) * 0.35)
-    cv.paint(np.clip(0.5 - region[w] * cv.ss, 0, 1), colr, alpha, win=w)
+    cv.paint(np.clip(v, 0, 1), C(color), alpha, mode)
 
 
 def planks(cv, region, vx, vy, n, ca, cb, seam, alpha=1.0):
     """Perspective wooden floor converging to (vx, vy)."""
     X, Y = cv.X, cv.Y
     w = cv.win(region < 1)
-    if w is None:
-        return
     x, y = X[w], Y[w]
     u = (x - vx) / np.maximum(y - vy, 1) * n
     fu = u - np.floor(u)
@@ -139,388 +209,541 @@ def planks(cv, region, vx, vy, n, ca, cb, seam, alpha=1.0):
     idx = np.floor(u)
     fv = (v * 8 + (idx % 3) * 0.33) % 1.0
     h = (idx * 37 % 5) / 4.0
-    colr = mix(C(ca), C(cb), h * 0.6 + smoothstep(vy, H, y) * 0.0)
-    colr = mix(colr, C(seam), smoothstep(0.06, 0.0, np.minimum(fu, 1 - fu)) * 0.8)
-    colr = mix(colr, C(seam), smoothstep(0.03, 0.0, np.minimum(fv, 1 - fv)) * 0.6)
+    colr = mix(C(ca), C(cb), h * 0.5)
+    colr = mix(colr, C(seam), smoothstep(0.06, 0.0, np.minimum(fu, 1 - fu)) * 0.7)
+    colr = mix(colr, C(seam), smoothstep(0.03, 0.0, np.minimum(fv, 1 - fv)) * 0.5)
+    colr = mix(colr, WHITE, smoothstep(0.16, 0.05, fu) * (fu < 0.5) * 0.18)
+    cv.paint(np.clip(0.5 - region[w] * cv.ss, 0, 1), colr, alpha, win=w)
+
+
+def tiles(cv, region, vx, vy, ca, cb, n=7, rows=900.0, alpha=1.0, seam=None):
+    """Perspective checkerboard floor."""
+    X, Y = cv.X, cv.Y
+    w = cv.win(region < 1)
+    x, y = X[w], Y[w]
+    dy = np.maximum(y - vy, 1)
+    v = rows / dy
+    u = (x - vx) / dy * n
+    chk = ((np.floor(u) + np.floor(v)) % 2)[..., None]
+    colr = C(ca) * (1 - chk) + C(cb) * chk
+    if seam is not None:
+        fu, fv = u - np.floor(u), v - np.floor(v)
+        e = np.minimum(np.minimum(fu, 1 - fu), np.minimum(fv, 1 - fv) * 0.6)
+        colr = mix(colr, C(seam), smoothstep(0.05, 0.0, e) * 0.6)
     cv.paint(np.clip(0.5 - region[w] * cv.ss, 0, 1), colr, alpha, win=w)
 
 
 def cobbles(cv, region, vx, vy, ca, cb, gap, alpha=1.0):
     X, Y = cv.X, cv.Y
     w = cv.win(region < 1)
-    if w is None:
-        return
     x, y = X[w], Y[w]
     dy = np.maximum(y - vy, 1)
-    v = 900.0 / dy
+    v = 700.0 / dy
     row = np.floor(v)
-    u = (x - vx) / dy * 9 + (row % 2) * 0.5
+    u = (x - vx) / dy * 10 + (row % 2) * 0.5
     col = np.floor(u)
     fu, fv = u - col, v - row
     h = ((row * 13 + col * 7) % 5) / 4.0
     colr = mix(C(ca), C(cb), h)
     e = np.minimum(np.minimum(fu, 1 - fu) * 1.6, np.minimum(fv, 1 - fv))
-    colr = mix(colr, C(gap), smoothstep(0.12, 0.02, e))
-    colr = mix(colr, lighten(ca, 0.25), smoothstep(0.3, 0.12, fv) * (fv < 0.5) * 0.25)
+    colr = mix(colr, C(gap), smoothstep(0.12, 0.03, e))
+    colr = mix(colr, WHITE, smoothstep(0.35, 0.12, fv) * (fv < 0.5) * 0.3)
     cv.paint(np.clip(0.5 - region[w] * cv.ss, 0, 1), colr, alpha, win=w)
 
 
-def vignette(cv, strength=0.35, color="#140F2E"):
-    r = np.hypot((cv.X - W / 2) / (W * 0.62), (cv.Y - H * 0.45) / (H * 0.62))
-    cv.paint(smoothstep(0.7, 1.25, r), C(color), strength)
-
-
-def warm_haze(cv, night):
-    """Soft painterly light: big low-frequency colour variation."""
-    n = noise2(cv.a.shape, 90 * cv.ss, seed=17, octaves=2)
-    cv.paint(n * 0.5, C(pick(night, "#FFB36B", "#8C84FF")), pick(night, 0.10, 0.08))
-
-
-def window_view(cv, rect, night, seed, arch=False):
-    """A window showing the evening/night city."""
-    x0, y0, x1, y1 = rect
+def polka(cv, region, step, r, color="#FFFFFF", alpha=0.5, offset=0.0):
     X, Y = cv.X, cv.Y
-    frame = sd_rect(X, Y, x0 - 8, y0 - 8, x1 + 8, y1 + 8, 6)
-    glass = sd_rect(X, Y, x0, y0, x1, y1, 3)
-    if arch:
-        r = (x1 - x0) / 2
-        cx = (x0 + x1) / 2
-        frame = U(frame, sd_circle(X, Y, cx, y0, r + 8))
-        glass = U(glass, sd_circle(X, Y, cx, y0, r))
-        top = y0 - r
-    else:
-        top = y0
-    vol(cv, frame, pick(night, "#6B3F2E", "#3A2233"), light=pick(night, "#A8674E", "#6A4460"),
-        dark=pick(night, "#34160F", "#150A14"), line="#1A0F1A", lw=2, depth=5, spec=0.2)
-    sky(cv, glass, top, y1, night, sun=((x0 + x1) / 2 + 20, y1 - 26), seed=seed)
-    if night:
-        moon(cv, x0 + (x1 - x0) * 0.72, top + (y1 - top) * 0.25, 9, clip=glass)
-    skyline(cv, y1 + 2, seed, pick(night, "#5A3A78", "#16143A"), 20, 60, night, clip=glass, lit=0.35,
-            x0=x0 - 10, x1=x1 + 10)
-    skyline(cv, y1 + 2, seed + 1, pick(night, "#3A2458", "#0E0C28"), 10, 34, night, clip=glass, lit=0.3,
-            wmin=12, wmax=26, x0=x0 - 10, x1=x1 + 10)
-    # muntins
-    mx = (x0 + x1) / 2
-    my = (top + y1) / 2 + 10
-    bars = U(np.maximum(np.abs(X - mx) - 2.2, glass), np.maximum(np.abs(Y - my) - 2.2, glass))
-    cv.fill(np.maximum(bars, glass), pick(night, "#6B3F2E", "#3A2233"), 1.0)
-    # glass sheen
-    sheen = np.maximum(np.abs((X - x0) - (Y - top) * 0.6 - (x1 - x0) * 0.2) - 6, glass)
-    cv.fill(sheen, "#FFFFFF", 0.08, soft=3)
-    return glass
+    w = cv.win(region < 1)
+    x, y = X[w] + offset, Y[w]
+    row = np.floor(y / step)
+    xo = x + (row % 2) * step / 2
+    dx = (xo % step) - step / 2
+    dyy = (y % step) - step / 2
+    d = np.hypot(dx, dyy) - r
+    d = np.maximum(d, region[w])
+    cv.paint(np.clip(0.5 - d * cv.ss, 0, 1), C(color), alpha, win=w)
 
 
-def spotlights(cv, night, sources, clip=None):
-    """Concert beams (night only)."""
-    if not night:
-        return
-    for (x0, y0, x1, y1, w1, col) in sources:
-        beam(cv, x0, y0, x1, y1, 4, w1, col, 0.32, clip=clip)
+def soft_shadow_of(cv, sdf, dy=4.0, blur=6.0, color=SHADOW_PINK, alpha=0.3):
+    m = np.clip(0.5 - sdf * cv.ss, 0, 1)
+    m = shift(gblur(m, blur * cv.ss / 2), 0, dy * cv.ss)
+    cv.paint(np.clip(m, 0, 1), C(color), alpha)
 
 
-# --------------------------------------------------------------- CAFE
-def bg_cafe(night):
-    cv = Canvas(W, H, bg="#000000")
+def light_pool(cv, cx, cy, rx, ry, color="#FFFFFF", alpha=0.35, mode="over"):
+    r = np.hypot((cv.X - cx) / rx, (cv.Y - cy) / ry)
+    cv.paint(np.exp(-r * r * 2.2), C(color), alpha, mode)
+
+
+def ambient(cv, seed=17, color="#FFD6E8", alpha=0.10):
+    n = noise2(cv.a.shape, 90 * cv.ss, seed=seed, octaves=2)
+    cv.paint(n, C(color), alpha)
+
+
+def string_lights(cv, pts, cols, r=2.6, every=3):
     X, Y = cv.X, cv.Y
-    wall = sd_rect(X, Y, -5, 88, W + 5, 452, 0)
-    cv.fill_grad(wall, [(0, pick(night, "#7A4A70", "#2E2250")), (1, pick(night, "#9A5E74", "#3A2A5A"))], axis="y",
-                 p0=88, p1=452)
-    stripes = np.maximum(np.abs((X % 24.0) - 12) - 5, wall)
-    cv.fill(stripes, pick(night, "#B8768A", "#4A3A78"), 0.18)
-    # wainscot
-    wain = sd_rect(X, Y, -5, 360, W + 5, 452, 0)
-    cv.fill_grad(wain, [(0, pick(night, "#6B3A36", "#2A1A30")), (1, pick(night, "#50282A", "#1E1226"))], axis="y")
+    cv.fill(sd_polyline(X, Y, pts) - 0.8, "#FFFFFF", 0.9)
+    for i in range(1, len(pts) - 1, every):
+        x, y = pts[i]
+        c = cols[(i // every) % len(cols)]
+        cv.glow_from(np.clip(0.5 - sd_circle(X, Y, x, y + 3, r) * cv.ss, 0, 1), 5, c, 0.7, mode="over")
+        cv.fill(sd_circle(X, Y, x, y + 3, r), mix(C(c), WHITE, 0.45))
+
+
+def floor_shade(cv, y0, color=SHADOW_PINK, alpha=0.2, depth=18):
+    """Soft contact shade where the floor meets the wall."""
+    Y = cv.Y
+    cv.paint(smoothstep(y0 + depth, y0, Y) * (Y > y0), C(color), alpha)
+
+
+# anchors of items that hang or are mounted (item canvas px) - the backgrounds draw their cords / hooks
+def _item_pt(district, item, ax, ay, iw, ih):
+    x, y, s = LAYOUT[district][item]
+    return (x + (ax - iw / 2) * s) / BG_OUT, (y + (ay - ih / 2) * s) / BG_OUT
+
+
+def _cords(cv, district, item, anchors, iw, ih, top=-4.0, color="#9D7BC9", r=0.9):
+    """Cords from the ceiling (or `top`) down to anchor points of an item image."""
+    for (ax, ay) in anchors:
+        sx, sy = _item_pt(district, item, ax, ay, iw, ih)
+        cv.fill(sd_capsule(cv.X, cv.Y, sx, top, sx, sy + 1.5, r), color, 1.0)
+
+
+def _hooks(cv, district, item, anchors, iw, ih, color="#FF7EB6"):
+    for (ax, ay) in anchors:
+        sx, sy = _item_pt(district, item, ax, ay, iw, ih)
+        cv.fill(sd_circle(cv.X, cv.Y, sx, sy, 3.2), color)
+        cv.fill(sd_circle(cv.X, cv.Y, sx - 0.8, sy - 0.8, 1.2), "#FFFFFF", 0.9)
+
+
+# ==========================================================================
+# level background
+# ==========================================================================
+def bg_level():
+    cv = new_canvas()
+    X, Y = cv.X, cv.Y
+    f = full(cv)
+    sky(cv, f, 0, H, sun=(286, 62, 22),
+        clouds=[(58, 128, 0.42, 0.9), (300, 190, 0.34, 0.8), (110, 330, 0.28, 0.55), (310, 420, 0.3, 0.5)])
+    # sun rays
     for k in range(9):
-        x = 6 + k * 40
-        p = sd_rect(X, Y, x, 372, x + 32, 440, 3)
-        cv.stroke(p, 1.6, pick(night, "#8A4E46", "#3E2A48"), 0.8)
-    cv.fill(sd_rect(X, Y, -5, 356, W + 5, 364, 1), pick(night, "#8A4E46", "#3E2A48"))
-    # ceiling + beam
-    ceil = sd_rect(X, Y, -5, -5, W + 5, 90, 0)
-    cv.fill_grad(ceil, [(0, pick(night, "#2A1826", "#0C0818")), (1, pick(night, "#4A2A36", "#1A1228"))], axis="y")
-    cv.fill(sd_rect(X, Y, -5, 80, W + 5, 92, 0), pick(night, "#5A3428", "#24162A"))
-    # window + sill
-    glass = window_view(cv, (160, 150, 330, 328), night, seed=11)
-    sill = sd_rect(X, Y, 146, 330, 344, 342, 2)
-    vol(cv, sill, pick(night, "#8A5A40", "#3E2A40"), light=pick(night, "#C98A60", "#6A4A70"),
-        dark=pick(night, "#4A2A1A", "#1A1024"), line="#1A0F1A", lw=1.5, depth=3, spec=0.2)
-    # chalk menu board on the left wall (behind nothing)
-    board = sd_rect(X, Y, 26, 196, 120, 300, 4)
-    vol(cv, board, pick(night, "#6B3F2E", "#2E1E30"), line="#1A0F1A", lw=1.5, depth=3, spec=0.1)
-    inset(cv, sd_rect(X, Y, 32, 202, 114, 294, 2), pick(night, "#2E3A34", "#1A2226"), depth=3, shadow=0.4)
-    for k in range(5):
-        cv.fill(sd_capsule(X, Y, 42, 222 + k * 14, 42 + 30 + (k * 17) % 30, 222 + k * 14, 1.1), "#E8F0EA", 0.55)
-    # floor
-    floor = sd_rect(X, Y, -5, 452, W + 5, H + 5, 0)
-    planks(cv, floor, 180, 300, 5.5, pick(night, "#A8663E", "#4A2E44"), pick(night, "#8A4E30", "#3A2238"),
-           pick(night, "#4A2416", "#1A0E1C"))
-    cv.fill(sd_rect(X, Y, -5, 448, W + 5, 456, 0), pick(night, "#3A1E14", "#140A14"))
-    rug = sd_ellipse(X, Y, 190, 560, 150, 40)
-    cv.fill(rug, pick(night, "#C24A5A", "#5A2A6A"), 0.85, soft=1)
-    cv.stroke(sd_ellipse(X, Y, 190, 560, 136, 32), 3, pick(night, "#FFC89B", "#FF4FD8"), 0.5)
-    if not night:
-        # warm sunset light through the window
-        patch = sd_poly(X, Y, [(160, 456), (330, 456), (300, 620), (80, 620)])
-        cv.fill(patch, "#FFC89B", 0.16, soft=12)
-        cv.glow_from(np.clip(0.5 - glass * cv.ss, 0, 1), 30, "#FFB36B", 0.3, mode="over")
-    else:
-        # small concert corner: fairy lights + beams
-        for k in range(14):
-            x = 10 + k * 25
-            y = 100 + 8 * math.sin(k * 0.9)
-            cv.glow_from(np.clip(0.5 - sd_circle(X, Y, x, y, 2) * cv.ss, 0, 1), 5, SPOTS[k % 3], 0.8, mode="over")
-            cv.fill(sd_circle(X, Y, x, y, 2.2), lighten(SPOTS[k % 3], 0.5))
-        spotlights(cv, night, [(20, 90, 200, 640, 90, SPOTS[0]), (340, 90, 160, 640, 90, SPOTS[1]),
-                               (180, 90, 190, 640, 70, SPOTS[2])])
-    warm_haze(cv, night)
-    vignette(cv, 0.35)
+        a = math.radians(100 + k * 16)
+        beam(cv, 286, 62, 286 + 520 * math.cos(a), 62 + 520 * math.sin(a), 4, 46, "#FFFFFF", 0.07, mode="over")
+    # distant pastel town + hills at the bottom
+    hill = sd_ellipse(X, Y, 90, 690, 220, 110)
+    hill = U(hill, sd_ellipse(X, Y, 320, 700, 200, 120))
+    cv.fill(hill, "#BFF0D0", 0.9)
+    town(cv, 602, [(-6, 34, 58, TOWN[0], "flat"), (30, 62, 84, TOWN[1], "round"), (58, 98, 50, TOWN[2], "gable"),
+                   (96, 124, 70, TOWN[3], "flat"), (122, 172, 46, TOWN[4], "arch"), (170, 198, 92, TOWN[0], "round"),
+                   (196, 240, 58, TOWN[2], "flat"), (238, 266, 76, TOWN[1], "gable"), (264, 310, 52, TOWN[3], "arch"),
+                   (308, 336, 88, TOWN[4], "round"), (334, 368, 60, TOWN[0], "flat")], win_alpha=0.9)
+    cv.fill(rect(cv, -8, 598, W + 8, H + 8), "#FFE9C4")
+    cv.fill(rect(cv, -8, 596, W + 8, 602), "#FFFFFF", 0.8)
+    # a whisper of haze so the board area stays calm
+    cv.paint(np.exp(-((Y - 330) / 190) ** 2) * 0.12, C("#FFFFFF"), 1.0)
     return cv
 
 
-# --------------------------------------------------------------- JAZZ
-def bg_jazz(night):
-    cv = Canvas(W, H, bg="#000000")
+# ==========================================================================
+# districts (drawing units: 360x640 = scene / 2; free band y 118..393)
+# ==========================================================================
+FLOOR_Y = {"cafe": 322, "jazz": 282, "square": 300, "stadium": 318, "garage": 304}
+
+
+def bg_cafe():
+    cv = new_canvas()
     X, Y = cv.X, cv.Y
-    wall = sd_rect(X, Y, -5, -5, W + 5, 380, 0)
-    bricks(cv, wall, 24, 11, pick(night, "#8A3A3E", "#3E1C34"), pick(night, "#6E2A34", "#2E1428"),
-           pick(night, "#3A1620", "#12081A"))
-    cv.fill_grad(wall, [(0, "#000000"), (1, "#000000")], alpha=0.0)
-    # warm wall lights (sconces)
-    for x in (40, 320):
-        cv.glow_from(np.clip(0.5 - sd_circle(X, Y, x, 190, 6) * cv.ss, 0, 1), 40, pick(night, "#FFB36B", "#FF4FD8"),
-                     0.5, mode="over")
-        vol(cv, sd_ellipse(X, Y, x, 196, 10, 6), "#FFC23D", light="#FFF0B0", dark="#B86E00", line="#1A0F1A", lw=1.2,
-            depth=3)
-    # arched window
-    glass = window_view(cv, (228, 120, 318, 250), night, seed=21, arch=True)
+    fy = FLOOR_Y["cafe"]
+    wl = rect(cv, -8, -8, W + 8, fy)
+    wall(cv, wl, [(0, "#FFD3E6"), (0.6, "#FFE1D6"), (1, "#FFE9CC")], 0, fy)
+    polka(cv, wl, 17, 2.4, "#FFFFFF", 0.55)
+    cv.fill(rect(cv, -8, -8, W + 8, 12), "#FFFFFF", 0.9)
+    cv.fill(rect(cv, -8, 12, W + 8, 16), "#FFC2D8", 0.8)
+    # big window with a sunny street
+    frame = rect(cv, 20, 40, 340, 230, 22)
+    soft_shadow_of(cv, frame, 6, 10, SHADOW_PINK, 0.3)
+    cv.fill(frame, "#FFFFFF")
+    glass = rect(cv, 30, 50, 330, 220, 15)
+    sky(cv, glass, 50, 220, sun=(258, 96, 20), clouds=[(96, 104, 0.3, 1.0), (300, 136, 0.2, 0.9)],
+        stops=[(0, "#43BFFF"), (0.55, "#8BE0FF"), (1, "#D8F7FF")])
+    town(cv, 222, [(26, 64, 66, TOWN[0], "flat"), (60, 92, 90, TOWN[1], "round"), (88, 130, 56, TOWN[2], "gable"),
+                   (126, 156, 80, TOWN[3], "flat"), (152, 212, 62, TOWN[4], "round"), (208, 242, 86, TOWN[0], "arch"),
+                   (238, 288, 52, TOWN[2], "gable"), (284, 334, 74, TOWN[1], "flat")], clip=glass)
+    sheen = np.maximum(np.abs((X - 30) - (Y - 50) * 0.7 - 120) - 10, glass)
+    cv.fill(sheen, "#FFFFFF", 0.18, soft=4)
+    sheen2 = np.maximum(np.abs((X - 30) - (Y - 50) * 0.7 - 150) - 4, glass)
+    cv.fill(sheen2, "#FFFFFF", 0.14, soft=2)
+    # striped awning over the window
+    val = rect(cv, 12, 26, 348, 56, 10)
+    scal = None
+    for k in range(12):
+        c_ = sd_circle(X, Y, 12 + 14 + k * 28, 54, 14)
+        scal = c_ if scal is None else U(scal, c_)
+    val = np.maximum(U(val, np.maximum(scal, Y - 70)), 26 - Y)
+    soft_shadow_of(cv, val, 4, 6, SHADOW_PINK, 0.25)
+    stripes = ((np.floor((X - 12) / 28)) % 2)[..., None]
+    col = C("#FF7EB6") * (1 - stripes) + C("#FFFFFF") * stripes
+    w = cv.win(val < 1)
+    cv.paint(np.clip(0.5 - val[w] * cv.ss, 0, 1), col[w], 1.0, win=w)
+    cv.fill(np.maximum(val, Y - 34), "#FFFFFF", 0.35)
+    cv.stroke(val, 1.6, "#F0508F", 0.9)
+    # sill (the cat sits here)
+    sill = rect(cv, 10, 226, 350, 238, 6)
+    soft_shadow_of(cv, sill, 5, 5, SHADOW_PINK, 0.3)
+    candy(cv, sill, ("#FFFFFF", "#FFFFFF", "#FFE1EC", "#F2B8CF"), lw=1.2, depth=4, rim=0.2)
+    # wainscot
+    wain = rect(cv, -8, 272, W + 8, fy)
+    cv.fill_grad(wain, [(0, "#FFC6DA"), (1, "#FFB5CD")], axis="y", p0=272, p1=fy)
+    for k in range(9):
+        x = 6 + k * 42
+        cv.stroke(rect(cv, x, 282, x + 34, fy - 8, 5), 2.0, "#FFFFFF", 0.7)
+    cv.fill(rect(cv, -8, 268, W + 8, 274, 3), "#FFFFFF")
+    # floor
+    floor = rect(cv, -8, fy, W + 8, H + 8)
+    planks(cv, floor, 180, 190, 5, "#FFD2A6", "#FFC08A", "#E89A5C")
+    cv.fill(rect(cv, -8, fy - 4, W + 8, fy + 4, 2), "#FFFFFF")
+    floor_shade(cv, fy + 4)
+    pool = sd_poly(X, Y, [(40, fy + 6), (320, fy + 6), (360, fy + 110), (0, fy + 110)])
+    cv.fill(pool, "#FFFFFF", 0.22, soft=18)
+    rug = sd_ellipse(X, Y, 184, 384, 112, 17)
+    soft_shadow_of(cv, rug, 2, 3, "#C9784A", 0.25)
+    cv.fill(rug, "#9FE6C8")
+    cv.stroke(sd_ellipse(X, Y, 184, 384, 97, 13), 3, "#FFFFFF", 0.8)
+    cv.stroke(sd_ellipse(X, Y, 184, 384, 80, 9), 2, "#FFFFFF", 0.6)
+    # ceiling cords for the lamps, little hooks for the sign
+    _cords(cv, "cafe", "lamps", [(48, 0), (116, 0), (180, 0)], 220, 256)
+    _hooks(cv, "cafe", "sign", [(70, 0), (186, 0)], 256, 160)
+    ambient(cv, 17, "#FFFFFF", 0.08)
+    return cv
+
+
+def bg_jazz():
+    cv = new_canvas()
+    X, Y = cv.X, cv.Y
+    fy = FLOOR_Y["jazz"]
+    wl = rect(cv, -8, -8, W + 8, fy)
+    wall(cv, wl, [(0, "#9BE8DA"), (1, "#D4FAF1")], 0, fy)
+    # art-deco sunburst behind the stage
+    cx, cy = 180.0, fy
+    ang = np.arctan2(Y - cy, X - cx)
+    rays = (np.floor((ang + math.pi) / (math.pi / 14)) % 2)
+    r = np.hypot(X - cx, Y - cy)
+    burst = np.maximum(r - 230, wl)
+    w = cv.win(burst < 1)
+    cv.paint(np.clip(0.5 - burst[w] * cv.ss, 0, 1) * rays[w], C("#E9FFF9"), 0.8, win=w)
+    for rr in (110, 165, 220):
+        cv.fill(np.maximum(np.abs(r - rr) - 1.6, wl), "#FFD86B", 0.9)
+    # pilasters
+    for x in (58, 302):
+        pil = rect(cv, x - 12, 48, x + 12, fy, 3)
+        soft_shadow_of(cv, pil, 0, 5, "#3FA38E", 0.2)
+        candy(cv, pil, ("#FFFFFF", "#FFF4DC", "#F2DDB0", "#E0B04A"), lw=1.6, depth=6, rim=0.2, grad_dir=(1.0, 0.0))
+        for k in range(3):
+            cv.fill(rect(cv, x - 4 + k * 4 - 1, 62, x - 4 + k * 4 + 1, fy - 12, 1), "#FFD86B", 0.7)
     # curtains
     for sgn in (-1, 1):
-        x_in = W / 2 + sgn * 150
-        edge = [(x_in, 30), (x_in + sgn * 8, 150), (x_in - sgn * 4, 260), (x_in + sgn * 10, 390)]
-        pts = [(W / 2 + sgn * 200, 20)] + edge + [(W / 2 + sgn * 200, 390)]
+        x0 = 0 if sgn < 0 else W
+        s_ = -sgn
+        pts = [(x0 - s_ * 8, -8), (x0 + s_ * 58, -8)] + bez((x0 + s_ * 58, -8), (x0 + s_ * 38, 120),
+                                                          (x0 + s_ * 16, 210), (x0 + s_ * 34, fy + 6), n=24) + \
+            [(x0 - s_ * 8, fy + 6)]
         cur = sd_poly(X, Y, pts)
+        soft_shadow_of(cv, cur, 0, 8, "#3FA38E", 0.3)
+        folds = 0.5 + 0.5 * np.sin((X - x0) * sgn / 7.0)
         w = cv.win(cur < 1)
-        folds = 0.5 + 0.5 * np.cos((X[w] - x_in) * 0.35)
-        col = mix(C(pick(night, "#B01E48", "#5A0F3A")), C(pick(night, "#6A0A2A", "#2A0620")), folds[..., None] * 0.7)
-        cv.paint(np.clip(0.5 - cur[w] * cv.ss, 0, 1), col, 1.0, win=w)
-    val = sd_rect(X, Y, -5, -5, W + 5, 40, 0)
-    cv.fill_grad(val, [(0, pick(night, "#6A0A2A", "#2A0620")), (1, pick(night, "#B01E48", "#5A0F3A"))], axis="y")
-    for k in range(12):
-        cv.fill(sd_circle(X, Y, 15 + k * 30, 40, 15), pick(night, "#8A1238", "#3E0A2C"), 1.0)
-    cv.fill(sd_rect(X, Y, -5, 34, W + 5, 40, 0), "#FFC23D", 0.8)
-    # stage
-    stage_top = sd_poly(X, Y, [(-5, 350), (W + 5, 350), (W + 5, 384), (-5, 384)])
-    planks(cv, stage_top, 180, 200, 7, pick(night, "#9A5A34", "#4A2A3E"), pick(night, "#7A4226", "#3A1E30"),
-           pick(night, "#3A1A10", "#140A14"))
-    front = sd_rect(X, Y, -5, 384, W + 5, 404, 0)
-    cv.fill_grad(front, [(0, pick(night, "#4A2418", "#1E1020")), (1, pick(night, "#2E140E", "#120A14"))], axis="y")
-    for k in range(18):
-        x = 10 + k * 20
-        cv.glow_from(np.clip(0.5 - sd_circle(X, Y, x, 394, 1.6) * cv.ss, 0, 1), 4, "#FFE66D", 0.7, mode="over")
-        cv.fill(sd_circle(X, Y, x, 394, 1.8), "#FFF3B0")
-    # club floor (checker)
-    floor = sd_rect(X, Y, -5, 404, W + 5, H + 5, 0)
-    w = cv.win(floor < 1)
-    dy = np.maximum(Y[w] - 250, 1)
-    u = (X[w] - 180) / dy * 5
-    v = 600.0 / dy
-    chk = ((np.floor(u) + np.floor(v)) % 2)
-    col = mix(C(pick(night, "#3A2438", "#1A1228")), C(pick(night, "#E8D8C0", "#4A3E66")), chk[..., None] * 0.9)
-    cv.paint(np.clip(0.5 - floor[w] * cv.ss, 0, 1), col, 1.0, win=w)
-    # bar counter on the left
-    bar = sd_rect(X, Y, -10, 430, 120, 486, 4)
-    vol(cv, bar, pick(night, "#6B3A2E", "#2E1A28"), light=pick(night, "#A8674E", "#5A3A50"),
-        dark=pick(night, "#34160F", "#12080E"), line="#12080E", lw=1.5, depth=6, spec=0.3)
-    cv.fill(sd_rect(X, Y, -10, 426, 126, 434, 2), pick(night, "#C98A60", "#5A3A70"))
-    # warm stage light pool / night beams
-    if not night:
-        cv.fill(sd_ellipse(X, Y, 180, 366, 150, 26), "#FFC89B", 0.25, soft=16)
-    spotlights(cv, night, [(60, 40, 120, 380, 60, SPOTS[0]), (300, 40, 240, 380, 60, SPOTS[1]),
-                           (180, 40, 180, 380, 50, SPOTS[2])])
-    warm_haze(cv, night)
-    vignette(cv, 0.4)
-    del glass
+        colc = mix(C("#FF5C9A"), C("#FF9CC6"), folds[w] ** 2)
+        colc = mix(colc, C("#E0306F"), (1 - folds[w]) ** 3 * 0.6)
+        cv.paint(np.clip(0.5 - cur[w] * cv.ss, 0, 1), colc, 1.0, win=w)
+        tie = sd_box(X, Y, x0 - sgn * 8, 214, 11, 4.2, 4.2, ang=sgn * -0.2)
+        candy(cv, tie, ("#FFF6C2", "#FFD23F", "#F5A300", "#B86E00"), lw=1.4, depth=3)
+    # valance with gold trim
+    val = rect(cv, -8, -8, W + 8, 30)
+    scal = None
+    for k in range(9):
+        c_ = sd_circle(X, Y, k * 45, 26, 22)
+        scal = c_ if scal is None else U(scal, c_)
+    val = U(val, np.maximum(scal, Y - 50))
+    soft_shadow_of(cv, val, 5, 6, "#3FA38E", 0.3)
+    cv.fill_grad(val, [(0, "#FF9CC6"), (1, "#FF5C9A")], axis="y", p0=0, p1=48)
+    cv.stroke(val + 2, 2.4, "#FFD23F", 1.0)
+    # stage: plank floor, gold front edge with bulbs
+    stage = rect(cv, -8, fy, W + 8, 400)
+    cv.fill_grad(stage, [(0, "#FFD9A8"), (1, "#FFC48A")], axis="y", p0=fy, p1=400)
+    planks(cv, rect(cv, -8, fy, W + 8, 396), 180, 150, 7, "#FFDDB2", "#FFCC96", "#EFA566", alpha=0.9)
+    floor_shade(cv, fy, "#C9784A", 0.18, 14)
+    edge = rect(cv, -8, 394, W + 8, 410, 3)
+    candy(cv, edge, ("#FFF6C2", "#FFD23F", "#F5A300", "#B86E00"), lw=1.4, depth=4, rim=0.3, grad_dir=(0, 1))
+    for k in range(10):
+        bx = 18 + k * 36
+        cv.glow_from(np.clip(0.5 - sd_circle(X, Y, bx, 402, 2.6) * cv.ss, 0, 1), 4, "#FFFFFF", 0.8, mode="over")
+        cv.fill(sd_circle(X, Y, bx, 402, 2.6), "#FFFFFF")
+    # front floor: pastel checker (under the task card and the level button)
+    floor = rect(cv, -8, 410, W + 8, H + 8)
+    tiles(cv, floor, 180, 300, "#FFF3E6", "#FFCFE0", n=6, rows=1500)
+    cv.paint(smoothstep(428, 410, Y) * (Y > 410), C("#D66E8C"), 0.25)
+    for (x, c) in ((110, "#FFFFFF"), (262, "#FFF6BE")):
+        light_pool(cv, x, 330, 76, 20, c, 0.4)
+    # cables that hold the lighting truss
+    _cords(cv, "jazz", "stage_light", [(14, 18), (206, 18)], 220, 240, color="#5E6378", r=1.1)
+    ambient(cv, 21, "#FFFFFF", 0.06)
     return cv
 
 
-# --------------------------------------------------------------- SQUARE
-def _house_row(cv, night, base_y, xs, seed):
+def bg_square():
+    cv = new_canvas()
     X, Y = cv.X, cv.Y
-    g = rng(seed)
-    cols = [("#E07A5F", "#5A2A48"), ("#F2CC8F", "#4A3A5E"), ("#81B29A", "#2A3A4E"), ("#C98BB9", "#4A2A5A"),
-            ("#7FA7D9", "#2A3060")]
-    for i, (x0, x1, h) in enumerate(xs):
-        eve, nig = cols[(i + seed) % len(cols)]
-        body = sd_rect(X, Y, x0, base_y - h, x1, base_y + 10, 1)
-        c0 = mix(C(pick(night, eve, nig)), C(pick(night, "#7B4FA3", "#0D0F2B")), 0.35)
-        cv.fill(body, c0)
-        roof = sd_poly(X, Y, [(x0 - 4, base_y - h), (x1 + 4, base_y - h), ((x0 + x1) / 2, base_y - h - (x1 - x0) * 0.35)])
-        cv.fill(roof, pick(night, "#6A2E3E", "#1A1030"))
-        for wy in np.arange(base_y - h + 12, base_y - 12, 22):
-            for wx in np.arange(x0 + 8, x1 - 12, 16):
-                wd = sd_rect(X, Y, wx, wy, wx + 8, wy + 12, 3)
-                lit = g.random() < pick(night, 0.35, 0.75)
-                if lit and night:
-                    cv.glow_from(np.clip(0.5 - wd * cv.ss, 0, 1), 5, "#FFD27A", 0.5, mode="over")
-                cv.fill(wd, "#FFD27A" if lit else darken(c0, 0.35), 0.95 if lit else 0.9)
-
-
-def bg_square(night):
-    cv = Canvas(W, H, bg="#000000")
-    X, Y = cv.X, cv.Y
-    skyr = sd_rect(X, Y, -5, -5, W + 5, 330, 0)
-    sky(cv, skyr, 0, 330, night, sun=(200, 300), seed=31)
-    if night:
-        moon(cv, 280, 70, 16)
-    skyline(cv, 330, 32, pick(night, "#6A4A8E", "#1A1840"), 40, 110, night, lit=0.25)
-    _house_row(cv, night, 340, [(-10, 44, 150), (44, 96, 190), (96, 130, 120)], 3)
-    _house_row(cv, night, 340, [(236, 272, 130), (272, 318, 200), (318, 372, 160)], 5)
-    ground = sd_rect(X, Y, -5, 336, W + 5, H + 5, 0)
-    cobbles(cv, ground, 180, 250, pick(night, "#C99A7A", "#4A3A5E"), pick(night, "#B08066", "#3A2E50"),
-            pick(night, "#6A4A48", "#1A1430"))
-    ring = sd_ring(X, Y, 180, 440, 0, 0)
-    del ring
-    plaza = sd_ellipse(X, Y, 180, 440, 150, 44)
-    cv.stroke(plaza, 5, pick(night, "#E8C8A8", "#6A5A86"), 0.7)
-    cv.fill(sd_ellipse(X, Y, 180, 440, 138, 38), pick(night, "#D8B090", "#54466E"), 0.35)
-    if not night:
-        cv.fill(sd_ellipse(X, Y, 200, 330, 200, 60), "#FFC89B", 0.2, soft=30)
-    spotlights(cv, night, [(10, 640, 120, 0, 60, SPOTS[0]), (350, 640, 240, 0, 60, SPOTS[1]),
-                           (180, 640, 180, 60, 50, SPOTS[2])])
-    warm_haze(cv, night)
-    vignette(cv, 0.3)
+    fy = FLOOR_Y["square"]
+    f = full(cv)
+    sky(cv, f, 0, fy, sun=(66, 44, 18), clouds=[(250, 56, 0.3, 1.0), (96, 118, 0.22, 0.8)])
+    # back row of houses
+    town(cv, fy, [(-8, 50, 150, TOWN[3], "gable"), (48, 104, 116, TOWN[1], "flat"), (102, 150, 146, TOWN[4], "round"),
+                  (148, 214, 124, TOWN[0], "arch"), (212, 258, 156, TOWN[2], "gable"), (256, 314, 118, TOWN[1], "round"),
+                  (312, 368, 146, TOWN[3], "flat")])
+    # shop awnings along the row
+    for (x0, x1, c) in ((52, 100, "#FF7EB6"), (152, 210, "#3AA4FF"), (260, 310, "#2BE38F")):
+        aw = opening(sd_poly(X, Y, [(x0 - 4, fy - 38), (x1 + 4, fy - 38), (x1 + 8, fy - 24), (x0 - 8, fy - 24)]), 1.5)
+        stripes = ((np.floor((X - x0) / 8)) % 2)[..., None]
+        colr = C(c) * (1 - stripes) + WHITE * stripes
+        w = cv.win(aw < 1)
+        cv.paint(np.clip(0.5 - aw[w] * cv.ss, 0, 1), colr[w], 1.0, win=w)
+        cv.fill(rect(cv, x0 + 6, fy - 22, x1 - 6, fy, 3), "#FFFFFF", 0.95)
+        lit_window(cv, rect(cv, x0 + 10, fy - 18, x1 - 10, fy, 2), 0.9)
+        cv.fill(rect(cv, x0 + 10, fy - 18, x1 - 10, fy, 2), mix(C(c), WHITE, 0.6), 0.6)
+    # side houses framing the square (garland hooks come from the layout)
+    for sgn in (-1, 1):
+        x0 = -10 if sgn < 0 else 306
+        x1 = 54 if sgn < 0 else 370
+        house = rect(cv, x0, 60, x1, 400, 6)
+        soft_shadow_of(cv, house, 0, 8, "#7B4FFF", 0.2)
+        c = C(TOWN[0] if sgn < 0 else TOWN[4])
+        cv.fill_grad(house, [(0, mix(c, WHITE, 0.2)), (1, c)], axis="y", p0=60, p1=400)
+        roof = opening(sd_poly(X, Y, [(x0 - 6, 64), (x1 + 6, 64), ((x0 + x1) / 2, 22)]), 2)
+        cv.fill(roof, ROOFS[0] if sgn < 0 else ROOFS[1])
+        for r in range(5):
+            for k in range(2):
+                wx = x0 + 14 + k * 24 if sgn < 0 else x0 + 12 + k * 24
+                wy = 84 + r * 56
+                lit_window(cv, rect(cv, wx, wy, wx + 14, wy + 22, 7))
+                cv.fill(rect(cv, wx - 3, wy + 22, wx + 17, wy + 26, 2), mix(c, WHITE, 0.5))
+                cv.fill(sd_ellipse(X, Y, wx + 7, wy + 25, 9, 3.5), "#8BE39A")
+    _hooks(cv, "square", "garlands", [(2, 10), (298, 10)], 300, 96)
+    # a nail and a ribbon loop for the crossed trumpets on the facade
+    tx, ty = _item_pt("square", "trumpets", 120, 0, 208, 166)
+    cv.fill(sd_polyline(X, Y, [(tx - 12, ty + 12), (tx, ty - 6), (tx + 12, ty + 12)]) - 1.0, "#FF4D6D", 1.0)
+    cv.fill(sd_circle(X, Y, tx, ty - 6, 2.6), "#FFD23F")
+    # plaza
+    plaza = rect(cv, -8, fy, W + 8, H + 8)
+    cobbles(cv, plaza, 180, 210, "#FFE8D6", "#FFDCC8", "#F3BFA6")
+    floor_shade(cv, fy, "#D66E8C", 0.2, 16)
+    cv.stroke(sd_ellipse(X, Y, 180, 372, 140, 30), 5, "#FFFFFF", 0.7)
+    cv.stroke(sd_ellipse(X, Y, 180, 372, 160, 38), 2, "#FFFFFF", 0.5)
+    # round trees in pots at the sides (behind the items)
+    for (x, y) in ((22, 330), (338, 330)):
+        tr = U(sd_circle(X, Y, x, y - 40, 24), sd_circle(X, Y, x - 16, y - 24, 16), sd_circle(X, Y, x + 16, y - 24, 16))
+        soft_shadow_of(cv, tr, 4, 5, "#3FA38E", 0.25)
+        candy(cv, tr, ("#D8FFE8", "#6FE0A0", "#3BBF7A", "#2A9A60"), lw=2, depth=10, rim=0.4)
+        pot = rect(cv, x - 12, y - 8, x + 12, y + 12, 4)
+        candy(cv, pot, ("#FFE1EE", "#FF9CC6", "#F0508F", "#C22A6C"), lw=1.6, depth=4)
+    ambient(cv, 23, "#FFFFFF", 0.08)
     return cv
 
 
-# --------------------------------------------------------------- STADIUM
-def bg_stadium(night):
-    cv = Canvas(W, H, bg="#000000")
+def bg_stadium():
+    cv = new_canvas()
     X, Y = cv.X, cv.Y
-    skyr = sd_rect(X, Y, -5, -5, W + 5, 300, 0)
-    sky(cv, skyr, 0, 300, night, sun=(170, 250), seed=41)
-    if night:
-        moon(cv, 70, 60, 14)
-    # stadium bowl
-    bowl = U(sd_ellipse(X, Y, 180, 330, 260, 130), sd_rect(X, Y, -5, 330, W + 5, 420, 0))
-    bowl = np.maximum(bowl, 200 - Y)
-    cv.fill_grad(bowl, [(0, pick(night, "#4A2E6E", "#16123A")), (1, pick(night, "#2E1E4E", "#0E0C28"))], axis="y",
-                 p0=200, p1=420)
-    # crowd rows
-    w = cv.win(bowl < 1)
-    g = rng(42)
-    rows = np.floor((Y[w] - 200) / 9)
-    xx = X[w] + (rows % 2) * 4
-    head = np.hypot((xx % 8) - 4, ((Y[w] - 200) % 9) - 4.5)
-    hcol = (np.floor(xx / 8) * 7 + rows * 3) % 6
-    cols = np.stack([C(c) for c in ("#FF4FD8", "#3CF2FF", "#FFE66D", "#C6FF4D", "#FF8E72", "#8C84FF")])
-    cc = cols[hcol.astype(int)]
-    dots = (1 - smoothstep(1.6, 2.6, head)) * np.clip(0.5 - bowl[w] * cv.ss, 0, 1) * (Y[w] > 212)
-    base = mix(C(pick(night, "#6A4A8E", "#2A2458")), cc, pick(night, 0.25, 0.8))
-    cv.paint(dots, base, pick(night, 0.55, 0.85), win=w)
-    del g
-    # rim of the stands
-    rim = np.abs(sd_ellipse(X, Y, 180, 330, 260, 130)) - 2.5
-    cv.fill(np.maximum(rim, 205 - Y), pick(night, "#8C84FF", "#3CF2FF"), 0.8)
+    fy = FLOOR_Y["stadium"]
+    f = full(cv)
+    sky(cv, f, 0, 200, sun=(300, 44, 18), clouds=[(70, 50, 0.3, 1.0), (240, 96, 0.2, 0.8)])
+    # stands: curved tiers
+    for k, (y0, c) in enumerate(((100, "#FF9EC7"), (136, "#7FC8FF"), (172, "#FFD36E"), (208, "#C9A7FF"),
+                                  (244, "#8BE39A"), (280, "#FF9EC7"))):
+        tier = sd_ellipse(X, Y, 180, y0 + 330, 420, 330)
+        tier = np.maximum(tier, -sd_ellipse(X, Y, 180, y0 + 366, 420, 330))
+        cc = C(c)
+        cv.fill(tier, mix(cc, WHITE, 0.1))
+        cv.fill(np.maximum(tier, -(tier + 3.0)), mix(cc, C("#7B4FFF"), 0.18), 0.55)
+        cv.fill(np.maximum(tier + 3.0, -(tier + 5.0)), "#FFFFFF", 0.6)
+    # tiny crowd dots in the stands
+    g = rng(51)
+    crowd = np.full(X.shape, 1e3, F32)
+    for _ in range(170):
+        x = g.random() * W
+        y = 110 + g.random() * 200
+        crowd = np.minimum(crowd, sd_circle(X, Y, x, y, 2.1))
+    cv.fill(np.maximum(crowd, Y - fy + 10), "#FFFFFF", 0.6)
+    # roof truss
+    roof = sd_arc(X, Y, 180, 470, 420, math.radians(220), math.radians(320), 10)
+    candy(cv, roof, ("#FFFFFF", "#F4F0FF", "#CFC4F0", "#9D8FD0"), lw=1.6, depth=4, rim=0.2)
+    for k in range(7):
+        a = math.radians(226 + k * 15)
+        x, y = 180 + 420 * math.cos(a), 470 + 420 * math.sin(a)
+        cv.fill(sd_capsule(X, Y, x, y, x, y + 26, 2), "#FFFFFF", 0.9)
+        lit_window(cv, sd_circle(X, Y, x, y + 28, 4))
+    # field
+    field = sd_ellipse(X, Y, 180, fy + 380, 380, 380)
+    cv.fill(field, "#8BE39A")
+    stripes = ((np.floor((Y - fy) / 22)) % 2) * 1.0
+    cv.fill(np.maximum(field, -0.5 + 0 * X) + (1 - stripes) * 100, "#A8F0B6", 0.9)
+    cv.stroke(sd_ellipse(X, Y, 180, fy + 380, 350, 350), 3, "#FFFFFF", 0.8)
+    cv.stroke(sd_circle(X, Y, 180, 520, 60), 3, "#FFFFFF", 0.7)
+    cv.paint(smoothstep(fy + 20, fy, Y) * (field < 0) * 1.0, C("#3FA38E"), 0.2)
     # light towers
-    for x in (26, 334):
-        cv.fill(sd_rect(X, Y, x - 3, 120, x + 3, 330, 1), pick(night, "#3A2E5E", "#14102E"))
-        panel = sd_rect(X, Y, x - 20, 96, x + 20, 124, 3)
-        cv.fill(panel, pick(night, "#4A3E7E", "#1E1846"))
-        for k in range(8):
-            lx = x - 15 + (k % 4) * 10
-            ly = 104 + (k // 4) * 10
-            d = sd_circle(X, Y, lx, ly, 3)
-            cv.glow_from(np.clip(0.5 - d * cv.ss, 0, 1), 6, "#FFF6C0", pick(night, 0.4, 0.9), mode="over")
-            cv.fill(d, "#FFF6C0")
-    # field / stage floor
-    floor = sd_rect(X, Y, -5, 416, W + 5, H + 5, 0)
-    cv.fill_grad(floor, [(0, pick(night, "#3A2A5E", "#141032")), (1, pick(night, "#241A40", "#0C0A20"))], axis="y")
-    grid = np.maximum(np.minimum(np.abs(((X - 180) / np.maximum(Y - 300, 1) * 8) % 1 - 0.5) - 0.47,
-                                 np.abs((600 / np.maximum(Y - 300, 1)) % 1 - 0.5) - 0.46) * 10, floor)
-    cv.fill(grid, pick(night, "#8C84FF", "#3CF2FF"), 0.18)
-    cv.fill(sd_rect(X, Y, -5, 412, W + 5, 418, 0), pick(night, "#FF8E72", "#FF4FD8"), 0.7)
-    spotlights(cv, night, [(26, 110, 170, 640, 70, SPOTS[0]), (334, 110, 190, 640, 70, SPOTS[1]),
-                           (180, 420, 60, 0, 40, SPOTS[2]), (180, 420, 300, 0, 40, SPOTS[0])])
-    if not night:
-        cv.fill(sd_ellipse(X, Y, 170, 260, 220, 50), "#FFC89B", 0.18, soft=30)
-    warm_haze(cv, night)
-    vignette(cv, 0.3)
+    for sgn in (-1, 1):
+        x = 180 + sgn * 162
+        cv.fill(sd_capsule(X, Y, x, 60, x, 150, 3), "#FFFFFF")
+        panel = rect(cv, x - 18, 40, x + 18, 66, 5)
+        candy(cv, panel, ("#FFFFFF", "#F4F0FF", "#CFC4F0", "#9D8FD0"), lw=1.4, depth=4)
+        for k in range(3):
+            for j in range(2):
+                lit_window(cv, sd_circle(X, Y, x - 10 + k * 10, 48 + j * 10, 3.2))
+    ambient(cv, 29, "#FFFFFF", 0.07)
     return cv
 
 
-# --------------------------------------------------------------- GARAGE
-def bg_garage(night):
-    cv = Canvas(W, H, bg="#000000")
+def bg_garage():
+    cv = new_canvas()
     X, Y = cv.X, cv.Y
-    wall = sd_rect(X, Y, -5, 90, W + 5, 470, 0)
-    bricks(cv, wall, 26, 12, pick(night, "#A85A44", "#4A2A3E"), pick(night, "#8E4A3A", "#3A2032"),
-           pick(night, "#5A2E26", "#1A0E1A"))
-    ceil = sd_rect(X, Y, -5, -5, W + 5, 92, 0)
-    cv.fill_grad(ceil, [(0, pick(night, "#2E1E2A", "#0C0818")), (1, pick(night, "#4A3040", "#1A1228"))], axis="y")
-    for k in range(5):
-        x = 20 + k * 80
-        cv.fill(sd_rect(X, Y, x, 70, x + 10, 92, 0), pick(night, "#5A3A38", "#24162A"))
-    cv.fill(sd_rect(X, Y, -5, 84, W + 5, 94, 0), pick(night, "#5A3A38", "#24162A"))
-    # window (top right, above the door)
-    glass = window_view(cv, (40, 116, 150, 186), night, seed=51)
-    # pegboard
-    peg = sd_rect(X, Y, 150, 250, 214, 330, 3)
-    vol(cv, peg, pick(night, "#C9A070", "#4A3A4E"), line="#1A0F1A", lw=1.2, depth=3, spec=0.1)
-    holes = np.maximum(np.hypot((X % 8) - 4, (Y % 8) - 4) - 0.9, peg + 2)
-    cv.fill(holes, "#3A2418", 0.6)
-    for (x0, y0, x1, y1) in ((162, 262, 162, 300), (176, 264, 186, 296), (198, 262, 198, 292)):
-        cv.fill(sd_capsule(X, Y, x0, y0, x1, y1, 2.2), pick(night, "#6A6F85", "#3A3E55"))
+    fy = FLOOR_Y["garage"]
+    wl = rect(cv, -8, -8, W + 8, fy)
+    wall(cv, wl, [(0, "#CDEBFF"), (1, "#E8F7FF")], 0, fy)
+    # painted brick texture (soft)
+    bw, bh = 24, 12
+    row = np.floor(Y / bh)
+    xo = X + (row % 2) * bw / 2
+    lx = xo % bw
+    ly = Y % bh
+    m = np.minimum(np.minimum(lx, bw - lx), np.minimum(ly, bh - ly))
+    cv.paint(smoothstep(1.2, 0.3, m) * (wl < 0), C("#FFFFFF"), 0.55)
+    # colourful stripe right across the wall, over the door frame
+    for k, c in enumerate(("#FF7EB6", "#FFD23F", "#3AA4FF")):
+        cv.fill(rect(cv, -8, 118 + k * 7, W + 8, 123 + k * 7), c, 0.9)
+    # open garage door: sunny street view
+    op = rect(cv, 204, 148, 332, fy, 4)
+    frame = rect(cv, 196, 140, 340, fy + 2, 8)
+    soft_shadow_of(cv, frame, 4, 8, "#3A7FC9", 0.25)
+    candy(cv, frame, ("#FFE1EE", "#FF9CC6", "#F0508F", "#C22A6C"), lw=1.6, depth=5, rim=0.3)
+    sky(cv, op, 148, fy - 40, sun=(296, 176, 14), clouds=[(246, 186, 0.16, 1.0)],
+        stops=[(0, "#43BFFF"), (0.6, "#8BE0FF"), (1, "#D8F7FF")])
+    town(cv, fy - 36, [(198, 230, 66, TOWN[1], "gable"), (228, 264, 90, TOWN[0], "round"),
+                       (262, 300, 60, TOWN[2], "flat"), (298, 338, 80, TOWN[4], "arch")], clip=op)
+    street = np.maximum(rect(cv, 190, fy - 36, 346, fy + 4), op)
+    cv.fill(street, "#FFE3C4")
+    cv.fill(np.maximum(rect(cv, 190, fy - 36, 346, fy - 31), op), "#FFFFFF", 0.9)
+    tree = np.maximum(U(sd_circle(X, Y, 222, fy - 60, 15), sd_circle(X, Y, 236, fy - 70, 13)), op)
+    cv.fill(tree, "#6FE0A0")
+    for x in (200, 336):
+        cv.fill(rect(cv, x - 3, 142, x + 3, fy, 1.5), "#FFFFFF", 0.8)
+    # ceiling beam with nails for the bulb string
+    beam_ = rect(cv, -8, -8, W + 8, 20)
+    candy(cv, beam_, ("#FFFFFF", "#FFF4E0", "#F2D7B0", "#C28A4E"), lw=1.4, depth=6, rim=0.2, grad_dir=(0, 1))
+    _hooks(cv, "garage", "strings", [(2, 10), (254, 10)], 256, 100)
     # floor
-    floor = sd_rect(X, Y, -5, 470, W + 5, H + 5, 0)
-    cv.fill_grad(floor, [(0, pick(night, "#8A7478", "#2E2640")), (1, pick(night, "#6A5660", "#1E1830"))], axis="y")
-    n = noise2(cv.a.shape, 30 * cv.ss, seed=52, octaves=3)
-    w = cv.win(floor < 1)
-    cv.paint(n[w] * np.clip(0.5 - floor[w] * cv.ss, 0, 1), C(pick(night, "#5A4650", "#14102A")), 0.25, win=w)
-    for k in range(4):
-        x = 30 + k * 100
-        cv.fill(sd_polyline(X, Y, [(x, 470), (x - 60 + k * 30, 640)]) - 0.8, pick(night, "#5A4650", "#14102A"), 0.6)
-    cv.fill(sd_ellipse(X, Y, 230, 560, 40, 9), pick(night, "#4A3A48", "#100C20"), 0.5, soft=3)
-    cv.fill(sd_rect(X, Y, -5, 466, W + 5, 472, 0), pick(night, "#4A2A22", "#140A14"))
-    # rug under the drums
-    rug = sd_ellipse(X, Y, 170, 420, 120, 24)
-    del rug
-    if not night:
-        patch = sd_poly(X, Y, [(40, 472), (150, 472), (120, 600), (0, 600)])
-        cv.fill(patch, "#FFC89B", 0.12, soft=12)
-        cv.glow_from(np.clip(0.5 - glass * cv.ss, 0, 1), 26, "#FFB36B", 0.3, mode="over")
-    spotlights(cv, night, [(20, 94, 180, 640, 80, SPOTS[0]), (340, 94, 160, 640, 80, SPOTS[1]),
-                           (180, 94, 190, 640, 60, SPOTS[2])])
-    warm_haze(cv, night)
-    vignette(cv, 0.35)
+    floor = rect(cv, -8, fy, W + 8, H + 8)
+    tiles(cv, floor, 180, 220, "#FFF1DE", "#FFE6CC", n=5, rows=1300, seam="#F2CFA6")
+    cv.fill(rect(cv, -8, fy - 4, W + 8, fy + 4, 2), "#FFFFFF")
+    floor_shade(cv, fy + 4, "#C9784A", 0.18, 18)
+    # rug under the drum kit
+    rcx, rcy = 150, fy + 72
+    rug = sd_ellipse(X, Y, rcx, rcy, 112, 22)
+    soft_shadow_of(cv, rug, 2, 3, "#C9784A", 0.25)
+    t = np.clip((np.arctan2(Y - rcy, (X - rcx) * 0.22) + math.pi) / (2 * math.pi), 0, 1)
+    rb = ramp((t * 6) % 1.0, [(0, "#FF9EC7"), (0.5, "#FFD36E"), (1, "#FF9EC7")])
+    w = cv.win(rug < 1)
+    cv.paint(np.clip(0.5 - rug[w] * cv.ss, 0, 1), rb[w], 1.0, win=w)
+    cv.stroke(sd_ellipse(X, Y, rcx, rcy, 97, 17), 3, "#FFFFFF", 0.8)
+    pool = sd_poly(X, Y, [(204, fy + 4), (332, fy + 4), (360, fy + 96), (178, fy + 96)])
+    cv.fill(pool, "#FFFFFF", 0.3, soft=14)
+    ambient(cv, 31, "#FFFFFF", 0.07)
     return cv
 
 
 BG_FUNCS = {"cafe": bg_cafe, "jazz": bg_jazz, "square": bg_square, "stadium": bg_stadium, "garage": bg_garage}
 
-# Scene composition (720x1280, y down). Centers refer to the (trimmed) item image.
+
+# ==========================================================================
+# concert re-light
+# ==========================================================================
+# spotlight cones: (x at the top, x on the floor, colour index); pools land on the floor line + depth
+CONCERT_CONES = {
+    "cafe": [(40, 96, 0), (150, 176, 1), (250, 206, 2), (330, 292, 0)],
+    "jazz": [(70, 104, 1), (180, 180, 2), (290, 262, 0), (130, 150, 0)],
+    "square": [(0, 96, 0), (120, 158, 2), (240, 214, 1), (360, 280, 0)],
+    "stadium": [(18, 110, 1), (130, 160, 0), (230, 200, 2), (342, 262, 1), (180, 180, 0)],
+    "garage": [(30, 92, 0), (160, 160, 1), (260, 236, 2), (350, 300, 1)],
+}
+
+
+def concert(district):
+    MODE.concert = True
+    try:
+        cv = BG_FUNCS[district]()
+    finally:
+        MODE.concert = False
+    X, Y = cv.X, cv.Y
+    fy = FLOOR_Y[district]
+    with raw(cv):
+        # a gentle darkening toward the top so the neon reads, nothing near black; the floor keeps its own
+        # hue but sinks toward the concert violet so the spotlight pools pop
+        cv.paint(smoothstep(fy, 0, Y) * 0.25, C(CONCERT[0][1]), 0.5)
+        cv.paint(smoothstep(fy - 2, fy + 10, Y), C(CONCERT[1][1]), 0.32)
+        # spotlight cones (added as light) + their pools and reflections on the floor
+        for (x0, x1, ci) in CONCERT_CONES[district]:
+            col = SPOTS[ci]
+            ye = fy + 64
+            beam(cv, x0, -12, x1, ye, 4, 44, col, 0.30, fade=0.35)
+            beam(cv, x0, -12, x1, ye, 1.5, 14, "#FFFFFF", 0.12, fade=0.5)
+            light_pool(cv, x1, ye, 58, 13, col, 0.55, mode="add")
+            light_pool(cv, x1, ye, 26, 6, "#FFFFFF", 0.35, mode="add")
+            refl = np.exp(-((X - x1) / 10) ** 2) * smoothstep(ye, ye + 12, Y) * smoothstep(ye + 150, ye + 20, Y)
+            cv.paint(np.clip(refl, 0, 1) * (Y > fy), C(col), 0.35, mode="add")
+            cv.glow_from(np.clip(0.5 - sd_circle(X, Y, x0, 4, 9) * cv.ss, 0, 1), 12, col, 0.9, mode="add")
+        # bokeh + confetti sparkles above the floor
+        g = rng(sum(ord(ch) * (i + 1) for i, ch in enumerate(district)) + 5)
+        for _ in range(26):
+            x, y = g.random() * W, 20 + g.random() * (fy - 40)
+            r = 2 + g.random() * 5
+            c = SPOTS[int(g.random() * 3)]
+            cv.fill(sd_circle(X, Y, x, y, r), c, 0.2 + 0.2 * g.random(), soft=r * 0.6)
+        for _ in range(12):
+            x, y = g.random() * W, 20 + g.random() * (fy - 30)
+            sparkle4(cv, x, y, 3 + g.random() * 4, WHITE, 0.9)
+        # neon string along the top
+        pts = []
+        for i in range(3):
+            pts += bez((i * 120 - 1, 6), (i * 120 + 60, 26), (i * 120 + 121, 6), n=18)[:-1]
+        pts.append((W + 1, 6))
+        string_lights(cv, pts, SPOTS, r=2.4, every=3)
+        # floor glow
+        cv.paint(smoothstep(fy, H, Y) * 0.6, C("#FF6FD8"), 0.18)
+    return cv
+
+
+# ==========================================================================
+# scene layout (720x1280 scene px, centre of the item image, scale)
+# ==========================================================================
 LAYOUT = {
     "cafe": {
-        "sign": (184, 262, 0.86), "lamps": (410, 292, 0.86), "cat": (572, 604, 0.78),
-        "piano": (190, 772, 0.94), "plants": (382, 856, 0.8), "turntable": (560, 850, 0.84),
+        "lamps": (360, 348, 0.66), "cat": (574, 418, 0.66), "sign": (360, 540, 0.56),
+        "piano": (160, 690, 0.72), "turntable": (370, 712, 0.66), "plants": (578, 694, 0.72),
     },
     "jazz": {
-        "stage_light": (344, 290, 0.9), "neon": (170, 420, 0.84), "grand_piano": (222, 652, 1.0),
-        "double_bass": (566, 634, 0.94), "vibes": (178, 890, 0.8), "sax": (400, 866, 0.72),
-        "trumpet": (566, 908, 0.7),
+        "stage_light": (382, 330, 0.7), "neon": (160, 322, 0.6), "grand_piano": (240, 586, 0.74),
+        "double_bass": (578, 560, 0.7), "vibes": (160, 722, 0.6), "sax": (376, 712, 0.5),
+        "trumpet": (568, 738, 0.56),
     },
     "square": {
-        "garlands": (360, 262, 1.8), "lanterns": (140, 480, 0.84), "truck_stage": (400, 520, 0.98),
-        "tuba": (138, 728, 0.78), "trumpets": (560, 724, 0.78), "fountain": (362, 812, 0.98),
-        "confetti": (156, 918, 0.74), "clarinet": (590, 906, 0.7),
+        "garlands": (360, 322, 1.7), "lanterns": (106, 540, 0.66), "truck_stage": (380, 520, 0.66),
+        "tuba": (600, 580, 0.56), "trumpets": (596, 432, 0.46), "fountain": (330, 700, 0.66),
+        "confetti": (130, 712, 0.52), "clarinet": (560, 716, 0.46),
     },
     "stadium": {
-        "fireworks": (186, 290, 0.9), "lasers": (528, 300, 0.88), "screens": (360, 482, 0.94),
-        "choir": (150, 598, 0.7), "dancers": (570, 598, 0.74), "stage": (362, 722, 0.94),
-        "fog": (162, 884, 0.78), "lightsticks": (540, 884, 0.84),
+        "fireworks": (142, 330, 0.62), "lasers": (578, 326, 0.6), "screens": (360, 330, 0.6),
+        "choir": (140, 540, 0.62), "dancers": (580, 540, 0.62), "stage": (360, 560, 0.72),
+        "fog": (150, 718, 0.6), "lightsticks": (560, 710, 0.64),
     },
     "garage": {
-        "strings": (360, 256, 1.8), "posters": (176, 430, 0.8), "tambourine": (352, 424, 0.68),
-        "garage_door": (534, 482, 0.94), "bass_guitar": (112, 704, 0.8), "drum_kit": (326, 726, 0.94),
-        "amp": (570, 712, 0.78), "keyboard": (206, 904, 0.8), "mic_stand": (596, 906, 0.7),
+        "strings": (228, 302, 1.3), "posters": (112, 430, 0.5), "tambourine": (334, 420, 0.44),
+        "garage_door": (536, 372, 1.0), "bass_guitar": (232, 470, 0.56), "drum_kit": (300, 660, 0.7),
+        "amp": (112, 640, 0.56), "keyboard": (500, 730, 0.52), "mic_stand": (636, 690, 0.46),
     },
 }

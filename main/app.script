@@ -1,0 +1,271 @@
+-- Application root: boots the shared state, owns the screen manager and the
+-- QA bridge. Screens are collections behind collection proxies on "/screens";
+-- switching fades the overlay out (0.25 s), unloads the old screen, loads the
+-- new one and fades back in (0.25 s).
+--
+-- Message protocol (from any script, any collection):
+--   msg.post("main:/app", "show_screen", {name = "splash"|"town"|"level", params = {...}})
+-- The params reach the new screen as require("client.app").params. A request
+-- during a transition is queued (the last one wins).
+
+local app = require("client.app")
+local bus = require("client.bus")
+local i18n = require("client.i18n")
+local save_io = require("client.save_io")
+local platform = require("client.platform")
+local audio = require("client.audio")
+local qa_bridge = require("client.qa_bridge")
+local analytics = require("client.services.analytics")
+local iap = require("client.services.iap")
+local ads = require("client.services.ads")
+
+local FADE = 0.25
+local OVERLAY = "main:/overlay#overlay"
+
+local MSG_SHOW_SCREEN = hash("show_screen")
+local MSG_PROXY_LOADED = hash("proxy_loaded")
+local MSG_PROXY_UNLOADED = hash("proxy_unloaded")
+local MSG_FADE_OUT_DONE = hash("fade_out_done")
+local MSG_FADE_IN_DONE = hash("fade_in_done")
+
+local function proxy_url(name)
+	return msg.url("main", "/screens", name)
+end
+
+local function load_districts()
+	local data, err = sys.load_resource("/content/districts.json")
+	if not data then error("cannot load /content/districts.json: " .. tostring(err)) end
+	return json.decode(data)
+end
+
+-- screen state machine -------------------------------------------------------------------
+
+local begin_load
+
+local function start_transition(self, name, params)
+	self.busy = true
+	app.transitioning = true
+	app.pending = { name = name, params = params }
+	self.target = { name = name, params = params }
+	if self.current then
+		msg.post(OVERLAY, "fade_out", { duration = FADE })
+	else
+		begin_load(self)
+	end
+end
+
+begin_load = function(self)
+	msg.post(proxy_url(self.target.name), "async_load")
+end
+
+local function show_screen(self, name, params)
+	if not app.is_screen(name) then
+		print("WARNING: app: unknown screen '" .. tostring(name) .. "'")
+		return false
+	end
+	if self.busy then
+		self.queued = { name = name, params = params }
+		return true
+	end
+	start_transition(self, name, params or {})
+	return true
+end
+
+local function on_fade_out_done(self)
+	if self.current then
+		msg.post(proxy_url(self.current), "unload")
+	else
+		begin_load(self)
+	end
+end
+
+local function on_proxy_unloaded(self)
+	self.current = nil
+	begin_load(self)
+end
+
+local function on_proxy_loaded(self, sender)
+	-- params first: the screen's init() reads app.params
+	app.params = self.target.params or {}
+	msg.post(sender, "init")
+	msg.post(sender, "enable")
+	self.current = self.target.name
+	msg.post(OVERLAY, "fade_in", { duration = FADE })
+end
+
+local function on_fade_in_done(self)
+	local t = self.target
+	self.target = nil
+	self.busy = false
+	app.transitioning = false
+	app.set_screen(t.name, t.params)
+	if self.queued then
+		local q = self.queued
+		self.queued = nil
+		show_screen(self, q.name, q.params)
+	end
+end
+
+-- QA bridge commands ------------------------------------------------------------------------
+
+local function qa_handlers(self)
+	return {
+		state = function() return { ok = true } end,
+		["goto"] = function(args)
+			local name = args[1]
+			local params = {}
+			if args[2] then params.level = tonumber(args[2]) end
+			if name == "level" and not params.level then params.level = app.meta:level_to_play() or 1 end
+			return { ok = show_screen(self, name, params), screen = name }
+		end,
+		level = function(args)
+			local n = tonumber(args[1]) or app.meta:level_to_play() or 1
+			return { ok = show_screen(self, "level", { level = n }), level = n }
+		end,
+		set_coins = function(args)
+			local n = tonumber(args[1])
+			if not n then return { ok = false, error = "set_coins needs a number" } end
+			local delta = n - app.meta:coins()
+			if delta < 0 then return { ok = false, error = "can only add coins (meta has no debug spend)" } end
+			app.meta:grant({ coins = delta }, "debug_qa", app.now())
+			app.commit("qa")
+			return { ok = true, coins = app.meta:coins() }
+		end,
+		lang = function(args)
+			local ok, why = app.set_setting("language", args[1] or "auto")
+			return { ok = ok, error = why, language = i18n.language() }
+		end,
+		reset_save = function()
+			app.reset_save(platform.random_seed(), app.now())
+			return { ok = true }
+		end,
+		toast = function(args, cmd)
+			app.toast(string.sub(cmd, 7))
+			return { ok = true }
+		end,
+		music = function(args)
+			audio.music(args[1] or app.focus_district(), { all = args[2] == "all" })
+			return { ok = true }
+		end,
+		sfx = function(args)
+			audio.sfx(args[1] or "tap")
+			return { ok = true }
+		end,
+		note = function(args)
+			audio.play_note(args[1] or "red", tonumber(args[2]) or 1)
+			return { ok = true }
+		end,
+	}
+end
+
+-- lifecycle --------------------------------------------------------------------------------------
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	msg.post("/screens", "acquire_input_focus")
+
+	local debug = platform.is_debug()
+	analytics.init({ strict = debug, echo = false, clock = platform.now })
+	app.init({
+		districts = load_districts(),
+		store = save_io.new(save_io.defold_backend()),
+		seed = platform.random_seed(),
+		now = platform.now(),
+		clock = platform.now,
+		sys_language = platform.language(),
+		debug = debug,
+	})
+	iap.init({
+		debug = debug,
+		grant = function(reward, tag)
+			local ok, why = app.meta:grant(reward, tag, app.now())
+			app.commit(tag)
+			return ok, why
+		end,
+	})
+	ads.init({ debug = debug })
+
+	self.busy = false
+	self.current = nil
+	self.tick = 0
+
+	qa_bridge.init({
+		enabled = debug and platform.is_html5(),
+		run_js = html5 and html5.run or nil,
+		encode = json.encode,
+		handlers = qa_handlers(self),
+		snapshot = function() return app.snapshot() end,
+	})
+	sys.set_error_handler(function(source, message, traceback)
+		qa_bridge.record_error(message)
+		pcall(analytics.log, "lua_error", { message = tostring(message) })
+	end)
+
+	window.set_listener(function(_, event)
+		if event == window.WINDOW_EVENT_FOCUS_LOST or event == window.WINDOW_EVENT_ICONIFIED then
+			app.commit("background", true)
+		end
+	end)
+
+	-- the overlay starts opaque; put it above the screens in the input stack
+	msg.post(OVERLAY, "take_focus")
+	show_screen(self, "splash", {})
+end
+
+function final(self)
+	app.commit("exit", true)
+end
+
+function update(self, dt)
+	self.tick = self.tick + dt
+	if self.tick >= 1 then
+		self.tick = self.tick - 1
+		app.tick(app.now())
+	end
+	qa_bridge.update()
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == MSG_SHOW_SCREEN then
+		show_screen(self, message.name, message.params)
+	elseif message_id == MSG_PROXY_LOADED then
+		on_proxy_loaded(self, sender)
+	elseif message_id == MSG_PROXY_UNLOADED then
+		on_proxy_unloaded(self)
+	elseif message_id == MSG_FADE_OUT_DONE then
+		on_fade_out_done(self)
+	elseif message_id == MSG_FADE_IN_DONE then
+		on_fade_in_done(self)
+	end
+end
+
+-- debug keys (input/game.input_binding); screens get input through the proxies
+local DEBUG_KEYS = {
+	[hash("debug_town")] = function(self) show_screen(self, "town", {}) end,
+	[hash("debug_level")] = function(self) show_screen(self, "level", { level = app.meta:level_to_play() or 1 }) end,
+	[hash("debug_splash")] = function(self) show_screen(self, "splash", {}) end,
+	[hash("debug_coins")] = function()
+		app.meta:grant({ coins = 1000 }, "debug_key", app.now())
+		app.commit("debug")
+		app.toast(i18n.t("toast.debug_coins", { n = 1000 }))
+	end,
+	[hash("debug_language")] = function()
+		app.set_setting("language", i18n.language() == "ru" and "en" or "ru")
+		app.toast(i18n.t("toast.language"))
+	end,
+	[hash("debug_reset_save")] = function(self)
+		app.reset_save(platform.random_seed(), app.now())
+		app.toast(i18n.t("toast.debug_reset"))
+		show_screen(self, "splash", {})
+	end,
+}
+
+function on_input(self, action_id, action)
+	if not app.debug or not action.released then return false end
+	local fn = DEBUG_KEYS[action_id]
+	if fn then
+		fn(self)
+		return true
+	end
+	return false
+end

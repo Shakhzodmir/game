@@ -9,6 +9,11 @@ cd "$(dirname "$0")/.."
 BOB="${BOB:-./bob.jar}"
 JAVA="${JAVA:-java}"
 VARIANT="${VARIANT:-release}"
+# keep atlases, fonts, sound components and client/assets_index.lua in sync
+# with whatever is in assets/ right now
+if command -v python3 >/dev/null 2>&1; then
+	python3 tools/gen_defold.py
+fi
 "$JAVA" -jar "$BOB" --platform wasm-web --architectures wasm-web \
 	--variant "$VARIANT" --archive --bundle-output dist \
 	resolve distclean build bundle

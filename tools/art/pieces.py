@@ -16,9 +16,12 @@ FILL = 134          # 84 % of 160
 CENTER = (80.0, 78.5)
 
 
-def _finish(cv, cy=CENTER[1]):
-    out = fit(cv, FILL, CENTER[0], cy)
-    soft_shadow(out, 0, 2.6, 2.4, PIECE_SHADOW, 0.34)
+SHADOW_ALPHA = 0.5      # gives a visible peak of ~32 % just below the piece (spec: 30-35 %)
+
+
+def _finish(cv, cy=CENTER[1], box=FILL):
+    out = fit(cv, box, CENTER[0], cy)
+    soft_shadow(out, 0, 2.6, 2.4, PIECE_SHADOW, SHADOW_ALPHA)
     return out
 
 
@@ -31,10 +34,13 @@ def _poly_sdf(cv, path, scale, ox, oy):
 PICK_PATH = "M20 37 C13 31 5 19 6 11 C7 5 13 3 20 3 C27 3 33 5 34 11 C35 19 27 31 20 37 Z"
 
 
-def pick_sdf(cv, cx=80.0, cy=80.0, s=1.0):
+def pick_sdf(cv, cx=80.0, cy=80.0, s=1.0, ang=0.0):
     k = 3.95 * s
-    raw = _poly_sdf(cv, PICK_PATH, k, cx - 20 * k, cy - 20 * k)
-    return opening(raw, 7 * s, cv.ss)
+    pts = svg_path(PICK_PATH, k, cx - 20 * k, cy - 20 * k, n=24)[0]
+    if ang:
+        ca, sa = math.cos(ang), math.sin(ang)
+        pts = [(cx + (x - cx) * ca - (y - cy) * sa, cy + (x - cx) * sa + (y - cy) * ca) for x, y in pts]
+    return opening(sd_poly(cv.X, cv.Y, pts), 7 * s, cv.ss)
 
 
 def draw_red():
@@ -132,9 +138,18 @@ def draw_yellow():
 
 
 # ------------------------------------------------------ green: eighth note
-def note_sdf(X, Y, ox=0.0, oy=0.0, s=1.0):
+def note_sdf(X, Y, ox=0.0, oy=0.0, s=1.0, bold=False):
+    """Eighth note. bold=True is the chunky board-piece version (thicker stem, bigger head, wider flag)."""
     def p(x, y):
         return ox + x * s, oy + y * s
+    if bold:
+        hx, hy = p(56, 112)
+        head = sd_ellipse(X, Y, hx, hy, 46 * s, 35 * s, ang=math.radians(-24))
+        stem = sd_capsule(X, Y, *p(86, 104), *p(86, 26), 15.5 * s)
+        fl = bez(p(86, 20), p(108, 48), p(154, 50), p(132, 110), n=28)
+        flag = sd_polyline(X, Y, fl, list(np.linspace(23, 8.5, len(fl)) * s))
+        d = SU(head, stem, 9 * s)
+        return SU(d, flag, 12 * s)
     hx, hy = p(58, 116)
     head = sd_ellipse(X, Y, hx, hy, 34 * s, 25 * s, ang=math.radians(-24))
     sx0, sy0 = p(84, 110)
@@ -150,16 +165,16 @@ def note_sdf(X, Y, ox=0.0, oy=0.0, s=1.0):
 def draw_green():
     cv = Canvas(160, 160)
     X, Y = cv.X, cv.Y
-    sil = note_sdf(X, Y, 0, -2)
-    candy(cv, sil, PIECES["green"], lw=OUTLINE, depth=18, lift=0.55, shade=0.4)
+    sil = note_sdf(X, Y, 0, -2, bold=True)
+    candy(cv, sil, PIECES["green"], lw=OUTLINE, depth=22, lift=0.55, shade=0.4)
     clip = sil + OUTLINE + 2
-    gloss_drop(cv, 44, 104, 11, 6, math.radians(-30), clip, alpha=0.85)
-    gloss_drop(cv, 33, 118, 3.0, 2.6, 0, clip, alpha=0.8)
-    stem_hl = sd_capsule(X, Y, 81, 34, 81, 84, 2.4)
+    gloss_drop(cv, 40, 100, 13, 7, math.radians(-30), clip, alpha=0.85)
+    gloss_drop(cv, 27, 116, 3.4, 3.0, 0, clip, alpha=0.8)
+    stem_hl = sd_capsule(X, Y, 80, 34, 80, 82, 3.0)
     cv.fill(np.maximum(stem_hl, clip), WHITE, 0.7, soft=0.6)
-    fl_hl = sd_polyline(X, Y, bez((92, 26), (104, 44), (124, 50), n=12), list(np.linspace(3.2, 1.2, 13)))
+    fl_hl = sd_polyline(X, Y, bez((94, 26), (108, 44), (130, 50), n=12), list(np.linspace(4.0, 1.4, 13)))
     cv.fill(np.maximum(fl_hl, clip), WHITE, 0.7, soft=0.6)
-    return _finish(cv)
+    return _finish(cv, box=141)     # optical sizing: the sparse note reads smaller
 
 
 # -------------------------------------------------------- blue: cassette
@@ -204,15 +219,15 @@ def draw_blue():
     clip = sil + OUTLINE + 2
     rim_gloss(cv, sil, cx, cy, -150, 40, OUTLINE + 2.0, 6, alpha=0.75)
     gloss_drop(cv, 42, 38, 9, 3.8, math.radians(-12), clip, alpha=0.85)
-    return _finish(cv)
+    return _finish(cv, box=126)
 
 
 # -------------------------------------------------- purple: headphones
 def phones_sdf(X, Y, cx=80.0, cy=80.0, s=1.0):
-    band = sd_arc(X, Y, cx, cy + 6 * s, 48 * s, math.radians(180), math.radians(360), 17 * s)
-    lc = sd_box(X, Y, cx - 48 * s, cy + 26 * s, 19 * s, 29 * s, 16 * s)
-    rc = sd_box(X, Y, cx + 48 * s, cy + 26 * s, 19 * s, 29 * s, 16 * s)
-    return SU(SU(band, lc, 4 * s), rc, 4 * s), band, lc, rc
+    band = sd_arc(X, Y, cx, cy + 6 * s, 47 * s, math.radians(180), math.radians(360), 27 * s)
+    lc = sd_box(X, Y, cx - 46 * s, cy + 27 * s, 27 * s, 37 * s, 21 * s)
+    rc = sd_box(X, Y, cx + 46 * s, cy + 27 * s, 27 * s, 37 * s, 21 * s)
+    return SU(SU(band, lc, 5 * s), rc, 5 * s), band, lc, rc
 
 
 def draw_purple():
@@ -221,21 +236,21 @@ def draw_purple():
     X, Y = cv.X, cv.Y
     # cushions peek out on the inner side of the cups (behind)
     for sgn in (-1, 1):
-        cush = sd_box(X, Y, 80 + sgn * 31, 106, 8, 25, 8)
+        cush = sd_box(X, Y, 80 + sgn * 24, 108, 9, 28, 9)
         candy(cv, cush, ("#FFFFFF", "#F0E4FF", "#C8A8FF", line), lw=2.4, depth=5, rim=0.2)
     sil, band, lc, rc = phones_sdf(X, Y)
-    candy(cv, sil, PIECES["purple"], lw=OUTLINE, depth=11, lift=0.6, shade=0.35)
+    candy(cv, sil, PIECES["purple"], lw=OUTLINE, depth=14, lift=0.6, shade=0.35)
     # caps on the cups
     for sgn in (-1, 1):
-        cxp = 80 + sgn * 49
-        cap = sd_ellipse(X, Y, cxp, 107, 12.5, 18)
-        candy(cv, cap, ("#F3E8FF", "#C79BFF", "#9B52FF", line), lw=2.0, depth=8, rim=0.4, lift=0.6)
-        cv.fill(sd_ellipse(X, Y, cxp - 3, 99, 3.6, 5.2, -0.3), WHITE, 0.9, soft=0.5)
+        cxp = 80 + sgn * 48
+        cap = sd_ellipse(X, Y, cxp, 109, 17, 25)
+        candy(cv, cap, ("#F3E8FF", "#C79BFF", "#9B52FF", line), lw=2.2, depth=9, rim=0.4, lift=0.6)
+        cv.fill(sd_ellipse(X, Y, cxp - 4, 99, 4.2, 6.2, -0.3), WHITE, 0.9, soft=0.5)
     clip = sil + OUTLINE + 2
-    rim_gloss(cv, band, 80, 86, -135, 28, OUTLINE + 1.5, 6.5, alpha=0.8)
-    rim_gloss(cv, band, 80, 86, -60, 14, OUTLINE + 1.5, 4.0, alpha=0.45)
-    gloss_drop(cv, 26, 88, 3.2, 6.5, 0, clip, alpha=0.85)
-    return _finish(cv)
+    rim_gloss(cv, band, 80, 86, -135, 28, OUTLINE + 2.0, 8.5, alpha=0.8)
+    rim_gloss(cv, band, 80, 86, -60, 14, OUTLINE + 2.0, 5.0, alpha=0.45)
+    gloss_drop(cv, 21, 92, 3.8, 8, 0, clip, alpha=0.85)
+    return _finish(cv, box=140)
 
 
 PIECE_FUNCS = {"red": draw_red, "orange": draw_orange, "yellow": draw_yellow,
@@ -257,32 +272,42 @@ def bolt_sdf(X, Y, cx, cy, s=1.0):
 
 
 def draw_riff():
+    """Horizontal riff: a lightning bolt through a guitar pick ("molniya-mediator"), pale cyan fill with a
+    3 px #1FA8E6 outline so it reads on white cells without relying on the glow."""
     cv = Canvas(192, 192)
     X, Y = cv.X, cv.Y
     cx, cy = 96.0, 96.0
     # speed streaks behind
     streaks = cv.blank()
-    for (oy, x0, x1, r) in ((-44, 8, 58, 3.4), (46, 14, 66, 3.2), (-60, 30, 66, 2.4), (62, 36, 72, 2.2)):
+    for (oy, x0, x1, r) in ((-44, 10, 56, 3.4), (46, 14, 62, 3.2), (-62, 30, 64, 2.4), (62, 34, 70, 2.2)):
         for sgn in (-1, 1):
             a, b = cx + sgn * (96 - x0), cx + sgn * (96 - x1)
             d = sd_taper(X, Y, b, cy + oy * 0.55 * sgn, a, cy + oy * 0.55 * sgn, r, 0.6)
-            streaks.fill(d, "#8FF0FF", 0.9)
+            streaks.fill(d, "#5CD9FF", 0.9)
             streaks.fill(d + 1.4, "#FFFFFF", 0.8)
     cv.over(streaks)
-    sil = bolt_sdf(X, Y, cx, cy, 1.1)
-    _glow(cv, sil - 3, 24, RIFF_GLOW, 0.95, mode="over", gain=1.3)
-    _glow(cv, sil, 9, "#9FF4FF", 0.9, mode="over", gain=1.6)
-    candy(cv, sil, ("#FFFFFF", "#F4FEFF", "#8FE6FF", RIFF_LINE), lw=3.4, depth=12, lift=0.35, shade=0.55, rim=0.3,
-          stops=(0.0, 0.5, 1.0))
-    # hot cyan core seam
-    core = sd_polyline(X, Y, [(cx - 70, cy + 3), (cx - 20, cy - 14), (cx + 20, cy - 13), (cx + 70, cy - 3)])
-    cv.fill(np.maximum(core - 1.6, sil + 7), "#BFF6FF", 0.9, soft=1.2)
-    clip = sil + 5.5
-    gloss_drop(cv, cx - 42, cy - 8, 13, 3.6, math.radians(-30), clip, alpha=0.95)
-    gloss_drop(cv, cx + 30, cy - 18, 8, 2.6, math.radians(-30), clip, alpha=0.8)
-    sparkle4(cv, cx + 58, cy - 40, 12, WHITE, glow=6, glow_color=RIFF_GLOW)
-    sparkle4(cv, cx - 60, cy + 38, 9, WHITE, glow=5, glow_color=RIFF_GLOW)
-    soft_shadow(cv, 0, 3, 3, PIECE_SHADOW, 0.25)
+    bolt = bolt_sdf(X, Y, cx, cy, 1.08)
+    pk = pick_sdf(cv, cx, cy + 2, s=0.5)
+    sil = SU(bolt, pk, 4)
+    _glow(cv, sil - 3, 22, RIFF_GLOW, 0.85, mode="over", gain=1.2)
+    candy(cv, sil, ("#F2FEFF", "#B8F3FF", "#6FDDFF", RIFF_LINE), lw=3.0, depth=12, lift=0.45, shade=0.45,
+          rim=0.35, stops=(0.0, 0.45, 1.0))
+    # pick medallion: white face with a cyan ring, the bolt's core crosses it
+    inner = pk + 5.5
+    candy(cv, inner, ("#FFFFFF", "#FFFFFF", "#D6F8FF", "#6FDDFF"), lw=1.6, depth=6, rim=0.2)
+    core = sd_polyline(X, Y, [(cx - 72, cy + 4), (cx - 20, cy - 12), (cx - 2, cy + 2), (cx + 20, cy - 12),
+                              (cx + 72, cy - 4)])
+    cv.fill(np.maximum(core - 2.2, sil + 6.5), "#E8FCFF", 0.95, soft=0.8)
+    zz = sd_polyline(X, Y, [(cx - 8, cy - 10), (cx + 3, cy - 1), (cx - 4, cy + 2), (cx + 7, cy + 12)]) - 2.6
+    cv.fill(zz - 1.4, "#FFFFFF", 1.0)
+    cv.fill(zz, RIFF_LINE, 1.0)
+    clip = sil + 5.0
+    gloss_drop(cv, cx - 46, cy - 6, 12, 3.4, math.radians(-30), clip, alpha=0.95)
+    gloss_drop(cv, cx + 36, cy - 17, 7, 2.4, math.radians(-30), clip, alpha=0.85)
+    gloss_drop(cv, cx - 8, cy - 13, 4, 1.8, math.radians(-20), inner + 2, alpha=0.9)
+    sparkle4(cv, cx + 60, cy - 42, 12, WHITE, glow=6, glow_color=RIFF_GLOW)
+    sparkle4(cv, cx - 62, cy + 40, 9, WHITE, glow=5, glow_color=RIFF_GLOW)
+    soft_shadow(cv, 0, 3, 3, PIECE_SHADOW, 0.3)
     return cv
 
 
@@ -353,6 +378,14 @@ def draw_bird():
     sil = SU(SU(body, head, 16), tail, 8)
     # white outline (drawn as a slightly grown white sticker edge)
     lay.fill(sil - 4.0, "#FFFFFF")
+    # legs + three-toed feet: they start inside the body so they read as attached
+    for lx, lean in ((cx - 10, -2.0), (cx + 12, 2.0)):
+        leg = sd_capsule(X, Y, lx, cy + 34, lx + lean, cy + 56, 3.0)
+        toes = U(*[sd_capsule(X, Y, lx + lean, cy + 56, lx + lean + dx, cy + 60 + abs(dx) * 0.1, 2.4)
+                   for dx in (-7.5, 0.5, 8.5)])
+        foot = U(leg, toes)
+        lay.fill(foot - 2.4, WHITE)
+        candy(lay, foot, ("#FFE7A0", "#FFA928", "#F08A00", "#C26400"), lw=1.4, depth=2.5, rim=0.2)
     candy(lay, sil, (BIRD_A, "#48D6F8", BIRD_B, "#1488C9"), lw=2.2, depth=26, lift=0.5, shade=0.35)
     # tail tips lighter
     for (ang, L, w) in ((-28, 58, 13), (-10, 64, 14), (8, 54, 12)):
@@ -387,12 +420,6 @@ def draw_bird():
     _ = crest_all
     lay.fill(crest - 3.5, "#FFFFFF", mode="under")
     candy(lay, crest, (BIRD_A, "#48D6F8", BIRD_B, "#1488C9"), lw=2.0, depth=4, rim=0.2)
-    # legs
-    for lx in (cx - 8, cx + 12):
-        leg = sd_capsule(X, Y, lx, cy + 44, lx + 1, cy + 54, 2.6)
-        toe = sd_capsule(X, Y, lx - 4, cy + 55, lx + 6, cy + 55, 2.4)
-        lay.fill(U(leg, toe), "#F08A00", 1, mode="under")
-        lay.fill(U(leg, toe) - 2.2, WHITE, mode="under")
     clip = sil + 5
     gloss_drop(lay, hx - 12, hy - 14, 9, 5, math.radians(-40), clip, alpha=0.85)
     gloss_drop(lay, cx - 30, cy - 12, 9, 4, math.radians(-25), clip, alpha=0.7)
@@ -405,81 +432,101 @@ def draw_bird():
     return cv
 
 
+def _hash(a, b, salt):
+    """Deterministic per-facet hash in [0, 1)."""
+    v = np.sin(a * 12.9898 + b * 78.233 + salt * 37.719) * 43758.5453
+    return v - np.floor(v)
+
+
 def draw_disco():
+    """Mirror ball: latitude/longitude facets with foreshortening, each facet a flat mirror shaded by its
+    own normal, facets in all six piece colours, a big white highlight top-left and an even glow."""
     cv = Canvas(192, 192)
     X, Y = cv.X, cv.Y
-    cx, cy, R = 96.0, 98.0, 72.0
+    cx, cy, R = 96.0, 99.0, 70.0
     x = (X - cx) / R
     y = (Y - cy) / R
     rr = x * x + y * y
-    inside = rr < 1
     z = np.sqrt(np.clip(1 - rr, 0, 1))
-    tilt = math.radians(16)
+    # view -> ball space: tilt the north pole toward the viewer, then spin around the axis
+    tilt, spin = math.radians(24), math.radians(9)
     yt = y * math.cos(tilt) - z * math.sin(tilt)
     zt = y * math.sin(tilt) + z * math.cos(tilt)
+    xs = x * math.cos(spin) + zt * math.sin(spin)
+    zs = -x * math.sin(spin) + zt * math.cos(spin)
     lat = np.arcsin(np.clip(-yt, -1, 1))
-    lon = np.arctan2(x, zt)
-    nrow = 12
+    lon = np.arctan2(xs, zs)
+    nrow = 11
     dlat = math.pi / nrow
-    row = np.floor((lat + math.pi / 2) / dlat)
+    row = np.clip(np.floor((lat + math.pi / 2) / dlat), 0, nrow - 1)
     rowc = (row + 0.5) * dlat - math.pi / 2
-    ncol = np.maximum(np.round(24 * np.cos(rowc)), 4)
+    ncol = np.maximum(np.round(2 * nrow * np.cos(rowc)), 3)
     dlon = 2 * math.pi / ncol
     col = np.floor((lon + math.pi) / dlon)
     lonc = (col + 0.5) * dlon - math.pi
-    fx = np.cos(rowc) * np.sin(lonc)
+    # facet normal (ball space -> view space)
+    fxs = np.cos(rowc) * np.sin(lonc)
     fyt = -np.sin(rowc)
-    fzt = np.cos(rowc) * np.cos(lonc)
+    fzs = np.cos(rowc) * np.cos(lonc)
+    fx = fxs * math.cos(spin) - fzs * math.sin(spin)
+    fzt = fxs * math.sin(spin) + fzs * math.cos(spin)
     fy = fyt * math.cos(tilt) + fzt * math.sin(tilt)
     fz = -fyt * math.sin(tilt) + fzt * math.cos(tilt)
-    Lx, Ly, Lz = -0.5, -0.7, 0.9
-    ln = math.sqrt(Lx * Lx + Ly * Ly + Lz * Lz)
-    lam = np.clip((fx * Lx + fy * Ly + fz * Lz) / ln, 0, 1)
-    # base: radial gradient white -> #B7C2DC, facet jitter
-    rad = np.clip(np.hypot(x + 0.35, y + 0.4) / 1.5, 0, 1)
-    basec = mix(C(DISCO_HI), C("#E3E9F7"), smoothstep(0, 0.6, rad))
-    basec = mix(basec, C(DISCO_LO), smoothstep(0.55, 1.0, rad))
-    hsh = (row * 37 + col * 11) % 97
-    jit = ((hsh * 53) % 17) / 16.0 - 0.5
-    colr = mix(basec, C("#9AA7C7"), np.clip(-jit * 0.5, 0, 1)[..., None] * 1.0)
-    colr = mix(colr, WHITE, np.clip(jit * 0.8 + lam * 0.35, 0, 1))
-    # coloured facets (the six piece colours)
+    L = np.array([-0.55, -0.7, 0.75], np.float32)
+    L /= np.linalg.norm(L)
+    lam = np.clip(fx * L[0] + fy * L[1] + fz * L[2], 0, 1)
+    h1 = _hash(row, col, 1.0)
+    h2 = _hash(row, col, 2.0)
+    # silver mirror facets: environment = bright sky top-left, lavender floor bottom-right
+    env = np.clip(0.5 - fy * 0.45 - fx * 0.25, 0, 1)
+    base = mix(C("#A7B0D3"), C("#FFFFFF"), np.clip(env * 0.65 + lam * 0.55 + (h1 - 0.5) * 0.5, 0, 1))
+    base = mix(base, C("#FFFFFF"), np.clip((h2 > 0.86) * lam * 1.4, 0, 1))          # flashing facets
+    base = mix(base, C("#FFB8EE"), np.clip(fy * 0.8 + fx * 0.4, 0, 1) * 0.35)      # pink bounce light
+    base = mix(base, C("#9FEFFF"), np.clip(-fx * 0.9, 0, 1) * np.clip(fy + 0.3, 0, 1) * 0.35)
+    # coloured facets: all six piece colours, evenly spread
     tints = np.stack([C(PIECES[k][1]) for k in ORDER])
-    tinted = (((hsh * 7) % 4) == 0) & inside
-    tidx = (hsh % 6).astype(int)
-    tc = tints[tidx]
-    tc = mix(tc, WHITE, np.clip(lam * 0.5 + jit * 0.3, 0, 0.6))
-    colr = np.where(tinted[..., None], tc, colr)
-    spec = (lam ** 16) * 1.1
-    colr = colr + (1 - colr) * np.clip(spec, 0, 1)[..., None]
-    # grout
+    lights = np.stack([C(PIECES[k][0]) for k in ORDER])
+    tinted = h1 < 0.3
+    tidx = (np.floor(h2 * 6)).astype(int) % 6
+    tcol = tints[tidx] + (lights[tidx] - tints[tidx]) * np.clip(lam * 1.1, 0, 1)[..., None]
+    tcol = mix(tcol, C("#FFFFFF"), np.clip((lam - 0.75) * 2.5, 0, 1) * 0.6)
+    colr = np.where(tinted[..., None], tcol, base)
+    # grout between the facets (thin, lavender grey); thinner toward the rim where facets foreshorten
     fr = (lat + math.pi / 2) / dlat - row
     fc = (lon + math.pi) / dlon - col
-    gr = np.minimum(np.minimum(fr, 1 - fr), np.minimum(fc, 1 - fc))
-    groutk = smoothstep(0.075, 0.02, gr) * (z > 0.05)
-    colr = mix(colr, C("#A9B3CE"), groutk * 0.8)
-    colr = mix(colr, C("#8E98B8"), smoothstep(0.75, 1.0, np.sqrt(rr)) * 0.35)
+    gw = 0.075
+    gr = np.minimum(np.minimum(fr, 1 - fr), np.minimum(fc, 1 - fc) * np.clip(ncol / (2 * nrow), 0.4, 1))
+    colr = mix(colr, C("#8C96BC"), smoothstep(gw, gw * 0.3, gr) * 0.85)
+    # sphere shading: darker rim, soft terminator bottom-right
+    rim = smoothstep(0.72, 1.0, np.sqrt(rr))
+    colr = mix(colr, C("#7A84B4"), rim * 0.35)
+    colr = mix(colr, C("#7078B8"), np.clip((x * 0.5 + y * 0.8) - 0.4, 0, 1) * 0.25)
     ball = sd_circle(X, Y, cx, cy, R)
-    # rainbow glow behind
-    ang = np.arctan2(Y - cy, X - cx)
-    tt = (ang + math.pi) / (2 * math.pi) * 6
-    idx = np.floor(tt).astype(int) % 6
-    fr2 = (tt - np.floor(tt))[..., None]
-    rainbow = tints[idx] * (1 - fr2) + tints[(idx + 1) % 6] * fr2
+    # even glow behind: white core fading to lavender-pink
     glow = cv.blank()
-    gg = gblur(np.clip(0.5 - (ball - 3) * cv.ss, 0, 1), 11 * cv.ss / 2)
-    glow.paint(np.clip(gg * 1.6, 0, 1), rainbow, 0.8)
-    cv.paint(np.clip(0.5 - ball * cv.ss, 0, 1), colr, 1.0)
-    cv.stroke(ball + 1.3, 2.6, "#8E98B8", 1.0)
+    gg = gblur(np.clip(0.5 - (ball - 2) * cv.ss, 0, 1), 12 * cv.ss / 2)
+    glow.paint(np.clip(gg * 1.5, 0, 1), C("#F4E8FF"), 0.9)
+    gg2 = gblur(np.clip(0.5 - (ball - 8) * cv.ss, 0, 1), 18 * cv.ss / 2)
+    glow.paint(np.clip(gg2 * 1.3, 0, 1), C("#E3B8FF"), 0.45, mode="under")
+    w = cv.win(ball < 1)
+    cv.paint(np.clip(0.5 - ball[w] * cv.ss, 0, 1), colr[w], 1.0, win=w)
+    cv.stroke(ball + 1.3, 2.6, "#6E78A6", 1.0)
+    # big highlight top-left: soft bloom + bright core + star
+    hx, hy = cx - 28, cy - 30
+    bloom = np.exp(-((X - hx) ** 2 + (Y - hy) ** 2) / (2 * 19.0 ** 2))
+    wb = cv.win(ball < 1)
+    cv.paint(np.clip(bloom[wb] * 1.25, 0, 1) * np.clip(0.5 - (ball[wb] + 2) * cv.ss, 0, 1), WHITE, 0.9, win=wb)
+    gloss_drop(cv, hx - 5, hy - 5, 17, 10, math.radians(-40), ball + 5, alpha=0.75)
+    cv.fill(sd_circle(X, Y, hx, hy, 7), WHITE, 0.95, soft=4)
+    sparkle4(cv, hx + 1, hy + 1, 21, WHITE, glow=7, glow_color="#FFFFFF", thin=0.22)
+    rim_gloss(cv, ball, cx, cy, -135, 40, 3.5, 5, alpha=0.6)
     # cap + loop on top
-    capd = sd_box(X, Y, cx, cy - R - 2, 9, 5, 2)
-    candy(cv, capd, ("#FFFFFF", "#E3E9F7", "#B7C2DC", "#8E98B8"), lw=1.8, depth=3, mode="over")
-    loop = sd_ring(X, Y, cx, cy - R - 11, 5.5, 3.0)
-    cv.fill(loop, "#8E98B8")
-    rim_gloss(cv, ball, cx, cy, -135, 34, 4, 7, alpha=0.7)
-    gloss_drop(cv, 64, 64, 13, 7, math.radians(-40), ball + 4, alpha=0.75)
+    capd = sd_box(X, Y, cx, cy - R - 2, 10, 5.5, 2.2)
+    candy(cv, capd, ("#FFFFFF", "#E3E9F7", "#B7C2DC", "#6E78A6"), lw=1.8, depth=3, mode="over")
+    loop = sd_ring(X, Y, cx, cy - R - 11.5, 5.5, 3.2)
+    cv.fill(loop, "#6E78A6")
     cv.under(glow)
-    for (sx, sy, sz, c) in ((150, 44, 15, "#FFDB1A"), (42, 150, 9, "#FFFFFF"), (158, 132, 8, "#FFFFFF")):
+    for (sx, sy, sz, c) in ((156, 50, 14, "#FFDB1A"), (36, 150, 9, "#FFFFFF"), (160, 142, 8, "#FFFFFF")):
         sparkle4(cv, sx, sy, sz, C(c), glow=5, glow_color="#FFFFFF")
     soft_shadow(cv, 0, 3, 3, PIECE_SHADOW, 0.25)
     return cv
