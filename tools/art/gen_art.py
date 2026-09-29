@@ -145,16 +145,15 @@ def build_jobs():
 
 
 def ghost_image(img):
-    """How the town shows a not-yet-restored item: desaturated, luma pulled toward white (light grey with a
-    whisper of lavender, never dark) and semi-transparent. Exported as <task>_ghost.png."""
+    """How the town shows a not-yet-restored item: desaturated, luma pulled toward white (light grey, never
+    dark) and semi-transparent (alpha x GHOST_ALPHA baked in). Exported as <task>_ghost.png."""
     arr = np.asarray(img.convert("RGBA")).astype(np.float32) / 255.0
     lum = arr[..., :3] @ np.array([0.299, 0.587, 0.114], np.float32)
     g = 0.6 + 0.38 * lum
-    rgb = np.stack([g * 0.965, g * 0.96, g * 1.0], -1)
     a = arr[..., 3] * GHOST_ALPHA
-    out = np.dstack([np.clip(rgb * 255 + 0.5, 0, 255), np.clip(a * 255 + 0.5, 0, 255)]).astype(np.uint8)
-    out[out[..., 3] == 0] = 0
-    return Image.fromarray(out, "RGBA")
+    out = np.dstack([np.clip(g * 255 + 0.5, 0, 255), np.clip(a * 255 + 0.5, 0, 255)]).astype(np.uint8)
+    out[out[..., 1] == 0] = 0
+    return Image.fromarray(out, "LA")      # grey + alpha: half the bytes of RGBA
 
 
 def run_job(job):

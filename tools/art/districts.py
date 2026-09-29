@@ -347,7 +347,7 @@ def bg_level():
 # ==========================================================================
 # districts (drawing units: 360x640 = scene / 2; free band y 118..393)
 # ==========================================================================
-FLOOR_Y = {"cafe": 322, "jazz": 282, "square": 300, "stadium": 318, "garage": 304}
+FLOOR_Y = {"cafe": 322, "jazz": 282, "square": 300, "stadium": 292, "garage": 304}
 
 
 def bg_cafe():
