@@ -77,8 +77,8 @@
       "grand_piano": {
         "image": "assets/images/districts/jazz/grand_piano.png",
         "ghost": "assets/images/districts/jazz/grand_piano_ghost.png",
-        "x": 232,
-        "y": 596,
+        "x": 240,
+        "y": 586,
         "scale": 0.74,
         "w": 252,
         "h": 224
@@ -114,7 +114,7 @@
         "image": "assets/images/districts/jazz/vibes.png",
         "ghost": "assets/images/districts/jazz/vibes_ghost.png",
         "x": 160,
-        "y": 718,
+        "y": 722,
         "scale": 0.6,
         "w": 246,
         "h": 204
@@ -138,9 +138,9 @@
       "fountain": {
         "image": "assets/images/districts/square/fountain.png",
         "ghost": "assets/images/districts/square/fountain_ghost.png",
-        "x": 348,
+        "x": 330,
         "y": 700,
-        "scale": 0.74,
+        "scale": 0.66,
         "w": 254,
         "h": 224
       },
@@ -148,62 +148,62 @@
         "image": "assets/images/districts/square/garlands.png",
         "ghost": "assets/images/districts/square/garlands_ghost.png",
         "x": 360,
-        "y": 296,
-        "scale": 1.9,
-        "w": 256,
-        "h": 110
+        "y": 322,
+        "scale": 1.7,
+        "w": 300,
+        "h": 96
       },
       "truck_stage": {
         "image": "assets/images/districts/square/truck_stage.png",
         "ghost": "assets/images/districts/square/truck_stage_ghost.png",
-        "x": 372,
-        "y": 482,
-        "scale": 0.72,
+        "x": 380,
+        "y": 520,
+        "scale": 0.66,
         "w": 267,
         "h": 211
       },
       "tuba": {
         "image": "assets/images/districts/square/tuba.png",
         "ghost": "assets/images/districts/square/tuba_ghost.png",
-        "x": 596,
-        "y": 548,
-        "scale": 0.62,
+        "x": 600,
+        "y": 580,
+        "scale": 0.56,
         "w": 188,
         "h": 260
       },
       "trumpets": {
         "image": "assets/images/districts/square/trumpets.png",
         "ghost": "assets/images/districts/square/trumpets_ghost.png",
-        "x": 560,
-        "y": 360,
-        "scale": 0.5,
+        "x": 596,
+        "y": 432,
+        "scale": 0.46,
         "w": 208,
         "h": 166
       },
       "clarinet": {
         "image": "assets/images/districts/square/clarinet.png",
         "ghost": "assets/images/districts/square/clarinet_ghost.png",
-        "x": 590,
+        "x": 560,
         "y": 716,
-        "scale": 0.5,
+        "scale": 0.46,
         "w": 104,
         "h": 264
       },
       "lanterns": {
         "image": "assets/images/districts/square/lanterns.png",
         "ghost": "assets/images/districts/square/lanterns_ghost.png",
-        "x": 116,
-        "y": 520,
-        "scale": 0.72,
+        "x": 106,
+        "y": 540,
+        "scale": 0.66,
         "w": 188,
         "h": 251
       },
       "confetti": {
         "image": "assets/images/districts/square/confetti.png",
         "ghost": "assets/images/districts/square/confetti_ghost.png",
-        "x": 128,
-        "y": 716,
-        "scale": 0.56,
+        "x": 130,
+        "y": 712,
+        "scale": 0.52,
         "w": 207,
         "h": 216
       }
@@ -296,54 +296,54 @@
       "drum_kit": {
         "image": "assets/images/districts/garage/drum_kit.png",
         "ghost": "assets/images/districts/garage/drum_kit_ghost.png",
-        "x": 308,
+        "x": 300,
         "y": 660,
-        "scale": 0.72,
+        "scale": 0.7,
         "w": 266,
         "h": 214
       },
       "amp": {
         "image": "assets/images/districts/garage/amp.png",
         "ghost": "assets/images/districts/garage/amp_ghost.png",
-        "x": 572,
-        "y": 650,
-        "scale": 0.62,
+        "x": 112,
+        "y": 640,
+        "scale": 0.56,
         "w": 214,
         "h": 257
       },
       "bass_guitar": {
         "image": "assets/images/districts/garage/bass_guitar.png",
         "ghost": "assets/images/districts/garage/bass_guitar_ghost.png",
-        "x": 108,
-        "y": 606,
-        "scale": 0.62,
+        "x": 232,
+        "y": 470,
+        "scale": 0.56,
         "w": 110,
         "h": 256
       },
       "posters": {
         "image": "assets/images/districts/garage/posters.png",
         "ghost": "assets/images/districts/garage/posters_ghost.png",
-        "x": 120,
-        "y": 436,
-        "scale": 0.56,
+        "x": 112,
+        "y": 430,
+        "scale": 0.5,
         "w": 240,
         "h": 220
       },
       "keyboard": {
         "image": "assets/images/districts/garage/keyboard.png",
         "ghost": "assets/images/districts/garage/keyboard_ghost.png",
-        "x": 230,
-        "y": 744,
-        "scale": 0.56,
+        "x": 500,
+        "y": 730,
+        "scale": 0.52,
         "w": 262,
         "h": 161
       },
       "tambourine": {
         "image": "assets/images/districts/garage/tambourine.png",
         "ghost": "assets/images/districts/garage/tambourine_ghost.png",
-        "x": 300,
-        "y": 440,
-        "scale": 0.5,
+        "x": 334,
+        "y": 420,
+        "scale": 0.44,
         "w": 138,
         "h": 169
       },
@@ -351,7 +351,7 @@
         "image": "assets/images/districts/garage/garage_door.png",
         "ghost": "assets/images/districts/garage/garage_door_ghost.png",
         "x": 536,
-        "y": 356,
+        "y": 372,
         "scale": 1.0,
         "w": 256,
         "h": 150
@@ -359,18 +359,18 @@
       "strings": {
         "image": "assets/images/districts/garage/strings.png",
         "ghost": "assets/images/districts/garage/strings_ghost.png",
-        "x": 330,
-        "y": 290,
-        "scale": 1.7,
+        "x": 228,
+        "y": 302,
+        "scale": 1.3,
         "w": 256,
         "h": 100
       },
       "mic_stand": {
         "image": "assets/images/districts/garage/mic_stand.png",
         "ghost": "assets/images/districts/garage/mic_stand_ghost.png",
-        "x": 612,
-        "y": 720,
-        "scale": 0.5,
+        "x": 636,
+        "y": 690,
+        "scale": 0.46,
         "w": 150,
         "h": 273
       }
