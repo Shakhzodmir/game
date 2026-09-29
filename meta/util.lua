@@ -46,10 +46,12 @@ function M.copy(v)
 end
 
 -- Every time-aware call takes the current time in seconds as its last
--- argument; the fraction is ignored.
-function M.check_now(now)
+-- argument; the fraction is ignored. `level` works like error()'s level as
+-- seen from the function that calls check_now: 1 blames that function, 2 its
+-- caller, and so on (default 2).
+function M.check_now(now, level)
 	if type(now) ~= "number" or now ~= now or now < 0 or now == huge then
-		error("meta: 'now' must be a non-negative number of seconds, got " .. tostring(now), 3)
+		error("meta: 'now' must be a non-negative number of seconds, got " .. tostring(now), (level or 2) + 1)
 	end
 	return floor(now)
 end

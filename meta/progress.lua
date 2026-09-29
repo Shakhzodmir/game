@@ -19,19 +19,19 @@ local M = {}
 
 local function restore_run(r)
 	if type(r) ~= "table" or not util.is_int(r.level_id) or r.level_id < 1 then return nil end
-	if not C.stars[r.difficulty] then return nil end
+	if not util.index_of(C.difficulties, r.difficulty) then return nil end
+	-- paid pre-level boosters: each at most once, as start_level allows
 	local boosters = {}
 	if type(r.boosters) == "table" then
-		for _, id in ipairs(r.boosters) do
-			local def = inventory.def(id)
-			if def and def.kind == "pre" then boosters[#boosters + 1] = id end
+		for _, id in ipairs(inventory.ids) do
+			if inventory.def(id).kind == "pre" and util.index_of(r.boosters, id) then boosters[#boosters + 1] = id end
 		end
 	end
 	return {
 		level_id = r.level_id,
 		difficulty = r.difficulty,
 		attempt = util.int(r.attempt, 1, 1),
-		free = r.free == true,
+		free = r.free == true or r.level_id <= C.levels.free_up_to,
 		moved = r.moved == true,
 		continues = util.int(r.continues, 0, 0, #C.continues.prices),
 		ad_used = r.ad_used == true,
@@ -48,18 +48,27 @@ function M.restore(t)
 		run = restore_run(t.run),
 	}
 	if type(t.levels) == "table" then
-		for key, rec in pairs(t.levels) do -- order-free: fills a map
-			local id = tonumber(key)
-			if type(key) == "string" and util.is_int(id) and id >= 1 and type(rec) == "table" then
-				p.levels[tostring(id)] = {
+		for key, rec in pairs(t.levels) do -- order-free: each key maps to its own level
+			if M.is_level_key(key) and type(rec) == "table" then
+				p.levels[key] = {
 					attempts = util.int(rec.attempts, 0, 0),
 					fails = util.int(rec.fails, 0, 0),
 				}
 			end
 		end
 	end
+	-- An open attempt is only valid for the next level. `beaten` is not capped
+	-- at C.levels.count: progress from a build with more levels is kept.
 	if p.run and p.run.level_id ~= p.beaten + 1 then p.run = nil end
 	return p
+end
+
+-- Level records are keyed by tostring(id); only that exact spelling is
+-- accepted ("3", not "03", "3.0" or " 3"), so no two keys name one level.
+function M.is_level_key(key)
+	if type(key) ~= "string" then return false end
+	local id = tonumber(key)
+	return util.is_int(id) and id >= 1 and key == tostring(id)
 end
 
 -- The level the player is about to play (beaten + 1), also past the last level.

@@ -76,6 +76,10 @@ def encode(path, x, sr, quality, peak_db=None, cap_db=None):
     result (peak_db: exact target within 0.03 dB; cap_db: ceiling).
     Returns (bytes, decoded signal)."""
     x = np.asarray(x, dtype=float)
+    if peak_db is not None:
+        x = dsp.normalize(x, peak_db)
+    elif cap_db is not None and dsp.peak(x) > dsp.db_amp(cap_db):
+        x = dsp.normalize(x, cap_db)
     data, dec = dsp.encode_vorbis(x, sr, quality, rel(path))
     p0 = dsp.amp_db(dsp.peak(dec))
     target = peak_db if peak_db is not None else cap_db

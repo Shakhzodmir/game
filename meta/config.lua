@@ -8,10 +8,14 @@
 local C = {}
 
 C.levels = {
-	count = 100,      -- levels shipped; after the last one the meta is "all_done"
+	-- Levels shipped; after the last one the meta is "all_done". A save from a
+	-- build with more levels keeps its progress past `count` untouched.
+	count = 100,
 	free_up_to = 20,  -- levels 1..20 never cost a life and ignore the lives counter
 }
 
+-- Level difficulties the meta accepts, from the level files. Every table
+-- below that is keyed by difficulty must cover exactly these.
 C.difficulties = { "easy", "medium", "hard", "super_hard" }
 
 -- Stars for a win, by difficulty.
@@ -33,9 +37,11 @@ C.level_chest = {
 	boosters_even = 2,            -- ... when k is even
 	infinite_minutes_odd = 15,
 	infinite_minutes_even = 30,
-	-- Chest boosters are dealt from this cycle. A locked booster is skipped
-	-- (the next unlocked one in the cycle is taken); if none is unlocked the
-	-- chest gives the fallback.
+	-- Chest boosters are dealt by walking this cycle; every chest continues
+	-- where the previous one stopped. A booster still locked when its chest
+	-- opens is skipped: the walk moves on to the next unlocked one, which it
+	-- then passes. If none is unlocked the chest gives the fallback and the
+	-- walk stays where it is.
 	rotation = { "stick", "row_light", "riff", "col_light", "sub", "remix", "disco" },
 	fallback = "stick",
 }
@@ -84,7 +90,8 @@ C.streak = {
 	},
 }
 
--- Player salt for attempt seeds (core-rules.md, section 3).
+-- Player salt for attempt seeds (core-rules.md, section 3). The client's
+-- random seed must be an integer with |seed| < 2^53 (exact in a double).
 C.salt = { min = 1, max = 2147483646 }
 
 C.settings = {
