@@ -251,9 +251,9 @@ def _glow(cv, sdf, radius, color, alpha, gain=1.4, mode="under"):
 
 def bolt_sdf(X, Y, cx, cy, s=1.0):
     """Horizontal lightning pick: a pointed double bolt spanning the width."""
-    P = [(-74, 2), (-24, -18), (-18, -5), (22, -26), (17, -9), (74, -2), (24, 18), (18, 5), (-22, 26), (-17, 9)]
+    P = [(-80, 4), (-22, -30), (-17, -8), (26, -36), (20, -10), (80, -4), (22, 30), (17, 8), (-26, 36), (-20, 10)]
     pts = [(cx + x * s, cy + y * s) for x, y in P]
-    return opening(sd_poly(X, Y, pts), 3.2 * s)
+    return opening(sd_poly(X, Y, pts), 3.5 * s)
 
 
 def draw_riff():
@@ -262,23 +262,26 @@ def draw_riff():
     cx, cy = 96.0, 96.0
     # speed streaks behind
     streaks = cv.blank()
-    for (oy, x0, x1, r) in ((-30, 12, 64, 3.2), (32, 20, 70, 3.0), (-44, 34, 70, 2.2), (46, 40, 76, 2.0)):
+    for (oy, x0, x1, r) in ((-44, 8, 58, 3.4), (46, 14, 66, 3.2), (-60, 30, 66, 2.4), (62, 36, 72, 2.2)):
         for sgn in (-1, 1):
             a, b = cx + sgn * (96 - x0), cx + sgn * (96 - x1)
-            d = sd_taper(X, Y, b, cy + oy * 0.55, a, cy + oy * 0.55, r, 0.6)
-            streaks.fill(d, "#8FF0FF", 0.85)
+            d = sd_taper(X, Y, b, cy + oy * 0.55 * sgn, a, cy + oy * 0.55 * sgn, r, 0.6)
+            streaks.fill(d, "#8FF0FF", 0.9)
+            streaks.fill(d + 1.4, "#FFFFFF", 0.8)
     cv.over(streaks)
-    sil = bolt_sdf(X, Y, cx, cy, 1.18)
-    _glow(cv, sil - 2, 22, RIFF_GLOW, 0.9, mode="over", gain=1.3)
-    _glow(cv, sil, 8, "#9FF4FF", 0.9, mode="over", gain=1.6)
-    candy(cv, sil, ("#FFFFFF", "#FFFFFF", "#BFF3FF", RIFF_LINE), lw=3.4, depth=12, lift=0.3, shade=0.5, rim=0.2)
-    # inner cyan core line
-    core = sd_polyline(X, Y, [(cx - 70, cy + 2), (cx - 22, cy - 12), (cx + 20, cy - 16), (cx + 68, cy - 2)])
-    _ = core
-    clip = sil + 5
-    gloss_drop(cv, cx - 38, cy - 8, 12, 3.2, math.radians(-22), clip, alpha=0.9)
-    sparkle4(cv, cx + 50, cy - 30, 11, WHITE, glow=6, glow_color=RIFF_GLOW)
-    sparkle4(cv, cx - 54, cy + 30, 8, WHITE, glow=5, glow_color=RIFF_GLOW)
+    sil = bolt_sdf(X, Y, cx, cy, 1.1)
+    _glow(cv, sil - 3, 24, RIFF_GLOW, 0.95, mode="over", gain=1.3)
+    _glow(cv, sil, 9, "#9FF4FF", 0.9, mode="over", gain=1.6)
+    candy(cv, sil, ("#FFFFFF", "#F4FEFF", "#8FE6FF", RIFF_LINE), lw=3.4, depth=12, lift=0.35, shade=0.55, rim=0.3,
+          stops=(0.0, 0.5, 1.0))
+    # hot cyan core seam
+    core = sd_polyline(X, Y, [(cx - 70, cy + 3), (cx - 20, cy - 14), (cx + 20, cy - 13), (cx + 70, cy - 3)])
+    cv.fill(np.maximum(core - 1.6, sil + 7), "#BFF6FF", 0.9, soft=1.2)
+    clip = sil + 5.5
+    gloss_drop(cv, cx - 42, cy - 8, 13, 3.6, math.radians(-30), clip, alpha=0.95)
+    gloss_drop(cv, cx + 30, cy - 18, 8, 2.6, math.radians(-30), clip, alpha=0.8)
+    sparkle4(cv, cx + 58, cy - 40, 12, WHITE, glow=6, glow_color=RIFF_GLOW)
+    sparkle4(cv, cx - 60, cy + 38, 9, WHITE, glow=5, glow_color=RIFF_GLOW)
     soft_shadow(cv, 0, 3, 3, PIECE_SHADOW, 0.25)
     return cv
 
@@ -336,7 +339,7 @@ def draw_bird():
     cv = Canvas(192, 192)
     X, Y = cv.X, cv.Y
     s = 1.0
-    cx, cy = 90.0, 104.0
+    cx, cy = 100.0, 104.0
     lay = cv.blank()
     # tail feathers
     tail = None
@@ -378,21 +381,23 @@ def draw_bird():
     lay.fill(sd_circle(X, Y, ex + 2.6, ey + 3.6, 1.4), WHITE, 0.9)
     # cheek + crest
     lay.fill(sd_ellipse(X, Y, ex - 2, ey + 15, 7, 4.2), "#FF7EB6", 0.6, soft=1.5)
-    crest = U(sd_taper(X, Y, hx - 8, hy - 24, hx - 20, hy - 44, 6, 2.6),
-              sd_taper(X, Y, hx, hy - 26, hx + 2, hy - 48, 6, 2.8))
+    crest = U(sd_taper(X, Y, hx - 6, hy - 22, hx - 16, hy - 38, 5.5, 3.0),
+              sd_taper(X, Y, hx + 2, hy - 24, hx + 4, hy - 40, 5.5, 3.2))
     crest_all = SU(crest, sil, 1)
     _ = crest_all
     lay.fill(crest - 3.5, "#FFFFFF", mode="under")
-    candy(lay, crest, ("#E9FFB3", BIRD_WING, "#7FD400", "#5E9E00"), lw=2.0, depth=4, rim=0.2)
+    candy(lay, crest, (BIRD_A, "#48D6F8", BIRD_B, "#1488C9"), lw=2.0, depth=4, rim=0.2)
     # legs
     for lx in (cx - 8, cx + 12):
-        leg = sd_capsule(X, Y, lx, cy + 46, lx + 1, cy + 58, 3.0)
-        lay.fill(leg - 2.4, WHITE, mode="under")
-        lay.fill(leg, BIRD_BEAK, 1, mode="under")
+        leg = sd_capsule(X, Y, lx, cy + 44, lx + 1, cy + 54, 2.6)
+        toe = sd_capsule(X, Y, lx - 4, cy + 55, lx + 6, cy + 55, 2.4)
+        lay.fill(U(leg, toe), "#F08A00", 1, mode="under")
+        lay.fill(U(leg, toe) - 2.2, WHITE, mode="under")
     clip = sil + 5
     gloss_drop(lay, hx - 12, hy - 14, 9, 5, math.radians(-40), clip, alpha=0.85)
     gloss_drop(lay, cx - 30, cy - 12, 9, 4, math.radians(-25), clip, alpha=0.7)
-    _glow(lay, sil - 4, 16, BIRD_WING, 0.8, gain=1.5)
+    lay = fit(lay, 150, 96, 98)
+    lay.glow_under(16, BIRD_WING, 0.8, grow=4)
     cv.over(lay)
     sparkle4(cv, 160, 44, 10, WHITE, glow=6, glow_color="#B6FF3B")
     sparkle4(cv, 34, 150, 7, WHITE, glow=4, glow_color="#7EF0FF")
