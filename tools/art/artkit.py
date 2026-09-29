@@ -702,3 +702,172 @@ def gloss_band(cv, sdf, top, bottom, alpha=0.35, inset_px=3.0):
         return
     fade = smoothstep(bottom, top, cv.Y[w])
     cv.paint(np.clip(0.5 - d[w] * cv.ss, 0, 1) * fade, WHITE, alpha, "over", w)
+
+
+# --------------------------------------------------------------------------
+# v2 "candy" style: bright glossy shapes (docs/design/art-direction.md)
+# --------------------------------------------------------------------------
+def candy(cv, sdf, pal, lw=2.6, depth=None, grad_dir=(1.0, 1.0), stops=(0.0, 0.45, 1.0), bbox=None,
+          lift=0.55, shade=0.45, rim=0.45, bulge=0.9, alpha=1.0, mode="over", shade_sdf=None, spec=0.0,
+          inner_glow=0.0):
+    """Glossy candy fill.
+
+    pal = (light, base, shadow, outline): diagonal gradient light (top-left) -> base -> shadow
+    (bottom-right), a pillow bevel lit from the top-left, a soft bounce-light rim on the lower
+    right and an outline of `lw` px drawn inside the silhouette in the outline colour.
+    """
+    light, base, shadow, line = [C(c) for c in pal]
+    w = cv.win(sdf < 1.5)
+    if w is None:
+        return
+    s = sdf[w]
+    X, Y = cv.X[w], cv.Y[w]
+    m = s < 0
+    if bbox is None:
+        if m.any():
+            xs, ys = X[m], Y[m]
+            bbox = (xs.min(), ys.min(), xs.max(), ys.max())
+        else:
+            bbox = (X.min(), Y.min(), X.max(), Y.max())
+    x0, y0, x1, y1 = bbox
+    gdx, gdy = grad_dir
+    u = (gdx * (X - x0) / max(x1 - x0, 1) + gdy * (Y - y0) / max(y1 - y0, 1)) / max(abs(gdx) + abs(gdy), 1e-6)
+    if gdx < 0:
+        u = u + abs(gdx) / (abs(gdx) + abs(gdy))
+    col = ramp(np.clip(u, 0, 1), [(stops[0], light), (stops[1], base), (stops[2], shadow)])
+    inner = s + lw
+    d = np.maximum(-(shade_sdf[w] + lw if shade_sdf is not None else inner), 0)
+    if depth is None:
+        depth = max(float(d.max()) * 0.7, 1.0)
+    t = np.clip(d / depth, 0, 1)
+    h = 1 - (1 - t) ** 2
+    gy, gx = np.gradient(h)
+    k = depth * bulge * cv.ss
+    nx, ny = -gx * k, -gy * k
+    nl = np.sqrt(nx * nx + ny * ny + 1)
+    nx, ny, nz = nx / nl, ny / nl, 1 / nl
+    lam = nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]
+    ssh = lam - LIGHT[2]
+    hi = mix(light, WHITE, 0.35)
+    col = mix(col, hi, np.clip(ssh * 2.4, 0, 1) * lift)
+    col = mix(col, shadow, np.clip(-ssh * 1.8, 0, 1) * shade)
+    if rim > 0:
+        rr = np.clip(nx * 0.45 + ny * 0.9, 0, 1) * (1 - t) ** 1.5
+        col = mix(col, mix(base, light, 0.75), np.clip(rr * 2.0, 0, 1) * rim * (inner < 0))
+    if inner_glow > 0:
+        col = mix(col, light, smoothstep(0.35, 1.0, t) * inner_glow)
+    if spec > 0:
+        Hh = LIGHT + np.array([0, 0, 1], F32)
+        Hh /= np.linalg.norm(Hh)
+        nh = np.clip(nx * Hh[0] + ny * Hh[1] + nz * Hh[2], 0, 1)
+        sp = nh ** 30 * (t < 0.999)
+        col = col + (1 - col) * _t(np.clip(sp * spec, 0, 1))
+    if lw > 0:
+        ci = np.clip(0.5 - inner * cv.ss, 0, 1)
+        col = mix(line, col, ci)
+    cv.paint(np.clip(0.5 - s * cv.ss, 0, 1), col, alpha, mode, w)
+
+
+def pal4(light, base, shadow, line):
+    return (light, base, shadow, line)
+
+
+def auto_pal(base, line_t=0.45):
+    """Derive a candy palette (light, base, shadow, outline) from one colour."""
+    b = C(base)
+    lt = mix(b, WHITE, 0.55)
+    sh = mix(b, C("#3B1E8A"), 0.18)
+    ln = mix(b, C("#2A1650"), line_t)
+    return (lt, b, sh, ln)
+
+
+def gloss(cv, sdf_shape, clip, alpha=0.8, soft=0.7, color=WHITE):
+    """White glossy highlight shape clipped inside `clip` (sdf)."""
+    d = np.maximum(sdf_shape, clip)
+    cv.fill(d, color, alpha, soft=soft)
+
+
+def gloss_drop(cv, cx, cy, rx, ry, ang, clip, alpha=0.8, soft=0.7):
+    gloss(cv, sd_ellipse(cv.X, cv.Y, cx, cy, rx, ry, ang), clip, alpha, soft)
+
+
+def soft_shadow(cv, dx=0.0, dy=2.5, blur=2.5, color="#5A3FA0", alpha=0.33):
+    cv.shadow_under(dx, dy, blur, color, alpha)
+
+
+def sparkle4(cv, x, y, r, color=WHITE, alpha=1.0, thin=0.28, glow=0.0, glow_color=None):
+    d = opening(sd_star(cv.X, cv.Y, x, y, r, r * thin, n=4, rot=-math.pi / 2), max(r * 0.04, 0.3))
+    if glow > 0:
+        cv.glow_from(np.clip(0.5 - d * cv.ss, 0, 1), glow, glow_color or color, 0.7 * alpha, mode="over")
+    cv.fill(d, color, alpha)
+
+
+def fit(cv, box, cx=None, cy=None, thresh=0.5):
+    """Scale + move the drawing so its alpha bbox's larger side == box, centred at (cx, cy)."""
+    a = cv.a > thresh
+    rows = np.flatnonzero(a.any(1))
+    cols = np.flatnonzero(a.any(0))
+    ss = cv.ss
+    x0, x1 = cols[0] / ss, (cols[-1] + 1) / ss
+    y0, y1 = rows[0] / ss, (rows[-1] + 1) / ss
+    k = box / max(x1 - x0, y1 - y0)
+    cx = cv.w / 2 if cx is None else cx
+    cy = cv.h / 2 if cy is None else cy
+    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+    return cv.transformed(0, pivot=(mx, my), sx=k, sy=k, dx=cx - mx, dy=cy - my)
+
+
+def bbox_px(cv, thresh=0.5):
+    a = cv.a > thresh
+    rows = np.flatnonzero(a.any(1))
+    cols = np.flatnonzero(a.any(0))
+    ss = cv.ss
+    return cols[0] / ss, rows[0] / ss, (cols[-1] + 1) / ss, (rows[-1] + 1) / ss
+
+
+def svg_path(d, scale=1.0, ox=0.0, oy=0.0, n=16):
+    """Tiny SVG path parser (M L C Q Z, absolute) -> list of polygons (lists of points)."""
+    import re
+    toks = re.findall(r"[MLCQZ]|-?\d*\.?\d+", d)
+    polys, cur, i = [], [], 0
+    pen = (0.0, 0.0)
+    cmd = None
+
+    def P(x, y):
+        return (ox + float(x) * scale, oy + float(y) * scale)
+    while i < len(toks):
+        tk = toks[i]
+        if tk in "MLCQZ":
+            cmd = tk
+            i += 1
+            if cmd == "Z":
+                if cur:
+                    polys.append(cur)
+                cur = []
+            continue
+        if cmd == "M":
+            if cur:
+                polys.append(cur)
+            pen = P(toks[i], toks[i + 1])
+            cur = [pen]
+            i += 2
+            cmd = "L"
+        elif cmd == "L":
+            pen = P(toks[i], toks[i + 1])
+            cur.append(pen)
+            i += 2
+        elif cmd == "C":
+            p1, p2, p3 = P(toks[i], toks[i + 1]), P(toks[i + 2], toks[i + 3]), P(toks[i + 4], toks[i + 5])
+            cur += bez(pen, p1, p2, p3, n=n)[1:]
+            pen = p3
+            i += 6
+        elif cmd == "Q":
+            p1, p2 = P(toks[i], toks[i + 1]), P(toks[i + 2], toks[i + 3])
+            cur += bez(pen, p1, p2, n=n)[1:]
+            pen = p2
+            i += 4
+        else:
+            i += 1
+    if cur:
+        polys.append(cur)
+    return polys
