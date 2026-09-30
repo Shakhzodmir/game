@@ -1,0 +1,32 @@
+#version 140
+
+// Sprites of the level board (screens/level/board.material).
+// Per-sprite vertex attributes (go.set on the sprite, batching is kept):
+//   vcolor: colour and alpha (straight alpha; premultiplied here)
+//   vfx.x:  world y above which the sprite is cut (pieces entering at a spawner)
+//   vfx.y:  white flash 0..1
+
+// positions are in world space
+in highp vec4 position;
+in mediump vec2 texcoord0;
+in mediump vec4 vcolor;
+in highp vec4 vfx;
+
+out mediump vec2 var_texcoord0;
+out mediump vec4 var_color;
+out highp vec2 var_clip;
+out mediump float var_flash;
+
+uniform vs_uniforms
+{
+    highp mat4 view_proj;
+};
+
+void main()
+{
+    gl_Position = view_proj * vec4(position.xyz, 1.0);
+    var_texcoord0 = texcoord0;
+    var_color = vec4(vcolor.rgb * vcolor.a, vcolor.a);
+    var_clip = vec2(position.y, vfx.x);
+    var_flash = vfx.y;
+}

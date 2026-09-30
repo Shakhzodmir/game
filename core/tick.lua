@@ -19,7 +19,8 @@ local H = require("core.hits")
 local M = require("core.match")
 local G = require("core.gravity")
 local F = require("core.flow")
-local SP = require("core.specials")
+require("core.specials") -- registers the record handlers
+local EF = require("core.effects")
 local BO = require("core.boosters")
 local I = require("core.input")
 local sched = require("core.sched")
@@ -130,31 +131,16 @@ local function step2(s)
 	end
 end
 
-local function owner(s, rec)
-	local src = s.sources[rec.d[1]]
-	src.nrec = src.nrec - 1
-	return src
-end
-
+-- Records of kinds 1-5 go through the effect handlers; kinds 2-5 belong
+-- to the source in their first field, which dies with its last record.
 local function exec(s, rec)
 	local k = rec.kind
 	if k == C.R_ACTIVATE then
-		SP.activate(s, rec)
-	elseif k == C.R_HIT then
-		local src = owner(s, rec)
-		H.hit(s, rec.d[2], src)
-		sched.retire_if_done(s, src)
-	elseif k == C.R_DISCO then
-		local src = owner(s, rec)
-		SP.disco_step(s, rec.d)
-		sched.retire_if_done(s, src)
-	elseif k == C.R_TRANSFORM then
-		local src = owner(s, rec)
-		SP.transform(s, rec.d)
-		sched.retire_if_done(s, src)
-	elseif k == C.R_BIRD then
-		local src = owner(s, rec)
-		SP.bird_impact(s, rec.d)
+		EF.handlers[k](s, rec.d)
+	elseif k <= C.R_BIRD then
+		local src = s.sources[rec.d[1]]
+		src.nrec = src.nrec - 1
+		EF.handlers[k](s, rec.d)
 		sched.retire_if_done(s, src)
 	elseif k == C.R_CONCERT_A then
 		F.concert_a(s, rec.d[1])

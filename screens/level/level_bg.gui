@@ -1,0 +1,12 @@
+script: "/screens/level/level_bg.gui_script"
+textures {
+  name: "game"
+  texture: "/assets/gen/game.atlas"
+}
+textures {
+  name: "ui"
+  texture: "/assets/gen/ui.atlas"
+}
+material: "/screens/level/gui_under.material"
+adjust_reference: ADJUST_REFERENCE_DISABLED
+max_nodes: 1024

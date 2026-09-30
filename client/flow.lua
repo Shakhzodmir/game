@@ -9,9 +9,16 @@
 --   --      "locked" | "not_enough_<booster>" (meta:start_level reasons)
 --
 -- The level screen contract (screens/level/level.gui_script, top comment;
--- client-architecture.md, section 4): params.run is the meta:start_level
--- result, params.level_text the raw level JSON (nil when the file is
--- missing: the meta still runs the attempt as "easy").
+-- client-architecture.md, section 4.0): app.params =
+--   {level_id = n, run = meta:start_level result (the attempt is already
+--    open in the meta), level_text = raw level JSON (nil when the file is
+--    missing: the meta still runs the attempt as "easy"), from = "town" |
+--    "splash" | "level" (retry / next level) | "qa", level = n (alias of
+--    level_id for older code)}.
+-- The level screen closes the attempt (meta:finish_level or cancel_level),
+-- hands a result to the town with app.push_reward(result) and goes back
+-- with app.show_screen("town"). A town entered with an attempt still open
+-- settles it (M.settle_stale_run).
 
 local app = require("client.app")
 local levels = require("client.levels")
@@ -49,9 +56,27 @@ function M.start(n, boosters, from)
 	for _, id in ipairs(run.paid_boosters or {}) do
 		analytics.log("booster_use", { level = n, id = id, kind = "pre" })
 	end
-	local params = { level_id = n, run = run, level_text = info and info.text or nil, from = from }
+	local params = { level_id = n, level = n, run = run, level_text = info and info.text or nil, from = from }
 	app.show_screen("level", params)
 	return true, nil, params
+end
+
+-- An attempt left open when the town appears (a level screen that went
+-- away without closing it): before the first move it is cancelled (nothing
+-- lost, paid boosters come back), after it it is a loss by quitting, as the
+-- meta does for an app killed mid-level. Returns the loss result (to show
+-- in the town) or nil.
+function M.settle_stale_run()
+	local run = app.meta:run()
+	if not run then return nil end
+	local res
+	if not run.moved then
+		app.meta:cancel_level()
+	else
+		res = app.meta:finish_level({ won = false, level_id = run.level_id, quit_after_first_move = true }, app.now())
+	end
+	app.commit("stale_run")
+	return res or nil
 end
 
 -- Debug / QA: wins the next level through the meta's own start and finish

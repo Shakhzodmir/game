@@ -176,4 +176,96 @@ function H.steps(g, n)
 	return all
 end
 
+-- A match-free picture W x Hh: colour ((x + 2y) mod 4) from `palette`
+-- (4 letters, default "rygb"), with `marks["x,y"] = ch` overriding cells.
+function H.rows(W, Hh, marks, palette)
+	palette = palette or "rygb"
+	marks = marks or {}
+	local out = {}
+	for y = 1, Hh do
+		local line = {}
+		for x = 1, W do
+			local v = (x + 2 * y) % 4 + 1
+			line[x] = marks[x .. "," .. y] or string.sub(palette, v, v)
+		end
+		out[y] = table.concat(line)
+	end
+	return out
+end
+
+-- A picture of Hh rows of W '#'.
+function H.full(W, Hh)
+	local out = {}
+	for y = 1, Hh do out[y] = string.rep("#", W) end
+	return out
+end
+
+-- White-box launch between ticks, as a tap or a swap end would do: the
+-- special in `at` (and the partner in `partner`, for a combo) becomes
+-- armed and its activation record is queued for the next tick with label
+-- (mv, wv) (default (1, 1)) and colour X (default 0).
+function H.arm(g, at, partner, mv, wv, X)
+	local s = g.s
+	local C = require("core.const")
+	local B = require("core.board")
+	local sched = require("core.sched")
+	s.now = s.tick + 1
+	s.phase = 0
+	local o = B.get(s, (at[2] - 1) * s.W + at[1])
+	assert(o and o.kind == C.K_SPECIAL, "no special to arm")
+	B.set_state(o, C.S_ARMED)
+	local pc = 0
+	if partner then
+		pc = (partner[2] - 1) * s.W + partner[1]
+		local po = B.get(s, pc)
+		assert(po and po.kind == C.K_SPECIAL, "no partner special")
+		B.set_state(po, C.S_ARMED)
+	end
+	sched.push(s, s.now, C.R_ACTIVATE, { o.id, o.cell, pc, mv or 1, wv or 1, X or 0 })
+	s.rest_flag = false
+	return o
+end
+
+-- Queue summary: {due, kind, data...} per record, in queue order.
+function H.queue(g)
+	local out = {}
+	for _, r in ipairs(g.s.queue) do
+		local e = { r.due, r.kind }
+		for _, v in ipairs(r.d) do e[#e + 1] = v end
+		out[#out + 1] = e
+	end
+	return out
+end
+
+-- Hit records of the queue as {due, x, y}.
+function H.hits(g, kind)
+	local out = {}
+	for _, r in ipairs(g.s.queue) do
+		if r.kind == (kind or 2) then
+			local x, y = (r.d[2] - 1) % g.s.W + 1, math.floor((r.d[2] - 1) / g.s.W) + 1
+			out[#out + 1] = { r.due, x, y }
+		end
+	end
+	return out
+end
+
+-- Active source ids, ascending.
+function H.sources(g)
+	local ids = {}
+	for id in pairs(g.s.sources) do ids[#ids + 1] = id end
+	table.sort(ids)
+	return ids
+end
+
+-- Cell index of (x, y).
+function H.idx(g, x, y)
+	return (y - 1) * g.s.W + x
+end
+
+-- A copy of an rng stream (for predicting draws without spending them).
+function H.stream_copy(g, k)
+	local src = g.s.rng[k]
+	return { src[1], src[2], src[3], src[4], src[5], src[6] }
+end
+
 return H

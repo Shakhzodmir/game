@@ -1,171 +1,385 @@
--- Level (placeholder until the board and HUD are built on top of core/):
--- level background, "Level N", an empty board frame of the right size, the
--- booster bar slots and a back button. Music is ducked -6 dB while here.
---
--- The board rectangle comes from client/layout.lua with the device
--- safe-area insets (the HUD is anchored to the safe top, the booster bar to
--- the safe bottom), and is laid out again when the window size changes.
--- The HUD is rebuilt when the language changes.
+-- Level HUD (over the board of screens/level/board.script):
+--   top:    pause, the goals (up to three icons with what is left, a tick when
+--           done, a pop when one goes down) and the moves badge (pulses at <= 5);
+--   bottom: the four in-level boosters with their counts (tap: target mode on
+--           the board through client/level_link.lua; tap again: cancel) and the
+--           level name.
+-- Minimal level windows through the overlay (app.modal): pause (resume /
+-- leave), out of moves (+moves for coins / give up), and the end of the
+-- level: the meta attempt is finished (client/rewards.lua shows the reward in
+-- the town) and the town comes back. A standalone debug start (no meta
+-- attempt) plays with free boosters and free "+5 moves".
+-- Music is started and ducked by the board. The HUD is rebuilt when the
+-- language changes or the window is resized.
 
 local app = require("client.app")
 local ui = require("client.ui")
 local i18n = require("client.i18n")
 local bus = require("client.bus")
-local audio = require("client.audio")
-local layout = require("client.layout")
 local assets = require("client.assets")
+local levels = require("client.levels")
+local link = require("client.level_link")
 
 local GUI = "/screens/level/level.gui"
 local BOOSTERS = { "stick", "row_light", "col_light", "remix" }
+local BOOSTER_STYLE = { stick = "pink", row_light = "gold", col_light = "blue", remix = "purple" }
+local LOW_MOVES = 5
+local END_DELAY = 1.6
 
-local function level_data(n)
-	local data = sys.load_resource(string.format("/content/levels/level_%04d.json", n))
-	if not data then return nil end
-	local ok, lvl = pcall(json.decode, data)
-	return ok and type(lvl) == "table" and lvl or nil
+local function run()
+	return app.meta and app.meta:run() or nil
 end
 
-local function board_size(lvl)
-	if lvl and type(lvl.cells) == "table" and #lvl.cells > 0 then
-		local rows = #lvl.cells
-		local cols = type(lvl.cells[1]) == "string" and #lvl.cells[1] or (type(lvl.cells[1]) == "table" and #lvl.cells[1]) or 9
-		return cols, rows
+local function booster_info(id)
+	if not run() then return { count = nil, unlocked = true } end -- standalone: free
+	for _, b in ipairs(app.meta:inventory()) do
+		if b.id == id then return { count = b.count, unlocked = b.unlocked, unlock_level = b.unlock_level } end
 	end
-	return 9, 9
+	return { count = 0, unlocked = false }
 end
 
--- The board rectangle for the current window (logical coordinates).
-local function board_rect(self)
-	local s = self.ui
-	local cols, rows = board_size(self.lvl)
-	return layout.board(cols, rows, layout.play_area(s.fit, { insets = s.insets }))
-end
+-- goals ---------------------------------------------------------------------------------
 
-local function build_board(self)
+local function build_goals(self, parent)
 	local s = self.ui
-	if self.l_board then s:clear(self.l_board) end
-	self.l_board = s:layer(self.c_board)
-	local parent = self.l_board
-	local b = board_rect(self)
-	self.board = b
-	local pad = 20
-	local frame = s:image(parent, "board/board_frame", b.cx, b.cy, { w = b.width + 2 * pad, h = b.height + 2 * pad, slice9 = true })
-	if not frame then
-		s:round(parent, b.cx, b.cy, b.width + 2 * pad, b.height + 2 * pad, "white", { alpha = 0.6 })
+	local info = link.info()
+	local data = { goals = info and info.goals or {}, floor = nil }
+	local goals = levels.goals(data)
+	local n = math.max(1, #goals)
+	local w = 420
+	local panel = s:image(parent, "ui/panel", 330, 1280 - 110, { w = w, h = 170, slice9 = true })
+		or s:round(parent, 330, 1280 - 110, w, 170, "white", { alpha = 0.95 })
+	s:anchor(panel, "top")
+	self.goal_nodes = {}
+	local st = link.status()
+	for k, gdef in ipairs(goals) do
+		local x = -w / 2 + w * (k - 0.5) / n
+		local icon = s:image(panel, gdef.image, x, 22, { w = 84, h = 84 })
+		local left = st and st.goals and st.goals[k] or gdef.count or 0
+		local txt, tinfo = s:text(panel, tostring(left), x, -52, { font = "title", size = 44, color = "text", max_width = 120 })
+		local check = s:image(panel, "ui/icons/check", x + 30, -40, { w = 56, h = 56 })
+		if check then gui.set_enabled(check, left <= 0) end
+		gui.set_enabled(txt, left > 0)
+		self.goal_nodes[k] = { icon = icon, text = txt, info = tinfo, check = check, left = left }
 	end
-	for row = 0, b.rows - 1 do
-		for col = 0, b.cols - 1 do
-			local x, y = layout.cell_center(b, col, row)
-			local key = ((row + col) % 2 == 0) and "board/cell_a" or "board/cell_b"
-			if not s:image(parent, key, x, y, { w = b.cell, h = b.cell }) then
-				s:box(parent, x, y, b.cell, b.cell, { color = ((row + col) % 2 == 0) and "white" or "lavender", alpha = 0.95 })
+	self.goals_panel = panel
+end
+
+local function set_goal(self, k, left)
+	local g = self.goal_nodes and self.goal_nodes[k]
+	if not g then return end
+	if g.left == left then return end
+	g.left = left
+	self.ui:set_text(g.text, tostring(math.max(0, left)), g.info)
+	gui.set_enabled(g.text, left > 0)
+	if g.check then
+		gui.set_enabled(g.check, left <= 0)
+		if left <= 0 then ui.pop_in(g.check, 0, 0.3) end
+	end
+	if g.icon then
+		gui.cancel_animations(g.icon, "scale")
+		gui.set_scale(g.icon, vmath.vector3(1.25, 1.25, 1))
+		gui.animate(g.icon, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3)
+	end
+end
+
+-- moves ---------------------------------------------------------------------------------
+
+local function set_moves(self, left)
+	if not self.moves_text then return end
+	self.moves_left = left
+	self.ui:set_text(self.moves_text, tostring(left), self.moves_info)
+	local low = left > 0 and left <= LOW_MOVES
+	if low ~= self.moves_low then
+		self.moves_low = low
+		if low then ui.pulse(self.moves_badge, 0.07, 0.35) else ui.stop_pulse(self.moves_badge) end
+	end
+end
+
+-- boosters ------------------------------------------------------------------------------
+
+local function refresh_boosters(self)
+	for _, id in ipairs(BOOSTERS) do
+		local b = self.booster_btns and self.booster_btns[id]
+		if b then
+			local inf = booster_info(id)
+			local targeting = link.targeting() == id
+			if b.badge_text then
+				-- standalone debug start: free boosters, no count
+				gui.set_enabled(b.badge, inf.count ~= nil)
+				self.ui:set_text(b.badge_text, tostring(inf.count or ""), b.badge_info)
+			end
+			self.ui:set_enabled(b.btn, inf.unlocked)
+			if b.lock then gui.set_enabled(b.lock, not inf.unlocked) end
+			if targeting and not b.pulsing then
+				b.pulsing = true
+				ui.pulse(b.btn.node, 0.08, 0.3)
+			elseif not targeting and b.pulsing then
+				b.pulsing = false
+				ui.stop_pulse(b.btn.node)
 			end
 		end
 	end
-	-- a few pieces as a preview of the art (static, not the game)
-	local colors = { "red", "orange", "yellow", "green", "blue", "purple" }
-	for i = 0, b.cols - 1 do
-		local x, y = layout.cell_center(b, i, b.rows - 1)
-		local p = s:image(parent, "pieces/" .. colors[(i % #colors) + 1], x, y, { w = b.cell * 0.96, h = b.cell * 0.96 })
-		if p and not self.board_built then ui.pop_in(p, 0.03 * i, 0.3) end
-	end
-	local note = s:round(parent, b.cx, b.cy, math.min(b.width - 40, 520), 110, "white", { alpha = 0.92 })
-	s:text(note, i18n.t("hud.placeholder"), 0, 0, { font = "button", size = 34, color = "text", max_width = 480 })
-	self.board_built = true
+	if self.pick_text then gui.set_enabled(self.pick_text, link.targeting() ~= nil) end
 end
 
-local function build_hud(self)
+local function on_booster_tap(self, id)
+	if self.ended then return end
+	if link.targeting() == id then
+		link.cancel_booster()
+		refresh_boosters(self)
+		return
+	end
+	if link.targeting() then link.cancel_booster() end
+	local inf = booster_info(id)
+	if not inf.unlocked then
+		app.toast_key("hud.booster_locked", { n = inf.unlock_level or "?" }, { color = "blue" })
+		return
+	end
+	if inf.count ~= nil and inf.count <= 0 then
+		app.toast_key("hud.no_boosters", nil, { color = "pink" })
+		return
+	end
+	local ok, why = link.booster(id)
+	if not ok and why ~= "busy" then
+		app.toast_key(why == "not_rest" and "hud.wait_board" or "hud.booster_no", nil, { color = "blue" })
+	end
+	refresh_boosters(self)
+end
+
+local function build_boosters(self, parent)
+	local s = self.ui
+	local bar = s:image(parent, "ui/panel", 360, 70, { w = 704, h = 132, slice9 = true })
+		or s:round(parent, 360, 70, 704, 132, "white", { alpha = 0.92 })
+	s:anchor(bar, "bottom")
+	self.booster_btns = {}
+	for i, id in ipairs(BOOSTERS) do
+		local x = -250 + (i - 1) * 166
+		local btn = s:button({ parent = bar, x = x, y = 2, w = 104, h = 96, style = BOOSTER_STYLE[id],
+			icon = "ui/icons/" .. id, icon_size = 72, on_click = function() on_booster_tap(self, id) end })
+		local badge = s:image(btn.node, "ui/badge_count", 46, 40, { w = 46, h = 46 })
+			or s:circle(btn.node, 46, 40, 46, "pink")
+		local bt, binfo = s:text(badge, "", 0, 1, { font = "number", size = 26, color = "white", outline = "#A8204F",
+			max_width = 40 })
+		local lock = s:image(btn.node, "ui/icons/lock", 30, -30, { w = 44, h = 44 })
+		self.booster_btns[id] = { btn = btn, badge = badge, badge_text = bt, badge_info = binfo, lock = lock }
+	end
+	local pick = s:text(parent, i18n.t("hud.pick_target"), 360, 176, {
+		font = "button", size = 34, color = "white", outline = "#8B45FF", shadow = "shadow", max_width = 640,
+	})
+	s:anchor(pick, "bottom")
+	self.pick_text = pick
+	refresh_boosters(self)
+end
+
+-- windows -------------------------------------------------------------------------------
+
+local function go_town(self, delay)
+	self.leave_in = delay or 0
+end
+
+local function finish(self, result)
+	if self.ended then return end
+	self.ended = true
+	link.cancel_booster()
+	local r = run()
+	if r then
+		local ok, res = pcall(function()
+			if result.won then
+				return app.meta:finish_level({ won = true, level_id = r.level_id, moves_at_win = result.moves_at_win or 0 },
+					app.now())
+			end
+			return app.meta:finish_level({ won = false, level_id = r.level_id }, app.now())
+		end)
+		app.commit(result.won and "level_win" or "level_lose")
+		if ok and res and result.won then app.push_reward(res) end
+		if not ok then print("WARNING: level HUD: finish_level failed: " .. tostring(res)) end
+	end
+	app.toast_key(result.won and "hud.win" or "hud.lost", nil, { color = result.won and "gold" or "pink" })
+	go_town(self, END_DELAY)
+end
+
+local function open_out_of_moves(self, stuck)
+	if self.ended then return end
+	local r = run()
+	local offer = r and app.meta:continue_offer() or nil
+	local buttons = {}
+	local text
+	if stuck then
+		text = { key = "popup.level.stuck" }
+	elseif r and offer then
+		text = { key = "popup.level.out_text", vars = { n = offer.moves, price = offer.price } }
+		buttons[#buttons + 1] = { id = "continue", text = { key = "popup.level.continue", vars = { n = offer.moves } }, style = "gold" }
+	elseif not r then
+		text = { key = "popup.level.out_text_free", vars = { n = 5 } }
+		buttons[#buttons + 1] = { id = "continue", text = { key = "popup.level.continue", vars = { n = 5 } }, style = "gold" }
+	else
+		text = { key = "popup.level.no_offer" }
+	end
+	buttons[#buttons + 1] = { id = "give_up", text = { key = "popup.level.give_up" }, style = "pink" }
+	self.offer = offer
+	self.modal = "level_out"
+	app.modal({ id = "level_out", title = { key = "popup.level.out_title" }, text = text, buttons = buttons })
+end
+
+local function on_out_result(self, button)
+	self.modal = nil
+	if button == "continue" then
+		local r = run()
+		if r and self.offer then
+			local res, why = app.meta:buy_continue(self.offer.k)
+			app.commit("continue")
+			if res then
+				link.continue(res.moves, res.riff)
+			else
+				app.toast_key(why == "not_enough_coins" and "common.not_enough_coins" or "common.error", nil, { color = "pink" })
+				self.reopen_out = 0.4
+			end
+		else
+			link.continue(5, false)
+		end
+	elseif button == "give_up" then
+		link.give_up()
+	elseif button ~= "screen_changed" then
+		self.reopen_out = 0.3 -- the choice is needed to go on
+	end
+end
+
+local function open_pause(self)
+	if self.ended or self.modal then return end
+	local r = run()
+	local text
+	if r and r.moved and not r.free then
+		text = { key = "popup.level.quit_life" }
+	else
+		text = { key = "popup.level.quit_free" }
+	end
+	link.pause(true)
+	self.modal = "level_pause"
+	app.modal({ id = "level_pause", title = { key = "popup.level.pause_title" }, text = text, buttons = {
+		{ id = "resume", text = { key = "popup.level.resume" }, style = "green" },
+		{ id = "quit", text = { key = "popup.level.quit" }, style = "pink" },
+	} })
+end
+
+local function on_pause_result(self, button)
+	self.modal = nil
+	link.pause(false)
+	if button ~= "quit" then return end
+	self.ended = true
+	local r = run()
+	if r then
+		pcall(function()
+			if r.moved then
+				app.meta:finish_level({ won = false, level_id = r.level_id, quit_after_first_move = true }, app.now())
+			else
+				app.meta:cancel_level()
+			end
+		end)
+		app.commit("level_quit")
+	end
+	go_town(self, 0)
+end
+
+-- build ---------------------------------------------------------------------------------
+
+local function build(self)
 	local s = self.ui
 	if self.l_hud then s:clear(self.l_hud) end
 	self.l_hud = s:layer(self.c_hud)
 	local parent = self.l_hud
-	local top = 1280 - 120
-	local back = s:button({ parent = parent, x = 80, y = top, w = 110, h = 110, style = "blue", icon = "ui/icons/home", icon_size = 72,
-		text = not assets.has_image("ui/icons/home") and "<" or nil,
-		on_click = function() self.leave(self) end })
-	s:anchor(back.node, "top")
-	local title = s:text(parent, i18n.t("hud.level", { n = self.level }), 360, top + 8, {
-		font = "title", size = 64, color = "white", outline = "#FF4D8D", shadow = "shadow", max_width = 420,
+	local info = link.info()
+	local pause = s:button({ parent = parent, x = 62, y = 1280 - 110, w = 96, h = 96, style = "purple",
+		icon = "ui/icons/pause", icon_size = 60, text = not assets.has_image("ui/icons/pause") and "II" or nil,
+		on_click = function() open_pause(self) end })
+	s:anchor(pause.node, "top")
+	build_goals(self, parent)
+	local badge = s:image(parent, "ui/moves_badge", 632, 1280 - 110, { w = 160, h = 160, slice9 = true })
+		or s:circle(parent, 632, 1280 - 110, 150, "pink")
+	s:anchor(badge, "top")
+	self.moves_badge = badge
+	self.moves_low = nil
+	local st = link.status()
+	self.moves_text, self.moves_info = s:text(badge, tostring(st and st.moves_left or "–"), 0, 12, {
+		font = "title", size = 64, color = "white", outline = "#A8204F", max_width = 130,
 	})
-	s:anchor(title, "top")
-	if self.lvl and self.lvl.difficulty and self.lvl.difficulty ~= "easy" and self.lvl.difficulty ~= "medium" then
-		local sub = s:text(parent, i18n.t(self.lvl.difficulty == "hard" and "town.hard" or "town.super_hard"), 360, top - 50, {
-			font = "button", size = 30, color = "pink", outline = "white",
+	s:text(badge, i18n.t("hud.moves"), 0, -46, { font = "button", size = 24, color = "white", outline = "#A8204F",
+		max_width = 130 })
+	if st then set_moves(self, st.moves_left) end
+	build_boosters(self, parent)
+	if info then
+		local name = s:text(parent, i18n.t("hud.level", { n = info.level_id }), 360, 158, {
+			font = "button", size = 28, color = "white", outline = "#2F80ED", shadow = "shadow", max_width = 400,
 		})
-		s:anchor(sub, "top")
+		s:anchor(name, "bottom")
+		self.level_name = name
 	end
-	local moves = s:image(parent, "ui/moves_badge", 640, top, { w = 120, h = 120, slice9 = true })
-	if not moves then moves = s:circle(parent, 640, top, 110, "pink") end
-	s:anchor(moves, "top")
-	s:text(moves, self.lvl and self.lvl.moves and tostring(self.lvl.moves) or "–", 0, 4, {
-		font = "title", size = 50, color = "white", outline = "#A8204F",
-	})
-	s:text(moves, i18n.t("hud.moves"), 0, -72, { font = "button", size = 26, color = "white", outline = "#A8204F", max_width = 150 })
-
-	-- booster bar
-	local bar = s:round(parent, 360, 100, 680, 150, "white", { alpha = 0.9 })
-	s:anchor(bar, "bottom")
-	for i, id in ipairs(BOOSTERS) do
-		local x = -255 + (i - 1) * 170
-		local slot = s:round(bar, x, 0, 132, 124, "lavender")
-		local icon = s:image(slot, "ui/icons/" .. id, 0, 4, { w = 88, h = 88 })
-		if icon then gui.set_color(icon, vmath.vector4(1, 1, 1, 0.5)) end
-		local lock = s:image(slot, "ui/icons/lock", 40, -38, { w = 48, h = 48 })
-		if not lock then s:circle(slot, 40, -38, 30, "text_soft") end
-	end
-end
-
-local function leave(self)
-	if self.left then return end
-	self.left = true
-	app.show_screen("town", { from = "level" })
+	self.built = true
 end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	self.level = tonumber(app.params.level) or app.meta:level_to_play() or 1
-	self.lvl = level_data(self.level)
-	self.leave = leave
-	self.sub = bus.subscribe({ "language_changed" }, "level")
-	self.on_bus = function(topic) if topic == "language_changed" then self.dirty_hud = true end end
-	local s = ui.scene({ gui = GUI, on_resize = function() self.dirty_board = true end })
-	self.ui = s
-	s:sky({ clouds = false })
-	s:backdrop(s.root, "backgrounds/level_bg")
-	local bunting = s:image(s.root, "ui/bunting", 360, 1280 - 30, { w = 760, h = 68 })
-	if bunting then s:anchor(bunting, "top") end
-	-- fixed containers keep the draw order; their content is rebuilt
-	self.c_board = s:layer(s.root, "board")
-	self.c_hud = s:layer(s.root, "hud")
-	build_board(self)
-	build_hud(self)
-	audio.music(app.focus_district())
-	audio.level_duck(true)
+	gui.set_render_order(2)
+	self.ui = ui.scene({ gui = GUI, on_resize = function() self.dirty = true end })
+	self.c_hud = self.ui:layer(self.ui.root, "hud")
+	self.sub = bus.subscribe({ "level_ready", "level_moves", "level_goal", "level_state", "level_result",
+		"level_booster", "meta_changed", "language_changed", "modal_result" }, "level_hud")
+	self.on_bus = function(topic, p)
+		if topic == "level_ready" or topic == "language_changed" then
+			self.dirty = true
+		elseif topic == "level_moves" then
+			set_moves(self, p.left)
+		elseif topic == "level_goal" then
+			set_goal(self, p.index, p.left)
+		elseif topic == "level_state" then
+			if p.state == "out_of_moves" then open_out_of_moves(self, p.reason == "stuck") end
+		elseif topic == "level_result" then
+			finish(self, p.result or {})
+		elseif topic == "level_booster" then
+			if p.phase == "rejected" then app.toast_key("hud.booster_no", nil, { color = "blue" }) end
+			refresh_boosters(self)
+		elseif topic == "meta_changed" then
+			refresh_boosters(self)
+		elseif topic == "modal_result" then
+			if p.id == "level_out" then on_out_result(self, p.button)
+			elseif p.id == "level_pause" then on_pause_result(self, p.button) end
+		end
+	end
 end
 
 function final(self)
 	self.sub:close()
-	audio.level_duck(false)
 	self.ui:final()
 end
 
 function update(self, dt)
-	self.sub:drain(self.on_bus)
-	self.ui:update(dt) -- may flag dirty_board through on_resize
-	if self.dirty_hud then
-		self.dirty_hud = false
-		build_hud(self)
-		self.dirty_board = true -- texts on the board too
+	self.ui:update(dt)
+	if not self.built and link.active() then self.dirty = true end
+	if self.dirty and link.active() then
+		self.dirty = false
+		build(self)
 	end
-	if self.dirty_board then
-		self.dirty_board = false
-		build_board(self)
+	self.sub:drain(self.on_bus)
+	if self.reopen_out then
+		self.reopen_out = self.reopen_out - dt
+		if self.reopen_out <= 0 then
+			self.reopen_out = nil
+			local st = link.status()
+			if st and st.state == "out_of_moves" then open_out_of_moves(self, st.stuck) end
+		end
+	end
+	if self.leave_in then
+		self.leave_in = self.leave_in - dt
+		if self.leave_in <= 0 then
+			self.leave_in = nil
+			app.show_screen("town", { from = "level" })
+		end
 	end
 end
 
 function on_input(self, action_id, action)
 	if action_id == hash("back") and action.released then
-		leave(self)
+		open_pause(self)
 		return true
 	end
 	return self.ui:on_input(action_id, action)

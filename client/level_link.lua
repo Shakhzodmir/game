@@ -22,6 +22,10 @@
 --   link.give_up()                 -- out of moves, the player gives up
 --   link.cell_center(x, y)         -- logical coordinates of core cell (x, y)
 --   link.board_rect()              -- {x0, y0, x1, y1, cell} of the cell grid
+--   link.view()                    -- what the board background GUI draws (level_bg.gui_script):
+--                                  --  {rev, geom, cells, floor0, floor_rev, lit = {[i] = t}, deliver,
+--                                  --   shake_x, shake_y}; rev grows when the layout changed,
+--                                  --   floor_rev when a floor tile was hit or lit
 --
 -- Bus topics published by the board (client/bus.lua; payloads are read-only):
 --   level_ready    {level_id, W, H, moves, goals, rect}     the board is built
@@ -35,6 +39,8 @@
 --   level_booster  {booster, phase = "target" | "cancel" | "used" | "done", ok}
 --   level_result   {result = game:result()}                  complete or lost
 --   level_special  {special, combo, lx, ly}                  a special fired (Bit scratches)
+--   level_flash    {color, alpha, dur}                       the whole screen flashes (fx GUI)
+--   level_floor    {x, y, lx, ly}                            a dance-floor tile was lit
 
 local M = {}
 
@@ -130,6 +136,11 @@ function M.cell_center(x, y)
 	local b = M.board
 	if not b or not b.geom then return nil end
 	return b.geom:center(x, y)
+end
+
+function M.view()
+	local b = M.board
+	return b and b.view or nil
 end
 
 function M.board_rect()

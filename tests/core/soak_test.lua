@@ -146,6 +146,15 @@ local LEVELS = {
 	{ rows = { "#######", "#######", "#######", "#######", "#######", "#######" },
 		extra = { moves = 15, colors = { "red", "green", "blue", "yellow", "purple" },
 			goals = { { type = "collect", color = "red", count = 8 } } } },
+	-- specials everywhere: combos, chains, Birds, Colour X
+	{ rows = { "#######", "#R#S#V#", "##D#B##", "#B#S#R#", "##V#D##", "#S#B#V#", "#######" },
+		extra = { moves = 30, colors = { "red", "green", "blue", "yellow" },
+			goals = { { type = "collect", color = "green", count = 300 } } } },
+	-- Bird targets: concrete, balloons, tiles; specials to fire them
+	{ rows = { "########", "#K##K#B#", "##A##E##", "#B#DD#S#", "##K##A##", "#SB##BR#", "########" },
+		extra = { moves = 30, colors = { "red", "orange", "blue", "purple", "yellow" },
+			floor = { { at = { 0, 6 }, hp = 2 }, { at = { 3, 6 }, hp = 1 }, { at = { 7, 0 }, hp = 1 }, { at = { 5, 3 }, hp = 1 } },
+			goals = { { type = "break", item = "concrete", count = 3 }, { type = "light" } } } },
 }
 
 describe("core property: group search", function()

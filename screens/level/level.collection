@@ -1,10 +1,52 @@
 name: "level"
 scale_along_z: 0
 embedded_instances {
+  id: "bg"
+  data: "components {\n"
+  "  id: \"level_bg\"\n"
+  "  component: \"/screens/level/level_bg.gui\"\n"
+  "}\n"
+  ""
+}
+embedded_instances {
+  id: "board"
+  data: "components {\n"
+  "  id: \"board\"\n"
+  "  component: \"/screens/level/board.script\"\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"piece_factory\"\n"
+  "  type: \"factory\"\n"
+  "  data: \"prototype: \\\"/screens/level/piece.go\\\"\\n"
+  "\"\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"glow_factory\"\n"
+  "  type: \"factory\"\n"
+  "  data: \"prototype: \\\"/screens/level/glow.go\\\"\\n"
+  "\"\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"burst_factory\"\n"
+  "  type: \"factory\"\n"
+  "  data: \"prototype: \\\"/screens/level/burst.go\\\"\\n"
+  "\"\n"
+  "}\n"
+  ""
+}
+embedded_instances {
   id: "gui"
   data: "components {\n"
   "  id: \"level\"\n"
   "  component: \"/screens/level/level.gui\"\n"
+  "}\n"
+  ""
+}
+embedded_instances {
+  id: "fx"
+  data: "components {\n"
+  "  id: \"level_fx\"\n"
+  "  component: \"/screens/level/level_fx.gui\"\n"
   "}\n"
   ""
 }

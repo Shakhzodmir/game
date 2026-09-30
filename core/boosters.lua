@@ -7,7 +7,7 @@ local E = require("core.events")
 local H = require("core.hits")
 local R = require("core.rng")
 local SH = require("core.shuffle")
-local SP = require("core.specials")
+local EF = require("core.effects")
 local sched = require("core.sched")
 
 local BO = {}
@@ -57,7 +57,7 @@ function BO.run(s, rec)
 			E.emit(s, "bolt", { x = 1, y = target, dir = "r", at = now })
 			for x = 1, s.W do
 				local i = (target - 1) * s.W + x
-				if s.exists[i] then acts[#acts + 1] = { now + T.light_step * (x - 1), i } end
+				if s.exists[i] then acts[#acts + 1] = { now + T.light_step * (x - 1), C.R_HIT, { src.id, i } } end
 			end
 		else
 			ev.col = target
@@ -65,10 +65,10 @@ function BO.run(s, rec)
 			E.emit(s, "bolt", { x = target, y = 1, dir = "d", at = now })
 			for y = 1, s.H do
 				local i = (y - 1) * s.W + target
-				if s.exists[i] then acts[#acts + 1] = { now + T.light_step * (y - 1), i } end
+				if s.exists[i] then acts[#acts + 1] = { now + T.light_step * (y - 1), C.R_HIT, { src.id, i } } end
 			end
 		end
-		SP.run_hits(s, src, acts, now)
+		EF.run(s, src, acts, true)
 	else -- remix
 		if #SH.candidates(s) < 2 then
 			ev.ok = false

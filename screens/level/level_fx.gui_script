@@ -1,0 +1,152 @@
+-- Level overlay effects in GUI (above the board and the HUD, under the
+-- overlay of main.collection): praise words of a cascade (juicy, hit,
+-- drive, vibe, legend) popping over the board, banners ("No moves -
+-- shuffling!"), the white flash of the Grand finale and the "tap to skip"
+-- hint of the final concert. Everything arrives as bus events from
+-- screens/level/board.script (client/level_link.lua lists the topics).
+-- Reduced motion: words appear and fade without bouncing.
+
+local ui = require("client.ui")
+local i18n = require("client.i18n")
+local bus = require("client.bus")
+local app = require("client.app")
+local link = require("client.level_link")
+
+local GUI = "/screens/level/level_fx.gui"
+
+-- colour and outline of each praise word (1 juicy .. 5 legend)
+local PRAISE_STYLE = {
+	{ "#FF4D8D", "white" }, { "#FF9A1F", "white" }, { "#2F80ED", "white" },
+	{ "#8B45FF", "white" }, { "#FFB020", "#8B45FF" },
+}
+
+local function reduced()
+	return app.reduced_motion()
+end
+
+-- y of the praise words: just above the board, under the HUD
+local function praise_y()
+	local r = link.board_rect()
+	if not r then return 900 end
+	return math.min(r.y1 + 30, 1280 - 250)
+end
+
+local function show_praise(self, p)
+	local s = self.ui
+	if self.praise then
+		gui.cancel_animations(self.praise, "scale")
+		s:clear(self.praise)
+		self.praise = nil
+	end
+	local idx = math.max(1, math.min(5, p.index or 1))
+	local st = PRAISE_STYLE[idx]
+	local size = 76 + idx * 6
+	local n = s:text(self.layer, i18n.t("praise." .. idx), 360, praise_y(), {
+		font = "title", size = size, color = st[1], outline = st[2], shadow = "shadow", max_width = 640,
+	})
+	self.praise = n
+	local sc = gui.get_scale(n)
+	local hold = 0.75 + idx * 0.08
+	if reduced() then
+		gui.set_color(n, vmath.vector4(gui.get_color(n).x, gui.get_color(n).y, gui.get_color(n).z, 0))
+		gui.animate(n, "color.w", 1, gui.EASING_OUTQUAD, 0.15)
+		gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.3, hold, function()
+			if self.praise == n then self.praise = nil end
+			s:clear(n)
+		end)
+		return
+	end
+	gui.set_scale(n, sc * 0.25)
+	gui.set_euler(n, vmath.vector3(0, 0, -8))
+	gui.animate(n, "scale", sc * 1.15, gui.EASING_OUTBACK, 0.2, 0, function()
+		gui.animate(n, "scale", sc, gui.EASING_OUTQUAD, 0.12)
+	end)
+	gui.animate(n, "euler.z", 4, gui.EASING_OUTBACK, 0.3)
+	local p0 = gui.get_position(n)
+	gui.animate(n, "position.y", p0.y + 60, gui.EASING_INQUAD, 0.35, hold)
+	gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.35, hold, function()
+		if self.praise == n then self.praise = nil end
+		s:clear(n)
+	end)
+end
+
+local function show_banner(self, key)
+	local s = self.ui
+	if self.banner then s:clear(self.banner) end
+	local r = link.board_rect()
+	local y = r and (r.y0 + r.y1) / 2 or 640
+	local b = s:round(self.layer, 360, y, 600, 120, "white", { alpha = 0.96, radius = 30 })
+	s:text(b, i18n.t(key), 0, 4, { font = "button", size = 44, color = "#8B45FF", outline = false, max_width = 560 })
+	self.banner = b
+	if reduced() then
+		gui.animate(b, "color.w", 0, gui.EASING_INQUAD, 0.3, 1.2, function()
+			if self.banner == b then self.banner = nil end
+			s:clear(b)
+		end)
+		return
+	end
+	gui.set_scale(b, vmath.vector3(0.3, 0.3, 1))
+	gui.animate(b, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3)
+	gui.animate(b, "scale", vmath.vector3(0.2, 0.2, 1), gui.EASING_INBACK, 0.25, 1.3, function()
+		if self.banner == b then self.banner = nil end
+		s:clear(b)
+	end)
+end
+
+local function screen_flash(self, p)
+	local s = self.ui
+	local n = s:box(self.layer, 360, 640, 720, 1280, { color = p.color or "#FFFFFF", alpha = p.alpha or 0.9 })
+	s:cover(n, "stretch")
+	gui.animate(n, "color.w", 0, gui.EASING_OUTQUAD, p.dur or 0.5, 0, function() s:clear(n) end)
+end
+
+local function skip_hint(self, on)
+	local s = self.ui
+	if on and not self.skip then
+		local r = link.board_rect()
+		local y = r and r.y0 - 50 or 170
+		local n = s:text(self.layer, i18n.t("hud.tap_skip"), 360, math.max(y, 130), {
+			font = "button", size = 36, color = "white", outline = "#8B45FF", shadow = "shadow", max_width = 600,
+		})
+		self.skip = n
+		if not reduced() then ui.pulse(n, 0.06, 0.6) end
+	elseif not on and self.skip then
+		ui.stop_pulse(self.skip)
+		s:clear(self.skip)
+		self.skip = nil
+	end
+end
+
+function init(self)
+	gui.set_render_order(3)
+	self.ui = ui.scene({ gui = GUI })
+	self.layer = self.ui:layer(self.ui.root, "fx")
+	self.sub = bus.subscribe({ "level_praise", "level_banner", "level_flash", "level_state", "language_changed" },
+		"level_fx")
+	self.on_bus = function(topic, p)
+		if topic == "level_praise" then
+			show_praise(self, p)
+		elseif topic == "level_banner" then
+			show_banner(self, p.key)
+		elseif topic == "level_flash" then
+			screen_flash(self, p)
+		elseif topic == "level_state" then
+			skip_hint(self, p.state == "won_wait" or p.state == "concert")
+		elseif topic == "language_changed" then
+			if self.skip then
+				skip_hint(self, false)
+				skip_hint(self, true)
+			end
+		end
+	end
+end
+
+function final(self)
+	self.sub:close()
+	self.ui:final()
+end
+
+function update(self, dt)
+	self.ui:update(dt)
+	self.sub:drain(self.on_bus)
+end
