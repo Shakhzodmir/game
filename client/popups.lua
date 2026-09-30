@@ -146,6 +146,7 @@ function Host:open(name, params)
 	s:set_input_root(e.holder)
 	self:_build(e)
 	e.first = false
+	if e.closing then return nil end -- the window closed itself while building
 	local reduced = app.reduced_motion()
 	gui.animate(e.dim, "color.w", mod.dim_alpha or M.DIM_ALPHA, gui.EASING_OUTQUAD, reduced and 0.1 or 0.2)
 	if not mod.fullscreen and not reduced then

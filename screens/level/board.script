@@ -1,0 +1,472 @@
+-- The level board (client-architecture.md, 4.1): owns the core game of the
+-- level, runs it on a fixed step, draws it with pooled sprites and particle
+-- bursts, turns touches into core commands and every core event into
+-- animation, effects, sound and bus events for the HUD.
+--
+--   core game ....... client/level_session.lua (params -> core.new, fixed 1/60 s steps)
+--   pieces .......... client/level_anim.lua (how each object looks) -> client/level_view.lua
+--   effects ......... client/level_effects.lua (events -> commands) -> client/level_vfx.lua
+--   input ........... client/level_input.lua (swipe / tap-tap / booster targets)
+--   hint ............ client/level_hint.lua (5 s idle -> game:hint() wobble)
+--   sound ........... client/level_audio.lua (notes, effects, layers, haptics)
+--   HUD / windows ... client/level_link.lua (plain calls) + bus topics level_*
+--   background ...... screens/level/level_bg.gui_script (sky, board backing, cells, floor)
+--   QA .............. client/level_qa.lua (hint_move, swap, tap, skip, state, ...)
+--
+-- Params (app.params): {level_id, run, level_text} from the start window
+-- (client/flow.lua), or {level = n} for a standalone debug start (F2, the QA
+-- "level n" command): then the level file is read here and no meta attempt
+-- is involved.
+
+local app = require("client.app")
+local bus = require("client.bus")
+local audio = require("client.audio")
+local platform = require("client.platform")
+local layout = require("client.layout")
+local levels = require("client.levels")
+local level_session = require("client.level_session")
+local level_geom = require("client.level_geom")
+local level_input = require("client.level_input")
+local level_hint = require("client.level_hint")
+local level_audio = require("client.level_audio")
+local level_link = require("client.level_link")
+local level_anim = require("client.level_anim")
+local level_effects = require("client.level_effects")
+local level_view = require("client.level_view")
+local level_vfx = require("client.level_vfx")
+local level_qa = require("client.level_qa")
+
+local TOUCH = hash("touch")
+
+local function read_level(n)
+	local info = levels.load(n)
+	if info then return info.text end
+	local ok, data = pcall(sys.load_resource, string.format("/content/levels/level_%04d.json", n))
+	return ok and data or nil
+end
+
+local function safe_insets()
+	local ok, sa = pcall(window.get_safe_area)
+	return ok and type(sa) == "table" and sa or nil
+end
+
+local function settings()
+	return app.meta and app.meta:settings() or {}
+end
+
+-- geometry for the current window
+local function build_geom(self)
+	local ww, wh = window.get_size()
+	self.ww, self.wh = ww, wh
+	self.fit = layout.fit(ww, wh)
+	local area = layout.play_area(self.fit, { insets = safe_insets() })
+	local g = level_geom.new(self.W, self.H, self.cells, area)
+	self.geom = g
+	self.anim:set_geom(g)
+	self.effects:set_geom(g)
+	self.vfx:set_geom(g)
+	self.link_board.geom = g
+	local v = self.link_board.view
+	v.geom = g
+	v.rev = v.rev + 1
+	self.wires_dirty = true
+end
+
+local function refresh_cells(self)
+	self.cells = self.session.game:cells()
+	self.link_board.view.cells = self.cells
+end
+
+local function publish_status(self)
+	local st = self.session.game:status()
+	self.status = st
+	return st
+end
+
+-- where the last collected thing was (a goal event has no position)
+local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, transform = true }
+
+local function on_event(self, e)
+	local ty = e.type
+	if SOURCE_EVENTS[ty] then self.last_src = e end
+	if ty == "moves" then
+		bus.publish("level_moves", { left = e.left })
+	elseif ty == "goal" then
+		local src = self.last_src
+		local goal = (self.session.data.goals or {})[e.index] or {}
+		local p = { index = e.index, left = e.left, kind = goal.type, color = goal.color, item = goal.item }
+		if src and src.x then
+			p.x, p.y = src.x, src.y
+			p.lx, p.ly = self.geom:center(src.x, src.y)
+		end
+		bus.publish("level_goal", p)
+	elseif ty == "score" then
+		local lx, ly
+		if e.x then lx, ly = self.geom:center(e.x, e.y) end
+		bus.publish("level_score", { delta = e.delta, total = e.total, lx = lx, ly = ly })
+	elseif ty == "state" then
+		bus.publish("level_state", { state = e.state, reason = e.reason })
+		if e.state ~= "playing" then
+			self.input:deselect()
+			if e.state ~= "out_of_moves" and self.input.targeting then
+				local id = self.input.targeting
+				self.input:cancel_target()
+				bus.publish("level_booster", { booster = id, phase = "cancel" })
+			end
+		end
+		if e.state == "complete" or e.state == "lost" then
+			bus.publish("level_result", { result = self.session.game:result() })
+		end
+	elseif ty == "hit" then
+		if e.layer == "floor" then
+			self.floor_dirty = true
+		elseif e.layer == "wires" then
+			self.wires_dirty = true
+		end
+	elseif ty == "floor_lit" then
+		self.floor_dirty = true
+		local v = self.link_board.view
+		v.lit[(e.y - 1) * self.W + e.x] = self.t
+		local lx, ly = self.geom:center(e.x, e.y)
+		bus.publish("level_floor", { x = e.x, y = e.y, lx = lx, ly = ly })
+	elseif ty == "freed" or ty == "shuffle" then
+		self.wires_dirty = true
+	elseif ty == "activate" then
+		local lx, ly = self.geom:center(e.x, e.y)
+		bus.publish("level_special", { special = e.special, combo = e.combo, lx = lx, ly = ly })
+	elseif ty == "booster" then
+		bus.publish("level_booster", { booster = e.booster, phase = "done", ok = e.ok })
+	end
+end
+
+local function on_tick(self, events)
+	if #events == 0 then return end
+	local t = self.t
+	for i = 1, #events do
+		local e = events[i]
+		self.anim:event(e, t)
+		self.effects:event(e)
+		self.laudio:event(e)
+		on_event(self, e)
+	end
+	self.vfx:play(self.effects:drain())
+end
+
+-- commands ------------------------------------------------------------------------
+
+local function command(self, cmd)
+	local ok, res = self.session:command(cmd)
+	self.status = self.session.status
+	return ok, res
+end
+
+local function try_swap(self, cmd)
+	local r = self.session.game:can_swap(cmd.from, cmd.to)
+	if r == "reject" then
+		-- nothing to swap with (a blocker, a pinned piece...): a small nudge
+		local p = self.cellmap[(cmd.from[2] - 1) * self.W + cmd.from[1]]
+		if p then self.anim:touch(p.id, self.t) end
+		return false, "reject"
+	end
+	return command(self, cmd)
+end
+
+local function dispatch(self, cmd)
+	if not cmd then return end
+	if cmd.type == "swap" then
+		try_swap(self, cmd)
+	elseif cmd.type == "tap" then
+		command(self, cmd)
+	elseif cmd.type == "booster" then
+		local ok, res = command(self, cmd)
+		if ok then
+			self.input:cancel_target()
+			bus.publish("level_booster", { booster = cmd.booster, phase = "used" })
+		else
+			bus.publish("level_booster", { booster = cmd.booster, phase = "rejected", reason = res })
+		end
+	end
+end
+
+-- logical coordinates of an input action
+local function logical(self, action)
+	-- window pixels, the same fit as the render script and client/ui.lua
+	local f = self.fit or layout.fit(window.get_size())
+	return layout.screen_to_logical(f, action.screen_x or action.x, action.screen_y or action.y)
+end
+
+local function board_point(self, lx, ly)
+	local g = self.geom
+	local x, y = g:cell_at(lx, ly)
+	if x and g:exists(x, y) then
+		local fx, fy = g:frac(lx, ly)
+		return fx, fy, x, y
+	end
+	return nil
+end
+
+-- init / final ------------------------------------------------------------------
+
+local function fail(self, err)
+	print("ERROR: level board: " .. tostring(err))
+	self.failed = true
+	pcall(app.toast_key, "common.error", nil, { color = "pink" })
+	app.show_screen("town", { from = "level" })
+end
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	self.t = 0
+	local params = app.params or {}
+	local hooks = {
+		first_move = function()
+			if app.meta and app.meta:run() then
+				app.meta:note_move()
+				app.commit("first_move")
+			end
+		end,
+		booster_used = function(id)
+			if app.meta and app.meta:run() then
+				local ok, why = app.meta:use_booster(id)
+				if not ok then print("WARNING: level board: booster " .. id .. " not charged: " .. tostring(why)) end
+				app.commit("booster")
+			end
+		end,
+	}
+	local s, err = level_session.new({ params = params, read_level = read_level, hooks = hooks })
+	if not s then return fail(self, err) end
+	self.session = s
+	self.on_tick = function(events) on_tick(self, events) end
+	self.W, self.H = s.W, s.H
+	self.status = s.game:status()
+	local st = settings()
+	local reduced = app.reduced_motion()
+	self.reduced = reduced
+	self.settings_rev = app.settings_rev
+
+	self.cells = s.game:cells()
+	-- starting floor: a tile that had hp and has none left is lit
+	local floor0 = {}
+	for i = 1, #self.cells do floor0[i] = self.cells[i].floor or 0 end
+	local deliver = false
+	for _, gl in ipairs(s.data.goals or {}) do
+		if gl.type == "deliver" then deliver = true end
+	end
+
+	self.cellmap, self.by_id = {}, {}
+	self.input = level_input.new({ mode = st.input_mode, query = function(x, y)
+		local p = self.cellmap[(y - 1) * self.W + x]
+		if not p then return nil end
+		local c = self.cells[(y - 1) * self.W + x]
+		return { id = p.id, kind = p.kind, state = p.state, pinned = p.pinned, wired = c and (c.wires or 0) > 0 }
+	end })
+	self.hint = level_hint.new()
+	self.anim = level_anim.new({ reduced = reduced })
+	self.effects = level_effects.new({ reduced = reduced, lookup = function(id) return self.by_id[id] end })
+	self.effects:set_cell_lookup(function(x, y) return self.cellmap[(y - 1) * self.W + x] end)
+	self.view = level_view.new({ piece = "#piece_factory", glow = "#glow_factory" })
+	self.vfx = level_vfx.new({
+		piece = "#piece_factory", glow = "#glow_factory", burst = "#burst_factory", reduced = reduced,
+		on_gui = function(c)
+			if c.kind == "praise" then
+				bus.publish("level_praise", { word = c.word, index = c.index, wave = c.wave })
+			elseif c.kind == "banner" then
+				bus.publish("level_banner", { key = c.key })
+			elseif c.kind == "screen_flash" then
+				bus.publish("level_flash", { color = c.color, alpha = c.alpha, dur = c.dur })
+			end
+		end,
+		on_slowmo = function(dur, scale) self.session:slowmo(dur, scale) end,
+	})
+	self.laudio = level_audio.new({ audio = audio, vibrate = platform.vibrate, now = function() return self.t end,
+		width = self.W })
+
+	self.link_board = {
+		session = s, input = self.input, geom = nil,
+		view = { rev = 0, floor_rev = 0, cells = self.cells, floor0 = floor0, lit = {}, deliver = deliver,
+			shake_x = 0, shake_y = 0, W = self.W, H = self.H },
+		on_booster = function(id, phase) bus.publish("level_booster", { booster = id, phase = phase }) end,
+	}
+	build_geom(self)
+	level_link.attach(self.link_board)
+
+	self.qa_off = level_qa.register({
+		session = s,
+		stats = function()
+			local v, x = self.view:stats(), self.vfx:stats()
+			return { view = v, vfx = x, frames = self.frames or 0, ticks = s.ticks_run, dropped = s.dropped,
+				selected = self.input.selected, targeting = self.input.targeting,
+				w = self.ww, h = self.wh, cell = self.geom and self.geom.cell }
+		end,
+		on_qa = function(name, res)
+			if name == "skip" and res and res.ok then self.vfx:clear() end
+		end,
+	})
+
+	audio.music(app.focus_district())
+	audio.level_duck(true)
+	local d = s.data
+	bus.publish("level_ready", { level_id = s.info.level_id, W = self.W, H = self.H, moves = d.moves,
+		goals = d.goals, rect = level_link.board_rect(), standalone = s.info.standalone })
+end
+
+function final(self)
+	if self.qa_off then self.qa_off() end
+	level_link.detach(self.link_board)
+	if self.laudio then self.laudio:finish() end
+	audio.level_duck(false)
+	if self.view then self.view:final() end
+end
+
+-- frame ---------------------------------------------------------------------------
+
+local function marks(self)
+	local list = self.mark_list or {}
+	self.mark_list = list
+	for k = #list, 1, -1 do list[k] = nil end
+	local g = self.geom
+	local cell = g.cell
+	local sx, sy = self.shake_x, self.shake_y
+	local sel = self.input.selected
+	if sel then
+		local x, y = g:center(sel.x, sel.y)
+		list[#list + 1] = { image = "fx_glow_dot", x = x + sx, y = y + sy, w = cell * 1.5, h = cell * 1.5,
+			color = "#FFD84D", alpha = 0.85 }
+	end
+	local h = self.hint_cmd
+	local phase = self.hint:phase()
+	if h and phase then
+		local a = math.sin(phase * math.pi)
+		local cells = h.at and { h.at } or { h.from, h.to }
+		for _, c in ipairs(cells) do
+			local x, y = g:center(c[1], c[2])
+			list[#list + 1] = { image = "fx_glow_dot", x = x + sx, y = y + sy, w = cell * 1.4, h = cell * 1.4,
+				color = "#FF7EB6", alpha = 0.55 * a }
+		end
+	end
+	local tg = self.input.targeting
+	local hv = self.input.hover
+	if tg and hv and g:inside(hv.x, hv.y) then
+		local x, y = g:center(hv.x, hv.y)
+		local w, hh = cell, cell
+		if tg == "row_light" then
+			x = (g.rect.x0 + g.rect.x1) / 2
+			w = g.rect.x1 - g.rect.x0
+		elseif tg == "col_light" then
+			y = (g.rect.y0 + g.rect.y1) / 2
+			hh = g.rect.y1 - g.rect.y0
+		end
+		list[#list + 1] = { image = "white", iw = 8, ih = 8, x = x + sx, y = y + sy, w = w, h = hh,
+			color = "#FFD84D", alpha = 0.38 + 0.12 * math.sin(self.t * 8), z = 0.25 }
+	end
+	self.view:marks(list)
+end
+
+local function follow_settings(self)
+	if self.settings_rev == app.settings_rev then return end
+	self.settings_rev = app.settings_rev
+	local reduced = app.reduced_motion()
+	self.anim:set_reduced(reduced)
+	self.effects:set_reduced(reduced)
+	self.vfx:set_reduced(reduced)
+	self.input:set_mode(settings().input_mode)
+end
+
+function update(self, dt)
+	if not self.session or self.failed then return end
+	self.t = self.t + dt
+	self.frames = (self.frames or 0) + 1
+	follow_settings(self)
+	local ww, wh = window.get_size()
+	if ww ~= self.ww or wh ~= self.wh then build_geom(self) end
+
+	local s = self.session
+	s:advance(dt, self.on_tick)
+	self.status = s.status
+	local game = s.game
+	local playing = self.status.state == "playing"
+
+	-- pieces of this frame: by cell (input, rays) and by id (selection, debris colours)
+	local pieces = game:pieces()
+	local cellmap, by_id = self.cellmap, self.by_id
+	for k in pairs(cellmap) do cellmap[k] = nil end -- order-independent
+	for k in pairs(by_id) do by_id[k] = nil end -- order-independent
+	for i = 1, #pieces do
+		local p = pieces[i]
+		cellmap[(p.y - 1) * self.W + p.x] = p
+		by_id[p.id] = p
+	end
+	self.input:validate(function(id) return by_id[id] end, playing)
+
+	if self.wires_dirty or self.floor_dirty then
+		refresh_cells(self)
+		if self.floor_dirty then
+			local v = self.link_board.view
+			v.floor_rev = v.floor_rev + 1
+		end
+		if self.wires_dirty then self.view:set_wires(self.cells, self.geom) end
+		self.wires_dirty, self.floor_dirty = false, false
+	end
+
+	-- hint after 5 s without touches
+	local allowed = playing and not self.input.selected and not self.input.targeting and not s.paused
+		and game:is_stable()
+	if self.hint:update(dt, allowed) then self.hint_cmd = s:hint_command() end
+	local phase = self.hint:phase()
+	local h = self.hint_cmd
+	if phase and h then
+		if h.at then self.anim:hint(h.at, h.at, phase) else self.anim:hint(h.from, h.to, phase) end
+	else
+		self.anim:hint(nil)
+	end
+	self.anim:select(self.input.selected and self.input.selected.id or nil)
+
+	local tick_f = s:display_tick()
+	self.shake_x, self.shake_y = self.vfx:update(dt, tick_f, self.t)
+	local v = self.link_board.view
+	v.shake_x, v.shake_y = self.shake_x, self.shake_y
+	local list = self.anim:frame(pieces, tick_f, self.t)
+	self.view:sync(list, self.shake_x, self.shake_y)
+	marks(self)
+end
+
+function on_input(self, action_id, action)
+	if action_id ~= TOUCH or not self.session or self.failed then return false end
+	local s = self.session
+	if s.paused then return false end
+	local st = self.status and self.status.state
+	local lx, ly = logical(self, action)
+	if action.pressed then
+		self.hint:touch()
+		self.hint_cmd = nil
+		if st == "won_wait" or st == "concert" then
+			-- a tap during the final concert skips it
+			local ok = command(self, { type = "skip" })
+			if ok then self.vfx:clear() end
+			return true
+		end
+		local targeting = self.input.targeting
+		if st ~= "playing" and not (targeting and st == "out_of_moves") then return false end
+		local fx, fy, x, y = board_point(self, lx, ly)
+		self.input:press(fx, fy)
+		if fx then
+			local p = self.cellmap[(y - 1) * self.W + x]
+			if p and not targeting then
+				self.anim:touch(p.id, self.t)
+				self.laudio:touch()
+			end
+			return true
+		end
+		return false
+	elseif action.released then
+		local fx, fy = board_point(self, lx, ly)
+		dispatch(self, self.input:release(fx, fy))
+		return fx ~= nil
+	else
+		local g = self.geom
+		local fx, fy = g:frac(lx, ly)
+		local cmd = self.input:move(fx, fy)
+		if cmd then dispatch(self, cmd) end
+		return self.input.pressed ~= nil
+	end
+end

@@ -1,0 +1,136 @@
+-- Level background, drawn UNDER the board sprites (material gui_under, see
+-- render/glow.render_script): the sky and the level picture continued past
+-- the design area, the bunting, and the board itself: the white frame
+-- (rectangular boards) or the edge tiles of shaped boards (one tile per grid
+-- vertex, tools/art/gen_art.py board_backing), the checker cells, the dance
+-- floor tiles (hp 2 / hp 1 / lit, updated as they are hit) and the
+-- microphone stands under the exits. Pieces, wires and effects are world
+-- sprites drawn on top by screens/level/board.script.
+--
+-- The board publishes what to draw through client/level_link.lua (view):
+-- rev (layout), floor_rev (a tile changed), the shake offset every frame.
+
+local ui = require("client.ui")
+local assets = require("client.assets")
+local link = require("client.level_link")
+
+local GUI = "/screens/level/level_bg.gui"
+local FRAME_PAD = 20 -- board/board_frame: 14 px frame + 6 px backing around the cells
+
+local function floor_key(hp, lit)
+	if lit then return "blockers/floor_lit" end
+	return hp >= 2 and "blockers/floor_2" or "blockers/floor_1"
+end
+
+local function shaped(g)
+	for i = 1, g.W * g.H do
+		if not g.ex[i] then return true end
+	end
+	return false
+end
+
+local function rebuild(self, v)
+	local s = self.ui
+	if self.l_board then s:clear(self.l_board) end
+	self.l_board = s:layer(self.c_board, "board")
+	local parent = self.l_board
+	local g = v.geom
+	local cell = g.cell
+	local r = g.rect
+	self.tiles, self.tile_key = {}, {}
+	if shaped(g) then
+		for _, t in ipairs(g:edge_tiles()) do
+			local n = s:image(parent, "board/edge_" .. t.kind, t.lx, t.ly, { w = cell, h = cell })
+			if n and t.turns ~= 0 then gui.set_euler(n, vmath.vector3(0, 0, -90 * t.turns)) end
+		end
+	else
+		local w, h = r.x1 - r.x0 + 2 * FRAME_PAD, r.y1 - r.y0 + 2 * FRAME_PAD
+		local frame = s:image(parent, "board/board_frame", (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2,
+			{ w = w, h = h, slice9 = true })
+		if not frame then s:round(parent, (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, w, h, "white", { alpha = 0.6 }) end
+	end
+	local cells = v.cells or {}
+	for y = 1, g.H do
+		for x = 1, g.W do
+			local i = (y - 1) * g.W + x
+			if g.ex[i] then
+				local lx, ly = g:center(x, y)
+				local key
+				if (v.floor0[i] or 0) > 0 then
+					local hp = cells[i] and cells[i].floor or 0
+					key = floor_key(hp, hp <= 0)
+				else
+					key = ((x + y) % 2 == 0) and "board/cell_a" or "board/cell_b"
+				end
+				local n = s:image(parent, key, lx, ly, { w = cell, h = cell })
+				if not n then
+					n = s:box(parent, lx, ly, cell, cell, { color = ((x + y) % 2 == 0) and "white" or "lavender", alpha = 0.95 })
+				end
+				self.tiles[i] = n
+				self.tile_key[i] = key
+			end
+		end
+	end
+	if v.deliver then
+		for _, e in ipairs(g:exits()) do
+			s:image(parent, "blockers/mic_stand", e.lx, e.ly - cell * 0.15, { w = cell, h = cell * 0.6 })
+		end
+	end
+	self.rev = v.rev
+	self.floor_rev = v.floor_rev
+end
+
+-- Floor tiles follow the core: hp 2 -> hp 1 -> lit (with a pop).
+local function update_floor(self, v)
+	self.floor_rev = v.floor_rev
+	local cells = v.cells or {}
+	for i, n in pairs(self.tiles) do -- order-independent
+		if (v.floor0[i] or 0) > 0 then
+			local hp = cells[i] and cells[i].floor or 0
+			local key = floor_key(hp, hp <= 0)
+			if key ~= self.tile_key[i] then
+				self.tile_key[i] = key
+				local e = assets.image(key)
+				if e and e.anim then gui.play_flipbook(n, e.anim) end
+				local base = vmath.vector3(1, 1, 1)
+				gui.cancel_animations(n, "scale")
+				gui.set_scale(n, vmath.vector3(1.22, 1.22, 1))
+				gui.animate(n, "scale", base, gui.EASING_OUTBACK, 0.35)
+			end
+		end
+	end
+end
+
+function init(self)
+	self.ui = ui.scene({ gui = GUI, on_resize = function() self.dirty = true end })
+	local s = self.ui
+	s:sky({ clouds = false })
+	s:backdrop(s.root, "backgrounds/level_bg")
+	local bunting = s:image(s.root, "ui/bunting", 360, 1280 - 34, { w = 760, h = 68 })
+	if bunting then s:anchor(bunting, "top") end
+	self.c_board = s:layer(s.root, "board_root")
+	self.rev = -1
+	self.floor_rev = -1
+	self.shake = vmath.vector3()
+end
+
+function final(self)
+	self.ui:final()
+end
+
+function update(self, dt)
+	self.ui:update(dt)
+	local v = link.view()
+	if not v or not v.geom then return end
+	if v.rev ~= self.rev or self.dirty then
+		self.dirty = false
+		rebuild(self, v)
+	elseif v.floor_rev ~= self.floor_rev then
+		update_floor(self, v)
+	end
+	local sh = self.shake
+	if sh.x ~= v.shake_x or sh.y ~= v.shake_y then
+		sh.x, sh.y = v.shake_x, v.shake_y
+		gui.set_position(self.c_board, sh)
+	end
+end

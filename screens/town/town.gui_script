@@ -1,452 +1,409 @@
--- Town (placeholder, to be replaced by the full meta screen): district scene,
--- top bar with lives / coins / stars, next task, the big "Level N" button and
--- the bottom navigation. All numbers come from the meta; no rules here.
+-- Town: the main meta screen (client-architecture.md, section 6).
 --
--- Two layers, rebuilt separately:
---   scene - sky, district background (+ edge extension), the task items.
---           Rebuilt when the district or the view (day / concert) changes;
---           a finished task only changes its item. Pictures are loose images
---           (client/ui.lua): only this district's are in memory, and they are
---           uploaded once, not on every rebuild.
---   ui    - bars, texts and buttons. Rebuilt on a language change or a task.
--- Items not restored yet use their *_ghost.png (grey, light, 75 % alpha baked
--- in by the art generator), else the "grey" GUI material, else a light tint;
--- restored items are full colour with a soft gold glow.
+-- Layers, bottom to top (fixed containers keep the draw order; their
+-- content is rebuilt on its own):
+--   scene  - sky, district background (+ edge extension), the task items
+--            (screens/town/scene.lua): restored = full colour, gold glow,
+--            idle bob; not restored = <task>_ghost.png. Rebuilt when the
+--            district or the view (day / concert) changes; a finished task
+--            only redraws its item.
+--   bit    - Bit next to the task card (anchored to the safe bottom)
+--   ui     - top bar, ribbon, task card, "Level N", navigation (screens/town/hud.lua)
+--   popups - the meta windows (client/popups.lua + gui/*.lua)
+--   fx     - flights, bursts, confetti (client/fx.lua), above everything
+--
+-- What happens is queued in a show (screens/town/show.lua, steps in
+-- screens/town/steps.lua): a task being built, the rewards brought back from
+-- a level (client/rewards.lua, app.push_reward), the district concert, a
+-- chest, the next district. The counters show town.disp = meta - queued
+-- rewards - town.hold (paid but not landed yet), so nothing is counted twice.
+-- Bus in: meta_changed, lives_tick, language_changed, settings_changed,
+-- save_reset, screen_leaving, popup_request (app.open_popup), reward_pushed,
+-- meta_qa (client/meta_qa.lua).
 
 local app = require("client.app")
 local ui = require("client.ui")
 local i18n = require("client.i18n")
 local bus = require("client.bus")
 local audio = require("client.audio")
-local assets = require("client.assets")
+local fx = require("client.fx")
+local bit = require("client.bit")
+local views = require("client.views")
+local rewards = require("client.rewards")
+local popups = require("client.popups")
+local flow = require("client.flow")
+local analytics = require("client.services.analytics")
+local scene_mod = require("screens.town.scene")
+local hud_mod = require("screens.town.hud")
+local show_mod = require("screens.town.show")
+local steps = require("screens.town.steps")
 
 local GUI = "/screens/town/town.gui"
-local layouts_cache
+local TOUCH = hash("touch")
 
-local function district_layouts()
-	if layouts_cache == nil then
-		local data = sys.load_resource("/content/district_layouts.json")
-		local ok, t = pcall(function() return data and json.decode(data) end)
-		layouts_cache = ok and type(t) == "table" and t or false
-	end
-	return layouts_cache or {}
+-- literal requires: bob bundles only modules it can see
+local REGISTRY = {
+	start = require("gui.start"),
+	lives = require("gui.lives"),
+	shop = require("gui.shop"),
+	settings = require("gui.settings"),
+	jukebox = require("gui.jukebox"),
+	concert = require("gui.concert"),
+	chest = require("gui.chest"),
+	gift = require("gui.gift"),
+	confirm = require("gui.confirm"),
+}
+
+local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
+
+local Town = {}
+Town.__index = Town
+
+-- counters -----------------------------------------------------------------------------------
+
+function Town:sync_disp()
+	local held = rewards.held()
+	self.disp.coins = app.meta:coins() - held.coins - self.hold.coins
+	self.disp.stars = app.meta:stars() - held.stars - self.hold.stars
+	self.hud:set_coins(self.disp.coins)
+	self.hud:set_stars(self.disp.stars)
 end
 
-local function level_difficulty(n)
-	local data = sys.load_resource(string.format("/content/levels/level_%04d.json", n))
-	if not data then return nil end
-	local ok, lvl = pcall(json.decode, data)
-	return ok and type(lvl) == "table" and lvl.difficulty or nil
+function Town:publish()
+	local u = app.ui
+	u.screen = "town"
+	u.district = self.district
+	u.view = self.scene and self.scene.view or nil
+	u.busy = self.show:busy()
+	u.step = self.show:name()
+	u.steps_started = self.show.started
+	u.disp = { coins = self.disp.coins, stars = self.disp.stars }
+	u.hold = { coins = self.hold.coins, stars = self.hold.stars }
+	u.targets = self.hud.targets
+	u.bit = self.bit and self.bit.mood or nil
 end
 
--- scene layer ------------------------------------------------------------------------------
-
-local function item_key(did, tid) return "districts/" .. did .. "/" .. tid end
-
--- The loose images the scene shows now (kept when the scene is rebuilt;
--- everything else, e.g. the other district or view, leaves GPU memory).
-local function district_images(did, view)
-	local keep = {}
-	local k = assets.district_bg_key(did, view)
-	if k then keep[k] = true end
-	local lay = district_layouts()[did]
-	for tid in pairs(lay and lay.items or {}) do
-		keep[item_key(did, tid)] = true
-		keep[item_key(did, tid) .. "_ghost"] = true
-	end
+-- Loose images to keep in GPU memory: this district (and one sliding out),
+-- Bit, and the concert background while the concert is open.
+function Town:keep_images()
+	local keep = self.scene:keep({})
+	for k in pairs(bit.images()) do keep[k] = true end -- order-free: a set
+	local c = self.popups and self.popups:find("concert")
+	if c then REGISTRY.concert.images(c.params.district or self.district, keep) end
 	return keep
 end
 
--- Draws (or redraws) one item in its built / not built look.
-local function draw_item(self, t, it, fresh)
-	local s = self.ui
-	local did = self.district
-	local old = self.items[t.id]
-	if old then s:clear(old.holder) end
-	local holder = s:layer(self.l_items)
-	local x, y = it.x, 1280 - it.y
-	local w, h = it.w * it.scale, it.h * it.scale
-	local entry = { holder = holder, done = t.done }
-	if t.done then
-		-- restored: a warm gold glow behind the item (a soft gold disc with a
-		-- lighter core), breathing slowly
-		local size = math.max(w, h)
-		local glow = s:circle(holder, x, y, size * 1.45, "glow", { alpha = 0.95, soft = true })
-		s:circle(glow, 0, 0, size * 0.62, "#FFF6C8", { alpha = 0.8, soft = true })
-		ui.pulse(glow, 0.07, 1.6)
-		entry.glow = glow
-		entry.node = s:image(holder, item_key(did, t.id), x, y, { w = w, h = h })
-	else
-		local ghost = assets.image(item_key(did, t.id) .. "_ghost")
-		if ghost then
-			entry.node = s:image(holder, item_key(did, t.id) .. "_ghost", x, y, { w = w, h = h })
+-- popups ----------------------------------------------------------------------------------------
+
+function Town:open_popup(name, params)
+	params = params or {}
+	if name == "start" then
+		params.level = params.level or app.meta:level_to_play()
+		if not params.level then
+			app.toast_key("town.all_done", nil, { color = "blue" })
+			return nil
 		end
-		if not entry.node then
-			entry.node = s:image(holder, item_key(did, t.id), x, y, { w = w, h = h })
-			if entry.node then
-				local grey = assets.gui_has_material(GUI, "grey") and pcall(gui.set_material, entry.node, "grey")
-				gui.set_color(entry.node, grey and vmath.vector4(1, 1, 1, 0.75) or vmath.vector4(0.92, 0.92, 1, 0.45))
-			end
-		end
+	elseif name == "concert" then
+		params.district = params.district or self.district
+	elseif name == "chest" and not params.chest then
+		-- QA: a sample chest to look at (nothing is paid)
+		params.kind = params.kind or "level"
+		params.chest = { coins = 60, boosters = { "stick" }, infinite_minutes = 15 }
+	elseif name == "gift" then
+		params.id = params.id or "riff"
 	end
-	if fresh and entry.node then
-		-- a restored item lights up
-		ui.pop_in(entry.node, 0, 0.5)
-		if entry.glow then ui.pop_in(entry.glow, 0.1, 0.2) end
-	end
-	self.items[t.id] = entry
+	return self.popups:open(name, params)
 end
 
-local function refresh_items(self, fresh_id)
-	local lay = district_layouts()[self.district]
-	if not lay or not lay.items then return end
-	local d = app.meta:district(self.district)
-	for _, t in ipairs(d.tasks) do
-		local it = lay.items[t.id]
-		local have = self.items[t.id]
-		if it and (not have or have.done ~= t.done) then draw_item(self, t, it, t.id == fresh_id) end
-	end
-end
+-- actions -----------------------------------------------------------------------------------------
 
-local function build_scene(self)
-	local s = self.ui
-	if self.l_scene then s:clear(self.l_scene) end
-	self.l_scene = s:layer(self.c_scene)
-	self.items = {}
+function Town:toggle_view()
+	if self.show:busy() then return end
 	local view = app.meta:view(self.district)
-	s:release_images(district_images(self.district, view)) -- the previous district / view leaves memory
-	s:sky({ parent = self.l_scene })
-	local key = assets.district_bg_key(self.district, view)
-	if key then s:backdrop(self.l_scene, key) end
-	self.l_items = s:layer(self.l_scene, "items")
-	self.scene_view = view
-	refresh_items(self)
+	local ok = app.meta:set_view(self.district, view == "day" and "concert" or "day")
+	app.commit("view")
+	if not ok then return end
+	audio.sfx("button")
+	self.fx:flash(360, 760, { size = 1500, dur = 0.45, color = view == "day" and "#C9A7FF" or "#FFF4C9" })
+	self.scene:build(self.district)
+	self.hud:build()
+	self:publish()
 end
 
--- ui layer -----------------------------------------------------------------------------------
-
-local function stat_pill(s, parent, x, icon, fallback_color, text, max_width)
-	local ic = s:image(parent, icon, x, 0, { w = 70, h = 70 })
-	if not ic then ic = s:circle(parent, x, 0, 56, fallback_color) end
-	local label, info = s:text(parent, text, x + 44, 2, {
-		font = "number", size = 38, color = "text", outline = "white", pivot = gui.PIVOT_W, max_width = max_width or 120,
-	})
-	return label, info, ic
-end
-
-local function lives_text(lives)
-	if lives.infinite_seconds and lives.infinite_seconds > 0 then return i18n.duration(lives.infinite_seconds) end
-	if lives.count >= lives.max then return i18n.t("town.lives_full") end
-	return i18n.duration(lives.next_in_seconds)
-end
-
-local function lives_modal()
-	local l = app.meta:lives(app.now())
-	local first
-	if l.infinite_seconds > 0 then
-		first = { key = "lives.infinite", vars = { time = i18n.duration_words_spec(l.infinite_seconds) } }
-	elseif l.count >= l.max then
-		first = { key = "lives.full" }
-	else
-		first = { key = "lives.next_in", vars = { time = i18n.duration(l.next_in_seconds) } }
-	end
-	app.modal({
-		id = "lives", title = { key = "lives.title" },
-		text = { lines = { first, { key = "lives.free_levels", vars = { n = app.free_levels() } } } },
-		buttons = { { id = "ok", text = { key = "common.ok" }, style = "green" } },
-	})
-end
-
-local function build_top_bar(self, s, parent)
-	local bar = s:round(parent, 310, 1280 - 70, 580, 100, "white", { alpha = 0.96 })
-	s:anchor(bar, "top")
-	local lives = app.meta:lives(app.now())
-	local heart = s:image(bar, lives.infinite_seconds > 0 and "ui/icons/heart_infinite" or "ui/icons/heart", -230, 0,
-		{ w = 76, h = 76 }) or s:circle(bar, -230, 0, 60, "pink")
-	self.lives_count = s:text(heart, tostring(lives.count), 0, 2, {
-		font = "number", size = 34, color = "white", outline = "#B3122F",
-	})
-	self.lives_label, self.lives_info = s:text(bar, lives_text(lives), -182, 0, {
-		font = "number", size = 30, color = "text", pivot = gui.PIVOT_W, max_width = 100,
-	})
-	self.coins_label, self.coins_info = stat_pill(s, bar, -40, "ui/icons/coin", "coin", i18n.number(app.meta:coins()), 96)
-	self.stars_label, self.stars_info = stat_pill(s, bar, 190, "ui/icons/star", "yellow", i18n.number(app.meta:stars()), 54)
-
-	-- coins "+" opens the shop: a purchase button, so gold (art-direction.md)
-	s:button({ parent = bar, x = 128, y = 0, w = 50, h = 50, style = "gold", text = "+", text_size = 38,
-		on_click = function() app.toast_key("toast.coming_soon") end })
-	-- the heart area opens the lives info (an invisible button over it)
-	local hit = s:button({ parent = bar, x = -180, y = 0, w = 200, h = 96, style = "white", sfx = "tap",
-		on_click = lives_modal })
-	gui.set_color(hit.node, vmath.vector4(1, 1, 1, 0))
-
-	local gear = s:button({ parent = parent, x = 660, y = 1280 - 70, w = 96, h = 96, style = "white",
-		icon = "ui/icons/settings", icon_size = 68,
-		text = not assets.has_image("ui/icons/settings") and "..." or nil,
-		on_click = function()
-			app.modal({ id = "settings", title = { key = "settings.title" }, text = { key = "settings.language" },
-				buttons = {
-					{ id = "en", text = { key = "settings.lang_en" }, style = "blue" },
-					{ id = "ru", text = { key = "settings.lang_ru" }, style = "blue" },
-					{ id = "auto", text = { key = "settings.lang_auto" }, style = "purple" },
-					{ id = "close", text = { key = "common.close" }, style = "green" },
-				} })
-		end })
-	s:anchor(gear.node, "top")
-end
-
-local function build_district_title(self, s, parent, d)
-	local y = 1280 - 180
-	local name = i18n.name(app.district(self.district).name)
-	-- ribbon 135..585 and the toggle 600..704: they no longer overlap
-	local ribbon = s:image(parent, "ui/ribbon", 360, y, { w = 450, h = 88, slice9 = true })
-	if not ribbon then ribbon = s:round(parent, 360, y, 430, 76, "pink") end
-	s:anchor(ribbon, "top")
-	s:text(ribbon, name, 0, 8, { font = "button", size = 38, color = "white", outline = "#B3122F", max_width = 220 })
-	s:text(ribbon, d.done .. " / " .. d.total, 0, -48, { font = "number", size = 24, color = "white", outline = "#2F80ED" })
-	local view = app.meta:view(self.district)
-	local toggle = s:button({ parent = parent, x = 652, y = y, w = 104, h = 64, style = view == "day" and "purple" or "gold",
-		text = i18n.t(view == "day" and "town.concert" or "town.day"), text_size = 24,
-		on_click = function()
-			app.meta:set_view(self.district, view == "day" and "concert" or "day")
-			app.commit("view")
-			self.dirty_scene, self.dirty_ui = true, true
-		end })
-	s:anchor(toggle.node, "top")
-end
-
-local function build_task(self, s, parent)
-	local task = app.meta:next_task()
-	local y = 420
-	if not task then
-		local card = s:round(parent, 360, y, 600, 100, "white", { alpha = 0.95 })
-		s:text(card, i18n.t("town.town_done"), 0, 0, { font = "button", size = 36, color = "pink", outline = "white", max_width = 560 })
-		return
-	end
-	local card = s:button({ parent = parent, x = 360, y = y, w = 600, h = 124, style = "white",
-		on_click = function() self:on_task(task) end })
-	local thumb = s:image(card.node, item_key(task.district, task.id), -236, 2, { w = 96, h = 96 })
-	if not thumb then s:circle(card.node, -236, 2, 80, "lavender") end
-	s:text(card.node, i18n.name(task.name), -170, 22, {
-		font = "button", size = 32, color = "text", pivot = gui.PIVOT_W, max_width = 300,
-	})
-	local status
-	if task.affordable then
-		status = i18n.t("town.task_ready")
-	else
-		status = i18n.t("town.task_need", { n = task.cost - app.meta:stars() })
-	end
-	s:text(card.node, i18n.t("town.task_unlocks", { stem = i18n.t("stem." .. task.stem) }) .. " · " .. status, -170, -24, {
-		font = "small", size = 24, color = "text_soft", pivot = gui.PIVOT_W, max_width = 330,
-	})
-	local chip = s:round(card.node, 222, 0, 120, 70, task.affordable and "#FFD84D" or "lavender")
-	if not s:image(chip, "ui/icons/star", -26, 0, { w = 54, h = 54 }) then s:circle(chip, -26, 0, 40, "yellow") end
-	s:text(chip, tostring(task.cost), 22, 2, { font = "number", size = 36, color = "text", outline = "white" })
-	if task.affordable then ui.pulse(card.node, 0.035, 0.7) end
-end
-
-local function build_level_button(self, s, parent)
-	local level = app.meta:level_to_play()
-	local y = 240
-	if not level then
-		s:button({ parent = parent, x = 360, y = y, w = 520, h = 130, style = "blue", text = i18n.t("town.all_done"), text_size = 36,
-			on_click = function() app.toast_key("town.all_done") end })
-		return
-	end
-	local btn = s:button({ parent = parent, x = 360, y = y, w = 470, h = 136, style = "green", text = i18n.t("town.level", { n = level }),
-		text_size = 58, on_click = function() self:on_level(level) end })
-	ui.pulse(btn.node, 0.03, 0.9)
-	local diff = level_difficulty(level)
-	if diff == "hard" or diff == "super_hard" then
-		local tag = s:round(btn.node, 170, 66, 170, 50, diff == "hard" and "pink" or "purple")
-		s:text(tag, i18n.t(diff == "hard" and "town.hard" or "town.super_hard"), 0, 2, {
-			font = "button", size = 24, color = "white", max_width = 150,
-		})
-	end
-	-- three notes of the hit streak, between the button (top 308) and the task card (bottom 358)
-	local streak = app.meta:streak()
-	for i = 1, 3 do
-		local slot = streak.slots and streak.slots[i]
-		local lit = slot and slot.lit
-		local key = lit and "ui/icons/note_on" or "ui/icons/note_off"
-		local x, ny = 360 + (i - 2) * 58, y + 94
-		if not s:image(parent, key, x, ny, { w = 46, h = 46 }) then
-			s:circle(parent, x, ny, 30, lit and "yellow" or "lavender")
-		end
-	end
-end
-
-local NAV = {
-	{ id = "shop", icon = "ui/icons/shop", label = "nav.shop" },
-	{ id = "band", icon = "ui/icons/team", label = "nav.band", soon = true },
-	{ id = "town", icon = "ui/icons/city", label = "nav.town", active = true },
-	{ id = "chart", icon = "ui/icons/chart", label = "nav.chart", soon = true },
-	{ id = "jukebox", icon = "ui/icons/jukebox", label = "nav.jukebox" },
-}
-
-local function build_nav(self, s, parent)
-	local bar = s:round(parent, 360, 58, 740, 150, "white", { alpha = 0.96 })
-	s:anchor(bar, "bottom")
-	for i, item in ipairs(NAV) do
-		local x = -288 + (i - 1) * 144
-		local b = s:button({ parent = bar, x = x, y = 12, w = 132, h = 112, style = item.active and "blue" or "white",
-			icon = item.icon, icon_size = 62, on_click = function() self:on_nav(item) end })
-		if b.icon then gui.set_position(b.icon, vmath.vector3(0, 14, 0)) end
-		s:text(b.node, i18n.t(item.label), 0, -34, {
-			font = "small", size = 21, color = item.active and "white" or "text", max_width = 124,
-		})
-		if item.soon then
-			local badge = s:round(b.node, 36, 46, 76, 30, "pink", { radius = 14 })
-			s:text(badge, i18n.t("nav.soon"), 0, 1, { font = "small", size = 17, color = "white", max_width = 70 })
-		end
-	end
-end
-
-local function build_ui(self)
-	local s = self.ui
-	if self.l_ui then s:clear(self.l_ui) end
-	self.l_ui = s:layer(self.c_ui)
-	local d = app.meta:district(self.district)
-	build_top_bar(self, s, self.l_ui)
-	build_district_title(self, s, self.l_ui, d)
-	build_task(self, s, self.l_ui)
-	build_level_button(self, s, self.l_ui)
-	build_nav(self, s, self.l_ui)
-end
-
-local function refresh_stats(self)
-	local s = self.ui
-	local lives = app.meta:lives(app.now())
-	gui.set_text(self.lives_count, tostring(lives.count))
-	s:set_text(self.lives_label, lives_text(lives), self.lives_info)
-	s:set_text(self.coins_label, i18n.number(app.meta:coins()), self.coins_info)
-	s:set_text(self.stars_label, i18n.number(app.meta:stars()), self.stars_info)
-end
-
--- actions ----------------------------------------------------------------------------------------
-
-local Town = {}
-
--- What the town says when the meta refuses a level start.
-local REFUSALS = {
-	run_active = "start.run_active",
-	not_next_level = "start.not_next",
-	all_done = "town.all_done",
-}
-
-function Town.on_level(self, level)
-	local ok, why = app.meta:can_start(level, app.now())
-	app.commit("can_start")
-	if not ok then
-		if why == "no_lives" then
-			app.modal({ id = "no_lives", title = { key = "lives.none" }, text = { key = "start.no_lives" },
-				buttons = { { id = "ok", text = { key = "common.ok" } } } })
-		else
-			app.toast_key(REFUSALS[why] or "common.error", nil, { color = "pink" })
-		end
-		return
-	end
-	app.show_screen("level", { level = level, from = "town" })
-end
-
-function Town.on_task(self, shown)
-	-- the meta's current view of the task, not the one the card was built with
-	local task = app.meta:next_task()
-	if not task or task.id ~= shown.id then
-		self.dirty_ui = true
+-- A tap on the task card (or the QA command / a tap on the item of the task).
+function Town:on_task(shown)
+	if self.show:busy() then return end
+	local task = views.task(app.meta)
+	if not task or (shown and task.id ~= shown.id) then
+		self.hud:build()
 		return
 	end
 	if not task.affordable then
 		audio.sfx("swap_fail")
-		app.toast_key("town.task_need", { n = task.cost - app.meta:stars() })
+		if self.hud.card then self.fx:shake(self.hud.card, 14, 0.45) end
+		self.bit:worry()
+		app.toast_key("town.task_need", { n = task.need }, { color = "pink" })
+		if self.hud.level_btn then
+			self.fx:after(0.35, function() if self.hud.level_btn then self.fx:pop(self.hud.level_btn, 0.08, 0.35) end end)
+		end
 		return
 	end
 	local res, why = app.meta:complete_task(task.district, task.id)
 	app.commit("task")
 	if not res then
-		app.toast_key(why == "not_enough_stars" and "common.not_enough_stars" or "common.error")
+		app.toast_key(why == "not_enough_stars" and "common.not_enough_stars" or "common.error", nil, { color = "pink" })
+		self.hud:build()
 		return
 	end
-	audio.unlock_stem(res.district, res.stem)
-	audio.sfx("unlock")
-	app.toast_key("town.task_done", { item = task.name }, { color = "gold" })
-	if res.district_complete then app.toast_key("town.district_done", nil, { color = "green" }) end
-	if res.next_district then
-		app.toast_key("town.new_district", { name = app.district(res.next_district).name })
-		audio.music(res.next_district)
+	-- the stars stay in the top bar until they fly to the card
+	self.hold.stars = self.hold.stars - task.cost
+	if res.chest then self.hold.coins = self.hold.coins + (res.chest.coins or 0) end
+	self:sync_disp()
+	self.show:push(steps.task(self, task, res))
+	if res.district_complete then
+		self.show:push(steps.concert(self, res))
+		if res.chest then
+			self.show:push(steps.chest(self, { kind = "district", chest = res.chest, district = res.district },
+				{ coins = res.chest.coins or 0, stars = 0 }))
+		end
+		self.show:push(steps.next_district(self, res.next_district))
 	end
-	self.fresh_task = task.id
-	self.dirty_items, self.dirty_ui = true, true
+	self:publish()
 end
 
-function Town.on_nav(self, item)
-	if item.id == "town" then return end
-	app.toast_key("toast.coming_soon")
+function Town:on_nav(item, node)
+	if item.id == "town" then
+		if node then self.fx:pop(node, 0.12, 0.3) end
+		self.bit:cheer(1.2, 1)
+		return
+	end
+	if item.soon then
+		if node then self.fx:shake(node, 10, 0.35) end
+		app.toast_key("toast.coming_soon", nil, { color = "blue" })
+		return
+	end
+	self:open_popup(item.id, item.id == "shop" and { tab = "boosters" } or nil)
 end
 
--- lifecycle ------------------------------------------------------------------------------------
+-- A tap on the scene: a restored item plays a note, a waiting one says so.
+function Town:tap_scene(action)
+	local lx, ly = self.ui:logical(action)
+	local id, e = self.scene:item_at(lx, ly)
+	if not id then return false end
+	local task = views.task(app.meta)
+	if e.done then
+		self.fx:pop(e.node, 0.12, 0.35)
+		self.fx:burst(lx, ly, { count = 6, radius = 60, size = 24 })
+		self.note_i = (self.note_i or 0) % 6 + 1
+		audio.play_note(NOTE_COLORS[self.note_i], ((self.note_i * 3) % 7) + 1, { quantize = true })
+	elseif task and task.id == id and task.affordable then
+		self:on_task(task)
+	else
+		self.fx:shake(e.node, 8, 0.35)
+		local name
+		for _, t in ipairs(app.meta:district(self.district).tasks) do
+			if t.id == id then name = t.name end
+		end
+		app.toast_key("town.item_wait", { item = name or id }, { color = "blue" })
+	end
+	return true
+end
+
+-- rewards ------------------------------------------------------------------------------------------
+
+function Town:queue_rewards()
+	while rewards.count() > 0 do
+		local r = rewards.pop()
+		for _, step in ipairs(steps.rewards(self, r)) do self.show:push(step) end
+	end
+	self:sync_disp()
+	self:publish()
+end
+
+-- lifecycle ------------------------------------------------------------------------------------------
+
+function Town:rebuild_all()
+	self.district = app.focus_district()
+	self.scene:build(self.district)
+	self.hud:build()
+	self:sync_disp()
+	self:publish()
+end
 
 local function on_bus(self, topic, p)
+	if self.popups then self.popups:on_event(topic, p) end
 	if topic == "language_changed" then
 		self.dirty_ui = true
-	elseif topic == "modal_result" and p.id == "settings" then
-		if p.button == "en" or p.button == "ru" or p.button == "auto" then app.set_setting("language", p.button) end
+	elseif topic == "settings_changed" then
+		if p and (p.key == "reduced_motion" or p.key == "*") then self.dirty_scene, self.dirty_ui = true, true end
 	elseif topic == "meta_changed" then
-		-- stars, the next task, the level or the streak may have changed: the
-		-- ui layer is cheap to rebuild (no texture uploads)
 		self.dirty_ui = true
 	elseif topic == "lives_tick" then
-		if self.lives_label then refresh_stats(self) end
+		if not self.show:busy() then self.hud:tick() end
 	elseif topic == "save_reset" then
+		self.popups:close_all()
+		self.show:clear()
+		self.fx:clear()
+		self.hold.coins, self.hold.stars = 0, 0
 		self.dirty_scene, self.dirty_ui = true, true
+	elseif topic == "screen_leaving" then
+		self.leaving = true
+		self.popups:close_all()
+		self.show:clear()
+	elseif topic == "popup_request" then
+		if p.close then
+			self.popups:close()
+		elseif p.name then
+			self:open_popup(p.name, p.params)
+		end
+	elseif topic == "reward_pushed" then
+		self:queue_rewards()
+	elseif topic == "meta_qa" then
+		if p.action == "task" then
+			self:on_task(nil)
+		elseif p.action == "skip" then
+			self.show:skip()
+		end
 	end
+end
+
+-- The town object (Defold's `self` is userdata: it cannot take a
+-- metatable, so the screen lives in a plain table at self.t).
+local function new_town()
+	local t = setmetatable({}, Town)
+	t.sub = bus.subscribe({ "meta_changed", "lives_tick", "language_changed", "settings_changed", "save_reset",
+		"screen_leaving", "popup_request", "reward_pushed", "meta_qa" }, "town")
+	t.on_bus = function(topic, p) on_bus(t, topic, p) end
+	t.ui = ui.scene({ gui = GUI })
+	t.disp = { coins = 0, stars = 0 }
+	t.hold = { coins = 0, stars = 0 }
+	app.ui = { screen = "town" }
+
+	-- an attempt a level left open is settled first (its loss is shown)
+	local stale = flow.settle_stale_run()
+	if stale then app.push_reward(stale) end
+
+	t.c_scene = t.ui:layer(t.ui.root, "scene")
+	t.c_bit = t.ui:layer(t.ui.root, "bit")
+	t.ui:anchor(t.c_bit, "bottom")
+	t.c_ui = t.ui:layer(t.ui.root, "ui")
+	t.c_popups = t.ui:layer(t.ui.root, "popups_root")
+	t.fx = fx.new(t.ui, t.ui.root)
+
+	t.district = app.focus_district()
+	t.scene = scene_mod.new(t)
+	t.hud = hud_mod.new(t)
+	t.show = show_mod.new(t)
+	t.popups = popups.new(t.ui, t.c_popups, {
+		registry = REGISTRY, fx = t.fx,
+		release = function() t.ui:release_images(t:keep_images()) end,
+		on_change = function() t:publish() end,
+	})
+	t.bit = bit.new(t.ui, t.c_bit, hud_mod.BIT_X, hud_mod.BIT_Y, 136)
+
+	t.scene:build(t.district)
+	t.hud:build()
+	t:sync_disp()
+
+	audio.level_duck(false)
+	audio.layer("tension", false)
+	audio.layer("party", false)
+	audio.music(t.district)
+
+	t.enter_t = 0
+	t.twinkle_t = 0
+	t:publish()
+	return t
+end
+
+function Town:update(dt)
+	self.sub:drain(self.on_bus)
+	self.enter_t = self.enter_t + dt
+	-- rewards brought back from a level play after the fade-in
+	if self.enter_t > 0.45 and not self.rewards_started then
+		self.rewards_started = true
+		if rewards.count() > 0 then self:queue_rewards() end
+	end
+	if not self.show:busy() then
+		if self.hold.coins ~= 0 or self.hold.stars ~= 0 then
+			self.hold.coins, self.hold.stars = 0, 0
+			self:sync_disp()
+		end
+		local district = app.focus_district()
+		if district ~= self.district then
+			self.district = district
+			self.dirty_scene, self.dirty_ui = true, true
+			audio.music(district)
+		end
+		if self.dirty_scene then
+			self.dirty_scene = false
+			self.scene:build(self.district)
+		end
+		if self.dirty_ui then
+			self.dirty_ui = false
+			self.hud:build()
+			self:sync_disp()
+			self:publish()
+		end
+	end
+	self.show:update()
+	self.popups:update(dt)
+	self.fx:update(dt)
+	self.bit:update(dt)
+	self.ui:update(dt)
+	-- the scene twinkles now and then
+	self.twinkle_t = self.twinkle_t + dt
+	if self.twinkle_t > 1.4 then
+		self.twinkle_t = 0
+		if not fx.reduced() and self.popups:count() == 0 and not self.show:busy() then self.scene:twinkle(self.fx) end
+	end
+	app.ui.busy = self.show:busy()
+	app.ui.step = self.show:name()
+end
+
+function Town:on_input(action_id, action)
+	if self.popups:on_input(action_id, action) then return true end
+	if action_id == TOUCH and action.pressed and self.show:skippable() then
+		self.show:skip()
+		self.swallow = true
+		return true
+	end
+	if self.swallow then
+		if action.released then self.swallow = false end
+		return true
+	end
+	if self.show:busy() then
+		-- the HUD waits for the show (a chest's coins still flying)
+		return action_id == TOUCH
+	end
+	if action_id == TOUCH and action.pressed and self.bit:pick(action) then
+		self.bit:poke()
+		self.swallow = true
+		return true
+	end
+	if self.ui:on_input(action_id, action) then return true end
+	if action_id == TOUCH and action.released then return self:tap_scene(action) end
+	return false
 end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	self.on_level, self.on_task, self.on_nav = Town.on_level, Town.on_task, Town.on_nav
-	self.sub = bus.subscribe({ "meta_changed", "lives_tick", "language_changed", "modal_result", "save_reset" }, "town")
-	self.on_bus = function(topic, p) on_bus(self, topic, p) end
-	self.ui = ui.scene({ gui = GUI })
-	-- fixed containers keep the draw order; their content is rebuilt
-	self.c_scene = self.ui:layer(self.ui.root, "scene")
-	self.c_ui = self.ui:layer(self.ui.root, "ui")
-	self.district = app.focus_district()
-	build_scene(self)
-	build_ui(self)
-	audio.level_duck(false)
-	audio.layer("tension", false)
-	audio.layer("party", false)
-	audio.music(self.district)
+	self.t = new_town()
 end
 
 function final(self)
-	self.sub:close()
-	self.ui:final()
+	local t = self.t
+	t.sub:close()
+	t.popups:close_all()
+	t.show:clear()
+	app.ui = {}
+	t.ui:final()
 end
 
 function update(self, dt)
-	self.sub:drain(self.on_bus)
-	local district = app.focus_district()
-	if district ~= self.district then
-		self.district = district
-		self.dirty_scene, self.dirty_ui = true, true
-		audio.music(district)
-	end
-	if self.dirty_scene or (self.scene_view and self.scene_view ~= app.meta:view(self.district)) then
-		build_scene(self)
-		self.dirty_scene, self.dirty_items = false, false
-	elseif self.dirty_items then
-		refresh_items(self, self.fresh_task)
-		self.dirty_items, self.fresh_task = false, nil
-	end
-	if self.dirty_ui then
-		build_ui(self)
-		self.dirty_ui = false
-	end
-	self.ui:update(dt)
+	self.t:update(dt)
 end
 
 function on_input(self, action_id, action)
-	return self.ui:on_input(action_id, action)
+	return self.t:on_input(action_id, action)
 end

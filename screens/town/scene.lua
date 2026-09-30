@@ -9,6 +9,8 @@
 --   scene:slide_to(district, done)   -- the next district slides in from the right
 --   scene:light_up(task_id, fx)      -- a task was just done: the item lights up
 --   scene:item_pos(task_id)          --> x, y (logical)
+--   scene:item_at(x, y)              --> task id and its entry under a point | nil
+--   scene:twinkle(fx)                --> a sparkle on a random restored item
 --   scene:keep()                     --> loose images to keep in memory
 -- Only the pictures of the district on display stay in GPU memory: the town
 -- releases the others (client/ui.lua release_images) after a switch.
@@ -104,6 +106,7 @@ local function build_layer(self, did)
 	s:sky({ parent = layer })
 	local key = assets.district_bg_key(did, view)
 	if key then s:backdrop(layer, key) end
+	if view == "concert" then M.spotlights(s, layer) end
 	local items_layer = s:layer(layer, "items")
 	local items = {}
 	local lay = M.layouts()[did]
@@ -114,6 +117,26 @@ local function build_layer(self, did)
 		end
 	end
 	return layer, items_layer, items, view
+end
+
+-- Slow neon spotlights over the concert look of a district (still under
+-- reduced motion).
+M.SPOTS = {
+	{ x = 90, color = "#FF4FD8", a0 = -20, a1 = 10, period = 5.2 },
+	{ x = 630, color = "#3CF2FF", a0 = 20, a1 = -10, period = 6.1 },
+}
+
+function M.spotlights(s, parent)
+	for _, b in ipairs(M.SPOTS) do
+		local n = s:circle(parent, b.x, 1320, 10, b.color, { soft = true, alpha = 0.22 })
+		gui.set_size(n, vmath.vector3(200, 1300, 0))
+		gui.set_pivot(n, gui.PIVOT_N)
+		gui.set_blend_mode(n, gui.BLEND_ADD)
+		gui.set_euler(n, vmath.vector3(0, 0, b.a0))
+		if not fx.reduced() then
+			gui.animate(n, "euler.z", b.a1, gui.EASING_INOUTSINE, b.period, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+		end
+	end
 end
 
 -- Builds the scene of `did` at once; the pictures of anything else leave memory.
@@ -136,6 +159,31 @@ function Scene:refresh()
 		local have = self.items[t.id]
 		if it and (not have or have.done ~= t.done) then draw_item(self, self.items_layer, self.district, t, it, self.items) end
 	end
+end
+
+-- The item under a logical point (topmost first): task id, entry.
+function Scene:item_at(x, y)
+	local best, best_e, best_d
+	for id, e in pairs(self.items or {}) do -- order-free: the closest centre wins
+		if math.abs(x - e.x) <= e.w / 2 and math.abs(y - e.y) <= e.h / 2 then
+			local d = (x - e.x) ^ 2 + (y - e.y) ^ 2
+			if not best_d or d < best_d then best, best_e, best_d = id, e, d end
+		end
+	end
+	return best, best_e
+end
+
+-- A little sparkle on one restored item (ambient life of the scene).
+function Scene:twinkle(fxi)
+	local done = {}
+	for id, e in pairs(self.items or {}) do
+		if e.done then done[#done + 1] = e end
+	end
+	if #done == 0 then return end
+	table.sort(done, function(a, b) return a.x < b.x end)
+	local e = done[math.random(#done)]
+	fxi:burst(e.x + fx.rand(-e.w * 0.35, e.w * 0.35), e.y + fx.rand(-e.h * 0.3, e.h * 0.4),
+		{ count = 4, radius = 36, size = 22, dur = 0.7 })
 end
 
 function Scene:item_pos(task_id)

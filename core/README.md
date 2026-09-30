@@ -52,7 +52,10 @@ Bots: `game:clone{reseed = k}`, `clone:set_timing("turbo")`,
 | `tick.lua` | `step()`: the 8 steps of §15, swap timers and refunds (§5.1.3), record dispatch |
 | `match.lua` | colour map, union-find groups, classification (§6.1), special cell (§6.2), resolution (§6.3), praise |
 | `hits.lua` | sources, the hit (§7.1), blockers (§7.3), scores and goals (§7.4), chain launch |
-| `specials.lua` | activation framework (§7.2): action lists, path pins, t0 actions; Riff, Sabwoofer, Disco |
+| `effects.lua` | effect framework (§7.2.6, §7.2.7): action lists, dedup, path pins, t0 actions, record handlers; geometry (rays, rings), `bolt`/`activate` events; Riff and Sabwoofer effects |
+| `specials.lua` | the `activate` record (§7.2), single specials, Disco ball and its steps (§8.4); registers the record handlers |
+| `bird.lua` | the Bird (§8.3): cross, level table, candidates, density, cargo tuples (§9), flights, reservations, `bird_impact`, Trio |
+| `combos.lua` | the ten combos (§8.5): Cross, Triple cross, Bass drop, Bird with cargo, Trio, Grand finale, "Colour X" transforms |
 | `gravity.lua` | assignment pass (§10.1), movement (§10.2), spawn colours and help (§10.3), mic release (§10.4), `hidden` |
 | `moves.lua` | expected board and swap evaluation (§5.1.2), move list and `has_move` (§12.1) |
 | `shuffle.lua` | shuffle and fallbacks (§12.2), used by the start, the rest step and Remix |
@@ -117,19 +120,52 @@ steps 4-8 with `due <= now` move to `now + 1`.
 - No `math.random`, `os.*`, `io.*`; no tools modules. Integers only.
 - Randomness only through `rng.lua`, one `next_int` per choice (§3.2).
 
+## Specials (§7.2, §8, §9)
+
+A launch (swap end, tap, chain hit, "Colour X" fire, concert phase B) puts
+the special into `armed` and queues an `activate` record (§15.2 kind 1)
+with the launch label. When that record runs (its tick is `t0`), it creates
+the effect source (`own` = the armed special(s), `centre` = its cell) and
+builds the full action list of the effect: `{tick, kind, data}` entries
+whose kinds are record kinds (hit, disco_step, transform, bird_impact,
+activate). `effects.run` then
+
+1. sorts the list stably by tick (the list is built in natural order: the
+   normal-mode offset, then cell index or the explicit order of §8);
+2. keeps the first hit per object (per cell for an `all_layers` source);
+3. pins the path when the effect asks for it (§7.2.7): every idle movable
+   piece in a cell hit later than `t0`;
+4. runs the actions due at `t0` at once, in order, inside the record;
+5. queues the rest, one record per action, in order.
+
+The first hit of a source on its `centre` removes its own specials (`clear`,
+cause `fired`), then hits the now open slot. A source lives while it owns
+queued records (kinds 2-5 carry its id first); pins and Bird reservations
+are always released by those records, so a dead source leaves none.
+
+- Riff and Sabwoofer: `effects.riff`, `effects.sub` (also used by the Bird's
+  cargo, the Bass drop and the fires of "Colour X").
+- Disco: list `L` pinned at `t0` (balloons of X listed but not pinned);
+  step `k` at `t0 + 2k` acts only if its piece is still pinned by the Disco
+  (or the balloon is intact); own cell after the list.
+- Bird: cross at `t0` (inline), then the target is chosen on the board as it
+  is after the cross (§9 levels, density, one `effects` draw among equal
+  best), reserved and its piece pinned; `bird_impact` at `t0 + 33` releases
+  both and hits, or fires the cargo with a new source.
+- Combos: one source for the combo effect (`own` = both specials, the one in
+  `to` first). "Colour X" pins its list, transforms by `k`, hits `to` and
+  `from` after the last transform slot, then queues one `activate` record per
+  entry; the kind of the new specials is read from the armed non-disco
+  special still in `own`.
+
+Turbo keeps the same natural order; every effect delay is 0 there, so a
+whole effect (Bird flight included) runs inside its activation record, and
+chains (delay 0) run later in the same step 3.
+
 ## Status
 
-Implemented: all of §0-§7, §10-§17 except the items below; single Riff,
-Sabwoofer and Disco effects (§8.1, §8.2, §8.4) and chains (§8.6).
-
-Stubs (stage B):
-- Bird (§8.3, §9): the activation performs only its cross; no target choice,
-  no `bird_fly`, no `bird_impact` records (`specials.bird_impact` is empty).
-- Combos (§8.5): a swap of two specials arms both and queues the combo
-  activation correctly, but the effect only hits the centre and `from`
-  (removing both specials); no geometries, no "Colour X" transforms
-  (`specials.transform` is empty), no Grand finale (`all_layers` is supported
-  by `hits.hit` already), no `combo` field in `activate`.
+Implemented: all of §0-§17, including every special and combo (§8), Bird
+targeting (§9), taps and special swaps (§5.1.4, §5.1.5, §5.2).
 
 Tests: `tests/core/*_test.lua`, run by `./tools/test.sh` on both VMs.
 `tests/core/helper.lua` builds levels from pictures and can rebuild a live

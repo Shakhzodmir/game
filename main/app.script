@@ -308,6 +308,7 @@ function init(self)
 		handlers = qa_handlers(self),
 		snapshot = function() return app.snapshot() end,
 	})
+	require("client.meta_qa").register() -- QA commands of the meta screens (reward, add_stars, open, ...)
 
 	-- the one window listener and error handler of the app (client/hooks.lua)
 	hooks.install(window, sys)

@@ -1,19 +1,24 @@
 -- Effect framework (7.2.6, 7.2.7) and the geometry shared by the single
--- specials and the combos (section 8).
+-- specials, the Bird's cargo and the combos (section 8).
 --
 -- An effect builds the full list of its actions in natural order. An
--- action is {tick, kind, data}: `kind` is a record kind of 15.2 (hit,
--- disco_step, transform, bird_impact, activate) and `data` its record data.
+-- action is {tick, kind, data}: `kind` is a record kind of 15.2 (activate,
+-- hit, disco_step, transform, bird_impact) and `data` its record data.
 -- EF.run() sorts the list stably by tick, keeps the first hit on every
--- object (on every cell for an `all_layers` source), pins the path, runs
--- the actions due at t0 = now at once, in order, inside the activation
--- record, and queues the others, one record per action, in order.
+-- object (on every cell for an `all_layers` source), pins the path if asked
+-- (7.2.7), runs the actions due at t0 = now at once, in order, inside the
+-- activation record, and queues the others, one record per action, in
+-- order.
 --
 -- Natural order. Every effect orders its actions by their offset in normal
--- timing, then by cell index (or the explicit order of section 8). In
+-- timing, then by cell index (or by the explicit order of section 8). In
 -- normal mode the offset is the real delay, so this is "by tick, then by
 -- index"; every effect delay of section 14 is 0 in turbo, where the same
 -- natural order is kept (turbo changes time only, not the rules).
+--
+-- Record handlers live in EF.handlers[kind](s, data); core/specials.lua
+-- registers them. The tick runs queued records through them, EF.run the
+-- actions due now. The table holds functions of the modules, never state.
 
 local C = require("core.const")
 local U = require("core.util")
@@ -28,8 +33,6 @@ local S_IDLE, R_HIT = C.S_IDLE, C.R_HIT
 -- Timings of the natural order (normal mode).
 EF.NT = C.T[C.TIMING_NORMAL]
 
--- Record handlers (s, data) by record kind, registered by core/specials.lua.
--- The tick runs queued records through them, EF.run the actions due now.
 EF.handlers = {}
 
 -- Real tick of an action with normal-mode offset n: t0 + n, or t0 in turbo
@@ -88,7 +91,8 @@ function EF.geo_add(g, cell, n)
 	if old == nil or n < old then g[cell] = n end
 end
 
-function EF.geo_hits(s, src, g, t0, acts)
+function EF.geo_hits(s, src, g, acts)
+	local t0 = s.now
 	local list = {}
 	for i = 1, s.N do
 		local n = g[i]
@@ -102,8 +106,9 @@ function EF.geo_hits(s, src, g, t0, acts)
 	return acts
 end
 
--- Directions of bolts: dx, dy, event name.
+-- Directions of bolts: dx, dy, event name (l, r, u, d).
 EF.DIRS = { { -1, 0, "l" }, { 1, 0, "r" }, { 0, -1, "u" }, { 0, 1, "d" } }
+EF.D_L, EF.D_R, EF.D_U, EF.D_D = 1, 2, 3, 4
 local DIRS = EF.DIRS
 
 -- Existing cells along a ray from (x, y) in direction dir (1..4), distance
@@ -139,11 +144,13 @@ function EF.square(s, g, cell, rmax, base)
 	end
 end
 
+-- The `bolt` event of one discharge leaving (x, y) in direction dir.
 function EF.bolt(s, x, y, dir, at)
 	E.emit(s, "bolt", { x = x, y = y, dir = DIRS[dir][3], at = at })
 end
 
 -- The `activate` event (first event of an activation). id = nil for cargo.
+-- `extra` holds the optional fields (color, combo, partner).
 function EF.activate_event(s, id, cell, special, axis, extra)
 	local x, y = U.xy(s.W, cell)
 	local ev = { x = x, y = y, special = C.SPECIAL_NAME[special] }
@@ -155,26 +162,26 @@ function EF.activate_event(s, id, cell, special, axis, extra)
 	E.emit(s, "activate", ev)
 end
 
--- Single effects shared with cargo and combos ---------------------------------
+-- Effects shared by the single specials, the cargo and the combos ------------
 
 -- Riff (8.1) from `cell` along `axis`, t0 = now: bolts, own cell at t0,
 -- distance d at t0 + R(d); natural order own cell, then d, then index.
 function EF.riff(s, src, cell, axis)
 	local t0 = s.now
 	local x, y = U.xy(s.W, cell)
-	local d1, d2 = 1, 2
-	if axis == C.AX_V then d1, d2 = 3, 4 end
+	local d1, d2 = EF.D_L, EF.D_R
+	if axis == C.AX_V then d1, d2 = EF.D_U, EF.D_D end
 	EF.bolt(s, x, y, d1, t0)
 	EF.bolt(s, x, y, d2, t0)
 	local g = {}
 	EF.geo_add(g, cell, 0)
 	EF.ray(s, g, x, y, d1, 0)
 	EF.ray(s, g, x, y, d2, 0)
-	EF.run(s, src, EF.geo_hits(s, src, g, t0), true)
+	EF.run(s, src, EF.geo_hits(s, src, g), true)
 end
 
--- Sabwoofer (8.2) and Bass drop (8.5, rmax 3): swell, then ring r at
--- t0 + sub_swell + ring*r; natural order r, then index.
+-- Sabwoofer (8.2, rmax 2) and Bass drop (8.5, rmax 3): swell, then ring r
+-- at t0 + sub_swell + ring*r; natural order r, then index.
 function EF.sub(s, src, cell, rmax)
 	local t0 = s.now
 	local NT = EF.NT
@@ -184,7 +191,7 @@ function EF.sub(s, src, cell, rmax)
 	end
 	local g = {}
 	EF.square(s, g, cell, rmax, NT.sub_swell)
-	EF.run(s, src, EF.geo_hits(s, src, g, t0), true)
+	EF.run(s, src, EF.geo_hits(s, src, g), true)
 end
 
 return EF
