@@ -431,6 +431,20 @@ function Level:publish()
 	else
 		l.tutorial = nil
 	end
+	-- where to tap (logical coordinates, for the QA bridge): the pause button and the four boosters; rebuilt only
+	-- when the HUD was laid out again
+	local layout = self.hud.l
+	if layout and layout ~= self.pub_layout then
+		self.pub_layout = layout
+		local tg = {}
+		tg.pause = { x = layout.pause.cx, y = layout.pause.cy }
+		for _, id in ipairs(level_hud.BOOSTERS) do
+			local r = self.hud:booster_rect(id)
+			if r then tg[id] = { x = r.cx, y = r.cy } end
+		end
+		self.pub_targets = tg
+	end
+	l.targets = self.pub_targets
 	u.level = l
 end
 

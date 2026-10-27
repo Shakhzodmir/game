@@ -37,5 +37,5 @@
     {"at": [4, 9], "type": "noise"},
     {"at": [6, 9], "type": "noise"}
   ],
-  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 3}
+  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 4}
 }

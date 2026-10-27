@@ -79,5 +79,6 @@
     {"at": [3, 8], "type": "piece", "color": "blue"},
     {"at": [4, 8], "type": "piece", "color": "orange"},
     {"at": [5, 8], "type": "piece", "color": "yellow"}
-  ]
+  ],
+  "spawn_weights": {"red": 3, "orange": 3, "yellow": 3, "green": 2, "blue": 3}
 }

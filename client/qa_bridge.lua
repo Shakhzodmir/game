@@ -120,6 +120,12 @@ local function find_handler(name, depth)
 	return state.handlers[name]
 end
 
+-- Is there a command of this name (a handler, or a board command that answers "needs the board" while no
+-- level is on display)? tests/client/qa_script_test.lua checks the QA script against it.
+function M.has(name)
+	return find_handler(name) ~= nil or M.NOT_YET[name] == true
+end
+
 -- Runs one command; returns a result table (never raises).
 function M.execute(cmd)
 	local name, args = M.parse(cmd)
