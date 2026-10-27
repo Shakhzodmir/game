@@ -242,3 +242,18 @@ describe("core api: turbo switch (15.1.8)", function()
 		assert_eq(g2.s.swaps[1].due, 11, "min(11, 10 + 1)")
 	end)
 end)
+
+describe("core api: run_to_rest (17.3)", function()
+	it("returns the number of ticks; the limit itself is allowed, one tick more is an error", function()
+		local function game()
+			local g = fresh()
+			g:input({ type = "swap", from = { 3, 1 }, to = { 4, 1 } })
+			return g
+		end
+		local n = game():run_to_rest()
+		assert_true(n > 20)
+		assert_eq(game():run_to_rest(n), n)
+		assert_error(function() game():run_to_rest(n - 1) end, "run_to_rest")
+		assert_eq(game():run_to_rest(n + 5), n)
+	end)
+end)

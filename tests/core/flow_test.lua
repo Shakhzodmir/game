@@ -597,6 +597,8 @@ describe("core flow: shuffle (12.2) written out", function()
 		assert_same(g.s.rng[R.SHUFFLE], st)
 		local o = g.s.objs[g.s.slot[({ 8, 9 })[pick]]]
 		assert_eq(o.special, C.SP_RIFF)
+		assert_eq(o.axis, C.AX_H)
+		assert_same({ o.state, o.tk, o.td }, { C.S_SWAP, C.TM_LOCK, 31 }, "the new Riff is locked like a moved piece")
 		assert_eq(g.s.objs[g.s.slot[({ 9, 8 })[pick]]].color, C.COLOR.red, "colours are restored when an attempt fails")
 	end)
 
@@ -900,5 +902,69 @@ describe("core flow: what a shuffle leaves behind (12.2)", function()
 			assert_false(M.any_match(M.color_map(g.s), 6, 6))
 			assert_true(g:has_move())
 		end
+	end)
+end)
+
+describe("core flow: the fallbacks of 12.2 choose with int(n) of the shuffle stream", function()
+	local R = require("core.rng")
+	local ALL_MIC = { "MMMMMM", "MMMMMM", "MMMMMM", "MMMMMM", "MMMMMM", "MMMMMM" }
+
+	local function seed_with_pick(n, want)
+		for seed = 1, 5000 do
+			if R.int(R.stream(seed, R.SHUFFLE), n) == want then return seed end
+		end
+		error("no seed")
+	end
+
+	local function picture(marks)
+		local rows = {}
+		for y = 1, 6 do rows[y] = ALL_MIC[y] end
+		for _, m in ipairs(marks) do
+			rows[m[2]] = rows[m[2]]:sub(1, m[1] - 1) .. m[3] .. rows[m[2]]:sub(m[1] + 1)
+		end
+		return rows
+	end
+
+	it("item 4: the wired piece is the one numbered int(#wired) in index order", function()
+		for want = 2, 3 do
+			local g = fresh(picture({ { 2, 2, "r" }, { 5, 3, "g" }, { 3, 5, "b" } }), nil, { seed = seed_with_pick(3, want) })
+			for _, c in ipairs({ 8, 17, 27 }) do g.s.wires[c] = 1 end
+			local order = { 8, 17, 27 }
+			local victim = g.s.objs[g.s.slot[order[want]]]
+			g:step()
+			local ev = g:drain_events()
+			assert_eq(ev[1].type, "freed")
+			assert_eq(ev[1].id, victim.id)
+			assert_eq(ev[2].riff.id, victim.id)
+			assert_eq(ev[2].riff.from, "wires")
+			assert_eq(g.s.wires[order[want]], 0)
+			for k = 1, 3 do
+				if k ~= want then assert_eq(g.s.wires[order[k]], 1, "the other wires stay") end
+			end
+		end
+	end)
+
+	it("item 5: the noise is the one numbered int(#noise) in index order", function()
+		for want = 2, 3 do
+			local g = fresh(picture({ { 2, 2, "N" }, { 5, 3, "N" }, { 3, 5, "N" } }), nil, { seed = seed_with_pick(3, want) })
+			local order = { 8, 17, 27 }
+			local victim = g.s.objs[g.s.slot[order[want]]]
+			g:step()
+			local ev = g:drain_events()
+			assert_eq(ev[1].type, "destroy")
+			assert_eq(ev[1].id, victim.id)
+			assert_eq(ev[2].riff.from, "noise")
+			assert_eq(victim.special, C.SP_RIFF)
+			assert_eq(victim.blocker, 0)
+		end
+	end)
+
+	it("pinned pieces are no shuffle candidates", function()
+		local g = fresh(picture({ { 2, 2, "r" }, { 5, 3, "g" } }))
+		assert_same(SH.candidates(g.s), { 8, 17 })
+		H.obj_at(g, 5, 3).pins = { 4 }
+		assert_same(SH.candidates(g.s), { 8 })
+		g.s.rest_flag = true
+		assert_same({ g:input({ type = "booster", booster = "remix" }) }, { false, "no_candidates" })
 	end)
 end)
