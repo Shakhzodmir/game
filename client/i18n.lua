@@ -204,6 +204,19 @@ local S = {
 	["praise.4"] = { en = "Groovy!", ru = "Кайф!" },
 	["praise.5"] = { en = "Legend!", ru = "Легенда!" },
 
+	-- level effects: combo titles over the board, the final concert (screens/level/level_fx.gui_script) --
+	["combo.cross"] = { en = "Cross!", ru = "Крест!" },
+	["combo.triple_cross"] = { en = "Triple cross!", ru = "Тройной крест!" },
+	["combo.bass_drop"] = { en = "Bass drop!", ru = "Бас-дроп!" },
+	["combo.bird_riff"] = { en = "Riff flight!", ru = "Рифф на крыльях!" },
+	["combo.bird_sub"] = { en = "Bass flight!", ru = "Бас на крыльях!" },
+	["combo.trio"] = { en = "Trio!", ru = "Трио!" },
+	["combo.finale"] = { en = "Grand finale!", ru = "Гранд-финал!" },
+	["combo.color_riff"] = { en = "Riff storm!", ru = "Шторм риффов!" },
+	["combo.color_sub"] = { en = "Bass storm!", ru = "Шторм басов!" },
+	["combo.color_bird"] = { en = "Flock!", ru = "Стая!" },
+	["fx.concert"] = { en = "Final concert!", ru = "Финальный концерт!" },
+
 	-- boosters -----------------------------------------------------------------------------
 	["booster.stick"] = { en = "Drumstick", ru = "Барабанная палочка" },
 	["booster.row_light"] = { en = "Row spotlight", ru = "Прожектор по ряду" },

@@ -150,3 +150,51 @@ describe("client.level_session", function()
 		assert_false(r.ok)
 	end)
 end)
+
+describe("client.level_session focus and autoplay", function()
+	it("stands still while the app is in the background and does not rush on its return", function()
+		local s = assert(level_session.new({ params = { level_text = LEVEL, level = 3 } }))
+		s:set_hold(true)
+		assert_true(s:halted())
+		assert_eq(s:advance(0.1), 0)
+		assert_eq(s.tick, 0)
+		s:set_paused(true) -- a window opened meanwhile
+		s:set_hold(false)
+		assert_true(s:halted()) -- still paused by the window
+		assert_eq(s:advance(0.1), 0)
+		s:set_paused(false)
+		assert_false(s:halted())
+		-- the time spent away is not played back: the accumulator starts again
+		s:set_hold(true)
+		s:advance(0.2)
+		s:set_hold(false)
+		assert_eq(s:advance(1 / 60), 1)
+		assert_true(s:snapshot().hold == false)
+	end)
+
+	it("plays hint moves by itself for the QA win command and stops at the end", function()
+		local s = assert(level_session.new({ params = { level_text = LEVEL, level = 3 } }))
+		assert_eq(s:autoplay_step(), nil) -- not started
+		local r = s:qa("autoplay", { "2" })
+		assert_true(r.ok)
+		local played = 0
+		for _ = 1, 3000 do
+			s:advance(1 / 60)
+			if s:autoplay_step() then played = played + 1 end
+			if not s.auto then break end
+		end
+		assert_eq(played, 2)
+		assert_eq(s.auto, nil)
+		-- win: free "+5 moves" when out of moves, until the level is won
+		s:qa("win")
+		for _ = 1, 20000 do
+			s:advance(1 / 60)
+			s:autoplay_step()
+			local st = s.game:status().state
+			if st == "complete" or st == "lost" then break end
+		end
+		assert_eq(s.game:status().state, "complete")
+		assert_eq(s:qa("hold", { "1" }).state.hold, true)
+		assert_eq(s:qa("hold", { "0" }).state.hold, false)
+	end)
+end)

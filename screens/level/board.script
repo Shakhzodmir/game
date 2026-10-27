@@ -9,14 +9,37 @@
 --   input ........... client/level_input.lua (swipe / tap-tap / booster targets)
 --   hint ............ client/level_hint.lua (5 s idle -> game:hint() wobble)
 --   sound ........... client/level_audio.lua (notes, effects, layers, haptics)
---   HUD / windows ... client/level_link.lua (plain calls) + bus topics level_*
+--   HUD / windows ... client/level_link.lua (plain calls) + the bus topics below
 --   background ...... screens/level/level_bg.gui_script (sky, board backing, cells, floor)
---   QA .............. client/level_qa.lua (hint_move, swap, tap, skip, state, ...)
+--   overlay fx ...... screens/level/level_fx.gui_script (praise, combo titles, banners, confetti)
+--   QA .............. client/level_qa.lua (hint_move, swap, tap, skip, win, state, ...)
 --
 -- Params (app.params): {level_id, run, level_text} from the start window
 -- (client/flow.lua), or {level = n} for a standalone debug start (F2, the QA
 -- "level n" command): then the level file is read here and no meta attempt
 -- is involved.
+--
+-- Bus topics published here (client/bus.lua; payloads are read-only; lx, ly
+-- are logical 720x1280 coordinates, y up; x, y are core cells, 1-based):
+--   level_ready    {level_id, W, H, moves, goals, rect, standalone}   the board is built
+--   level_moves    {left}                                              moves left changed
+--   level_goal     {index, left, kind, color, item, x, y, lx, ly}      a goal went down
+--                  (x, y, lx, ly = where the collected thing was: fly it to the goal icon)
+--   level_score    {delta, total, lx, ly}                              points scored (lx, ly may be nil)
+--   level_state    {state, reason}                                     playing | won_wait | concert |
+--                  out_of_moves | lost | complete (reason "stuck" at out_of_moves)
+--   level_praise   {word, index (1..5, i18n "praise.<index>"), wave}   a cascade word
+--   level_banner   {key}                                               an i18n key, e.g. "hud.shuffle"
+--   level_booster  {booster, phase = "target" | "cancel" | "used" | "rejected" | "done", ok, reason}
+--   level_result   {result = game:result()}                            complete or lost
+--   level_special  {special, combo, lx, ly}                            a special fired (Bit scratches);
+--                  combo = cross | triple_cross | bass_drop | bird_riff | bird_sub | trio | finale |
+--                  color_riff | color_sub | color_bird, or nil
+--   level_flash    {color, alpha, dur}                                 the whole screen flashes (fx GUI)
+--   level_floor    {x, y, lx, ly}                                      a dance-floor tile was lit
+--   level_noise    {x, y, lx, ly}                                      noise grew onto a piece (Bit covers his ears)
+-- Bus topics read here: app_focus {focused} (the game stands still while the app is in the
+-- background), settings_changed (through app.settings_rev).
 
 local app = require("client.app")
 local bus = require("client.bus")
@@ -37,6 +60,8 @@ local level_vfx = require("client.level_vfx")
 local level_qa = require("client.level_qa")
 
 local TOUCH = hash("touch")
+local MAX_DT = 0.25       -- seconds of one frame that count at most
+local SKIP_GUARD = 0.45   -- seconds after the win in which a tap does not skip the concert
 
 local function read_level(n)
 	local info = levels.load(n)
@@ -52,6 +77,19 @@ end
 
 local function settings()
 	return app.meta and app.meta:settings() or {}
+end
+
+-- Cosmetic code must never stop the game: an error in the animations, effects or
+-- sound is logged (the first few) and the frame goes on. Tests set self.strict
+-- to see them.
+local function guard(self, what, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		if self.strict then error(err, 0) end
+		self.errors = (self.errors or 0) + 1
+		if self.errors <= 5 then print("ERROR: level board (" .. what .. "): " .. tostring(err)) end
+	end
+	return ok
 end
 
 -- geometry for the current window
@@ -77,12 +115,6 @@ local function refresh_cells(self)
 	self.link_board.view.cells = self.cells
 end
 
-local function publish_status(self)
-	local st = self.session.game:status()
-	self.status = st
-	return st
-end
-
 -- where the last collected thing was (a goal event has no position)
 local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, transform = true }
 
@@ -106,6 +138,7 @@ local function on_event(self, e)
 		bus.publish("level_score", { delta = e.delta, total = e.total, lx = lx, ly = ly })
 	elseif ty == "state" then
 		bus.publish("level_state", { state = e.state, reason = e.reason })
+		if e.state == "won_wait" then self.won_at = self.t end
 		if e.state ~= "playing" then
 			self.input:deselect()
 			if e.state ~= "out_of_moves" and self.input.targeting then
@@ -131,6 +164,9 @@ local function on_event(self, e)
 		bus.publish("level_floor", { x = e.x, y = e.y, lx = lx, ly = ly })
 	elseif ty == "freed" or ty == "shuffle" then
 		self.wires_dirty = true
+	elseif ty == "noise_spread" then
+		local lx, ly = self.geom:center(e.x, e.y)
+		bus.publish("level_noise", { x = e.x, y = e.y, lx = lx, ly = ly })
 	elseif ty == "activate" then
 		local lx, ly = self.geom:center(e.x, e.y)
 		bus.publish("level_special", { special = e.special, combo = e.combo, lx = lx, ly = ly })
@@ -140,16 +176,17 @@ local function on_event(self, e)
 end
 
 local function on_tick(self, events)
-	if #events == 0 then return end
+	local n = #events
+	if n == 0 then return end
 	local t = self.t
-	for i = 1, #events do
+	for i = 1, n do
 		local e = events[i]
-		self.anim:event(e, t)
-		self.effects:event(e)
-		self.laudio:event(e)
-		on_event(self, e)
+		guard(self, "anim", self.anim.event, self.anim, e, t)
+		guard(self, "effects", self.effects.event, self.effects, e)
+		guard(self, "sound", self.laudio.event, self.laudio, e)
+		guard(self, "event", on_event, self, e)
 	end
-	self.vfx:play(self.effects:drain())
+	guard(self, "vfx", self.vfx.play, self.vfx, self.effects:drain())
 end
 
 -- commands ------------------------------------------------------------------------
@@ -214,9 +251,22 @@ local function fail(self, err)
 	app.show_screen("town", { from = "level" })
 end
 
+-- the app lost / regained the focus: the game stands still while it is away
+local function on_focus(self, topic, p)
+	if topic ~= "app_focus" or not self.session then return end
+	if p.focused == false then
+		self.session:set_hold(true)
+		self.input:cancel()
+	else
+		self.session:set_hold(false)
+		self.hint:touch()
+	end
+end
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	self.t = 0
+	self.shake_x, self.shake_y = 0, 0
 	local params = app.params or {}
 	local hooks = {
 		first_move = function()
@@ -237,6 +287,7 @@ function init(self)
 	if not s then return fail(self, err) end
 	self.session = s
 	self.on_tick = function(events) on_tick(self, events) end
+	self.on_focus = function(topic, p) on_focus(self, topic, p) end
 	self.W, self.H = s.W, s.H
 	self.status = s.game:status()
 	local st = settings()
@@ -254,6 +305,7 @@ function init(self)
 	end
 
 	self.cellmap, self.by_id = {}, {}
+	self.find_piece = function(id) return self.by_id[id] end -- (a closure made once, not per frame)
 	self.input = level_input.new({ mode = st.input_mode, query = function(x, y)
 		local p = self.cellmap[(y - 1) * self.W + x]
 		if not p then return nil end
@@ -266,7 +318,7 @@ function init(self)
 	self.effects:set_cell_lookup(function(x, y) return self.cellmap[(y - 1) * self.W + x] end)
 	self.view = level_view.new({ piece = "#piece_factory", glow = "#glow_factory" })
 	self.vfx = level_vfx.new({
-		piece = "#piece_factory", glow = "#glow_factory", burst = "#burst_factory", reduced = reduced,
+		piece = "#piece_factory", glow = "#glow_factory", reduced = reduced,
 		on_gui = function(c)
 			if c.kind == "praise" then
 				bus.publish("level_praise", { word = c.word, index = c.index, wave = c.wave })
@@ -278,8 +330,10 @@ function init(self)
 		end,
 		on_slowmo = function(dur, scale) self.session:slowmo(dur, scale) end,
 	})
+	self.quality = level_vfx.quality()
 	self.laudio = level_audio.new({ audio = audio, vibrate = platform.vibrate, now = function() return self.t end,
 		width = self.W })
+	self.focus_sub = bus.subscribe({ "app_focus" }, "level_board")
 
 	self.link_board = {
 		session = s, input = self.input, geom = nil,
@@ -295,8 +349,8 @@ function init(self)
 		stats = function()
 			local v, x = self.view:stats(), self.vfx:stats()
 			return { view = v, vfx = x, frames = self.frames or 0, ticks = s.ticks_run, dropped = s.dropped,
-				selected = self.input.selected, targeting = self.input.targeting,
-				w = self.ww, h = self.wh, cell = self.geom and self.geom.cell }
+				selected = self.input.selected, targeting = self.input.targeting, errors = self.errors or 0,
+				w = self.ww, h = self.wh, cell = self.geom and self.geom.cell, lite = self.vfx.lite }
 		end,
 		on_qa = function(name, res)
 			if name == "skip" and res and res.ok then self.vfx:clear() end
@@ -312,6 +366,7 @@ end
 
 function final(self)
 	if self.qa_off then self.qa_off() end
+	if self.focus_sub then self.focus_sub:close() end
 	level_link.detach(self.link_board)
 	if self.laudio then self.laudio:finish() end
 	audio.level_duck(false)
@@ -320,28 +375,53 @@ end
 
 -- frame ---------------------------------------------------------------------------
 
+-- A reusable mark table (no allocation per frame).
+local function mark(self, i)
+	local list = self.mark_pool
+	if not list then
+		list = {}
+		self.mark_pool = list
+	end
+	local m = list[i]
+	if not m then
+		m = {}
+		list[i] = m
+	end
+	return m
+end
+
+local function set_mark(m, image, x, y, w, h, color, alpha, z)
+	m.image, m.x, m.y, m.w, m.h, m.color, m.alpha, m.z = image, x, y, w, h, color, alpha, z
+	m.iw, m.ih, m.glow = nil, nil, true
+	return m
+end
+
 local function marks(self)
 	local list = self.mark_list or {}
 	self.mark_list = list
-	for k = #list, 1, -1 do list[k] = nil end
+	local n = 0
 	local g = self.geom
 	local cell = g.cell
 	local sx, sy = self.shake_x, self.shake_y
 	local sel = self.input.selected
 	if sel then
 		local x, y = g:center(sel.x, sel.y)
-		list[#list + 1] = { image = "fx_glow_dot", x = x + sx, y = y + sy, w = cell * 1.5, h = cell * 1.5,
-			color = "#FFD84D", alpha = 0.85 }
+		n = n + 1
+		list[n] = set_mark(mark(self, n), "fx_glow_dot", x + sx, y + sy, cell * 1.5, cell * 1.5, "#FFD84D", 0.85, nil)
 	end
 	local h = self.hint_cmd
 	local phase = self.hint:phase()
 	if h and phase then
 		local a = math.sin(phase * math.pi)
-		local cells = h.at and { h.at } or { h.from, h.to }
-		for _, c in ipairs(cells) do
-			local x, y = g:center(c[1], c[2])
-			list[#list + 1] = { image = "fx_glow_dot", x = x + sx, y = y + sy, w = cell * 1.4, h = cell * 1.4,
-				color = "#FF7EB6", alpha = 0.55 * a }
+		for k = 1, 2 do
+			local c
+			if h.at then c = (k == 1) and h.at or nil else c = (k == 1) and h.from or h.to end
+			if c then
+				local x, y = g:center(c[1], c[2])
+				n = n + 1
+				list[n] = set_mark(mark(self, n), "fx_glow_dot", x + sx, y + sy, cell * 1.4, cell * 1.4, "#FF7EB6",
+					0.55 * a, nil)
+			end
 		end
 	end
 	local tg = self.input.targeting
@@ -356,9 +436,12 @@ local function marks(self)
 			y = (g.rect.y0 + g.rect.y1) / 2
 			hh = g.rect.y1 - g.rect.y0
 		end
-		list[#list + 1] = { image = "white", iw = 8, ih = 8, x = x + sx, y = y + sy, w = w, h = hh,
-			color = "#FFD84D", alpha = 0.38 + 0.12 * math.sin(self.t * 8), z = 0.25 }
+		n = n + 1
+		local m = set_mark(mark(self, n), "white", x + sx, y + sy, w, hh, "#FFD84D", 0.38 + 0.12 * math.sin(self.t * 8), 0.25)
+		m.iw, m.ih, m.glow = 8, 8, false
+		list[n] = m
 	end
+	for i = #list, n + 1, -1 do list[i] = nil end
 	self.view:marks(list)
 end
 
@@ -372,15 +455,33 @@ local function follow_settings(self)
 	self.input:set_mode(settings().input_mode)
 end
 
+-- the effects of this frame; the shake offset moves the pieces, the wires and the background
+local function run_vfx(self, dt, tick_f)
+	self.shake_x, self.shake_y = self.vfx:update(dt, tick_f, self.t)
+end
+
+local function run_pieces(self, pieces, tick_f)
+	local list = self.anim:frame(pieces, tick_f, self.t)
+	self.view:sync(list, self.shake_x, self.shake_y)
+end
+
 function update(self, dt)
 	if not self.session or self.failed then return end
+	if dt > MAX_DT then dt = MAX_DT end
 	self.t = self.t + dt
 	self.frames = (self.frames or 0) + 1
 	follow_settings(self)
+	self.focus_sub:drain(self.on_focus)
 	local ww, wh = window.get_size()
 	if ww ~= self.ww or wh ~= self.wh then build_geom(self) end
+	local lite = self.quality:frame(dt)
+	if lite ~= self.vfx.lite then self.vfx:set_lite(lite) end
 
 	local s = self.session
+	if s.auto then
+		local sent = s:autoplay_step()
+		if sent then self.hint:touch() end
+	end
 	s:advance(dt, self.on_tick)
 	self.status = s.status
 	local game = s.game
@@ -396,7 +497,11 @@ function update(self, dt)
 		cellmap[(p.y - 1) * self.W + p.x] = p
 		by_id[p.id] = p
 	end
-	self.input:validate(function(id) return by_id[id] end, playing)
+	self.input:validate(self.find_piece, playing)
+	if not self.intro_done then
+		self.intro_done = true
+		self.anim:intro(pieces, self.t)
+	end
 
 	if self.wires_dirty or self.floor_dirty then
 		refresh_cells(self)
@@ -409,8 +514,8 @@ function update(self, dt)
 	end
 
 	-- hint after 5 s without touches
-	local allowed = playing and not self.input.selected and not self.input.targeting and not s.paused
-		and game:is_stable()
+	local allowed = playing and not self.input.selected and not self.input.targeting and not s:halted()
+		and not s.auto and game:is_stable()
 	if self.hint:update(dt, allowed) then self.hint_cmd = s:hint_command() end
 	local phase = self.hint:phase()
 	local h = self.hint_cmd
@@ -422,25 +527,25 @@ function update(self, dt)
 	self.anim:select(self.input.selected and self.input.selected.id or nil)
 
 	local tick_f = s:display_tick()
-	self.shake_x, self.shake_y = self.vfx:update(dt, tick_f, self.t)
+	guard(self, "vfx update", run_vfx, self, dt, tick_f)
 	local v = self.link_board.view
 	v.shake_x, v.shake_y = self.shake_x, self.shake_y
-	local list = self.anim:frame(pieces, tick_f, self.t)
-	self.view:sync(list, self.shake_x, self.shake_y)
-	marks(self)
+	guard(self, "pieces", run_pieces, self, pieces, tick_f)
+	guard(self, "marks", marks, self)
 end
 
 function on_input(self, action_id, action)
 	if action_id ~= TOUCH or not self.session or self.failed then return false end
 	local s = self.session
-	if s.paused then return false end
+	if s:halted() then return false end
 	local st = self.status and self.status.state
 	local lx, ly = logical(self, action)
 	if action.pressed then
 		self.hint:touch()
 		self.hint_cmd = nil
 		if st == "won_wait" or st == "concert" then
-			-- a tap during the final concert skips it
+			-- a tap during the final concert skips it (not the one that made the last move)
+			if self.won_at and self.t - self.won_at < SKIP_GUARD then return true end
 			local ok = command(self, { type = "skip" })
 			if ok then self.vfx:clear() end
 			return true

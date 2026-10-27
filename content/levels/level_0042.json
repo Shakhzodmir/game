@@ -1,0 +1,45 @@
+{
+  "id": 42, "version": 1,
+  "size": [9, 10],
+  "moves": 27,
+  "difficulty": "medium",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "record_box", "count": 8},
+    {"type": "break", "item": "concrete", "count": 4}
+  ],
+  "cells": [
+    "###...###",
+    "###...###",
+    "###...###",
+    "###...###",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [2, 6], "type": "piece", "color": "green"},
+    {"at": [6, 6], "type": "piece", "color": "red"},
+    {"at": [0, 7], "type": "piece", "color": "green"},
+    {"at": [1, 7], "type": "piece", "color": "green"},
+    {"at": [2, 7], "type": "piece", "color": "blue"},
+    {"at": [6, 7], "type": "piece", "color": "purple"},
+    {"at": [7, 7], "type": "piece", "color": "red"},
+    {"at": [8, 7], "type": "piece", "color": "red"},
+    {"at": [0, 8], "type": "record_box", "hp": 1},
+    {"at": [1, 8], "type": "record_box", "hp": 1},
+    {"at": [2, 8], "type": "concrete", "hp": 1},
+    {"at": [6, 8], "type": "concrete", "hp": 1},
+    {"at": [7, 8], "type": "record_box", "hp": 1},
+    {"at": [8, 8], "type": "record_box", "hp": 1},
+    {"at": [0, 9], "type": "record_box", "hp": 3},
+    {"at": [1, 9], "type": "record_box", "hp": 3},
+    {"at": [2, 9], "type": "concrete", "hp": 1},
+    {"at": [6, 9], "type": "concrete", "hp": 1},
+    {"at": [7, 9], "type": "record_box", "hp": 3},
+    {"at": [8, 9], "type": "record_box", "hp": 3}
+  ]
+}

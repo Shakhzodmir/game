@@ -6,6 +6,10 @@
 --   tap x y                     a tap on a special
 --   skip                        skips the final concert (turbo)
 --   booster <id> [x y | row | col], continue [n] [riff], give_up
+--   autoplay [n] [free]         plays n hint moves by itself ("free": "+5 moves" for nothing when out of moves)
+--   win                         autoplay to the end: the level is won, the final concert plays, the result is
+--                               handed to the HUD (poll "state": level.state won_wait / concert / complete)
+--   hold [0|1]                  the app loses (1) / regains (0) the focus: the game stands still while held
 --   state                       the app state + {level = board snapshot}
 --   level_stats                 sprites, particles, effects, frame counters of the board
 --
@@ -19,7 +23,7 @@ local qa_bridge = require("client.qa_bridge")
 
 local M = {}
 
-M.COMMANDS = { "hint_move", "swap", "tap", "skip", "booster", "continue", "give_up" }
+M.COMMANDS = { "hint_move", "swap", "tap", "skip", "booster", "continue", "give_up", "autoplay", "win", "hold" }
 
 function M.handlers(board)
 	local h = {}

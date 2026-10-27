@@ -1,0 +1,35 @@
+{
+  "id": 47, "version": 1,
+  "size": [7, 11],
+  "moves": 25,
+  "difficulty": "medium",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "collect", "color": "purple", "count": 24}
+  ],
+  "cells": [
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######"
+  ],
+  "overlay": [
+    {"at": [1, 5], "type": "wires", "hp": 1},
+    {"at": [5, 5], "type": "wires", "hp": 1},
+    {"at": [3, 7], "type": "wires", "hp": 1},
+    {"at": [1, 9], "type": "wires", "hp": 1},
+    {"at": [5, 9], "type": "wires", "hp": 1}
+  ],
+  "slots": [
+    {"at": [3, 2], "type": "mic"}
+  ],
+  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 2}
+}
