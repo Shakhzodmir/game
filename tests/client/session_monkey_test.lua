@@ -30,7 +30,7 @@ local function generator(seed)
 end
 
 -- One run: `actions` random actions, then everything is put in order again. Returns what the run visited.
-local function monkey(seed, actions, opts)
+local function run_monkey(seed, actions, opts)
 	opts = opts or {}
 	local rng = generator(seed)
 	local seen = {}
@@ -136,6 +136,13 @@ local function monkey(seed, actions, opts)
 		assert_eq(app.ui.disp.coins, app.meta:coins(), "seed " .. seed .. ": the top bar shows what the meta holds")
 		assert_eq(app.ui.disp.stars, app.meta:stars())
 	end)
+	return seen
+end
+
+-- (a failure names its seed: monkey(seed, actions, opts) plays the same game again)
+local function monkey(seed, actions, opts)
+	local ok, seen = pcall(run_monkey, seed, actions, opts)
+	if not ok then error("seed " .. seed .. ": " .. tostring(seen), 0) end
 	return seen
 end
 
