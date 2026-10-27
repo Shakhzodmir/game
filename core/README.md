@@ -172,6 +172,46 @@ Readings fixed by the audit of §8-§9 (`docs/handoff/core-audit-B2.md`):
   exit point in a void still sends its two bolts.
 - A cargo's `activate` event has no `id`, `combo` or `partner`; its source
   starts at the impact and carries the Bird's label.
+- In an activation the actions of tick `t0` run first, in list order, and
+  the rest are queued after them: a chain launched by a `t0` action (a Riff
+  cargo landing on a special) is queued before the later hits of that tick.
+- In the Trio a later choice sees the earlier targets pinned, so their cells
+  count as level 0 in its density.
+
+Readings fixed by the audit of §6-§7 (`docs/handoff/core-audit-B1.md`):
+
+- A removing hit (7.2.4) does no tile damage by itself; the same hit then
+  meets the open slot, so an `effect` source damages the tile under the
+  special it removes.
+- An `all_layers` hit that takes the last wire layer goes on to the slot in
+  the same hit; while a layer is left the slot is spared and only the tile
+  is hit.
+- `goal` is one event per goal and hit, with the final `left`: a column over
+  four unlit tiles lowers a `light` goal by four in one event.
+- Lines of one colour that share no cell are separate groups even when they
+  touch. A group without a wire-free cell makes no special, no bonus and no
+  `special` in its `match` event (it cannot arise in play: a new group always
+  holds a piece that just moved).
+
+Readings fixed by the audit of §5.3, §10-§13 and §16-§17
+(`docs/handoff/core-audit-C.md`):
+
+- A Remix that finds fewer than two candidates when its record runs still
+  takes a source id, emits `booster{ok=false}` and goes to `unplaced`.
+- The spotlights send one `bolt`: a row light from (1, row) to the right, a
+  column light from (col, 1) downwards, `at` = the tick of the record;
+  `booster.at` is `{x, y}`.
+- Hint tier 2 orders special moves by rank (sub > riff > bird > disco) first
+  and puts a swap before a tap of the same special second.
+- A diagonal donor needs support (no cell under it, or a non-empty one) at the
+  moment its target cell is processed: a right donor over a cell the same pass
+  fills later is passed over.
+- A microphone on an exit is delivered also while a path pin holds it (10.4
+  asks only for `idle`).
+- `result()` has one more field, `won`; a lost game reports `stars = 0` and
+  `moves_at_win = 0`.
+- The hash entry of a swap taken back keeps the number and the remembered
+  marks of the swap it undoes.
 
 ## Status
 
@@ -189,3 +229,19 @@ order, bolts, rings, path pins, removal of the specials), `bird_oracle_test.lua`
 (the level table, candidates, density, single and cargo choices, draws of the
 `effects` stream on random boards) and `disco_lists_test.lua` (the list of
 the Disco ball and of "Colour X", the steps, transforms and fires).
+
+Sections 6 and 7 have oracles of their own: `oracle.lua` (brute-force groups,
+kind and cell of the new special, the events of a resolution, the whole hit
+procedure, the action list of `EF.run`) is run by `monitor_test.lua` over
+random play and over random hits on random boards; `effects_test.lua` pins
+the framework (order, first occurrence, queue, path pins).
+
+Sections 5.3 and 10-17 are pinned by `boosters_test.lua`, `moves_test.lua`,
+`events_test.lua` (a schema of every event of §16, checked over random play
+and for the causal order), `api_test.lua` and blocks in `gravity_test.lua`,
+`flow_test.lua`, `hint_test.lua` and `hash_test.lua` (the §17.2 layout written
+out a second time from the text, one probe per hashed field). `tests/golden/`
+holds eight replays (§17.1) with the final hash and a digest of every event of
+the game; `golden_test.lua` plays them back on both VMs. After a deliberate
+change of the rules run `lua5.1 tests/golden/regen.lua` and read the diff of
+the summaries (state, tick, score, commands, events).

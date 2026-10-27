@@ -298,9 +298,32 @@ describe("core gravity: scan table and transfers (10.1)", function()
 		for _, e in ipairs(g:drain_events()) do
 			if e.type == "spawn" then assert_true(e.x ~= 3, "no spawn in column 3") end
 		end
-		for _, p in ipairs(g:pieces()) do
-			if p.x == 3 and p.y == 3 then assert_false(p.hidden, "no spawner above: nothing to hide behind") end
+		-- right after the assignment the slider stands a full cell off its target, level with the top of the segment
+		local g2 = core.new(lvl, { seed = 1 })
+		H.board(g2, { "by.gby", "yr.byr", "rg_yrg", "gbyrgb", "byrgby", "yrggbg" })
+		assign(g2)
+		local seen = false
+		for _, p in ipairs(g2:pieces()) do
+			if p.x == 3 and p.y == 3 then
+				seen = true
+				assert_eq(p.offy, 3600)
+				assert_false(p.hidden, "no spawner above: nothing to hide behind")
+			end
 		end
+		assert_true(seen)
+	end)
+
+	it("a moving piece takes the vac of the cell it arrives in and of the cells it passes, not of the cell it leaves", function()
+		local g = fresh({ "byrgby", "yrgbyr", "_gbyrg", "_byrgb", "byrgby", "yrggbg" })
+		local low = H.obj_at(g, 1, 2)
+		local s = g.s
+		s.vac_mv[7], s.vac_wv[7] = 9, 9 -- (1,2): the cell low leaves
+		s.vac_mv[13], s.vac_wv[13] = 2, 1 -- (1,3): passed
+		s.vac_mv[19], s.vac_wv[19] = 1, 5 -- (1,4): the target
+		assign(g)
+		assert_eq(H.obj_at(g, 1, 4), low)
+		assert_same({ low.mv, low.wv }, { 2, 1 })
+		assert_same({ s.vac_mv[7], s.vac_wv[7] }, { 2, 1 }, "the vac left behind is the label of the piece")
 	end)
 
 	it("a faller that moves on keeps vy and delay and does not advance the start counter", function()
@@ -582,5 +605,20 @@ describe("core gravity: diagonal details (10.1)", function()
 		local donor = H.obj_at(g, 3, 2)
 		assign(g)
 		assert_eq(H.obj_at(g, 2, 3), donor)
+	end)
+end)
+
+describe("core gravity: readings the specification leaves open (the donor support is read when the cell is processed: see the test with the empty cell under the right donor above)", function()
+	it("a microphone that stands on an exit is delivered even when a path pin holds it (10.4 asks for idle only)", function()
+		local deliver = { goals = { { type = "deliver", count = 2 } }, mic = { total = 2, on_board_max = 2, gap_moves = 99 } }
+		local g = fresh({ "rrgrby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "Mrggbg" }, deliver)
+		g.s.released, g.s.on_board, g.s.last_mic = 1, 1, 0
+		local mic = H.obj_at(g, 1, 6)
+		mic.pins = { 7 }
+		g.s.sources[7] = { id = 7, kind = C.SRC_EFFECT, mv = 1, wv = 1, color = 0, all_layers = false, own = {}, centre = 0, keys = {}, reserves = {}, nrec = 1 }
+		g.s.queue[1] = { due = 50, seq = 1, kind = C.R_HIT, d = { 7, 31 } }
+		g:step()
+		assert_eq(mic.state, C.S_CLEAR)
+		assert_same(mic.pins, {}, "leaving idle drops the pins")
 	end)
 end)

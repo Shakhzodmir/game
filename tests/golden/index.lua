@@ -3,6 +3,9 @@ return {
 	"classic",
 	"specials",
 	"deliver",
+	"strips",
 	"locked",
+	"combos_normal",
+	"combos_turbo",
 	"concert",
 }

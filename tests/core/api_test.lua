@@ -182,6 +182,25 @@ describe("core api: clones (17.3)", function()
 		assert_same(g:clone({ reseed = 3 }).s.rng[R.SPAWN], R.stream(seed, R.SPAWN))
 	end)
 
+	it("a bot looks ahead only on reseeded clones: the spawn colours of the real game stay hidden", function()
+		local function future(game)
+			game:input({ type = "swap", from = { 3, 1 }, to = { 4, 1 } })
+			game:run_to_rest()
+			return table.concat(H.picture(game), "/")
+		end
+		local g = fresh()
+		local real = future(g:clone()) -- the same game, same streams: the same future
+		assert_eq(future(g:clone()), real)
+		assert_eq(future(g), real)
+		local differs = 0
+		for k = 1, 4 do
+			if future(fresh():clone({ reseed = k })) ~= real then differs = differs + 1 end
+		end
+		assert_true(differs >= 3, "reseeded clones draw their own colours")
+		-- and the same reseed is repeatable
+		assert_eq(future(fresh():clone({ reseed = 2 })), future(fresh():clone({ reseed = 2 })))
+	end)
+
 	it("clones of a clone and the original keep apart; the replay of a clone continues the history", function()
 		local g = fresh()
 		g:input({ type = "swap", from = { 3, 1 }, to = { 4, 1 } })

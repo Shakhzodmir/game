@@ -283,6 +283,22 @@ describe("core hits: pins, sources and keys (1.2, 1.4, 7.1)", function()
 		assert_eq(#s.queue, 0)
 	end)
 
+	it("an empty slot is open too: an effect hurts its tile, the other kinds of source do not", function()
+		local g = fresh({ "byrgby", "yrgbyr", "rg__rg", "gbyrgb", "byrgby", "yrggbg" }, { floor = { { at = { 2, 2 }, hp = 2 } } })
+		local s = g.s
+		HT.hit(s, 15, HT.new_source(s, C.SRC_MATCH, 0, 1, 1))
+		HT.hit(s, 15, HT.new_source(s, C.SRC_ADJ, 0, 1, 1))
+		assert_same({ s.floor[15], s.score }, { 2, 0 })
+		HT.hit(s, 15, effect(g))
+		assert_same({ s.floor[15], s.score }, { 1, 50 })
+		assert_same(types(g:drain_events()), { "hit", "score" })
+		-- an empty slot over no tile: nothing at all
+		HT.hit(s, 16, effect(g, 5, 1))
+		HT.hit(s, 16, HT.new_source(s, C.SRC_ADJ, 0, 1, 1))
+		assert_same(g:drain_events(), {})
+		assert_eq(s.score, 50)
+	end)
+
 	it("every open state is an open slot for an effect: the floor takes the hit, the object none", function()
 		for _, st in ipairs({ C.S_FALL, C.S_SWAP, C.S_CLEAR, C.S_ARMED }) do
 			local g = fresh(nil, { floor = { { at = { 2, 2 }, hp = 2 } } })
@@ -314,6 +330,21 @@ describe("core hits: removal of the own specials of a combo (7.1.0, 7.2.4)", fun
 		-- `from` is hit when the geometry reaches it: an open slot, no second removal
 		HT.hit(s, 16, src)
 		assert_same(H.of_type(g:drain_events(), "clear"), {})
+	end)
+
+	it("hits of the owner on other cells leave its specials in place until the centre is hit", function()
+		local g = fresh({ "byrgby", "yrgbyr", "rgRyrg", "gbyrgb", "byrgby", "yrggbg" })
+		local s = g.s
+		s.objs[15].state = C.S_ARMED
+		local src = effect(g)
+		src.own, src.centre = { 15 }, 15
+		HT.hit(s, 14, src)
+		HT.hit(s, 16, src)
+		assert_eq(s.objs[15].state, C.S_ARMED)
+		assert_same(src.own, { 15 })
+		HT.hit(s, 15, src)
+		assert_eq(s.objs[15].state, C.S_CLEAR)
+		assert_same(src.own, {})
 	end)
 
 	it("a fired special gives no score, no goal and no floor damage of its own", function()
@@ -376,6 +407,24 @@ describe("core hits: the all_layers source (7.1, 8.5 Grand finale)", function()
 	end)
 end)
 
+describe("core hits: a column destroyed by an all_layers source (7.3)", function()
+	it("each of its four floors takes exactly one hit, from the hit on its own cell", function()
+		local g = fresh({ "byrgby", "yLlbyr", "rllyrg", "gbyrgb", "byrgby", "yrggbg" }, {
+			floor = { { at = { 1, 1 }, hp = 2 }, { at = { 2, 1 }, hp = 2 }, { at = { 1, 2 }, hp = 2 }, { at = { 2, 2 }, hp = 2 } },
+		})
+		local s = g.s
+		s.objs[8].hp = 1
+		local src = effect(g, 3, 1)
+		src.all_layers = true
+		HT.hit(s, 15, src) -- the slot hit destroys the column; only the floor of this cell is hit
+		assert_same({ s.floor[8], s.floor[9], s.floor[14], s.floor[15] }, { 2, 2, 2, 1 })
+		for _, i in ipairs({ 8, 9, 14 }) do HT.hit(s, i, src) end
+		assert_same({ s.floor[8], s.floor[9], s.floor[14], s.floor[15] }, { 1, 1, 1, 1 })
+		assert_eq(s.score, 50 + 4 * 50)
+		assert_eq(s.objs[8].state, C.S_CLEAR)
+	end)
+end)
+
 describe("core hits: columns, noise and goals (7.3, 7.4)", function()
 	it("a destroyed column damages the four floors by ascending cell and skips the lit ones", function()
 		local g = fresh({ "byrgby", "yLlbyr", "rllyrg", "gbyrgb", "byrgby", "yrggbg" }, {
@@ -385,14 +434,14 @@ describe("core hits: columns, noise and goals (7.3, 7.4)", function()
 		})
 		local s = g.s
 		s.objs[8].hp = 1
-		HT.hit(s, 14, effect(g, 3, 1))
+		HT.hit(s, 8, effect(g, 3, 1)) -- the top-left cell, whose tile has hp 2: it takes one hit, not two
 		local ev = g:drain_events()
 		assert_same(types(ev), { "destroy", "hit", "hit", "floor_lit", "hit", "floor_lit", "score", "goal", "goal" })
 		assert_same({ ev[2].x, ev[2].y, ev[2].hp, ev[3].x, ev[3].y, ev[3].hp, ev[5].x, ev[5].y }, { 2, 2, 1, 3, 2, 0, 3, 3 })
 		assert_same({ s.floor[8], s.floor[9], s.floor[14], s.floor[15] }, { 1, 0, 0, 0 })
 		assert_same({ s.goal_left[1], s.goal_left[2] }, { 1, 0 })
 		assert_eq(s.score, 50 + 3 * 50, "the last hp of the column and three floor hp; a lit tile gives nothing")
-		assert_same(ev[7], { t = 5, type = "score", delta = 200, total = 200, x = 2, y = 3 }, "at the cell of the hit")
+		assert_same(ev[7], { t = 5, type = "score", delta = 200, total = 200, x = 2, y = 2 }, "at the cell of the hit")
 		assert_same(ev[8], { t = 5, type = "goal", index = 1, left = 1 }, "two tiles lit by one hit: one event with the final left")
 	end)
 
@@ -410,6 +459,16 @@ describe("core hits: columns, noise and goals (7.3, 7.4)", function()
 		g.s.eom = { { a = 4, noise_hit = false, merged = 0 } }
 		HT.hit(g.s, 15, effect(g, 4, 1))
 		assert_true(g.s.eom[1].noise_hit)
+	end)
+
+	it("a hit on any other blocker leaves the noise flag of its action alone", function()
+		local g = fresh({ "byrgby", "yrgbyr", "rXKAEN", "gbyrgb", "byrgby", "yrggbg" })
+		local s = g.s
+		s.eom = { { a = 4, noise_hit = false, merged = 0 } }
+		for _, i in ipairs({ 14, 15, 16, 17 }) do HT.hit(s, i, effect(g, 4, 1)) end -- box, concrete, two balloons
+		assert_false(s.eom[1].noise_hit)
+		HT.hit(s, 18, effect(g, 4, 1)) -- the noise
+		assert_true(s.eom[1].noise_hit)
 	end)
 
 	it("a goal never goes below 0 and says nothing once it is 0; won_wait follows the last goal once", function()

@@ -21,7 +21,9 @@ local WINDOWS = { { 720, 1280 }, { 1280, 720 }, { 390, 844 }, { 768, 1024 } }
 local function run_monkey(seed, actions)
 	local r = rng(seed)
 	local log = {}
-	G.with_town({ language = (r(2) == 1) and "en" or "ru" }, function(c)
+	local language = (r(2) == 1) and "en" or "ru"
+	-- half of the seeds play a debug build: test purchases and the video gift answer in the shop
+	G.with_town({ language = language, stores = r(2) == 1 }, function(c)
 		local app = c.app
 		local function target_points()
 			local pts = {}

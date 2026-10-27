@@ -12,6 +12,7 @@
 --   lb:event(topic, payload)       -- the board's bus topics (level_moves, level_special, ...)
 --   lb:update(dt)
 --   lb:replay()                    -- say again what he is doing (the picture was rebuilt)
+--   lb:pending()                   -- is an action waiting (cheap), then lb:take()
 --   for _, a in ipairs(lb:take()) do ... end   -- the actions since the last call:
 --     {op = "dance", bpm}                  dance on the beat
 --     {op = "idle"}                        stand and breathe
@@ -159,6 +160,11 @@ function B:update(dt)
 		self.trans = nil
 		self:_refresh()
 	end
+end
+
+-- Is there an action waiting? (cheap: ask this every frame, take() only when it is true)
+function B:pending()
+	return #self.actions > 0
 end
 
 -- The actions since the last call (a new table; the queue is emptied).

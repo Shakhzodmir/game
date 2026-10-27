@@ -74,8 +74,8 @@ describe("core golden replays (17.1)", function()
 	local digest = require("tests.golden.digest")
 	local index = require("tests.golden.index")
 
-	it("has replays of the four kinds: a win, a loss, turbo play and a skipped concert", function()
-		assert_true(#index >= 4)
+	it("holds the whole set: wins, losses, turbo, input_lock, shuffles with noise, nine of the ten combos, a skipped concert", function()
+		assert_true(#index >= 8)
 	end)
 
 	for _, name in ipairs(index) do

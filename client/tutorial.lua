@@ -496,6 +496,9 @@ function T:view()
 	if self.phase ~= "active" then return nil end
 	local st = self.steps[self.index]
 	local mode = self.env.mode and self.env.mode() or "swipe"
+	-- the same table (read-only) until the step or the input mode changes: the screen asks every frame
+	local c = self.view_cache
+	if c and c.rev == self.rev and c.mode == mode and c.index == self.index and c.sub == self.sub then return c.view end
 	local v = {
 		index = self.index, count = #self.steps, kind = st.kind, text = st.text, cells = {},
 		dismiss = st.kind == "tip" and "tap" or nil, sub = self.sub, rev = self.rev,
@@ -519,6 +522,7 @@ function T:view()
 		v.cells = { st.at }
 		v.hand = { mode = "point", points = { st.at } }
 	end
+	self.view_cache = { view = v, rev = self.rev, mode = mode, index = self.index, sub = self.sub }
 	return v
 end
 

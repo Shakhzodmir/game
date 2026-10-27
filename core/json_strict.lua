@@ -80,8 +80,9 @@ local function parse_array(str, pos, depth)
 	if string.sub(str, i, i) == "]" then return arr, i + 1 end
 	while true do
 		local v
+		local at = i -- the byte where the value starts: the place to show for a bad one
 		v, i = parse_value(str, i, depth)
-		if v == NULL then err(i, "null inside an array") end
+		if v == NULL then err(at, "null inside an array") end
 		arr[#arr + 1] = v
 		i = skip(str, i)
 		local c = string.sub(str, i, i)
@@ -99,8 +100,9 @@ local function parse_object(str, pos, depth)
 	while true do
 		if string.sub(str, i, i) ~= '"' then err(i, "expected a key") end
 		local key
+		local at = i
 		key, i = parse_string(str, i)
-		if seen[key] then err(i, "repeated key '" .. key .. "'") end
+		if seen[key] then err(at, "repeated key '" .. key .. "'") end
 		seen[key] = true
 		i = skip(str, i)
 		if string.sub(str, i, i) ~= ":" then err(i, "expected ':'") end

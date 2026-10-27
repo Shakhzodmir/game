@@ -278,8 +278,12 @@ async function debugChecks() {
 	await page.screenshot({ path: `${outDir}/client_level_ru.png` });
 	await command(page, 'lang en');
 
-	// the back button (logical 80, 1160) returns to the town
+	// the pause button (logical 80, 1160) opens the pause window; "Quit level" returns to the town (before the first
+	// move nothing is lost, so there is no question to answer)
 	await tap(page, 80, 1160);
+	const paused = await waitFor(page, s => s.app.ui.popup === 'pause', 'the pause window', 5000);
+	const leave = paused.app.ui.popup_targets.leave;
+	await tap(page, leave.x, leave.y);
 	await onScreen(page, 'town');
 
 	// language switch + a modal

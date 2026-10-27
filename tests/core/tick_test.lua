@@ -250,18 +250,23 @@ describe("core tick: the steps of one tick, in order (15)", function()
 		local g = fresh()
 		local saved = C.MAX_RECORDS_PER_TICK
 		local orig = EF.handlers[C.R_ACTIVATE]
-		EF.handlers[C.R_ACTIVATE] = function() end
+		local ran = 0
+		EF.handlers[C.R_ACTIVATE] = function() ran = ran + 1 end
 		C.MAX_RECORDS_PER_TICK = 5
+		local ok1, ok2, err2
 		local ok, err = pcall(function()
 			for k = 1, 5 do sched.push(g.s, 1, C.R_ACTIVATE, { k, 0, 0, 0, 0, 0 }) end
-			g:step() -- exactly the limit: fine
+			ok1 = pcall(function() g:step() end) -- exactly the limit: fine
 			for k = 1, 6 do sched.push(g.s, 2, C.R_ACTIVATE, { k, 0, 0, 0, 0, 0 }) end
-			g:step()
+			ok2, err2 = pcall(function() g:step() end)
 		end)
 		C.MAX_RECORDS_PER_TICK = saved
 		EF.handlers[C.R_ACTIVATE] = orig
-		assert_false(ok)
-		assert_true(string.find(tostring(err), "more than 5 records", 1, true) ~= nil, tostring(err))
+		assert_true(ok, err)
+		assert_true(ok1, "five records are within the limit of five")
+		assert_eq(ran >= 5, true)
+		assert_false(ok2, "six records are over it")
+		assert_true(string.find(tostring(err2), "more than 5 records", 1, true) ~= nil, tostring(err2))
 	end)
 
 	it("a record that keeps queueing itself for now is caught by the guard", function()
@@ -434,5 +439,47 @@ describe("core tick: the switch to turbo between ticks (15.1.8)", function()
 		c:run_to_rest()
 		g:run_to_rest()
 		assert_true(c.s.tick < g.s.tick)
+	end)
+end)
+
+describe("core tick: the activation record of a swap with a special (5.1.4)", function()
+	local function records_of(rows, from, to)
+		local g = fresh(rows)
+		assert_same({ g:input({ type = "swap", from = from, to = to }) }, { true, "ok" })
+		local seen = {}
+		local orig = EF.handlers[C.R_ACTIVATE]
+		EF.handlers[C.R_ACTIVATE] = function(s, d)
+			local copy = {}
+			for k = 1, 6 do copy[k] = d[k] end
+			seen[#seen + 1] = copy
+		end
+		local ok, err = pcall(function() for _ = 1, 11 do g:step() end end)
+		EF.handlers[C.R_ACTIVATE] = orig
+		assert_true(ok, err)
+		return seen, g
+	end
+
+	it("two specials: the one now in `to`, its cell, the cell of the partner, (a, 1), no colour", function()
+		local seen, g = records_of({ "RSygby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" }, { 1, 1 }, { 2, 1 })
+		assert_eq(#seen, 1)
+		local riff = g.s.objs[g.s.slot[2]]
+		assert_eq(riff.special, C.SP_RIFF)
+		assert_same(seen[1], { riff.id, 2, 1, 1, 1, 0 })
+		assert_eq(riff.state, C.S_ARMED)
+		assert_eq(g.s.objs[g.s.slot[1]].state, C.S_ARMED, "the partner is armed as well")
+	end)
+
+	it("a special and a piece: partner cell 0; only a Disco ball takes the colour of the piece", function()
+		local rows = { "Rbygby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" }
+		local seen, g = records_of(rows, { 1, 1 }, { 2, 1 })
+		assert_same(seen[1], { g.s.slot[2], 2, 0, 1, 1, 0 }, "a Riff takes no colour")
+		local seen2 = records_of({ "Dbygby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" }, { 1, 1 }, { 2, 1 })
+		assert_same(seen2[1], { seen2[1][1], 2, 0, 1, 1, C.COLOR.blue }, "a Disco ball remembers the colour of the piece it met")
+		local seen3 = records_of({ "DMygby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" }, { 1, 1 }, { 2, 1 })
+		assert_same(seen3[1], { seen3[1][1], 2, 0, 1, 1, 0 }, "with a microphone X is chosen at activation")
+		local seen4 = records_of({ "bRygby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" }, { 2, 1 }, { 1, 1 })
+		assert_same(seen4[1], { seen4[1][1], 1, 0, 1, 1, 0 }, "swapped towards the left: the special now stands in `to`")
+		assert_eq(#seen4, 1)
+		assert_true(seen4[1][1] ~= nil)
 	end)
 end)

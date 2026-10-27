@@ -21,10 +21,10 @@ local function row_label(e, body, icon, text, y)
 	s:text(body, text, -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 230 })
 end
 
-local function volume_row(e, body, key, icon_on, icon_off, y, value)
+local function volume_row(e, body, key, text_key, icon_on, icon_off, y, value)
 	local s = e.ui
 	local icon = kit.icon(e, body, value > 0 and icon_on or icon_off, -W / 2 + 76, y, 60, "lavender")
-	s:text(body, i18n.t("settings." .. key), -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 150 })
+	s:text(body, i18n.t(text_key), -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 150 })
 	local sx, sw = 128, 300
 	kit.slider(e, body, sx, y, sw, value, function(v)
 		local st = views.settings(app.meta)
@@ -60,8 +60,8 @@ function M.build(e)
 	local body, hh = kit.panel(e, W, H, { title = { key = "settings.title" } })
 	local y = hh - 110
 	kit.section(e, body, i18n.t("settings.sound"), 0, y, W - 80)
-	volume_row(e, body, "music", "ui/icons/music_on", "ui/icons/music_off", y - 86, v.music)
-	volume_row(e, body, "sfx", "ui/icons/sound_on", "ui/icons/sound_off", y - 186, v.sfx)
+	volume_row(e, body, "music", "settings.music", "ui/icons/music_on", "ui/icons/music_off", y - 86, v.music)
+	volume_row(e, body, "sfx", "settings.sfx", "ui/icons/sound_on", "ui/icons/sound_off", y - 186, v.sfx)
 
 	y = y - 270
 	kit.section(e, body, i18n.t("settings.game"), 0, y, W - 80)

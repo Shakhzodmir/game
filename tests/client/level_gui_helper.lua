@@ -87,6 +87,7 @@ function G.with_level(opts, fn)
 	end)
 	if fb then fb:detach() end
 	require("client.level_link").clear_guard()
+	require("client.tutorial")._reset() -- the fixture hooks must not outlive the test
 	town_stub.shutdown()
 	if not ok then error(err, 0) end
 end

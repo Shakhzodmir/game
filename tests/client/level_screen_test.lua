@@ -284,6 +284,25 @@ describe("level screen: the pause window", function()
 		end)
 	end)
 
+	it("does not open once the win is certain: leaving the finale would book a loss for a win", function()
+		G.with_level({ level = 3 }, function(c)
+			local bus = require("client.bus")
+			for _, state in ipairs({ "won_wait", "concert", "complete" }) do
+				bus.publish("level_state", { state = state })
+				c.step(3)
+				c.tap(PAUSE[1], PAUSE[2])
+				c.step(20)
+				assert_eq(top(c), nil, state)
+			end
+			bus.publish("level_state", { state = "playing" })
+			c.step(3)
+			c.tap(PAUSE[1], PAUSE[2])
+			c.step(20)
+			assert_eq(top(c), "pause")
+			clean(c)
+		end)
+	end)
+
 	it("opens the settings of the town on top of itself", function()
 		G.with_level({ level = 3 }, function(c)
 			c.tap(PAUSE[1], PAUSE[2])
@@ -407,6 +426,32 @@ describe("level screen: out of moves and defeat", function()
 			c.tap_target("get_coins")
 			c.step(30)
 			assert_eq(top(c), "shop")
+			clean(c)
+		end)
+	end)
+
+	it("draws the window of a stuck board and of an attempt with no offer left, without a price to pay", function()
+		G.with_level({ level = 21, hours = 4 }, function(c)
+			local lw = require("client.level_windows")
+			local ctx = { level_id = 21, t0 = c.app.now() }
+			local view = lw.out_of_moves(c.app.meta, { state = "out_of_moves", stuck = true }, c.app.now(),
+				{ ads = false, boosters = level_hud.BOOSTERS })
+			assert_eq(view.offer, nil, "a stuck board sells no moves")
+			c.app.open_popup("moves", { view = view, ctx = ctx })
+			c.step(30)
+			assert_eq(top(c), "moves")
+			assert_true(c.has("No move is left on the board. Use a booster or give up."))
+			assert_false(c.has("+5 moves"))
+			assert_true(c.has("Give up"))
+			clean(c)
+			c.app.close_popup()
+			c.step(20)
+			-- an attempt that has used its offers
+			view.stuck = false
+			c.app.open_popup("moves", { view = view, ctx = ctx })
+			c.step(30)
+			assert_true(c.has("No more extra moves for this attempt."))
+			assert_false(c.has("+5 moves"))
 			clean(c)
 		end)
 	end)
@@ -925,5 +970,64 @@ describe("level screen: a monkey", function()
 
 	it("survives random touches on a debug level without an attempt", function()
 		monkey(7, 120, { level = 5, attempt = false })
+	end)
+end)
+
+describe("level screen: pictures", function()
+	it("has every picture its code names, so no soft disc stands in for an icon", function()
+		local assets = require("client.assets")
+		local files = {
+			"gui/pause.lua", "gui/moves.lua", "gui/defeat.lua", "gui/result.lua", "gui/booster_buy.lua", "gui/level_kit.lua",
+			"screens/level/hud.lua", "screens/level/tutorial_view.lua", "screens/level/level.gui_script",
+			"client/level_windows.lua", "client/level_hud.lua", "client/level_bit.lua",
+		}
+		local missing, seen = {}, 0
+		for _, f in ipairs(files) do
+			local fh = assert(io.open(f, "r"))
+			local src = fh:read("*a")
+			fh:close()
+			for key in string.gmatch(src, '"((%a+)/[%w_/]*[%w_])"') do
+				local ns = string.match(key, "^(%a+)/")
+				if ns == "ui" or ns == "bit" or ns == "specials" or ns == "pieces" then
+					seen = seen + 1
+					if not assets.has_image(key) then missing[#missing + 1] = f .. ": " .. key end
+				end
+			end
+		end
+		assert_true(seen > 30, "found the pictures: " .. seen)
+		assert_same(missing, {})
+	end)
+end)
+
+describe("level screen: QA requests for windows that need the game", function()
+	it("makes up what a request leaves out, and refuses what cannot be made up", function()
+		G.with_level({ level = 26 }, function(c)
+			c.app.open_popup("booster_buy")
+			c.step(30)
+			assert_eq(top(c), "booster_buy")
+			c.app.close_popup()
+			c.step(20)
+			c.app.open_popup("result")
+			c.app.open_popup("defeat")
+			c.step(20)
+			assert_eq(top(c), nil, "no results without a result")
+			c.app.open_popup("pause")
+			c.step(20)
+			assert_eq(top(c), "pause")
+			c.app.close_popup()
+			c.step(20)
+			clean(c)
+		end)
+		G.with_level({ level = 21, hours = 4, level_text = LOSER }, function(c)
+			out_of_moves(c)
+			assert_eq(top(c), "moves")
+			c.app.close_popup()
+			c.step(20)
+			c.app.open_popup("moves") -- no view given: the game's own
+			c.step(30)
+			assert_eq(top(c), "moves")
+			assert_true(c.has("+5 moves"))
+			clean(c)
+		end)
 	end)
 end)

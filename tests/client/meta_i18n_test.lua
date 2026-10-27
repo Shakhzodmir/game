@@ -54,6 +54,24 @@ describe("client/i18n.lua: the meta screens block", function()
 		assert_same(outside, {}, "meta keys outside the block")
 	end)
 
+	it("has no dead string: every key of the block is used by the code (screens, windows, QA)", function()
+		local src = read("client/i18n.lua")
+		local first, last = string.find(src, "META SCREENS:", 1, true), string.find(src, "end of META SCREENS", 1, true)
+		local block = string.sub(src, first, last)
+		local code = {}
+		local cmd = "find client gui screens main content tools/qa -type f ! -name i18n.lua " ..
+			"\\( -name '*.lua' -o -name '*.script' -o -name '*.gui_script' -o -name '*.json' -o -name '*.mjs' \\)"
+		for _, f in ipairs(list(cmd)) do code[#code + 1] = read(f) end
+		local joined = table.concat(code, "\n")
+		local dead, n = {}, 0
+		for key in string.gmatch(block, '\n\t%["([^"]+)"%] =') do
+			n = n + 1
+			if not string.find(joined, key, 1, true) then dead[#dead + 1] = key end
+		end
+		assert_true(n > 100, "found the strings: " .. n)
+		assert_same(dead, {})
+	end)
+
 	it("has every key the meta screens use, in both languages", function()
 		local missing = {}
 		for _, f in ipairs(list("ls " .. FILES)) do

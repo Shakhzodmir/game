@@ -311,7 +311,7 @@ describe("core match: several groups and the adjacent source (6, 6.3.4)", functi
 		end
 	end)
 
-	it("adjacent hits go by ascending cell; a neighbour of two group cells is hit once; voids are skipped", function()
+	it("adjacent hits go by ascending cell; a neighbour of two group cells is hit once", function()
 		-- L of purple: (2,3) (3,3) (4,3) and (2,4) (2,5); (3,4) touches (3,3) and (2,4)
 		local g = H.game({ "######", "######", "######", "######", "######", "######" }, {
 			goals = { { type = "break", item = "record_box", count = 1 } },
@@ -424,5 +424,89 @@ describe("core match: groups that touch, and swaps that do not count (6, 6.2.1)"
 		local ev = g:drain_events()
 		assert_same(H.of_type(ev, "special_new"), { { t = 5, type = "special_new", id = s.next_piece_id - 1, x = 1, y = 1, special = "riff", axis = "h" } })
 		assert_eq(#H.of_type(ev, "match"), 1)
+	end)
+end)
+
+describe("core match: the colour map (6)", function()
+	it("holds the regular pieces in idle, wired and pinned ones included, and nothing else", function()
+		local g = fresh({ "rrrrrr", "oSMXKN", "yygggg", "bbbbbb", "pppppp", "rrrrrr" })
+		local s = g.s
+		s.wires[H.idx(g, 1, 1)] = 1 -- wired
+		require("core.board").pin(H.obj_at(g, 2, 1), 77) -- pinned
+		H.obj_at(g, 3, 1).state = C.S_FALL
+		H.obj_at(g, 4, 1).state = C.S_SWAP
+		H.obj_at(g, 5, 1).state = C.S_CLEAR
+		-- (6,1) stays idle; the specials, the mic and the blockers of row 2 carry no colour
+		local col = M.color_map(s)
+		assert_same({ col[1], col[2], col[3], col[4], col[5], col[6] }, { 1, 1, 0, 0, 0, 1 })
+		assert_same({ col[7], col[8], col[9], col[10], col[11], col[12] }, { 2, 0, 0, 0, 0, 0 })
+		assert_same({ col[13], col[14], col[15] }, { 3, 3, 4 })
+	end)
+end)
+
+describe("core match: what dirties the board (6)", function()
+	it("a landing dirties the board: the match is found in step 7 of the landing tick", function()
+		-- the purple piece at (3,2) falls into the hole (3,3) beside two purple ones
+		local g = fresh(pic("p", { "1,3", "2,3", "3,2" }, { ["3,3"] = "_" }))
+		local piece = H.obj_at(g, 3, 2)
+		local ev = H.steps(g, 12)
+		local land, match, at_land
+		for k, e in ipairs(ev) do
+			if e.type == "land" and e.id == piece.id then land, at_land = e, k end
+			if e.type == "match" and not match then match = e end
+		end
+		assert_true(land ~= nil and match ~= nil)
+		assert_eq(match.t, land.t, "the same tick")
+		assert_eq(match.cells[3][2], 3)
+		local first_match
+		for k, e in ipairs(ev) do
+			if e.type == "match" then first_match = first_match or k end
+		end
+		assert_true(at_land < first_match, "step 6 comes before step 7")
+	end)
+end)
+
+describe("core match: label, edges and flags of a resolution (1.3.8, 6.3.4)", function()
+	it("W comes from the pieces of the highest mv, whatever the order of the cells", function()
+		local g = fresh(pic("p", { "1,1", "2,1", "3,1" }))
+		local a, b, c = H.obj_at(g, 1, 1), H.obj_at(g, 2, 1), H.obj_at(g, 3, 1)
+		a.mv, a.wv = 2, 5
+		b.mv, b.wv = 2, 3 -- same mv, smaller wv, later cell
+		c.mv, c.wv = 1, 9
+		M.search(g.s, nil)
+		local m = H.of_type(g:drain_events(), "match")[1]
+		assert_same({ m.act, m.wave }, { 2, 6 })
+		-- a later piece of a higher mv takes over, whatever its wv
+		local g2 = fresh(pic("p", { "1,1", "2,1", "3,1" }))
+		H.obj_at(g2, 1, 1).mv, H.obj_at(g2, 1, 1).wv = 2, 9
+		H.obj_at(g2, 3, 1).mv, H.obj_at(g2, 3, 1).wv = 3, 0
+		M.search(g2.s, nil)
+		m = H.of_type(g2:drain_events(), "match")[1]
+		assert_same({ m.act, m.wave }, { 3, 1 })
+	end)
+
+	it("a group on the edge of the field has no neighbour in the next row of the other side", function()
+		-- (1..3,3) touches the left edge: index - 1 is (6,2); (4..6,5) touches the right edge: index + 1 is (1,6)
+		local g = fresh(pic("p", { "1,3", "2,3", "3,3" }, { ["4,5"] = "o", ["5,5"] = "o", ["6,5"] = "o", ["6,2"] = "X", ["1,6"] = "X" }))
+		M.search(g.s, nil)
+		assert_eq(#H.of_type(g:drain_events(), "match"), 2)
+		assert_eq(H.obj_at(g, 6, 2).state, C.S_IDLE)
+		assert_eq(H.obj_at(g, 1, 6).state, C.S_IDLE)
+		-- control: the same boxes beside the groups do break
+		local g2 = fresh(pic("p", { "1,3", "2,3", "3,3" }, { ["4,5"] = "o", ["5,5"] = "o", ["6,5"] = "o", ["1,2"] = "X", ["6,6"] = "X" }))
+		M.search(g2.s, nil)
+		assert_eq(H.obj_at(g2, 1, 2).state, C.S_CLEAR)
+		assert_eq(H.obj_at(g2, 6, 6).state, C.S_CLEAR)
+	end)
+
+	it("the flag of the resolution is off afterwards: a wire freed by an effect dirties the board", function()
+		local g = fresh(pic("p", { "1,1", "2,1", "3,1" }))
+		M.search(g.s, nil)
+		assert_false(g.s.in_group)
+		assert_false(g.s.dirty)
+		local cell = H.idx(g, 5, 5)
+		g.s.wires[cell] = 1
+		HT.hit(g.s, cell, HT.new_source(g.s, C.SRC_EFFECT, 1, 1, 0))
+		assert_true(g.s.dirty)
 	end)
 end)

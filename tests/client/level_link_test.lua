@@ -42,6 +42,15 @@ describe("client.level_link", function()
 		local lx, ly = link.cell_center(1, 1)
 		assert_true(lx > 0 and ly > 200)
 		assert_eq(link.board_rect().cell, board.geom.cell)
+		-- the same table while the board stays, a new one when it moved
+		local r1 = link.board_rect()
+		assert_true(link.board_rect() == r1, "no garbage per frame")
+		local was = board.geom.rect.x0
+		board.geom.rect.x0 = was + 1
+		local r2 = link.board_rect()
+		assert_true(r2 ~= r1 and r2.x0 == was + 1)
+		board.geom.rect.x0 = was
+		assert_eq(link.board_rect().x0, was)
 		local ok2, res = link.skip()
 		assert_false(ok2)
 		assert_eq(res, "bad_state")

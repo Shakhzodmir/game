@@ -379,6 +379,25 @@ describe("core flow: noise growth, order and randomness (11)", function()
 		assert_same(g.s.eom, {})
 	end)
 
+	it("a merge into an action that is not credited credits nothing; a chain of merges follows the last link", function()
+		local rows = { "rrgrby", "yrgbyr", "rgNyrg", "gbyrgb", "byrgby", "yrggbg" }
+		local g = fresh(rows)
+		g.s.eom = { { a = 1, noise_hit = false, merged = 2 }, { a = 2, noise_hit = false, merged = 0 },
+			{ a = 3, noise_hit = true, merged = 0 } }
+		g:step()
+		assert_eq(#H.of_type(g:drain_events(), "noise_spread"), 2, "actions 1 and 2 grow, 3 hit noise")
+		local g2 = fresh(rows)
+		g2.s.eom = { { a = 1, noise_hit = false, merged = 2 }, { a = 2, noise_hit = false, merged = 3 },
+			{ a = 3, noise_hit = true, merged = 0 } }
+		g2:step()
+		assert_eq(#H.of_type(g2:drain_events(), "noise_spread"), 0, "1 -> 2 -> 3, and 3 hit noise")
+		-- a merge into an action that is no longer in the queue (taken back) credits nothing
+		local g3 = fresh(rows)
+		g3.s.eom = { { a = 1, noise_hit = false, merged = 2 }, { a = 3, noise_hit = false, merged = 0 } }
+		g3:step()
+		assert_eq(#H.of_type(g3:drain_events(), "noise_spread"), 2)
+	end)
+
 	it("keeps id and label of the piece that turns into noise", function()
 		local g = fresh({ "XXXXXX", "XXXXXX", "XXXXXX", "XXNrXX", "XXXXXX", "XXXXXX" })
 		local victim = H.obj_at(g, 4, 4)
@@ -740,6 +759,23 @@ describe("core flow: the final concert, phase by phase (13)", function()
 			if r.kind == C.R_ACTIVATE then acts[#acts + 1] = { r.due, unpack(r.d) } end
 		end
 		assert_same(acts, { { 7, b.id, 11, 0, 4, 1, 0 }, { 10, c.id, 27, 0, 4, 1, 0 } })
+	end)
+
+	it("phase B leaves a pinned special alone", function()
+		local g = ready({ "XXXXXX", "XSXXSX", "XXXXXX", "XXXXXX", "XXSXXX", "XXXXXX" }, 0)
+		g:step() -- tick 1: the concert starts, phase B due at tick 4
+		local a, b, c = H.obj_at(g, 2, 2), H.obj_at(g, 5, 2), H.obj_at(g, 3, 5)
+		b.pins = { 99 }
+		for _ = 1, 3 do g:step() end
+		assert_eq(g.s.rounds, 1)
+		assert_true(a.state ~= C.S_IDLE, "the free special at the lower index goes first")
+		assert_eq(b.state, C.S_IDLE, "pinned: not armed")
+		assert_eq(c.state, C.S_ARMED)
+		local acts = 0
+		for _, r in ipairs(g.s.queue) do
+			if r.kind == C.R_ACTIVATE then acts = acts + 1 end
+		end
+		assert_eq(acts, 1, "only the free third special is waiting for its turn")
 	end)
 
 	it("phase C: another round while a free special is left and rounds < 20, else complete", function()

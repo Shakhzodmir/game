@@ -375,7 +375,8 @@ describe("client.level_hud tutorial helpers", function()
 		assert_true(r2.cy < 625) -- high: it goes down
 		-- no lit cells (a tip): the top
 		local r3 = hud.bubble_rect(vis, board, nil, 600, 130)
-		assert_true(r3.cy >= 625 or r3.cy < 625)
+		assert_true(r3.cy > (board.y0 + board.y1) / 2, "a tip without cells: the top half")
+		assert_true(r3.y0 >= board.y1 - 40, "above the cells")
 		-- inside the window, narrower than a narrow window
 		local narrow = hud.bubble_rect({ x0 = 0, y0 = 0, x1 = 400, y1 = 800 }, nil, nil, 600, 130)
 		assert_true(narrow.w <= 376 and narrow.x0 >= 0 and narrow.x1 <= 400)

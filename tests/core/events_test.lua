@@ -29,6 +29,18 @@ local function list(check)
 	end
 end
 local function cell(v) return type(v) == "table" and #v == 2 and is_int(v[1]) and is_int(v[2]) end
+local function ids(v)
+	return type(v) == "table" and #v == 2 and is_int(v[1]) and v[1] >= 1 and is_int(v[2]) and v[2] >= 1
+end
+-- cells by ascending cell index, that is, row by row
+local function by_index(v)
+	if type(v) ~= "table" or #v < 3 then return false end
+	for i = 1, #v do
+		if not cell(v[i]) then return false end
+		if i > 1 and not (v[i][2] > v[i - 1][2] or (v[i][2] == v[i - 1][2] and v[i][1] > v[i - 1][1])) then return false end
+	end
+	return true
+end
 local function shape(fields)
 	return function(v)
 		if type(v) ~= "table" then return false end
@@ -52,11 +64,11 @@ local BLOCKER = oneof("record_box", "concrete", "noise", "balloon", "column")
 
 -- type -> field -> check (t and type are added to every event)
 local SCHEMA = {
-	swap = { a = cell, b = cell, ids = list(pos), duration = pos },
-	swap_fail = { a = cell, b = cell, ids = list(pos), duration = pos },
-	swap_back = { a = cell, b = cell, ids = list(pos), duration = pos },
+	swap = { a = cell, b = cell, ids = ids, duration = pos },
+	swap_fail = { a = cell, b = cell, ids = ids, duration = pos },
+	swap_back = { a = cell, b = cell, ids = ids, duration = pos },
 	moves = { left = nat },
-	match = { cells = list(cell), color = COLOR, wave = pos, act = nat, special = opt(SPECIAL) },
+	match = { cells = by_index, color = COLOR, wave = pos, act = nat, special = opt(SPECIAL) },
 	clear = { id = pos, x = pos, y = pos, kind = oneof("regular", "special", "mic", "blocker"), color = opt(COLOR),
 		special = opt(SPECIAL), cause = oneof("match", "effect", "fired") },
 	special_new = { id = pos, x = pos, y = pos, special = SPECIAL, axis = opt(AXIS) },

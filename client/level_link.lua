@@ -21,7 +21,7 @@
 --   link.continue(moves, riff)     -- "+5 moves" bought: core continue
 --   link.give_up()                 -- out of moves, the player gives up
 --   link.cell_center(x, y)         -- logical coordinates of core cell (x, y)
---   link.board_rect()              -- {x0, y0, x1, y1, cell} of the cell grid
+--   link.board_rect()              -- {x0, y0, x1, y1, cell} of the cell grid (the same table until it changes)
 --   link.view()                    -- what the board background GUI draws (level_bg.gui_script):
 --                                  --  {rev, geom, cells, floor0, floor_rev, lit = {[i] = t}, deliver,
 --                                  --   shake_x, shake_y}; rev grows when the layout changed,
@@ -170,11 +170,21 @@ function M.view()
 	return b and b.view or nil
 end
 
+-- The same table is handed out while the board stays where it is (a new one when it moved or
+-- resized), so a caller can ask every frame without garbage and compare rectangles by identity.
+-- Read-only.
+local rect_cache = nil
+
 function M.board_rect()
 	local b = M.board
 	if not b or not b.geom then return nil end
 	local r = b.geom.rect
-	return { x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1, cell = r.cell }
+	local c = rect_cache
+	if not (c and c.x0 == r.x0 and c.y0 == r.y0 and c.x1 == r.x1 and c.y1 == r.y1 and c.cell == r.cell) then
+		c = { x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1, cell = r.cell }
+		rect_cache = c
+	end
+	return c
 end
 
 -- queries for the tutorial ---------------------------------------------------------------------

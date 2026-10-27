@@ -163,4 +163,15 @@ describe("core rng: MRG32k3a", function()
 		assert_eq(R.attempt_seed(999999999999999, 1, 0), 363555808)
 		assert_eq(R.attempt_seed(1, 999999999999999, 2147483646), 577783119)
 	end)
+
+	it("the seed range edges: h = 0 and h = 2^31 - 2 give seed 1, h = 2^31 - 3 gives 2^31 - 2", function()
+		local M = 2147483647
+		-- level 1, attempt 1 give h2 = 96544; pick the salt that ends the fold at the wanted h
+		local h2 = ((2 * 48271 + 2) % M)
+		local function salt_for(target) return (target - 1 - h2 * 48271) % M end
+		assert_eq(R.attempt_seed(1, 1, salt_for(M - 1)), 1, "h = 2^31 - 2")
+		assert_eq(R.attempt_seed(1, 1, salt_for(0)), 1, "h = 0")
+		assert_eq(R.attempt_seed(1, 1, salt_for(M - 2)), M - 1, "h = 2^31 - 3: the largest seed")
+		assert_eq(R.attempt_seed(1, 1, salt_for(1)), 2)
+	end)
 end)

@@ -264,3 +264,74 @@ describe("core start board: pinned boards from an independent implementation", f
 		assert_same({ s.released, s.on_board, s.last_mic }, { 2, 2, 0 })
 	end)
 end)
+
+describe("core start board: corners of 4.3 - 4.6 (audit A)", function()
+	local C = require("core.const")
+	local R = require("core.rng")
+
+	it("a booster still finds a piece when every regular piece stands on a tile (the fallback list)", function()
+		local floor = {}
+		for y = 0, 5 do
+			for x = 0, 5 do floor[#floor + 1] = { at = { x, y }, hp = 1 } end
+		end
+		local lvl = H.load(FULL, { floor = floor, goals = { { type = "light" } } })
+		local g = core.new(lvl, { seed = 4, boosters = { "riff", "sub" } })
+		assert_same(g.s.unplaced, {})
+		local specials = {}
+		for _, p in ipairs(g:pieces()) do
+			if p.kind == "special" then specials[#specials + 1] = p.special .. (p.axis or "") end
+		end
+		table.sort(specials) -- strings
+		assert_same(specials, { "riffh", "sub" })
+	end)
+
+	it("a booster avoids the colour of an open collect goal while other colours exist, then falls back to it", function()
+		local lvl = H.load(FULL, {
+			colors = { "red", "green", "blue", "yellow" },
+			goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "green", count = 3 }, { type = "collect", color = "blue", count = 3 } },
+		})
+		for seed = 1, 12 do
+			local g = core.new(lvl, { seed = seed, boosters = { "disco" } })
+			for _, p in ipairs(g:pieces()) do
+				if p.kind == "special" then
+					local plain = core.new(lvl, { seed = seed })
+					local was = plain.s.objs[p.id]
+					assert_eq(was.color, C.COLOR.yellow, "seed " .. seed .. ": only yellow is not a collect colour")
+				end
+			end
+		end
+	end)
+
+	it("a microphone in the very first cell is counted, and the gap counter starts at 0 (10.4)", function()
+		local deliver = { goals = { { type = "deliver", count = 3 } }, mic = { total = 3, on_board_max = 2, gap_moves = 5 } }
+		local g = H.game({ "M#####", "######", "######", "######", "######", "######" }, deliver)
+		assert_same({ g.s.released, g.s.on_board, g.s.last_mic }, { 1, 1, 0 })
+	end)
+
+	it("a start without a single candidate: 100 fills fail, the shuffle finds nothing and draws nothing", function()
+		local base = H.load(FULL)
+		local lvl = U.deepcopy(base)
+		lvl.presets = {}
+		for i = 1, 36 do
+			lvl.presets[i] = { cell = i, kind = C.K_BLOCKER, color = 0, special = 0, axis = 0, blocker = C.BK_CONCRETE, hp = 1 }
+		end
+		local s, report = ST.build(lvl, 7, {})
+		assert_same({ report.fills, report.shuffle, report.dirty }, { 100, 4, false })
+		assert_same(s.rng[1], R.stream(7, 1), "no free cell, no candidate: the init stream is untouched")
+		assert_true(s.rest_flag)
+	end)
+
+	it("the Riff fallback of the start shuffle keeps id and label of the piece (4.3, 1.4.4)", function()
+		local base = H.load(FULL)
+		local lvl = U.deepcopy(base)
+		lvl.presets = {}
+		for i = 1, 36 do
+			lvl.presets[i] = { cell = i, kind = C.K_BLOCKER, color = 0, special = 0, axis = 0, blocker = C.BK_CONCRETE, hp = 1 }
+		end
+		lvl.presets[1] = { cell = 1, kind = C.K_REGULAR, color = 1, special = 0, axis = 0, blocker = 0, hp = 0 }
+		local s, report = ST.build(lvl, 3, {})
+		assert_same({ report.fills, report.shuffle }, { 100, 3 })
+		local o = s.objs[s.slot[1]]
+		assert_same({ o.kind, o.special, o.axis, o.color, o.id, o.mv, o.wv, o.settle }, { C.K_SPECIAL, C.SP_RIFF, C.AX_H, 0, 1, 0, 0, 0 })
+	end)
+end)
