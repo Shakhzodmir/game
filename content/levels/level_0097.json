@@ -1,0 +1,46 @@
+{
+  "id": 97, "version": 1,
+  "size": [6, 11],
+  "moves": 25,
+  "difficulty": "medium",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "collect", "color": "green", "count": 24}
+  ],
+  "cells": [
+    ".####.",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######"
+  ],
+  "slots": [
+    {"at": [2, 2], "type": "mic"},
+    {"at": [1, 4], "type": "piece", "color": "green"},
+    {"at": [3, 4], "type": "piece", "color": "blue"},
+    {"at": [5, 4], "type": "piece", "color": "green"},
+    {"at": [0, 5], "type": "balloon", "color": "green"},
+    {"at": [1, 5], "type": "piece", "color": "green"},
+    {"at": [2, 5], "type": "balloon", "color": "blue"},
+    {"at": [3, 5], "type": "piece", "color": "blue"},
+    {"at": [4, 5], "type": "balloon", "color": "green"},
+    {"at": [5, 5], "type": "piece", "color": "green"},
+    {"at": [0, 6], "type": "piece", "color": "green"},
+    {"at": [1, 6], "type": "piece", "color": "yellow"},
+    {"at": [2, 6], "type": "piece", "color": "blue"},
+    {"at": [3, 6], "type": "piece", "color": "yellow"},
+    {"at": [4, 6], "type": "piece", "color": "green"},
+    {"at": [5, 6], "type": "piece", "color": "purple"},
+    {"at": [1, 7], "type": "balloon", "color": "blue"},
+    {"at": [3, 7], "type": "balloon", "color": "green"},
+    {"at": [5, 7], "type": "balloon", "color": "blue"}
+  ],
+  "mic": {"total": 4, "on_board_max": 3, "gap_moves": 2}
+}

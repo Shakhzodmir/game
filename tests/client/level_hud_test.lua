@@ -193,6 +193,12 @@ describe("client.level_hud boosters", function()
 		assert_eq(hud.booster_tap("stick", ready, { state = "concert" }), "wait")
 		assert_eq(hud.booster_tap("stick", ready, { state = "won_wait" }), "wait")
 		assert_eq(hud.booster_tap("stick", ready, { state = "playing", targeting = "stick" }), "cancel")
+		-- the toast of a refusal says what the player can do about it
+		assert_eq(hud.refusal_key("not_rest"), "hud.wait_board")
+		assert_eq(hud.refusal_key("no_candidates"), "hud.remix_no")
+		assert_eq(hud.refusal_key("bad_cell"), "hud.booster_no")
+		assert_eq(hud.refusal_key("bad_state"), "hud.booster_no")
+		assert_eq(hud.refusal_key(nil), "hud.booster_no")
 		assert_eq(hud.booster_tap("row_light", ready, { state = "playing", targeting = "stick" }), "start") -- switches
 		assert_eq(hud.booster_tap("stick", empty, { state = "playing" }), "buy")
 		assert_eq(hud.booster_tap("stick", locked, { state = "playing" }), "locked")

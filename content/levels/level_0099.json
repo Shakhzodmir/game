@@ -1,0 +1,27 @@
+{
+  "id": 99, "version": 1,
+  "size": [9, 8],
+  "moves": 24,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "collect", "color": "orange", "count": 42},
+    {"type": "collect", "color": "yellow", "count": 42},
+    {"type": "collect", "color": "green", "count": 42}
+  ],
+  "cells": [
+    "...###...",
+    "...###...",
+    "######...",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [4, 3], "type": "riff", "axis": "v"},
+    {"at": [1, 5], "type": "sub"},
+    {"at": [7, 5], "type": "bird"}
+  ]
+}

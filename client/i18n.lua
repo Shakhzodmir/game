@@ -75,6 +75,7 @@ local S = {
 	["hud.booster_locked"] = { en = "Opens at level {n}", ru = "Откроется на уровне {n}" },
 	["hud.wait_board"] = { en = "Wait until the board settles", ru = "Подожди, пока поле успокоится" },
 	["hud.booster_no"] = { en = "Nothing to do there: pick another spot", ru = "Тут нечего делать — выбери другое место" },
+	["hud.remix_no"] = { en = "Nothing to shuffle", ru = "Нечего перемешивать" },
 	["hud.pick_cell"] = { en = "Pick a piece", ru = "Выбери фишку" },
 	["hud.pick_row"] = { en = "Pick a row", ru = "Выбери ряд" },
 	["hud.pick_col"] = { en = "Pick a column", ru = "Выбери колонку" },
