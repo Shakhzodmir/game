@@ -235,6 +235,13 @@ describe("core level: validation (2.1)", function()
 		expect(lvl, "2.1.8 exit is also a spawner at 1,5")
 	end)
 
+	it("2.1.8: the default exits start at cell 1: a one-cell segment under it is a spawner and an exit", function()
+		local rows = { "######", ".#####", "######", "######", "######", "######" }
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		expect(H.level(rows, deliver), "2.1.8 exit is also a spawner at 0,0")
+		assert_true(core.load_level(H.level(rows)) ~= nil, "without a deliver goal there are no exits")
+	end)
+
 	it("2.1.9: starting pieces form no match", function()
 		expect(H.level({ "rrr###", "######", "######", "######", "######", "######" }), "2.1.9")
 		expect(H.level({ "bb####", "bb####", "######", "######", "######", "######" }), "2.1.9")
@@ -555,12 +562,31 @@ describe("core level: ranges and entries of the schema", function()
 		local m = mic(2, 1, 0)
 		m.mic.total = 2.5
 		check(FULL, m, false, "fractional total")
+		-- the schema names the field even when the deliver count disagrees as well
+		expect(H.level(FULL, m), "2.1.1 mic: total >= 1 required")
+		expect(H.level(FULL, mic(0, 1, 0)), "2.1.1 mic: total >= 1 required")
 		m = mic(2, 1, 0)
 		m.mic.on_board_max = "1"
 		check(FULL, m, false, "text on_board_max")
+		expect(H.level(FULL, m), "2.1.1 mic: on_board_max >= 1 required")
 		m = mic(2, 1, 0)
 		m.mic.gap_moves = true
 		check(FULL, m, false, "boolean gap_moves")
+		expect(H.level(FULL, m), "2.1.1 mic: gap_moves >= 0 required")
+		expect(H.level(FULL, mic(2, 0, 0)), "2.1.1 mic: on_board_max >= 1 required")
+		expect(H.level(FULL, mic(2, 1, -1)), "2.1.1 mic: gap_moves >= 0 required")
+	end)
+
+	it("a bad row of cells is named by its y counted from 0, like the coordinates, and by the width", function()
+		local t = H.level(FULL)
+		t.cells[1] = "#####"
+		expect(t, "2.1.1 cells[0]: 6 characters of '#' and '.' required")
+		t = H.level(FULL)
+		t.cells[6] = "#####x"
+		expect(t, "2.1.1 cells[5]: 6 characters of '#' and '.' required")
+		t = H.level(rect(7, 6))
+		t.cells[4] = "######"
+		expect(t, "2.1.1 cells[3]: 7 characters of '#' and '.' required")
 	end)
 
 	it("spawn_weights 1..1000 for every colour of the level", function()
@@ -607,5 +633,121 @@ describe("core level: ranges and entries of the schema", function()
 		check(FULL, { cells = cells_of(function(r) r[2] = "#.##.#" end) }, true, "voids inside the board are fine when the fill reaches every cell")
 		check(FULL, { cells = { "######" } }, false, "one row")
 		check(FULL, { cells = { "######", "######", "######", "######", "######", "######", "######" } }, false, "seven rows")
+	end)
+end)
+
+describe("core level: positions outside the field (2.1.2, audit A)", function()
+	it("negative and too large coordinates are not cells, and a coordinate never wraps into another row", function()
+		-- x = -1 would be the last cell of the row above, x = 6 the first cell of the next row, y = -1 and 6 are off the board
+		for _, at in ipairs({ { -1, 1 }, { -1, 0 }, { 6, 0 }, { 6, 1 }, { 0, -1 }, { 5, -1 }, { 0, 6 }, { 5, 6 }, { -1, -1 }, { 100, 100 } }) do
+			local text = string.format("%.0f,%.0f", at[1], at[2])
+			expect(H.level(FULL, { floor = { { at = at, hp = 1 } } }), "2.1.2 floor is not on an existing cell at " .. text)
+			expect(H.level(FULL, { overlay = { { at = at, type = "wires", hp = 1 } } }), "2.1.2 overlay is not on an existing cell at " .. text)
+			expect(H.level(FULL, { slots = { { at = at, type = "noise" } } }), "2.1.2 slot is not on an existing cell at " .. text)
+			expect(H.level(FULL, { spawners = { at } }), "2.1.2 spawner is not an existing cell at " .. text)
+		end
+		-- the corners are cells
+		for _, at in ipairs({ { 0, 0 }, { 5, 0 }, { 0, 5 }, { 5, 5 } }) do
+			assert_true(core.load_level(H.level(FULL, { floor = { { at = at, hp = 1 } } })) ~= nil, "corner " .. at[1] .. "," .. at[2])
+		end
+	end)
+
+	it("a column at the right or bottom edge does not fit (2.1.2)", function()
+		expect(H.level(FULL, { slots = { { at = { 5, 0 }, type = "column", hp = 6 } } }), "2.1.2 column needs 4 existing cells at 5,0")
+		expect(H.level(FULL, { slots = { { at = { 0, 5 }, type = "column", hp = 6 } } }), "2.1.2 column needs 4 existing cells at 0,5")
+		expect(H.level(FULL, { slots = { { at = { 5, 5 }, type = "column", hp = 6 } } }), "2.1.2 column needs 4 existing cells at 5,5")
+		assert_true(core.load_level(H.level(FULL, { slots = { { at = { 4, 4 }, type = "column", hp = 6 } } })) ~= nil, "the last fitting position")
+		expect(H.level({ "######", "######", "######", "######", "#####.", "######" }, { slots = { { at = { 4, 3 }, type = "column", hp = 6 } } }),
+			"2.1.2 column needs 4 existing cells at 4,3")
+	end)
+
+	it("an explicit exit or spawner list is read cell by cell, repeats included (2.1.2)", function()
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		local exits = { { 0, 5 }, { 1, 5 }, { 2, 5 }, { 3, 5 }, { 4, 5 }, { 5, 5 }, { 5, 5 } }
+		expect(H.level(FULL, { goals = deliver.goals, mic = deliver.mic, exits = exits }), "2.1.2 repeated exit at 5,5")
+		expect(H.level(FULL, { goals = deliver.goals, mic = deliver.mic, exits = { { 0, 5 }, { 9, 5 } } }), "2.1.2 exit is not an existing cell at 9,5")
+		-- spawners need a void or the edge above them
+		expect(H.level(FULL, { spawners = { { 0, 0 }, { 0, 1 } } }), "2.1.2 the cell above a spawner")
+	end)
+end)
+
+describe("core level: segments of the columns (1.1, audit A)", function()
+	it("seg_top and seg_bot give the first and last row of the run of existing cells; a void has 0", function()
+		local lvl = H.load({
+			"######",
+			"#.####",
+			"######",
+			"#.####",
+			"######",
+			"######",
+		})
+		-- column 2 is cut into the rows 1 | 3 | 5-6, every other column is one run
+		local top2 = { 1, 0, 3, 0, 5, 5 }
+		local bot2 = { 1, 0, 3, 0, 6, 6 }
+		for y = 1, 6 do
+			for x = 1, 6 do
+				local i = (y - 1) * 6 + x
+				local wt, wb = 1, 6
+				if x == 2 then wt, wb = top2[y], bot2[y] end
+				assert_same({ lvl.seg_top[i], lvl.seg_bot[i] }, { wt, wb }, "cell " .. x .. "," .. y)
+			end
+		end
+	end)
+
+	it("voids at the top and the bottom of a column, the corner cell included", function()
+		local lvl = H.load({
+			"..####",
+			"#.####",
+			"######",
+			"######",
+			"##.###",
+			"##.###",
+		})
+		local want = { -- x = 1, 2, 3 (the rest are full columns)
+			{ { 0, 0 }, { 2, 6 }, { 2, 6 }, { 2, 6 }, { 2, 6 }, { 2, 6 } },
+			{ { 0, 0 }, { 0, 0 }, { 3, 6 }, { 3, 6 }, { 3, 6 }, { 3, 6 } },
+			{ { 1, 4 }, { 1, 4 }, { 1, 4 }, { 1, 4 }, { 0, 0 }, { 0, 0 } },
+		}
+		for y = 1, 6 do
+			for x = 1, 3 do
+				local i = (y - 1) * 6 + x
+				assert_same({ lvl.seg_top[i], lvl.seg_bot[i] }, want[x][y], "cell " .. x .. "," .. y)
+			end
+		end
+		assert_same({ lvl.seg_top[4], lvl.seg_bot[4] }, { 1, 6 })
+		assert_same({ lvl.seg_top[0], lvl.seg_bot[0] }, { nil, nil }, "the arrays hold cells 1..N only")
+	end)
+end)
+
+describe("core level: default spawners and exits (2.0, audit A)", function()
+	local function cells_of(list)
+		local out = {}
+		for i = 1, #list do
+			if list[i] then out[#out + 1] = i end
+		end
+		return out
+	end
+
+	it("spawners: the topmost existing cell of every column, a column of one bottom cell included", function()
+		local lvl = H.load({
+			".####.",
+			".####.",
+			".####.",
+			".####.",
+			".####.",
+			"######",
+		})
+		assert_same(cells_of(lvl.spawner), { 2, 3, 4, 5, 31, 36 })
+		-- only the topmost cell of a column: the segment under a void gets no spawner of its own
+		local lvl2 = H.load({ "######", "#.####", "######", "######", "######", "######" })
+		assert_same(cells_of(lvl2.spawner), { 1, 2, 3, 4, 5, 6 })
+	end)
+
+	it("exits (deliver goal): the bottom cell of every segment, none without the goal", function()
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		local lvl = H.load({ "######", "######", "######", "######", "######", "#####." }, deliver)
+		-- column 6 ends one row higher
+		assert_same(cells_of(lvl.exit), { 30, 31, 32, 33, 34, 35 })
+		assert_same(cells_of(H.load({ "######", "######", "######", "######", "######", "#####." }).exit), {}, "no goal, no exits")
 	end)
 end)

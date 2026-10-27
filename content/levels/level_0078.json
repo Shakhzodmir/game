@@ -36,9 +36,12 @@
     {"at": [1, 9], "type": "concrete", "hp": 1},
     {"at": [3, 9], "type": "piece", "color": "purple"},
     {"at": [4, 9], "type": "piece", "color": "yellow"},
-    {"at": [5, 9], "type": "piece", "color": "green"},
+    {"at": [5, 9], "type": "mic"},
     {"at": [7, 9], "type": "concrete", "hp": 1},
-    {"at": [4, 10], "type": "piece", "color": "blue"}
+    {"at": [3, 10], "type": "piece", "color": "orange"},
+    {"at": [4, 10], "type": "piece", "color": "orange"},
+    {"at": [5, 10], "type": "piece", "color": "yellow"},
+    {"at": [6, 10], "type": "piece", "color": "orange"}
   ],
-  "mic": {"total": 5, "on_board_max": 2, "gap_moves": 3}
+  "mic": {"total": 5, "on_board_max": 2, "gap_moves": 4}
 }
