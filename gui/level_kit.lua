@@ -96,6 +96,15 @@ function M.token(e)
 	return function() return not e.closing and e.state.gen == gen end
 end
 
+-- Dims a button together with what is drawn on it. A node made by script takes no alpha from its parent in the
+-- engine (gui.set_inherit_alpha is off), so a dimmed face alone would leave its label and price at full
+-- strength: `parts` are the nodes drawn on the face (a label, a price pill and the pill's icon and number...),
+-- each one is told to follow its parent, and the face carries the alpha.
+function M.dim(btn, alpha, parts)
+	for _, n in ipairs(parts) do gui.set_inherit_alpha(n, true) end
+	gui.set_color(btn.node, vmath.vector4(1, 1, 1, alpha))
+end
+
 -- Pulses a button that wants a tap (not under reduced motion).
 function M.pulse(node, amount, period)
 	if not kit.reduced() then ui.pulse(node, amount or 0.035, period or 0.8) end

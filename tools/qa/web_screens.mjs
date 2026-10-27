@@ -13,7 +13,11 @@
 // cannot hang a transition, the notes contract (dedupe, 3 voices), tonal
 // effects follow the district key, jukebox = task stems + party, the music
 // resyncs after a stall, a failed save is retried and reported, saves and
-// language survive a reload, window resizes re-layout without errors.
+// language survive a reload, window resizes re-layout without errors, the board
+// plays on the real engine (autoplay, hold, the win with its final concert and
+// results window, a lost level with the moves and defeat windows), and no
+// engine or game warning about something lost ("could not be found", "WARNING:
+// tutorials|level") appears in the console.
 // Release: the QA bridge is absent.
 
 const pwPath = process.env.PLAYWRIGHT || 'playwright';
@@ -84,7 +88,9 @@ async function openPage(browser, viewport, scale) {
 	page.on('console', m => {
 		const line = `[${viewport.width}x${viewport.height}] ${m.type()}: ${m.text()}`;
 		consoleLines.push(line);
-		if (/ERROR:SCRIPT|ERROR:GUI|ERROR:GAMEOBJECT|ERROR:RESOURCE|ERROR:ENGINE|lua error|stack traceback/i.test(m.text())) errors.push(line);
+		// "could not be found": the engine dropped something the scripts asked for (a particlefx constant set before
+		// the play, ...); "WARNING: tutorials|level": the game's own warnings (client/tutorial.lua, the level scripts)
+		if (/ERROR:SCRIPT|ERROR:GUI|ERROR:GAMEOBJECT|ERROR:RESOURCE|ERROR:ENGINE|lua error|stack traceback|could not be found|WARNING: (tutorials|level)/i.test(m.text())) errors.push(line);
 	});
 	page.on('pageerror', e => errors.push(`[${viewport.width}x${viewport.height}] pageerror: ${e.message}`));
 	await page.goto(url);
@@ -284,6 +290,64 @@ async function debugChecks() {
 	const paused = await waitFor(page, s => s.app.ui.popup === 'pause', 'the pause window', 5000);
 	const leave = paused.app.ui.popup_targets.leave;
 	await tap(page, leave.x, leave.y);
+	await onScreen(page, 'town');
+
+	// the board on the real engine (client/level_qa.lua commands): moves by themselves, the finale, the results.
+	// A standalone debug level (no attempt in the meta): nothing is booked, no life is lost. The Lua stub of the
+	// test suite cannot say what the engine does with particles, z-order or input, so this is where it shows.
+	const lvl = s => (s.app && s.app.ui && s.app.ui.level) || null;
+	await command(page, 'goto level 14');
+	await onScreen(page, 'level');
+	await waitFor(page, s => lvl(s) && lvl(s).state === 'playing' && lvl(s).moves > 0, 'level 14 on display', 20000);
+	await sleep(1300); // the pieces bloom in
+	const moves0 = lvl(await state(page)).moves;
+	await command(page, 'autoplay 3');
+	const played = await waitFor(page, s => lvl(s) && lvl(s).moves <= moves0 - 3, 'three moves by autoplay', 40000);
+	check(lvl(played).moves <= moves0 - 3, 'board: autoplay plays moves by itself', { before: moves0, after: lvl(played).moves });
+	await sleep(500);
+	await page.screenshot({ path: `${outDir}/client_board_cascade.png` });
+	// the app loses the focus: the game stands still, and goes on when it is back
+	await command(page, 'hold 1');
+	const held0 = (await command(page, 'state')).result.level.tick;
+	await sleep(900);
+	const held1 = (await command(page, 'state')).result.level.tick;
+	check(held1 === held0, 'board: no ticks while the app is away', { before: held0, after: held1 });
+	await command(page, 'hold 0');
+	await sleep(500);
+	check((await command(page, 'state')).result.level.tick > held1, 'board: the game goes on when the app is back');
+	// the win, the final concert (title, confetti), the skip, the results
+	await command(page, 'win');
+	await waitFor(page, s => lvl(s) && ['won_wait', 'concert', 'complete'].includes(lvl(s).state), 'the win of level 14', 150000);
+	await waitFor(page, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert', 30000);
+	await sleep(1500);
+	await page.screenshot({ path: `${outDir}/client_board_concert.png` });
+	check(lvl(await state(page)).state === 'concert', 'board: the final concert plays', lvl(await state(page)).state);
+	await command(page, 'skip');
+	await waitFor(page, s => s.app.ui.popup === 'result', 'the results window', 60000);
+	await sleep(1200);
+	await page.screenshot({ path: `${outDir}/client_board_result.png` });
+	check(true, 'board: win, final concert, skip and the results window run on the engine');
+	// the other end: a super hard level that the hint moves do not finish in time ends in the moves window and the defeat
+	await command(page, 'goto level 60');
+	await onScreen(page, 'level');
+	await waitFor(page, s => lvl(s) && lvl(s).state === 'playing' && lvl(s).moves > 0, 'level 60 on display', 20000);
+	await sleep(1300);
+	await command(page, 'autoplay 100');
+	const end60 = await waitFor(page, s => lvl(s) && ['out_of_moves', 'won_wait', 'concert', 'complete'].includes(lvl(s).state),
+		'the end of level 60', 240000);
+	if (lvl(end60).state === 'out_of_moves') {
+		await waitFor(page, s => s.app.ui.popup === 'moves', 'the moves window', 10000);
+		await sleep(900);
+		await page.screenshot({ path: `${outDir}/client_board_moves.png` });
+		await command(page, 'give_up');
+		await waitFor(page, s => s.app.ui.popup === 'defeat', 'the defeat window', 20000);
+		await sleep(900);
+		await page.screenshot({ path: `${outDir}/client_board_defeat.png` });
+		check(true, 'board: out of moves opens the moves window, giving up the defeat window');
+	} else {
+		console.log('note: the hint moves won level 60, the moves/defeat windows were not drawn this time');
+	}
+	await command(page, 'goto town');
 	await onScreen(page, 'town');
 
 	// language switch + a modal

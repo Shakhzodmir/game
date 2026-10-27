@@ -18,6 +18,8 @@
 --   s:halted()                -- paused or held: nothing runs
 --   s:autoplay(n, opts)       -- QA: play hint moves by itself (n moves, opts.free_moves: buy "+5 moves")
 --   s.game                    -- the core game (queries: pieces, cells, status, hint, ...)
+--   s.rev                     -- grows with every tick that had events and every accepted command: a board that
+--                             -- is at rest and has the same rev as before looks the same (screens/level/board.script)
 --   s.data                    -- the level JSON as plain data (goals, colours, difficulty)
 --
 -- Params contract (the start window, client/flow.lua): params.level_id, params.run
@@ -118,6 +120,7 @@ function M.new(opts)
 		slow_left = 0,
 		slow_scale = 1,
 		moved = false,
+		rev = 0,          -- grows with every tick that had events and every accepted command (see the header)
 		frames = 0,
 		ticks_run = 0,
 		dropped = 0,
@@ -160,7 +163,10 @@ function Session:advance(dt, on_tick)
 		self.tick = self.tick + 1
 		n = n + 1
 		local events = self.game:drain_events()
-		if #events > 0 then self.status = self.game:status() end
+		if #events > 0 then
+			self.status = self.game:status()
+			self.rev = self.rev + 1
+		end
 		if on_tick then on_tick(events, self.tick) end
 	end
 	if self.acc >= M.DT then
@@ -265,6 +271,7 @@ function Session:command(cmd)
 			if self.hooks.booster_used then self.hooks.booster_used(cmd.booster) end
 		end
 		self.status = self.game:status()
+		self.rev = self.rev + 1
 	end
 	return ok, res
 end

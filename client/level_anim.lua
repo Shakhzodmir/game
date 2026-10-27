@@ -520,8 +520,16 @@ function Anim:frame(pieces, tick_f, t)
 				end
 			end
 			if state == "fall" then
-				-- entering at a spawner: cut the sprite at the top of its column run
+				-- entering at a spawner: cut the sprite at the top of its column run. A piece that slides in
+				-- diagonally starts in the cell up the side it comes from (its donor), and that column's run may
+				-- reach higher than the run of the target: the higher line counts, or the piece would pop in
+				-- through a cut that has nothing to do with it
 				local top = g:clip_top(p.x, p.y)
+				local ox = p.offx or 0
+				if ox ~= 0 then
+					local donor = g:clip_top(p.x + (ox < 0 and 1 or -1), p.y - 1)
+					if donor and (not top or donor > top) then top = donor end
+				end
 				if top and y + cell * 0.6 > top then e.clip = top end
 			end
 		end

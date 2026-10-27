@@ -293,6 +293,86 @@ describe("screens/level/board.script session", function()
 		end)
 	end)
 
+	it("builds the list of pieces only when the board can have changed, and it always equals the core's", function()
+		local FIELDS = { "id", "x", "y", "kind", "state", "offx", "offy", "hidden", "pinned", "color", "special", "axis", "item", "hp" }
+		local function same(a, b)
+			if #a ~= #b then return false, "count " .. #a .. " vs " .. #b end
+			for i = 1, #a do
+				for _, k in ipairs(FIELDS) do
+					if a[i][k] ~= b[i][k] then
+						return false, "piece " .. b[i].id .. " " .. k .. ": " .. tostring(a[i][k]) .. " vs " .. tostring(b[i][k])
+					end
+				end
+			end
+			return true
+		end
+		-- levels with wires, microphones, noise, balloons: their pieces change by hits and growth, not only by motion
+		for _, level in ipairs({ 1, 22, 30, 50, 65 }) do
+			with_board({ level = level }, function(E, script, self, d)
+				d.frame(60)
+				local reused, built = 0, 0
+				for round = 1, 5 do
+					self.session:autoplay(1, {}) -- one move by itself, then the board rests for two seconds
+					for i = 1, 60 * 6 do
+						d.frame(1)
+						local ok, why = same(self.pieces, self.session.game:pieces())
+						assert_true(ok, "level " .. level .. " round " .. round .. " frame " .. i .. ": " .. tostring(why))
+						if self.pieces_age > 0 then reused = reused + 1 else built = built + 1 end
+					end
+				end
+				assert_true(reused > built * 2, "level " .. level .. ": the list is built " .. built .. " times, reused " .. reused)
+				assert_eq(self.errors or 0, 0)
+			end)
+		end
+	end)
+
+	it("keeps up a full-length level with the same list as the core's through the win, the finale and the result", function()
+		with_board(first_level(), function(E, script, self, d)
+			local qa = require("client.qa_bridge")
+			d.frame(2)
+			assert_true(qa.execute("win").ok)
+			for i = 1, 9000 do
+				d.frame(1)
+				local game = self.session.game
+				local a, b = self.pieces, game:pieces()
+				assert_eq(#a, #b, "frame " .. i)
+				for k = 1, #a do
+					assert_true(a[k].id == b[k].id and a[k].x == b[k].x and a[k].y == b[k].y and a[k].state == b[k].state
+						and a[k].offx == b[k].offx and a[k].offy == b[k].offy and a[k].hidden == b[k].hidden
+						and a[k].special == b[k].special and a[k].pinned == b[k].pinned, "frame " .. i .. " piece " .. b[k].id)
+				end
+				local st = game:status().state
+				if st == "complete" or st == "lost" then break end
+			end
+			assert_eq(self.session.game:status().state, "complete")
+		end)
+	end)
+
+	it("makes next to no garbage while the board is at rest: the list is built once a second at most", function()
+		with_board(first_level(), function(E, script, self, d)
+			d.frame(60)
+			local game = self.session.game
+			local builds = 0
+			local pieces = game.pieces
+			game.pieces = function(g) builds = builds + 1 return pieces(g) end
+			collectgarbage()
+			collectgarbage()
+			-- the collector is stopped and the LuaJIT compiler off while measuring (its trace recorder allocates)
+			local jit_was_on = jit and jit.status and jit.status()
+			if jit_was_on then jit.off() end
+			collectgarbage("stop")
+			local before = collectgarbage("count")
+			d.frame(240) -- 4 s: no hint yet (5 s), nothing moves
+			local grown = collectgarbage("count") - before
+			collectgarbage("restart")
+			if jit_was_on then jit.on() end
+			game.pieces = nil
+			-- a build is 35-70 KB of tables; every frame it was 9 MB here (the rest is the stub's own bookkeeping)
+			assert_true(builds <= 5, "the list was built " .. builds .. " times in 240 frames")
+			assert_true(grown < 1500, "an idle board allocates " .. math.floor(grown) .. " KB in 240 frames")
+		end)
+	end)
+
 	it("follows the window: another size rebuilds the layout and the pieces move with it", function()
 		with_board(first_level(), function(E, script, self, d)
 			d.frame(3)

@@ -9,7 +9,8 @@ additive light would vanish on it.
 Every effect is a one-shot burst: a very high spawn rate capped by
 max_particle_count, so play() emits exactly that many particles at once.
 Sizes and speeds are for 80 px cells; client/level_vfx.lua scales the burst
-game object to the real cell size and tints every emitter with
+game object to the real cell size and, right AFTER particlefx.play (the engine keeps a
+constant only on a playing instance), tints every emitter with
 particlefx.set_constant(url, emitter, "tint", colour) (white images from
 assets/images/fx). Emitters are in world space, so a pooled burst object
 can move on once its particles are out.

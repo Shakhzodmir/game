@@ -79,25 +79,27 @@ local function offer_button(e, body, v, y)
 	local w, h = 540, o.riff and 144 or 124
 	local btn = s:button({ parent = body, x = 0, y = y, w = w, h = h, style = "gold", sfx = false,
 		on_click = function() pay(e, v) end })
-	s:text(btn.node, i18n.t("continue.offer", { n = o.moves }), -w / 2 + 40, o.riff and 22 or 8, {
+	local parts = {} -- what is drawn on the face: it dims with it
+	parts[#parts + 1] = s:text(btn.node, i18n.t("continue.offer", { n = o.moves }), -w / 2 + 40, o.riff and 22 or 8, {
 		font = "button", size = 46, color = "white", outline = "#B35F00", shadow = "#B35F00", pivot = gui.PIVOT_W, max_width = 280,
 	})
 	if o.riff then
-		kit.icon(e, btn.node, "specials/riff", -w / 2 + 62, -30, 44, "blue")
-		s:text(btn.node, i18n.t("continue.riff"), -w / 2 + 92, -30, {
+		parts[#parts + 1] = kit.icon(e, btn.node, "specials/riff", -w / 2 + 62, -30, 44, "blue")
+		parts[#parts + 1] = s:text(btn.node, i18n.t("continue.riff"), -w / 2 + 92, -30, {
 			font = "button", size = 22, color = "white", outline = "#B35F00", pivot = gui.PIVOT_W, max_width = 230,
 		})
 	end
 	local pill = s:round(btn.node, w / 2 - 118, 4, 188, 72, o.free and "#EAF9EF" or "white", { radius = 34 })
+	parts[#parts + 1] = pill
 	if o.free then
-		s:text(pill, i18n.t("continue.free_debug"), 0, 1, { font = "button", size = 22, color = "green", max_width = 170 })
+		parts[#parts + 1] = s:text(pill, i18n.t("continue.free_debug"), 0, 1, { font = "button", size = 22, color = "green", max_width = 170 })
 	else
-		kit.icon(e, pill, "ui/icons/coin", -54, 1, 52, "coin")
-		s:text(pill, i18n.number(o.price), -14, 2, {
+		parts[#parts + 1] = kit.icon(e, pill, "ui/icons/coin", -54, 1, 52, "coin")
+		parts[#parts + 1] = s:text(pill, i18n.number(o.price), -14, 2, {
 			font = "number", size = 38, color = o.affordable and "text" or "pink", pivot = gui.PIVOT_W, max_width = 100,
 		})
 	end
-	if not o.affordable then gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.78)) end
+	if not o.affordable then lkit.dim(btn, 0.78, parts) end
 	e.offer_btn = btn
 	e:target("continue", 0, y)
 	if o.affordable then lkit.pulse(btn.node, 0.03, 0.8) end

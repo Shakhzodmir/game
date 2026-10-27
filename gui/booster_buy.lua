@@ -82,17 +82,17 @@ function M.build(e)
 	-- the pack on the left, its price on the right (as the offer of the out-of-moves window)
 	local bw = 500
 	local btn = s:button({ parent = body, x = 0, y = y, w = bw, h = 120, style = "gold", sfx = false, on_click = function() buy(e, b) end })
-	s:text(btn.node, i18n.t("buy.pack", { n = b.pack_size }), -bw / 2 + 36, 6, {
+	local label = s:text(btn.node, i18n.t("buy.pack", { n = b.pack_size }), -bw / 2 + 36, 6, {
 		font = "button", size = 42, color = "white", outline = "#B35F00", shadow = "#B35F00", pivot = gui.PIVOT_W, max_width = 250,
 	})
 	local pill = s:round(btn.node, bw / 2 - 112, 4, 176, 72, "white", { radius = 34 })
-	kit.icon(e, pill, "ui/icons/coin", -50, 1, 52, "coin")
-	s:text(pill, i18n.number(b.pack_price), -10, 2, {
+	local coin = kit.icon(e, pill, "ui/icons/coin", -50, 1, 52, "coin")
+	local price = s:text(pill, i18n.number(b.pack_price), -10, 2, {
 		font = "number", size = 36, color = affordable and "text" or "pink", pivot = gui.PIVOT_W, max_width = 90,
 	})
 	e.price_btn = btn
 	e:target("buy", 0, y)
-	if affordable then lkit.pulse(btn.node, 0.03, 0.8) else gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.78)) end
+	if affordable then lkit.pulse(btn.node, 0.03, 0.8) else lkit.dim(btn, 0.78, { label, pill, coin, price }) end
 	local coins = kit.coins_pill(e, body, 0, y - 100, app.meta:coins())
 	e.coins_pill = coins
 	if not affordable then

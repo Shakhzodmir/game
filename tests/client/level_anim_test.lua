@@ -78,6 +78,29 @@ describe("client.level_anim", function()
 		assert_eq(find(list, 3).clip, nil) -- well inside the board
 	end)
 
+	it("does not cut a piece that slides in diagonally from a column that reaches higher than its target's", function()
+		-- 6x6; columns 3 and 4 start at row 3 and row 2 (the cells above are gaps), the others at row 1
+		local cells = {}
+		for i = 1, 36 do cells[i] = { exists = true } end
+		for y = 1, 2 do cells[(y - 1) * 6 + 3] = { exists = false } end
+		cells[4] = { exists = false } -- (4, 1)
+		local g = geom.new(6, 6, cells, { x0 = 0, y0 = 0, x1 = 636, y1 = 624 })
+		local A = level_anim.new({ geom = g })
+		local list = A:frame({
+			-- from (2, 2) on the left into (3, 3), the top of its run: the donor's column reaches up to row 1
+			piece(1, 3, 3, { state = "fall", offx = 3240, offy = 3240 }),
+			-- the same from the right, still half a cell above its donor (4, 2), the top of its run: the target's
+			-- run starts a row lower
+			piece(2, 3, 3, { state = "fall", offx = -3600, offy = 5400 }),
+			-- a straight fall into the top of the run still comes from beyond it: cut there
+			piece(3, 3, 3, { state = "fall", offy = 3240 }),
+		}, 5, 0)
+		assert_eq(find(list, 1).clip, nil, "a piece from a cell inside the board is seen whole")
+		assert_near(find(list, 2).clip, g:clip_top(4, 2), 1e-9) -- cut at the line of its donor's run, not the lower one
+		assert_true(find(list, 2).clip > g:clip_top(3, 3))
+		assert_near(find(list, 3).clip, g:clip_top(3, 3), 1e-9)
+	end)
+
 	it("moves swapped pieces over T.swap, the dragged one on top, and a failed swap comes back", function()
 		local g = G()
 		local A = level_anim.new({ geom = g })

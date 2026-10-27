@@ -19,8 +19,9 @@
 --   stall <ms> | stray_fade <in|out> | music <district> [all] | music_stop |
 --   layer <tension|party> [0] | sfx <name> | note <color> <wave> |
 --   chord <wave> <color> <color> ... |
---   hint_move | swap x1 y1 x2 y2 | tap x y | skip | state | booster ... |
---   continue [n] [riff] | give_up   (the level screen, while it is on display)
+--   hint_move | swap x1 y1 x2 y2 | tap x y | skip | booster <id> [x y | row | col] |
+--   continue [n] [riff] | give_up | autoplay [n] [free] | win | hold [0|1] | level_stats
+--   (the level board, while it is on display: client/level_qa.lua; "state" then adds {level, board})
 -- Handlers are supplied by main/app.script; a screen adds its own while it
 -- is on display (register below). parse/execute are pure and tested.
 
@@ -86,7 +87,10 @@ function M.parse(cmd)
 	return name, words
 end
 
-M.NOT_YET = { hint_move = true, swap = true, tap = true, skip = true, win = true }
+-- The commands of the level board (client/level_qa.lua): outside the level screen they answer "needs the board"
+-- instead of "unknown command". tests/client/qa_bridge_test.lua keeps this list equal to the board's.
+M.NOT_YET = { hint_move = true, swap = true, tap = true, skip = true, booster = true, continue = true, give_up = true,
+	autoplay = true, win = true, hold = true, level_stats = true }
 
 -- Commands a screen adds while it is on display (the level board):
 --   local off = qa_bridge.register({hint_move = fn(args, cmd, prev), ...})

@@ -1,7 +1,7 @@
 {
   "id": 86, "version": 1,
   "size": [9, 10],
-  "moves": 25,
+  "moves": 24,
   "difficulty": "easy",
   "colors": ["red", "yellow", "green", "blue", "purple"],
   "goals": [{"type": "break", "item": "record_box", "count": 12}],

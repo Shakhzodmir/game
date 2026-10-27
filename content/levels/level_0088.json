@@ -1,12 +1,12 @@
 {
   "id": 88, "version": 1,
   "size": [9, 10],
-  "moves": 28,
+  "moves": 26,
   "difficulty": "hard",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [
     {"type": "break", "item": "noise", "count": 8},
-    {"type": "collect", "color": "yellow", "count": 44}
+    {"type": "collect", "color": "yellow", "count": 45}
   ],
   "cells": [
     "...######",
@@ -22,17 +22,14 @@
   ],
   "spawners": [[3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [2, 1], [1, 2], [0, 3], [6, 4], [7, 4], [8, 4], [2, 6], [1, 7]],
   "overlay": [
-    {"at": [5, 0], "type": "wires", "hp": 2},
     {"at": [4, 1], "type": "wires", "hp": 2},
     {"at": [3, 2], "type": "wires", "hp": 2},
     {"at": [2, 3], "type": "wires", "hp": 2},
     {"at": [5, 5], "type": "wires", "hp": 2},
     {"at": [4, 6], "type": "wires", "hp": 2},
-    {"at": [3, 7], "type": "wires", "hp": 2},
-    {"at": [2, 8], "type": "wires", "hp": 2}
+    {"at": [3, 7], "type": "wires", "hp": 2}
   ],
   "slots": [
-    {"at": [5, 0], "type": "piece", "color": "yellow"},
     {"at": [4, 1], "type": "piece", "color": "yellow"},
     {"at": [3, 2], "type": "piece", "color": "yellow"},
     {"at": [4, 2], "type": "piece", "color": "yellow"},
@@ -52,8 +49,7 @@
     {"at": [7, 6], "type": "noise"},
     {"at": [2, 7], "type": "noise"},
     {"at": [3, 7], "type": "piece", "color": "yellow"},
-    {"at": [5, 7], "type": "noise"},
-    {"at": [2, 8], "type": "piece", "color": "yellow"}
+    {"at": [5, 7], "type": "noise"}
   ],
   "spawn_weights": {"red": 3, "orange": 3, "yellow": 2, "green": 3, "blue": 3}
 }

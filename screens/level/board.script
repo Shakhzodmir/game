@@ -62,6 +62,7 @@ local level_qa = require("client.level_qa")
 local TOUCH = hash("touch")
 local MAX_DT = 0.25       -- seconds of one frame that count at most
 local SKIP_GUARD = 0.45   -- seconds after the win in which a tap does not skip the concert
+local PIECES_REFRESH = 60 -- frames at most between two builds of the list of pieces of a board at rest
 
 local function read_level(n)
 	local info = levels.load(n)
@@ -488,16 +489,26 @@ function update(self, dt)
 	self.status = s.status
 	local game = s.game
 	local playing = self.status.state == "playing"
+	local stable = game:is_stable()
 
-	-- pieces of this frame: by cell (input, rays) and by id (selection, debris colours)
-	local pieces = game:pieces()
-	local cellmap, by_id = self.cellmap, self.by_id
-	for k in pairs(cellmap) do cellmap[k] = nil end -- order-independent
-	for k in pairs(by_id) do by_id[k] = nil end -- order-independent
-	for i = 1, #pieces do
-		local p = pieces[i]
-		cellmap[(p.y - 1) * self.W + p.x] = p
-		by_id[p.id] = p
+	-- pieces of this frame: by cell (input, rays) and by id (selection, debris colours). game:pieces() makes a
+	-- table per piece (40-70 KB of garbage a frame), so the list is built again only when the board can look
+	-- different: it is in motion (now, or it was when the list was built), an event or a command came since
+	-- (s.rev), and now and then for good measure. A board at rest is the same board.
+	local pieces = self.pieces
+	if not pieces or not stable or not self.pieces_still or self.pieces_rev ~= s.rev or self.pieces_age >= PIECES_REFRESH then
+		pieces = game:pieces()
+		self.pieces, self.pieces_still, self.pieces_rev, self.pieces_age = pieces, stable, s.rev, 0
+		local cellmap, by_id = self.cellmap, self.by_id
+		for k in pairs(cellmap) do cellmap[k] = nil end -- order-independent
+		for k in pairs(by_id) do by_id[k] = nil end -- order-independent
+		for i = 1, #pieces do
+			local p = pieces[i]
+			cellmap[(p.y - 1) * self.W + p.x] = p
+			by_id[p.id] = p
+		end
+	else
+		self.pieces_age = self.pieces_age + 1
 	end
 	self.input:validate(self.find_piece, playing)
 	if not self.intro_done then
@@ -517,7 +528,7 @@ function update(self, dt)
 
 	-- hint after 5 s without touches
 	local allowed = playing and not self.input.selected and not self.input.targeting and not s:halted()
-		and not s.auto and game:is_stable()
+		and not s.auto and stable
 	if self.hint:update(dt, allowed) then self.hint_cmd = level_link.hint(s:hint_command()) end
 	local phase = self.hint:phase()
 	local h = self.hint_cmd
