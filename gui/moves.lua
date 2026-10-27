@@ -84,7 +84,7 @@ local function offer_button(e, body, v, y)
 	if o.riff then
 		kit.icon(e, btn.node, "specials/riff", -w / 2 + 62, -30, 44, "blue")
 		s:text(btn.node, i18n.t("continue.riff"), -w / 2 + 92, -30, {
-			font = "small", size = 24, color = "white", outline = "#B35F00", pivot = gui.PIVOT_W, max_width = 230,
+			font = "button", size = 22, color = "white", outline = "#B35F00", pivot = gui.PIVOT_W, max_width = 230,
 		})
 	end
 	local pill = s:round(btn.node, w / 2 - 118, 4, 188, 72, o.free and "#EAF9EF" or "white", { radius = 34 })

@@ -16,7 +16,8 @@
 -- screens/town/steps.lua): a task being built, the rewards brought back from
 -- a level (client/rewards.lua, app.push_reward), the district concert, a
 -- chest, the next district. The counters show town.disp = meta - queued
--- rewards - town.hold (paid but not landed yet), so nothing is counted twice.
+-- rewards - town.hold (paid but not landed yet), so nothing is counted twice; the lives pill likewise
+-- leaves out the unlimited lives of a chest that has not opened yet (hud.lua lives_view).
 -- The district on display (town.district) can differ from the one being built (town.focus): the
 -- player pages through the open districts with the ribbon arrows or a swipe on the scene; the
 -- card then offers the way back, and the track of the district on display plays.
@@ -74,7 +75,7 @@ function Town:sync_disp()
 	self.hud:set_stars(self.disp.stars)
 	-- the status for QA follows at once (publish() writes the rest)
 	app.ui.disp = { coins = self.disp.coins, stars = self.disp.stars }
-	app.ui.hold = { coins = self.hold.coins, stars = self.hold.stars }
+	app.ui.hold = { coins = self.hold.coins, stars = self.hold.stars, infinite = self.hold.infinite }
 end
 
 function Town:publish()
@@ -92,7 +93,7 @@ function Town:publish()
 	u.step = self.show:name()
 	u.steps_started = self.show.started
 	u.disp = { coins = self.disp.coins, stars = self.disp.stars }
-	u.hold = { coins = self.hold.coins, stars = self.hold.stars }
+	u.hold = { coins = self.hold.coins, stars = self.hold.stars, infinite = self.hold.infinite }
 	u.targets = self.hud.targets
 	u.bit = self.bit and self.bit.mood or nil
 end
@@ -306,7 +307,7 @@ local function on_bus(self, topic, p)
 		self.popups:close_all()
 		self.show:clear()
 		self.fx:clear()
-		self.hold.coins, self.hold.stars = 0, 0
+		self.hold.coins, self.hold.stars, self.hold.infinite = 0, 0, 0
 		self.dirty_scene, self.dirty_ui = true, true
 	elseif topic == "screen_leaving" then
 		self.leaving = true
@@ -342,7 +343,7 @@ local function new_town()
 	t.on_bus = function(topic, p) on_bus(t, topic, p) end
 	t.ui = ui.scene({ gui = GUI })
 	t.disp = { coins = 0, stars = 0 }
-	t.hold = { coins = 0, stars = 0 }
+	t.hold = { coins = 0, stars = 0, infinite = 0 } -- paid, not landed yet (infinite: seconds of unlimited lives)
 	app.ui = { screen = "town" }
 
 	-- an attempt a level left open is settled first (its loss is shown)
@@ -401,8 +402,9 @@ function Town:update(dt)
 		self:open_popup(want.name, want.params)
 	end
 	if not self.show:busy() then
-		if self.hold.coins ~= 0 or self.hold.stars ~= 0 then
-			self.hold.coins, self.hold.stars = 0, 0
+		if self.hold.coins ~= 0 or self.hold.stars ~= 0 or self.hold.infinite ~= 0 then
+			if self.hold.infinite ~= 0 then self.dirty_ui = true end -- the lives pill shows them from now on
+			self.hold.coins, self.hold.stars, self.hold.infinite = 0, 0, 0
 			self:sync_disp()
 		end
 		-- the district being built changed (a reset, the next district opened elsewhere)

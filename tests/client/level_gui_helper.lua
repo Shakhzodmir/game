@@ -34,7 +34,7 @@ function G.with_level(opts, fn)
 		local tutorial = require("client.tutorial")
 		local c = { E = E, app = app }
 		tutorial._reset()
-		tutorial.read = function() return opts.tutorials and require("tools.lib.json").encode(opts.tutorials) or nil end
+		tutorial.read = function() return require("tools.lib.json").encode(opts.tutorials or {}) end
 		tutorial.decode = require("tools.lib.json").decode
 		if opts.setup then opts.setup(app, c) end
 		if opts.input_mode then app.set_setting("input_mode", opts.input_mode) end

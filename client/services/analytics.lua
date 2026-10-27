@@ -1,10 +1,15 @@
 -- Analytics service (test implementation): validates events against the
--- catalogue below, keeps them in a bounded queue and prints them in debug.
+-- catalogue below, keeps them in a bounded queue and prints them in debug
+-- (init{echo = true}: main/app.script turns it on in a debug build; the QA
+-- bridge's state carries the last few events, app.snapshot()).
 -- A real SDK plugs in with analytics.set_sink(fn(event)); callers do not change.
 --
 --   local analytics = require("client.services.analytics")
 --   analytics.log("level_start", {level = 12, attempt = 1})
 --   analytics.drain()      -- events since the last drain (QA bridge, tests)
+--
+-- A session is a foreground period: session_start at launch and again on the way back from the
+-- background (source "resume"), session_end {seconds} when the app goes to the background or exits.
 --
 -- Event = {name, params, t (seconds), seq}. Unknown event names or params
 -- raise an error in debug (a typo would silently lose data) and are dropped
@@ -90,6 +95,16 @@ local function validate(name, params)
 	return true
 end
 
+-- "name key=value key=value" (keys sorted), the line the echo prints.
+local function describe(name, params)
+	local keys = {}
+	for k in pairs(params) do keys[#keys + 1] = k end -- order-free: sorted below
+	table.sort(keys)
+	local parts = { name }
+	for _, k in ipairs(keys) do parts[#parts + 1] = k .. "=" .. tostring(params[k]) end
+	return table.concat(parts, " ")
+end
+
 -- Logs an event. Returns the event, or nil and the reason when it is invalid.
 function M.log(name, params)
 	local ok, why = validate(name, params)
@@ -102,7 +117,7 @@ function M.log(name, params)
 	local ev = { name = name, params = params or {}, t = clock(), seq = seq }
 	queue[#queue + 1] = ev
 	if #queue > M.MAX_QUEUE then table.remove(queue, 1) end
-	if echo then print("analytics: " .. name) end
+	if echo then print("analytics: " .. describe(name, ev.params)) end
 	if sink then
 		local sok, err = pcall(sink, ev)
 		if not sok then print("WARNING: analytics sink: " .. tostring(err)) end

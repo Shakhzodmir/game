@@ -285,12 +285,16 @@ function START.burst(self, c)
 	b.pos.x, b.pos.y = c.x, c.y
 	go.set_position(b.pos, b.go)
 	go.set_scale(cell / 80, b.go)
+	-- play FIRST: the engine keeps a constant only on a particle instance that exists, and play creates
+	-- it (a set_constant before it is dropped with a "could not be found" warning and the burst stays
+	-- white). Both calls are messages handled in order within this frame, before the first particle
+	-- update and draw. The instance of the previous burst of this object is long pruned (LIFE).
+	particlefx.play(b.url)
 	local r, g, bl = view.rgb(c.color or "#FFFFFF")
 	local tint = b.tint
 	local ems = M.EMITTERS[kind]
 	tint.x, tint.y, tint.z, tint.w = r, g, bl, 1
 	for i = 1, #ems do particlefx.set_constant(b.url, ems[i], "tint", tint) end
-	particlefx.play(b.url)
 	self.live = self.live + n
 end
 

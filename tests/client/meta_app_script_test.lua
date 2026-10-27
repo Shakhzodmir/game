@@ -5,6 +5,7 @@
 local town_stub = require("tests.client.town_defold_stub")
 local bus = require("client.bus")
 local hooks = require("client.hooks")
+local analytics = require("client.services.analytics")
 
 local function proxy(name) return msg.url("main", "/screens", name) end
 local function overlay_url() return msg.url("main:/overlay#overlay") end
@@ -13,6 +14,12 @@ local function overlay_url() return msg.url("main:/overlay#overlay") end
 local function with_app_script(fn)
 	local E = town_stub.install({})
 	hooks._reset()
+	-- the script is a debug build here, so the analytics echo is on: keep its lines out of the test log
+	local real_print = print
+	rawset(_G, "print", function(first, ...)
+		if type(first) == "string" and string.find(first, "^analytics: ") then return end
+		real_print(first, ...)
+	end)
 	local ok, err = pcall(function()
 		-- the script's own boot: app.init with the real content and an in-memory save
 		local app = require("client.app")
@@ -22,7 +29,8 @@ local function with_app_script(fn)
 		fn(E, a, app)
 	end)
 	hooks._reset()
-	town_stub.shutdown()
+	town_stub.shutdown() -- (the script's final() logs the end of its session)
+	rawset(_G, "print", real_print)
 	if not ok then error(err, 0) end
 end
 
@@ -148,6 +156,31 @@ describe("main/app.script", function()
 			assert_true(saves >= 1, "the meta was written")
 			assert_eq(app.store.failing or 0, 0)
 			assert_false(app.meta:dirty())
+		end)
+	end)
+
+	it("logs a session as a foreground period: it ends in the background and a new one starts on the way back", function()
+		with_app_script(function(E, a, app)
+			engine_loads(E, a, "splash")
+			analytics.drain()
+			local function session_events()
+				local out = {}
+				for _, ev in ipairs(analytics.drain()) do
+					if ev.name == "session_end" then out[#out + 1] = "end:" .. tostring(ev.params.seconds) end
+					if ev.name == "session_start" then out[#out + 1] = "start:" .. tostring(ev.params.source) end
+				end
+				return out
+			end
+			E.clock = E.clock + 42
+			E.window_listener(nil, window.WINDOW_EVENT_FOCUS_LOST, {})
+			E.window_listener(nil, window.WINDOW_EVENT_ICONIFIED, {}) -- a second signal for the same background
+			assert_same(session_events(), { "end:42" })
+			E.window_listener(nil, window.WINDOW_EVENT_FOCUS_GAINED, {})
+			E.window_listener(nil, window.WINDOW_EVENT_DEICONIFIED, {})
+			assert_same(session_events(), { "start:resume" })
+			E.clock = E.clock + 7
+			a:final()
+			assert_same(session_events(), { "end:7" })
 		end)
 	end)
 

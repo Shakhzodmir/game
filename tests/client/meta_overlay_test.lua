@@ -156,6 +156,35 @@ describe("main/overlay.gui_script: toasts", function()
 			assert_same(c.E.audit(), {})
 		end)
 	end)
+
+	it("announces a failure series that began before the overlay existed (the first write is app.init's)", function()
+		local save_io = require("client.save_io")
+		local backend = save_io.memory_backend()
+		backend.fail = true -- storage that never works: the load commit of app.init fails first (streak 1, nobody listens yet)
+		with_overlay(function(c)
+			assert_true(c.app.store.failing >= 1, "the first write failed")
+			assert_eq(c.app.overlay.toast, nil)
+			c.app.tick(c.app.now()) -- the retry a second later fails again: streak 2, the first the overlay sees
+			c.overlay:step(3)
+			assert_eq(c.app.overlay.toast, "Could not save progress. Trying again…")
+			for _ = 1, 3 do c.app.tick(c.app.now()) end
+			c.overlay:step(3)
+			assert_eq(c.app.overlay.toasts_queued, 0, "once for the whole series")
+			-- the storage works again: the notice that follows
+			backend.fail = false
+			c.app.tick(c.app.now())
+			c.overlay:run(3.6) -- the first toast leaves, the next one comes
+			assert_eq(c.app.overlay.toast, "Progress saved")
+			c.overlay:run(3) -- ... and leaves
+			assert_eq(c.app.overlay.toast, nil)
+			-- a new series is announced again
+			backend.fail = true
+			c.app.meta:grant({ coins = 1 }, "test", c.app.now())
+			c.app.commit("test")
+			c.overlay:step(3)
+			assert_eq(c.app.overlay.toast, "Could not save progress. Trying again…")
+		end, { backend = backend })
+	end)
 end)
 
 describe("main/overlay.gui_script: modal", function()

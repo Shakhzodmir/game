@@ -97,7 +97,7 @@ describe("client.meta_qa", function()
 		assert_eq(r.queued, 1)
 		assert_eq(sub:pending(), 1)
 		sub:close()
-		assert_same(rewards.held(), { coins = 40, stars = 2 })
+		assert_same(rewards.held(), { coins = 40, stars = 2, infinite = 0 })
 		assert_false(h.reward({}, "reward {oops").ok)
 	end)
 

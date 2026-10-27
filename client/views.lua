@@ -21,9 +21,16 @@
 --   views.gift(id, config)                   --> an unlock gift
 --   views.settings(meta)                     --> the settings window
 
+local config = require("meta.config") -- the catalogue and the choices of the settings (read for display only)
+
 local M = {}
 
-M.PRE = { "riff", "sub", "disco" } -- pre-level boosters, start window order
+-- The pre-level boosters in catalogue order (config kind "pre"): the slots of the start window, which
+-- lays out three (tests/client/meta_views_test.lua keeps the two in step).
+M.PRE = {}
+for _, def in ipairs(config.boosters) do
+	if def.kind == "pre" then M.PRE[#M.PRE + 1] = def.id end
+end
 
 -- Booster art: in-level boosters have UI icons, pre-level ones are the
 -- special pieces they put on the board.
@@ -253,9 +260,9 @@ function M.shop_products(products, available)
 		if p then
 			local r = p.reward or {}
 			local boosters = {}
-			for _, id in ipairs({ "stick", "row_light", "col_light", "remix", "riff", "sub", "disco" }) do
-				local c = r.boosters and r.boosters[id]
-				if c and c > 0 then boosters[#boosters + 1] = { id = id, count = c, icon = M.booster_icon(id) } end
+			for _, def in ipairs(config.boosters) do -- the catalogue's order
+				local c = r.boosters and r.boosters[def.id]
+				if c and c > 0 then boosters[#boosters + 1] = { id = def.id, count = c, icon = M.booster_icon(def.id) } end
 			end
 			out[#out + 1] = {
 				id = p.id, name = d.name, price = p.price, coins = r.coins or 0, boosters = boosters,
@@ -343,14 +350,20 @@ function M.gift(id, config)
 	return { id = id, icon = M.booster_icon(id), count = count, kind = kind }
 end
 
--- The settings window: the meta settings plus the choices to show.
+local function copy(list)
+	local out = {}
+	for i, v in ipairs(list) do out[i] = v end
+	return out
+end
+
+-- The settings window: the meta settings plus the choices to show (the meta's own lists).
 function M.settings(meta)
 	local s = meta:settings()
 	return {
 		music = s.music, sfx = s.sfx, haptics = s.haptics and true or false,
 		reduced_motion = s.reduced_motion and true or false,
 		input_mode = s.input_mode, language = s.language,
-		input_modes = { "swipe", "taptap" }, languages = { "auto", "en", "ru" },
+		input_modes = copy(config.input_modes), languages = copy(config.languages),
 	}
 end
 

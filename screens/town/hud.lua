@@ -14,6 +14,7 @@ local ui = require("client.ui")
 local i18n = require("client.i18n")
 local fx = require("client.fx")
 local views = require("client.views")
+local rewards = require("client.rewards")
 local levels = require("client.levels")
 local assets = require("client.assets")
 local analytics = require("client.services.analytics")
@@ -72,6 +73,19 @@ local function lives_label(v)
 	return i18n.duration(v.seconds)
 end
 
+-- The lives as the top bar shows them: like the coin and star counters, without what is paid but has not
+-- landed yet. A level chest's unlimited lives belong to the meta from the win on, but the pill must not
+-- change before the chest has opened and its heart has flown in (the queued results hold them, then
+-- town.hold.infinite does).
+function Hud:lives_view()
+	local l = app.meta:lives(app.now())
+	local held = (self.town.hold.infinite or 0) + rewards.held().infinite
+	if held > 0 and (l.infinite_seconds or 0) > 0 then
+		l = { count = l.count, max = l.max, next_in_seconds = l.next_in_seconds, infinite_seconds = math.max(0, l.infinite_seconds - held) }
+	end
+	return views.lives(l)
+end
+
 local function pill(s, parent, x, w)
 	local sh = s:round(parent, x, M.TOP_Y - 7, w, 80, "#D66E8C", { alpha = 0.22, radius = 38 })
 	s:anchor(sh, "top")
@@ -84,7 +98,7 @@ function Hud:build_top(parent)
 	local s, town = self.ui, self.town
 	-- lives
 	local lp = pill(s, parent, M.LIVES_X, 204)
-	local lv = views.lives(app.meta:lives(app.now()))
+	local lv = self:lives_view()
 	self.heart = icon(s, lp, lv.icon, -64, 2, 76, "pink")
 	self.lives_count = s:text(self.heart, lv.state == "infinite" and "" or tostring(lv.count), 0, 3, {
 		font = "number", size = 32, color = "white", outline = "#B3122F",
@@ -148,7 +162,7 @@ end
 -- Once a second: the lives timer (a rebuild when the state changed).
 function Hud:tick()
 	if not self.lives_label then return end
-	local lv = views.lives(app.meta:lives(app.now()))
+	local lv = self:lives_view()
 	if lv.state ~= self.lives_state then
 		self.town.dirty_ui = true
 		return
@@ -371,7 +385,7 @@ function Hud:build_level(parent)
 	local v = views.level_button(app.meta, levels)
 	self.level_view = v
 	local x, y = 360, M.LEVEL_Y
-	self.notes = {}
+	self.notes, self.closed = {}, {}
 	if v.all_done then
 		local b = s:button({ parent = parent, x = x, y = y, w = 560, h = 128, style = "blue", text = i18n.t("town.all_done"),
 			text_size = 34, on_click = function()
@@ -394,13 +408,12 @@ function Hud:build_level(parent)
 		b.label_info.max_width = 320
 		s:_fit_text(b.label, b.label_info)
 	end
-	-- hit streak: three notes inside the button
+	-- hit streak: three notes inside the button. Once the streak runs (level 12 on) the note of a booster that
+	-- is still locked is drawn closed; before that nothing runs and the notes are plain empty ones.
 	for i, note in ipairs(v.notes) do
-		local nx = 136 + (i - 1) * 46
-		local n = s:image(b.node, note.lit and "ui/icons/note_on" or "ui/icons/note_off", nx, 6, { w = 52, h = 52 })
-			or s:circle(b.node, nx, 6, 34, note.lit and "yellow" or "white")
-		if not note.lit then gui.set_color(n, vmath.vector4(1, 1, 1, 0.55)) end
-		self.notes[i] = n
+		local closed = v.streak_active and note.unlocked == false
+		self.notes[i] = kit.note({ ui = s }, b.node, 136 + (i - 1) * 46, 6, { lit = note.lit, unlocked = not closed }, 52, 0.55)
+		self.closed[i] = closed
 	end
 	if v.tag then
 		local hard = v.tag == "town.hard"
@@ -417,14 +430,21 @@ function Hud:note_pos(i)
 	return self:bottom(360 + 136 + (i - 1) * 46, M.LEVEL_Y + 6)
 end
 
--- Lights the streak note `i` with a pop and sparkles.
+-- Is there a streak note `i` that can light up (its booster is unlocked)?
+function Hud:note_open(i)
+	return self.notes ~= nil and self.notes[i] ~= nil and not self.closed[i]
+end
+
+-- Lights the streak note `i` with a pop and sparkles. A closed note (its booster is still locked) stays
+-- closed: false.
 function Hud:streak_pop(i)
-	local n = self.notes and self.notes[i]
-	if not n then return end
+	if not self:note_open(i) then return false end
+	local n = self.notes[i]
 	local x, y = self:note_pos(i)
 	gui.set_color(n, vmath.vector4(1, 1, 1, 1))
 	self.town.fx:burst(x, y, { count = 8, radius = 70, size = 26 })
 	self.town.fx:pop(n, 0.6, 0.4)
+	return true
 end
 
 -- navigation -----------------------------------------------------------------------------------------

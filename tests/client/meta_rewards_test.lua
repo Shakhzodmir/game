@@ -20,10 +20,10 @@ describe("client.rewards", function()
 
 	it("queues results, holds their amounts and pops them in order", function()
 		assert_eq(rewards.push({ won = true, stars = 1, coins = 30 }), 1)
-		assert_eq(rewards.push({ won = true, stars = 2, coins = 50, chest = { coins = 60 } }), 2)
-		assert_same(rewards.held(), { coins = 140, stars = 3 })
+		assert_eq(rewards.push({ won = true, stars = 2, coins = 50, chest = { coins = 60, infinite_minutes = 15 } }), 2)
+		assert_same(rewards.held(), { coins = 140, stars = 3, infinite = 900 }) -- the chest's unlimited lives count too
 		assert_eq(rewards.pop().coins, 30)
-		assert_same(rewards.held(), { coins = 110, stars = 2 })
+		assert_same(rewards.held(), { coins = 110, stars = 2, infinite = 900 })
 		assert_eq(rewards.count(), 1)
 		assert_eq(rewards.push(nil), nil)
 	end)
@@ -32,6 +32,29 @@ describe("client.rewards", function()
 		for i = 1, rewards.MAX + 3 do rewards.push({ won = true, stars = 1, level_id = i }) end
 		assert_eq(rewards.count(), rewards.MAX)
 		assert_eq(rewards.peek().level_id, 4)
+	end)
+
+	it("keeps every win of a long chain without a visit to the town, chests and gifts included", function()
+		-- 24 wins in a row (levels 5..28), a gift at 7, chests at 10 and 20: the result window chains levels
+		local meta_config = require("meta.config")
+		for n = 5, 28 do
+			rewards.push({ won = true, stars = 1, coins = 25, level_id = n, streak = n - 4,
+				unlocked = n == 7 and { "stick" } or nil,
+				chest = (n == 10 or n == 20) and { coins = 60, boosters = { "stick" }, infinite_minutes = 15 } or nil })
+		end
+		assert_eq(rewards.count(), 24)
+		assert_eq(rewards.peek().level_id, 5)
+		local gifts, chests = 0, 0
+		while rewards.count() > 0 do
+			for _, s in ipairs(rewards.steps(rewards.pop())) do
+				if s.kind == "unlock" then gifts = gifts + 1 end
+				if s.kind == "chest" then chests = chests + 1 end
+			end
+		end
+		assert_eq(gifts, 1)
+		assert_eq(chests, 2)
+		-- and the cap is above the number of levels the game ships (a level is won once)
+		assert_true(rewards.MAX > meta_config.levels.count)
 	end)
 
 	it("turns a result into steps: win, streak, chest, unlock / loss", function()

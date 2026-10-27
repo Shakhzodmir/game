@@ -14,7 +14,8 @@
 --   * sprite.play_flipbook with an animation the atlas does not have;
 --   * go.set of a property the component does not have (sprite vertex
 --     attributes come from the material);
---   * particlefx.set_constant on an emitter the particle effect does not have;
+--   * particlefx.set_constant on an emitter the particle effect does not have, or on an effect that is
+--     not playing (never played, or its instance already pruned: the engine drops the constant);
 --   * go.* on an instance that was deleted.
 --
 --   local stub = require("tests.client.level_defold_stub")
@@ -339,7 +340,10 @@ function M.install(opts)
 						life = (pt and one(pt, "y") or 1) + (one(p, "spread") or 0)
 					end
 				end
+				-- span: how long the engine keeps the instance of this emitter: its start delay, the
+				-- emission (duration) and the longest particle life
 				local e = { id = id, count = one(em, "max_particle_count") or 0, life = life,
+					span = (one(em, "start_delay") or 0) + (one(em, "duration") or 0) + life,
 					animation = one(em, "animation"), tile_source = one(em, "tile_source") }
 				d.emitters[id] = e
 				d.list[#d.list + 1] = e
@@ -574,7 +578,8 @@ function M.install(opts)
 			local c = {}
 			for k, v in pairs(proto.comps[cid]) do c[k] = v end -- order-independent
 			c.props = {}
-			c.tints = {}
+			c.instances = {}   -- particlefx: the playing particle instances (see particlefx.play)
+			c.tints = {}       -- particlefx: the constants of the newest instance
 			o.proto.comps[cid] = c
 		end
 		E.objects[key] = o
@@ -608,13 +613,29 @@ function M.install(opts)
 		c.hflip = flip
 	end
 
+	-- Like the engine, an effect has particle INSTANCES: play creates one (it starts with the constants
+	-- of the material) and the engine prunes it once its emitters are done and its particles are dead
+	-- (`span` below). A constant lives on an instance, so set_constant before play, or after the
+	-- instance is pruned, finds nothing (the engine logs "Particle FX to set constant for could not be
+	-- found. You need to start playing it before setting constants." and drops it): an error here.
 	function particlefx.play(url, callback)
 		E.count("particlefx_play")
 		local o, c = component(url, 2)
 		if c.type ~= "particlefx" then error("particlefx.play: not a particlefx component", 2) end
+		local span, live = 0, {}
+		for _, em in ipairs(c.fx.list) do
+			if em.span > span then span = em.span end
+		end
+		for _, inst in ipairs(c.instances) do
+			if inst.alive_until > E.time then live[#live + 1] = inst end
+		end
+		if #live > 0 then E.count("particlefx_play_overlap") end -- a second instance on the object: set_constant hits both
+		local inst = { tints = {}, alive_until = E.time + span }
+		live[#live + 1] = inst
+		c.instances, c.tints = live, inst.tints
 		for _, em in ipairs(c.fx.list) do
 			E.batches[#E.batches + 1] = { key = o.key, comp = c.id, emitter = em.id, n = em.count,
-				untilt = E.time + em.life, from = E.time }
+				untilt = E.time + em.life, from = E.time, tints = inst.tints }
 		end
 		E.count("particles_emitted")
 		E.counts.particles_total = (E.counts.particles_total or 0) + (function()
@@ -637,6 +658,7 @@ function M.install(opts)
 				if not (b.key == o.key and b.comp == c.id) then keep[#keep + 1] = b end
 			end
 			E.batches = keep
+			c.instances, c.tints = {}, {} -- the particles are gone, so is the instance
 		end
 		c.playing = false
 	end
@@ -650,7 +672,19 @@ function M.install(opts)
 		end
 		if name_of(constant) ~= "tint" then error("particlefx.set_constant: unknown constant '" .. tostring(name_of(constant)) .. "'", 2) end
 		if not is_v4(value) then error("particlefx.set_constant: vector4 expected", 2) end
-		c.tints[em] = vector4(value)
+		local found = false
+		for _, inst in ipairs(c.instances) do
+			if inst.alive_until > E.time then
+				inst.tints[em] = vector4(value)
+				found = true
+			end
+		end
+		if not found then
+			E.count("particlefx_set_constant_lost")
+			error("particlefx.set_constant: " .. tostring(c.file) .. " has no playing instance (never played, or already " ..
+				"pruned): the engine drops the constant with the warning 'Particle FX to set constant for could not be " ..
+				"found. You need to start playing it before setting constants.' Call particlefx.play first", 2)
+		end
 	end
 
 	-- window / sys / json ----------------------------------------------------------------------
@@ -769,6 +803,8 @@ function M.install(opts)
 	function gui.get_color(n) return vector4(live(n).color) end
 	function gui.set_enabled(n, on) live(n).enabled = on and true or false end
 	function gui.is_enabled(n) return live(n).enabled end
+	function gui.set_inherit_alpha(n, on) live(n).inherit_alpha = on and true or false end -- off by default, like the engine's
+	function gui.get_inherit_alpha(n) return live(n).inherit_alpha == true end
 	function gui.set_pivot(n, p) live(n).pivot = p end
 	function gui.set_id(n, id) live(n).id = name_of(id) or id end
 	function gui.set_text(n, t) live(n).text = t end
@@ -955,7 +991,7 @@ function M.install(opts)
 			local o = E.objects[b.key]
 			if o then
 				local comp = o.proto.comps[b.comp]
-				local t = comp and comp.tints[b.emitter]
+				local t = b.tints and b.tints[b.emitter]
 				parts[#parts + 1] = { x = o.pos.x, y = o.pos.y, scale = o.scale.x, emitter = b.emitter,
 					r = t and t.x or 1, g = t and t.y or 1, b = t and t.z or 1, n = b.n, age = E.time - b.from,
 					life = b.untilt - b.from, kind = comp and comp.file }

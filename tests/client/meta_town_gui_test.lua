@@ -660,3 +660,214 @@ describe("screens/town/town.gui_script", function()
 		end)
 	end)
 end)
+
+-- How many visible nodes of the town scene play each of these ui atlas flipbooks ("note_on" = ui_icons_note_on).
+local function flipbooks(c, ...)
+	local want, out = {}, {}
+	for _, id in ipairs({ ... }) do
+		want["ui_icons_" .. id] = id
+		out[id] = 0
+	end
+	for _, n in ipairs(c.E.alive_nodes(c.E.scene("/screens/town/town.gui"))) do
+		local id = want[n.anim]
+		if id and c.E.visible(n) then out[id] = out[id] + 1 end
+	end
+	return out
+end
+
+describe("screens/town: hit-streak notes of locked boosters (decisions.md item 11)", function()
+	it("draws them closed (a faded note with a padlock), not lit, in the town and in the start window", function()
+		-- level 14 after wins on 12 and 13: the streak is 2, but the Subwoofer opens at level 16 and the Disco ball at 22
+		G.with_town({ setup = function(app) G.win(app, 13) end }, function(c)
+			assert_eq(c.app.meta:level_to_play(), 14)
+			local v = c.town.self.t.hud.level_view
+			assert_true(v.notes[1].unlocked and v.notes[2].lit and not v.notes[2].unlocked and not v.notes[3].unlocked)
+			local hud = flipbooks(c, "note_on", "note_off", "lock")
+			assert_same(hud, { note_on = 1, note_off = 2, lock = 2 })
+			c.town:tap_text("Level 14")
+			c.step(30)
+			assert_eq(c.app.ui.popup, "start")
+			local win = flipbooks(c, "note_on", "note_off")
+			assert_eq(win.note_on - hud.note_on, 1, "the strip of the window lights the Riff note only")
+			assert_eq(win.note_off - hud.note_off, 2)
+			assert_eq(#c.E.audit(), 0)
+		end)
+		-- level 16: the Subwoofer is open, the Disco ball still closed although three wins are counted
+		G.with_town({ setup = function(app) G.win(app, 15) end }, function(c)
+			assert_eq(c.app.meta:level_to_play(), 16)
+			assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 2, note_off = 1, lock = 1 })
+		end)
+		-- before level 12 no streak runs: plain empty notes, no padlocks (the whole widget is not there yet)
+		G.with_town({}, function(c)
+			assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 0, note_off = 3, lock = 0 })
+		end)
+		-- level 12: the streak starts, only the Riff slot is open
+		G.with_town({ setup = function(app) G.win(app, 11) end }, function(c)
+			assert_eq(c.app.meta:level_to_play(), 12)
+			assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 0, note_off = 3, lock = 2 })
+		end)
+		-- level 22 on: everything is open and the notes follow the streak alone
+		G.with_town({ setup = function(app) G.win(app, 21) end }, function(c)
+			assert_eq(c.app.meta:level_to_play(), 22)
+			assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 3, note_off = 0, lock = 0 })
+		end)
+	end)
+
+	it("lets only the open notes pop when the streak is shown, and keeps the closed ones closed", function()
+		G.with_town({ setup = function(app) G.win(app, 13) end }, function(c)
+			local t = c.town.self.t
+			c.town:ctx(function()
+				assert_true(t.hud:note_open(1))
+				assert_false(t.hud:note_open(2))
+				assert_true(t.hud:streak_pop(1))
+				assert_false(t.hud:streak_pop(2), "a closed note does not light up")
+			end)
+			-- the reward step of a win that made the streak 2: one pop (the Riff note), no more
+			local steps = require("screens.town.steps")
+			local pops = 0
+			local real = t.hud.streak_pop
+			t.hud.streak_pop = function(self, i)
+				local ok = real(self, i)
+				if ok then pops = pops + 1 end
+				return ok
+			end
+			c.app.push_reward({ won = true, streak = 2, level_id = 13 })
+			c.run(3)
+			assert_eq(pops, 1)
+			assert_false(c.app.ui.busy)
+			assert_eq(steps ~= nil, true)
+		end)
+	end)
+end)
+
+describe("client/fx.lua on the strict stub: pop, shake and loops", function()
+	local function scale_of(c, node) return c.town:ctx(function() return gui.get_scale(node) end) end
+	local function pos_of(c, node) return c.town:ctx(function() return gui.get_position(node) end) end
+
+	it("settles a popped button back to its rest scale, not to the pressed one (a pop from its on_click)", function()
+		G.with_town({}, function(c)
+			local node = c.town.self.t.hud.nav.town
+			local tg = c.app.ui.targets.nav_town
+			-- a finger held for six frames: the press has shrunk the button when the release pops it
+			c.E.input(hash("touch"), c.E.touch_action(tg.x, tg.y, true, false))
+			c.step(6)
+			assert_true(scale_of(c, node).x < 0.95, "pressed: " .. scale_of(c, node).x)
+			c.E.input(hash("touch"), c.E.touch_action(tg.x, tg.y, false, true))
+			c.run(1)
+			assert_near(scale_of(c, node).x, 1, 1e-6)
+			-- and a quick tap, again
+			tap_target(c, "nav_town")
+			c.run(1)
+			assert_near(scale_of(c, node).x, 1, 1e-6)
+			assert_near(scale_of(c, node).y, 1, 1e-6)
+		end)
+	end)
+
+	it("shakes a node in place after the window changed shape (the y of an anchored node follows the window)", function()
+		local hud_mod = require("screens.town.hud")
+		G.with_town({}, function(c)
+			local t = c.town.self.t
+			local card = t.hud.card
+			local x0 = pos_of(c, card).x
+			c.town:ctx(function() t:on_task(nil) end) -- not enough stars: a refusal, the card shakes
+			c.run(0.7)
+			assert_near(pos_of(c, card).x, x0, 1e-6)
+			c.E.set_window(720, 1600) -- taller: the bottom edge anchor moves
+			c.step(3)
+			local want = t.ui:anchored_y(hud_mod.TASK_Y, "bottom")
+			assert_near(pos_of(c, card).y, want, 1e-6, "anchored after the resize")
+			c.town:ctx(function() t:on_task(nil) end)
+			c.step(10)
+			assert_near(pos_of(c, card).y, want, 1e-6, "the y is not touched while it shakes")
+			c.run(0.7)
+			assert_near(pos_of(c, card).x, x0, 1e-6)
+			assert_near(pos_of(c, card).y, want, 1e-6, "and not put back to the old anchor")
+		end)
+	end)
+
+	it("lets a run of quick shakes return the node to where it rested", function()
+		G.with_town({}, function(c)
+			local t = c.town.self.t
+			local card = t.hud.card
+			local x0 = pos_of(c, card).x
+			for _ = 1, 6 do
+				c.town:ctx(function() t.fx:shake(card, 14, 0.4) end)
+				c.step(5) -- the next one starts while this one is still away from home
+			end
+			c.run(1)
+			assert_near(pos_of(c, card).x, x0, 1e-6)
+		end)
+	end)
+
+	it("plays a PINGPONG loop through a whole cycle per period: the bob and the wiggle", function()
+		local fxm = require("client.fx")
+		local kit = require("gui.kit")
+		G.with_town({}, function(c)
+			local bob, wig
+			c.town:ctx(function()
+				bob = gui.new_box_node(vmath.vector3(0, 100, 0), vmath.vector3(10, 10, 0))
+				wig = gui.new_box_node(vmath.vector3(0, 0, 0), vmath.vector3(10, 10, 0))
+				fxm.bob(bob, 10, 2.0)
+				kit.wiggle(wig, 0.1, 2.0)
+			end)
+			local y0 = 100
+			-- INOUTSINE: halfway up at a quarter of the period, at the top at a half, back home at the full period
+			local function at(seconds)
+				c.town:step(math.floor(seconds * 60 + 0.5))
+			end
+			at(0.5)
+			assert_near(pos_of(c, bob).y - y0, 5, 0.3, "a quarter")
+			at(0.5)
+			assert_near(pos_of(c, bob).y - y0, 10, 0.05, "the top at half the period")
+			assert_near(scale_of(c, wig).x, 1.1, 0.002)
+			at(1.0)
+			assert_near(pos_of(c, bob).y - y0, 0, 0.05, "home after one period")
+			assert_near(scale_of(c, wig).x, 1, 0.002)
+		end)
+	end)
+end)
+
+describe("client/ui.lua buttons on the strict stub", function()
+	it("fades the icon and the label of a disabled or dimmed button with its face", function()
+		G.with_town({ setup = function(app) G.build_tasks(app, "cafe") end }, function(c)
+			local t = c.town.self.t
+			-- the end of the street: Jazz is the last open district, its "next" arrow is disabled
+			local dim, lit
+			for _, b in ipairs(t.ui.buttons) do
+				if b.spec.icon == "ui/icons/arrow" and b.spec.sfx == "button" then
+					if b.enabled then lit = b else dim = b end
+				end
+			end
+			assert_true(dim ~= nil and lit ~= nil, "a disabled and an enabled arrow")
+			assert_near(c.E.opacity(dim.node), 0.55, 1e-6)
+			assert_near(c.E.opacity(dim.icon), 0.55, 1e-6, "the arrow on a faded face")
+			assert_near(c.E.opacity(lit.icon), 1, 1e-6)
+		end)
+		-- the web demo cannot sell: the price buttons of the shop are dimmed, their prices with them
+		G.with_town({}, function(c)
+			c.app.open_popup("shop", { tab = "coins" })
+			c.run(0.7)
+			local price = c.town:find("$0.99")
+			assert_true(price ~= nil, G.dump(c.town))
+			assert_near(c.E.opacity(price), 0.8, 1e-6)
+		end)
+	end)
+end)
+
+describe("the strict stub's audit of texts", function()
+	it("flags an outline or a shadow on a font that bakes none (it would not show on the device)", function()
+		G.with_town({}, function(c)
+			local t = c.town.self.t
+			assert_same(c.E.audit(), {})
+			c.town:ctx(function()
+				t.ui:text(t.c_ui, "Visible", 100, 100, { font = "button", size = 30, color = "white", outline = "#B35F00", shadow = "#B35F00" })
+				t.ui:text(t.c_ui, "Lost outline", 100, 140, { font = "small", size = 24, color = "white", outline = "#B35F00" })
+				t.ui:text(t.c_ui, "Lost shadow", 100, 180, { font = "body", size = 24, color = "white", shadow = "#B35F00" })
+			end)
+			local problems = c.E.audit()
+			assert_eq(#problems, 2, table.concat(problems, " | "))
+			assert_true(string.find(problems[1], "an outline on the font 'small'", 1, true) ~= nil or string.find(problems[2], "an outline on the font 'small'", 1, true) ~= nil)
+			assert_true(string.find(table.concat(problems), "a shadow on the font 'body'", 1, true) ~= nil)
+		end)
+	end)
+end)

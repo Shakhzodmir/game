@@ -55,8 +55,11 @@ local function pop_word(self, slot, n, hold)
 	if reduced() then
 		local c = gui.get_color(n)
 		gui.set_color(n, vmath.vector4(c.x, c.y, c.z, 0))
-		gui.animate(n, "color.w", 1, gui.EASING_OUTQUAD, 0.15)
-		gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.3, hold, gone)
+		-- a node has ONE running animation per property: a second gui.animate of color.w would replace the
+		-- fade-in at once (the word would never show), so the fade-out starts when the fade-in is done
+		gui.animate(n, "color.w", 1, gui.EASING_OUTQUAD, 0.15, 0, function()
+			gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.3, hold, gone)
+		end)
 		return
 	end
 	gui.set_scale(n, sc * 0.25)
@@ -128,20 +131,24 @@ local function show_banner(self, key)
 	local r = link.board_rect()
 	local y = r and (r.y0 + r.y1) / 2 or 640
 	local b = s:round(self.layer, 360, y, 600, 120, "white", { alpha = 0.96, radius = 30 })
-	s:text(b, i18n.t(key), 0, 4, { font = "button", size = 44, color = "#8B45FF", outline = false, max_width = 560 })
+	local label = s:text(b, i18n.t(key), 0, 4, { font = "button", size = 44, color = "#8B45FF", outline = false, max_width = 560 })
+	-- a node made by script takes no alpha from its parent: without this the text would stay solid while
+	-- the plate fades away under it
+	gui.set_inherit_alpha(label, true)
 	self.banner = b
+	local function gone()
+		if self.banner == b then self.banner = nil end
+		s:clear(b)
+	end
 	if reduced() then
-		gui.animate(b, "color.w", 0, gui.EASING_INQUAD, 0.3, 1.2, function()
-			if self.banner == b then self.banner = nil end
-			s:clear(b)
-		end)
+		gui.animate(b, "color.w", 0, gui.EASING_INQUAD, 0.3, 1.2, gone)
 		return
 	end
 	gui.set_scale(b, vmath.vector3(0.3, 0.3, 1))
-	gui.animate(b, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3)
-	gui.animate(b, "scale", vmath.vector3(0.2, 0.2, 1), gui.EASING_INBACK, 0.25, 1.3, function()
-		if self.banner == b then self.banner = nil end
-		s:clear(b)
+	-- one animation per property (a second gui.animate of the scale would replace the pop-in and the
+	-- banner would stay at 30 % size): the exit starts when the pop-in is done, 1.3 s after the start
+	gui.animate(b, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3, 0, function()
+		gui.animate(b, "scale", vmath.vector3(0.2, 0.2, 1), gui.EASING_INBACK, 0.25, 1.0, gone)
 	end)
 end
 

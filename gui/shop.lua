@@ -33,6 +33,8 @@ local function coins_fly(e, n, x, y)
 		e.fx:fly({ image = "ui/icons/coin", size = 60, from = { x + (i - 1) * 6, y }, to = { px, py },
 			delay = (i - 1) * 0.07, arc = 120 + i * 12, trail = "#FFE066",
 			on_land = function()
+				-- the flight outlives the window when it is closed meanwhile: the pill is gone with it
+				if e.closing then return end
 				shown = math.floor(from + step * i + 0.5)
 				if i == flyers then shown = target end
 				e.shown_coins = shown
@@ -270,6 +272,11 @@ local function gift_row(e, body, y)
 	local s = e.ui
 	local rw, rh = 600, 132
 	local avail = ads.can_show("shop_gift")
+	-- the offer is on screen: logged once per visit of the window (e.state outlives a rebuild)
+	if not e.state.ad_offer_logged then
+		e.state.ad_offer_logged = true
+		ads.offer_shown("shop_gift")
+	end
 	local row = s:round(body, 0, y, rw, rh, "#BDF5CF", { radius = 30 })
 	local inner = s:round(row, 0, 0, rw - 10, rh - 10, "white", { radius = 26 })
 	local g = kit.icon(e, inner, "ui/icons/gift", -236, 4, 100, "green")

@@ -1,7 +1,8 @@
 -- Tutorial runtime of the level screen (pure Lua, no engine calls).
 --
 -- A tutorial is a list of guided steps for one level, read from
--- /content/tutorials.json (levels-plan.md, section 4):
+-- /content/tutorials.json (levels-plan.md, section 4; tests/client/tutorial_content_test.lua fails the
+-- build when the file is missing, and load() logs a warning if the game cannot read it):
 --   {"<level id>": {"steps": [
 --       {"kind": "swap", "from": [x, y], "to": [x, y], "text": "<i18n key>"},
 --       {"kind": "tap", "at": [x, y], "text": "..."},                  -- tap a special piece
@@ -58,9 +59,10 @@ local floor = math.floor
 
 -- loading -----------------------------------------------------------------------------------------
 
--- test hooks: fn(path) -> text | nil ; fn(text) -> table
+-- test hooks: fn(path) -> text | nil ; fn(text) -> table ; fn(text) for the warnings (default: print)
 M.read = nil
 M.decode = nil
+M.warn = nil
 
 local cache = nil
 
@@ -81,11 +83,21 @@ local function decode(text)
 	return nil
 end
 
--- The decoded tutorials.json (cached); {} when the file is missing or broken.
+local function warn(text)
+	local log = M.warn or print
+	log("WARNING: tutorials: " .. text)
+end
+
+-- The decoded tutorials.json (cached); {} when the file is missing or broken. That is a defect of the
+-- build (the game would have no tutorials at all, silently), so it is logged once: the QA run of the
+-- browser build shows the line.
 function M.load()
 	if cache == nil then
 		local text = read(M.PATH)
 		local data = text and decode(text)
+		if type(data) ~= "table" then
+			warn(M.PATH .. (text and " is not valid JSON" or " cannot be read") .. ": the game has no tutorials")
+		end
 		cache = type(data) == "table" and data or false
 	end
 	return cache or {}
@@ -93,7 +105,7 @@ end
 
 function M._reset()
 	cache = nil
-	M.read, M.decode = nil, nil
+	M.read, M.decode, M.warn = nil, nil, nil
 end
 
 -- parsing -----------------------------------------------------------------------------------------

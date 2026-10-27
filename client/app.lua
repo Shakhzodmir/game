@@ -385,6 +385,8 @@ function M.snapshot(now)
 		save_failing = M.store and M.store.failing or 0,
 		ui = M.ui,
 		rewards_queued = rewards.count(),
+		-- what the analytics service logged: the total and the last few events (QA reads the funnel here)
+		analytics = { count = analytics.count(), recent = analytics.recent(8) },
 	}
 	if meta then
 		local lives = meta:lives(now)

@@ -107,7 +107,9 @@ end
 local function play(e, v)
 	if e.busy then return end
 	local picked = views.picked(v.boosters, e.state.selected)
-	local ok, why = flow.start(v.level, picked, "town")
+	-- where the player comes from (client/flow.lua): the town, or the level screen that hosts this window
+	-- after a win or a defeat (Next level, Retry)
+	local ok, why = flow.start(v.level, picked, app.screen == "level" and "level" or "town")
 	if ok then
 		e.busy = true
 		kit.sfx("win")
