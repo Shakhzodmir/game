@@ -44,13 +44,17 @@ local function proxy_url(name) return msg.url("main", "/screens", name) end
 
 -- Starts the stub and the application objects of main/main.collection and runs fn(s). Always shuts the stub down.
 -- opts: {window = {w, h}, safe = {...}, language = "en", seed = n, setup = fn(app) (after the app script booted),
---        audio = true (the audio object too), qa = false, quiet = true (hide the analytics echo)}
+--        audio = true (the audio object too), quiet = false (echo the analytics lines)}
+-- The game reports what it swallowed with print("WARNING: ...") / print("ERROR: ..."): the harness keeps those lines
+-- (s.warnings) and fails the session if any is left when it ends, so a test either expects them (s:take_warnings)
+-- or the session is clean.
 function M.run(opts, fn)
 	opts = opts or {}
 	local hooks = require("client.hooks")
 	local bus = require("client.bus")
 	local rewards = require("client.rewards")
 	local real_print = print
+	local warnings = {}
 	local E = town_stub.install({
 		window = opts.window, safe = opts.safe, collections = { "/screens/level/level.collection" },
 	})
@@ -61,13 +65,20 @@ function M.run(opts, fn)
 		rewards.clear()
 		require("client.levels")._reset()
 		require("client.tutorial")._reset()
-		if opts.quiet ~= false then
-			rawset(_G, "print", function(first, ...)
-				if type(first) == "string" and string.find(first, "^analytics: ") then return end
-				real_print(first, ...)
-			end)
-		end
-		s = setmetatable({ E = E, screens = {}, log = {}, frames = 0 }, Session)
+		rawset(_G, "print", function(first, ...)
+			if type(first) == "string" then
+				if string.find(first, "^analytics: ") then
+					if opts.quiet == false then real_print(first, ...) end
+					return
+				end
+				if string.find(first, "^WARNING") or string.find(first, "^ERROR") then
+					warnings[#warnings + 1] = first
+					return
+				end
+			end
+			real_print(first, ...)
+		end)
+		s = setmetatable({ E = E, screens = {}, log = {}, frames = 0, warnings = warnings }, Session)
 		-- every posted message knows who posted it, so a reply finds its way back (the engine's `sender`)
 		local inner_post = msg.post
 		rawset(msg, "post", function(receiver, id, message)
@@ -117,7 +128,13 @@ function M.run(opts, fn)
 	bus.default.subs = {}
 	town_stub.shutdown()
 	rawset(_G, "print", real_print)
-	if not ok then error(err, 0) end
+	if not ok then
+		for _, line in ipairs(warnings) do real_print("  (during the session) " .. line) end
+		error(err, 0)
+	end
+	if #warnings > 0 then
+		error("the game reported " .. #warnings .. " warning(s) nobody expected:\n  " .. table.concat(warnings, "\n  "), 0)
+	end
 end
 
 -- The engine's side of the collection proxies -------------------------------------------------------
@@ -227,6 +244,18 @@ function Session:step_until(pred, seconds, what)
 	if pred() then return true end
 	error("timeout waiting for " .. tostring(what) .. "; screen " .. tostring(self.app.screen) .. ", pending " ..
 		tostring(self.app.pending and self.app.pending.name) .. ", popup " .. tostring(self.app.ui and self.app.ui.popup), 2)
+end
+
+-- Takes the warnings the game printed that contain `text` (plain match) off the list the session is judged by;
+-- returns them.
+function Session:take_warnings(text)
+	local taken, kept = {}, {}
+	for _, line in ipairs(self.warnings) do
+		if string.find(line, text, 1, true) then taken[#taken + 1] = line else kept[#kept + 1] = line end
+	end
+	for i = #self.warnings, 1, -1 do self.warnings[i] = nil end
+	for _, line in ipairs(kept) do self.warnings[#self.warnings + 1] = line end
+	return taken
 end
 
 -- Waits for the screen to be on display (the fade-in over).
