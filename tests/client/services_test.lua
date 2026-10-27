@@ -72,6 +72,21 @@ describe("client.services.iap and ads", function()
 		assert_true(res)
 	end)
 
+	it("lets the shop gift pay once per cooldown of the session, and forgets it on init", function()
+		ads.init({ debug = true })
+		assert_eq(ads.cooldown_left("shop_gift", 100), 0)
+		ads.mark_rewarded("shop_gift", 100)
+		assert_eq(ads.cooldown_left("shop_gift", 100), ads.GIFT_COOLDOWN)
+		assert_eq(ads.cooldown_left("shop_gift", 130), ads.GIFT_COOLDOWN - 30)
+		assert_eq(ads.cooldown_left("shop_gift", 100 + ads.GIFT_COOLDOWN), 0)
+		assert_eq(ads.cooldown_left("shop_gift", 100 + ads.GIFT_COOLDOWN + 500), 0)
+		-- the other placement has no cooldown of this kind
+		ads.mark_rewarded("continue", 100)
+		assert_eq(ads.cooldown_left("continue", 100), 0)
+		ads.init({ debug = true })
+		assert_eq(ads.cooldown_left("shop_gift", 100), 0, "a new session starts fresh")
+	end)
+
 	it("never sells stars", function()
 		for _, p in ipairs(iap.PRODUCTS) do
 			assert_eq(p.reward.stars, nil, p.id)

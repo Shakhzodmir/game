@@ -148,6 +148,77 @@ describe("client.views (meta screens)", function()
 		assert_eq(rows[1].stems, 1)
 	end)
 
+	it("says what the card above the level button shows for the district on display", function()
+		local m = H.new()
+		local cv = views.card(m, "cafe")
+		assert_eq(cv.kind, "task")
+		assert_eq(cv.task.id, "turntable")
+		-- the district being built is cafe: nothing else is open, so jazz is not browsable yet
+		assert_eq(views.card(m, "jazz").kind, "back")
+		assert_eq(views.card(m, "jazz").district, "cafe")
+		-- a finished town has only the closing card, whatever is on display
+		for _, d in ipairs(m:districts()) do
+			local dd = m:district(d.id)
+			H.give(m, "stars", 100)
+			for _, t in ipairs(dd.tasks) do assert_true(m:complete_task(d.id, t.id)) end
+		end
+		assert_eq(views.card(m, "garage").kind, "done")
+		assert_eq(views.card(m, "cafe").kind, "done")
+	end)
+
+	it("lists the open districts to page through and where the district on display stands", function()
+		local m = H.new()
+		local b = views.browse(m, "cafe")
+		assert_eq(b.count, 1)
+		assert_eq(b.prev, nil)
+		assert_eq(b.next, nil)
+		H.give(m, "stars", 100)
+		for _, t in ipairs(m:district("cafe").tasks) do assert_true(m:complete_task("cafe", t.id)) end
+		b = views.browse(m, "jazz")
+		assert_eq(b.count, 2)
+		assert_eq(b.index, 2)
+		assert_eq(b.prev, "cafe")
+		assert_eq(b.next, nil)
+		b = views.browse(m, "cafe")
+		assert_eq(b.next, "jazz")
+		assert_same(b.ids, { "cafe", "jazz" })
+		assert_eq(views.browse(m, "square").index, 1) -- a locked district is not in the list: the first stands in
+	end)
+
+	it("points at the first task once, until it is built or seen", function()
+		local m = H.new()
+		assert_eq(views.town_hint(m, views.task(m)), nil) -- no star yet
+		H.win(m, T)
+		local hint = views.town_hint(m, views.task(m))
+		assert_eq(hint.id, "town_first_task")
+		assert_eq(hint.text.key, "tutorial.town")
+		m:mark_tutorial_seen("town_first_task")
+		assert_eq(views.town_hint(m, views.task(m)), nil)
+		-- a town with something built needs no hint even if it was never marked
+		local m2 = H.new()
+		H.win(m2, T)
+		H.win(m2, T)
+		local t = m2:next_task()
+		assert_true(m2:complete_task(t.district, t.id))
+		assert_eq(views.town_hint(m2, views.task(m2)), nil)
+		assert_eq(views.town_hint(m2, nil), nil)
+	end)
+
+	it("reads the regeneration rule and the time to the next life from the config", function()
+		assert_eq(views.regen_minutes(config), 20)
+		assert_eq(views.regen_minutes(nil), 20)
+		fake_levels({})
+		local m = H.new()
+		H.advance_to(m, config.levels.free_up_to + 1, T)
+		local later = T + 3 * 3600
+		for _ = 1, 5 do H.lose(m, later) end
+		local v = views.start(m, m:level_to_play(), nil, later, levels, config.levels.free_up_to)
+		assert_false(v.can_start)
+		assert_eq(v.why, "no_lives")
+		assert_eq(v.lives, 0)
+		assert_eq(v.next_life_in, config.lives.regen_seconds)
+	end)
+
 	it("reads the refill offer and the settings from the meta", function()
 		local m = H.new()
 		local r = views.refill(m, T)

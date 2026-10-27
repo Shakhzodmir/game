@@ -1,21 +1,24 @@
 -- Level CLI: validation, statistics, ASCII preview.
 --
 --   luajit tools/levels.lua validate [ids|files...] [--dir content/levels] [--strict]
---   luajit tools/levels.lua stats [--dir content/levels]
---   luajit tools/levels.lua preview <id|file> [--seed n]
+--   luajit tools/levels.lua stats [ids|files...] [--dir content/levels] [--json]
+--   luajit tools/levels.lua preview <id|file> [--seed n] [--dir content/levels]
 --
 -- `validate` loads every level through core.load_level (the full rule set of
 -- core-rules 2.1) and prints its errors; it also checks that the id matches
 -- the file name. Plan checks (levels-plan.md: difficulty saw, colour counts,
--- moves 20-35) are warnings; --strict turns them into errors. Exit code 1
--- when any level fails.
+-- moves 20-35, and for a whole directory the missing files among 1..100) are
+-- warnings; --strict turns them into errors. Exit code 1 when any level
+-- fails, 2 for a bad command line.
 -- `preview` draws the level from its JSON (coordinates as in the JSON, from
 -- zero); with --seed it draws the start board the core builds for that seed.
 
 local MAIN = (...) ~= "tools.levels"
 local ROOT = ""
 if MAIN then
-	ROOT = (arg and arg[0] or ""):match("^(.-)tools[/\\]levels%.lua$") or ""
+	-- the repository root from the script path (also when started from another directory)
+	ROOT = (arg and arg[0] or ""):match("^(.-)tools[/\\]levels%.lua$")
+	if not ROOT then ROOT = ((arg and arg[0] or ""):match("^(.*)[/\\][^/\\]*$") or ".") .. "/../" end
 	package.path = ROOT .. "?.lua;" .. ROOT .. "?/init.lua;" .. package.path
 end
 
@@ -48,10 +51,14 @@ end
 -- Elements counted by rule 2.1.6, present in a raw level.
 Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column" }
 
+-- Like the core's rule 2.1.6: a `mic` counts when there is a deliver goal, a
+-- mic block or a starting mic piece.
 function Levels.elements(raw)
 	local has = {}
 	for _, f in ipairs(raw.floor or {}) do if f then has.dancefloor = true end end
 	for _, o in ipairs(raw.overlay or {}) do if o.type == "wires" then has.wires = true end end
+	for _, g in ipairs(raw.goals or {}) do if g.type == "deliver" then has.mic = true end end
+	if raw.mic ~= nil then has.mic = true end
 	local specials = 0
 	for _, s in ipairs(raw.slots or {}) do
 		if s.type == "riff" or s.type == "sub" or s.type == "bird" or s.type == "disco" then
@@ -122,6 +129,15 @@ local LETTER = { red = "r", orange = "o", yellow = "y", green = "g", blue = "b",
 local ITEM = { record_box = "X", concrete = "K", noise = "N", balloon = "A", column = "C" }
 local SPEC = { riff = "R", sub = "S", bird = "B", disco = "D" }
 
+-- One character for an hp: 1-9, then a b c for 10-12 (a column has up to 12).
+local function hp_char(hp)
+	if type(hp) ~= "number" then return " " end
+	if hp >= 1 and hp <= 9 then return string.format("%d", hp) end
+	if hp >= 10 and hp <= 35 then return string.char(87 + hp) end -- 10 -> a
+	return "?"
+end
+Levels.hp_char = hp_char
+
 -- A grid of 4-character cells: content, detail, floor, wires.
 local function new_grid(W, H)
 	local g = {}
@@ -154,7 +170,7 @@ local function draw_grid(g, W, H, marks)
 end
 
 Levels.LEGEND = "legend: r o y g b p piece colour, + random piece, R/S/B/D riff/sub/bird/disco (riff axis - or |),"
-	.. " M mic, X box, K concrete, N noise, A balloon (+colour), C column (+hp), 3rd char floor (_ hp1, = hp2),"
+	.. " M mic, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), 3rd char floor (_ hp1, = hp2),"
 	.. " 4th char wires (w hp1, W hp2), v spawner, e exit (2nd char), . void"
 
 -- Static preview from the JSON.
@@ -191,7 +207,7 @@ function Levels.preview_raw(raw)
 			elseif s.type == "balloon" then c[1], c[2] = "A", LETTER[s.color] or "?"
 			elseif ITEM[s.type] then
 				c[1] = ITEM[s.type]
-				c[2] = s.hp and tostring(s.hp) or " "
+				c[2] = hp_char(s.hp)
 				if s.type == "column" then
 					for dy = 0, 1 do
 						for dx = 0, 1 do
@@ -253,7 +269,7 @@ function Levels.preview_game(game, W, H)
 			elseif p.kind == "blocker" then
 				c[1] = ITEM[p.item] or "?"
 				if p.item == "balloon" then c[2] = LETTER[p.color] or "?"
-				elseif p.hp and p.item ~= "noise" then c[2] = tostring(p.hp) end
+				elseif p.hp and p.item ~= "noise" then c[2] = hp_char(p.hp) end
 				if p.item == "column" then
 					for dy = 0, 1 do
 						for dx = 0, 1 do
@@ -270,12 +286,17 @@ end
 
 -- CLI ---------------------------------------------------------------------------
 
+-- Level files named by the positional arguments (ids, ranges "12-15",
+-- lists "1,3,5", names or paths), or every level file of the directory.
+-- Returns the list, or nil and a message for a malformed range.
 local function files_from(pos, dir)
 	if #pos == 0 then return common.level_files(dir) end
 	local out = {}
 	for _, p in ipairs(pos) do
 		if p:match("^[%d,%-]+$") and p:find("[,%-]") then
-			for _, id in ipairs(common.parse_ids(p)) do out[#out + 1] = common.level_path(tostring(id), dir) end
+			local ids, err = common.parse_ids(p)
+			if not ids then return nil, err end
+			for _, id in ipairs(ids) do out[#out + 1] = common.level_path(tostring(id), dir) end
 		else
 			out[#out + 1] = common.level_path(p, dir)
 		end
@@ -283,14 +304,35 @@ local function files_from(pos, dir)
 	return out
 end
 
+-- Ids in 1..upto without a file, as ranges ("71-100", "5", "8-9").
+function Levels.missing_ranges(ids, upto)
+	local have = {}
+	for _, id in ipairs(ids) do have[id] = true end
+	local out, start = {}, nil
+	for id = 1, upto + 1 do
+		if id <= upto and not have[id] then
+			start = start or id
+		elseif start then
+			out[#out + 1] = (start == id - 1) and tostring(start) or (start .. "-" .. (id - 1))
+			start = nil
+		end
+	end
+	return out
+end
+
 local function cmd_validate(opts, pos, dir)
-	local files = files_from(pos, dir)
+	local files, ferr = files_from(pos, dir)
+	if not files then
+		io.stderr:write("levels: " .. ferr .. "\n")
+		return 2
+	end
 	if #files == 0 then
 		print("no level files in " .. dir)
 		return 1
 	end
 	local core = require("core.game")
 	local bad, warned = 0, 0
+	local present = {}
 	for _, f in ipairs(files) do
 		local r = Levels.validate_file(f, core)
 		local name = f:match("[^/\\]+$")
@@ -310,9 +352,20 @@ local function cmd_validate(opts, pos, dir)
 		end
 		for _, w in ipairs(r.warnings) do print("       warning: " .. w) end
 		if #r.warnings > 0 then warned = warned + 1 end
+		local num = f:match("level_(%d+)%.json$")
+		if num then present[#present + 1] = tonumber(num) end
+	end
+	-- a whole directory is the 100-level game: say which files are missing
+	local gaps = 0
+	if #pos == 0 then
+		local missing = Levels.missing_ranges(present, 100)
+		if #missing > 0 then
+			gaps = 1
+			print((opts.strict and "FAIL " or "warning: ") .. "plan: level files missing: " .. table.concat(missing, ", "))
+		end
 	end
 	print(string.format("%d level(s): %d ok, %d failed, %d with plan warnings", #files, #files - bad, bad, warned))
-	return bad > 0 and 1 or 0
+	return (bad > 0 or (opts.strict and gaps > 0)) and 1 or 0
 end
 
 -- Statistics of raw levels: {counts, stars, rows, first}.
@@ -337,11 +390,20 @@ end
 
 local function cmd_stats(opts, pos, dir)
 	local raws = {}
-	for _, f in ipairs(files_from(pos, dir)) do
+	local files, ferr = files_from(pos, dir)
+	if not files then
+		io.stderr:write("levels: " .. ferr .. "\n")
+		return 2
+	end
+	for _, f in ipairs(files) do
 		local text = common.read_file(f)
 		local raw = text and common.decode(text)
-		if raw and raw.id and raw.size and raw.colors then raws[#raws + 1] = raw
-		else print("skipped (unreadable): " .. f) end
+		if type(raw) == "table" and type(raw.id) == "number" and type(raw.size) == "table" and type(raw.colors) == "table"
+			and type(raw.difficulty) == "string" then
+			raws[#raws + 1] = raw
+		else
+			print("skipped (unreadable): " .. f)
+		end
 	end
 	local st = Levels.stats(raws)
 	if opts.json then
@@ -364,10 +426,28 @@ local function cmd_stats(opts, pos, dir)
 	return 0
 end
 
+-- True when the level JSON has what the drawing needs: size, cells, slots.
+local function drawable(raw)
+	if type(raw) ~= "table" then return false, "the file is not a JSON object" end
+	if type(raw.size) ~= "table" or type(raw.size[1]) ~= "number" or type(raw.size[2]) ~= "number" then
+		return false, "no usable size"
+	end
+	if type(raw.cells) ~= "table" or #raw.cells < raw.size[2] then return false, "no usable cells" end
+	for y = 1, raw.size[2] do
+		if type(raw.cells[y]) ~= "string" then return false, "no usable cells" end
+	end
+	return true
+end
+
 local function cmd_preview(opts, pos, dir)
 	if #pos == 0 then
 		print("usage: luajit tools/levels.lua preview <id|file> [--seed n]")
 		return 1
+	end
+	local seed, serr = common.int_option(opts, "seed", nil, 1, 2147483646)
+	if serr then
+		io.stderr:write("levels: " .. serr .. "\n")
+		return 2
 	end
 	local path = common.level_path(pos[1], dir)
 	local text, err = common.read_file(path)
@@ -376,38 +456,54 @@ local function cmd_preview(opts, pos, dir)
 		return 1
 	end
 	local raw, jerr = common.decode(text)
-	if not raw then
-		print(path .. ": " .. jerr)
+	local ok, why = drawable(raw)
+	if not ok then
+		print(path .. ": " .. (jerr or why))
 		return 1
 	end
 	print(string.format("level %s: %s, %dx%d, %d moves, colours %s; goals: %s", tostring(raw.id), tostring(raw.difficulty),
-		raw.size[1], raw.size[2], raw.moves or 0, table.concat(raw.colors or {}, " "), Levels.goals_text(raw)))
-	if opts.seed then
+		raw.size[1], raw.size[2], tonumber(raw.moves) or 0, type(raw.colors) == "table" and table.concat(raw.colors, " ") or "?",
+		Levels.goals_text(raw)))
+	if seed then
 		local core = require("core.game")
 		local lvl, errs = core.load_level(text)
 		if not lvl then
 			print("invalid: " .. table.concat(errs, "; "))
 			return 1
 		end
-		local game = core.new(lvl, { seed = tonumber(opts.seed) })
-		print("start board, seed " .. opts.seed .. ":")
+		local game = core.new(lvl, { seed = seed })
+		print("start board, seed " .. seed .. ":")
 		print(Levels.preview_game(game, raw.size[1], raw.size[2]))
 	else
-		print(Levels.preview_raw(raw))
+		local drawn, board = pcall(Levels.preview_raw, raw)
+		if not drawn then
+			print(path .. ": cannot draw: " .. tostring(board))
+			return 1
+		end
+		print(board)
 	end
 	print(Levels.LEGEND)
 	return 0
 end
 
+local USAGE = "usage: luajit tools/levels.lua validate [ids|files...] [--strict] | stats [ids|files...] [--json]"
+	.. " | preview <id|file> [--seed n]   (--dir content/levels)"
+local FLAGS = { strict = true, json = true, help = true }
+local VALUES = { dir = true, seed = true }
+Levels.OPTIONS = { flags = FLAGS, values = VALUES }
+
 function Levels.main(argv)
-	local opts, pos = common.parse_args(argv, { strict = true, json = true, help = true })
+	local opts, pos, perr = common.parse_args(argv, FLAGS, VALUES)
+	if perr then
+		io.stderr:write("levels: " .. perr .. "\n" .. USAGE .. "\n")
+		return 2
+	end
 	local cmd = table.remove(pos, 1)
 	local dir = opts.dir or (ROOT .. "content/levels")
 	if cmd == "validate" then return cmd_validate(opts, pos, dir) end
 	if cmd == "stats" then return cmd_stats(opts, pos, dir) end
 	if cmd == "preview" then return cmd_preview(opts, pos, dir) end
-	print("usage: luajit tools/levels.lua validate [ids|files...] [--strict] | stats [--json] | preview <id|file> [--seed n]"
-		.. "   (--dir content/levels)")
+	print(USAGE)
 	return (cmd == nil or opts.help) and 0 or 1
 end
 

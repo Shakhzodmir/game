@@ -103,6 +103,9 @@ function M.build(e)
 	local st = e.state
 	local p = e.params
 	st.phase = st.phase or "closed"
+	-- rebuilt while the chest wobbled (a language change): the wobble and its callback are gone with the
+	-- nodes, so open it now instead of waiting for them
+	if st.phase == "opening" then st.phase = "open" end
 	st.items = {}
 	local items = views.chest_items(p.chest)
 	local opened = st.phase == "open" or st.phase == "done"
@@ -152,8 +155,7 @@ function M.build(e)
 		local holder = draw_item(e, it, i, #items, animate)
 		if animate and not kit.reduced() then
 			gui.set_enabled(holder, false)
-			e.fx:after(0.15 + (i - 1) * 0.22, function()
-				if e.closing then return end
+			e:later(0.15 + (i - 1) * 0.22, function()
 				gui.set_enabled(holder, true)
 				e.fx:sfx(it.kind == "coins" and "coin" or "star", nil, 0.05)
 				gui.animate(holder, "position", vmath.vector3(item_x(i, #items), ITEMS_Y, 0), gui.EASING_OUTBACK, 0.45)

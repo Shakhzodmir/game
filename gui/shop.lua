@@ -11,6 +11,7 @@ local views = require("client.views")
 local ui = require("client.ui")
 local iap = require("client.services.iap")
 local ads = require("client.services.ads")
+local analytics = require("client.services.analytics")
 local kit = require("gui.kit")
 
 local M = {}
@@ -18,8 +19,6 @@ local M = {}
 M.rebuild_on_meta = true
 
 local W, H = 680, 1150
-
-local gift_at = nil -- app time of the last shop gift (this session)
 
 local function coins_fly(e, n, x, y)
 	if not e.pill then return end
@@ -67,6 +66,7 @@ local function buy_pack(e, b, x, y, node)
 		return
 	end
 	app.commit("booster_pack")
+	analytics.log("booster_buy", { id = b.id, count = res.count, price = res.price })
 	kit.sfx("booster")
 	local ax, ay = kit.abs(x, y)
 	e.fx:burst(ax, ay, { count = 12, radius = 120 })
@@ -90,6 +90,7 @@ local function refill(e, x, y, node)
 		return
 	end
 	app.commit("refill_lives")
+	analytics.log("lives_refill", { price = require("meta.config").lives.refill_price })
 	kit.sfx("unlock")
 	local ax, ay = kit.abs(x, y)
 	e.fx:burst(ax, ay, { count = 12, radius = 120, colors = { "#FFFFFF", "#FFB3C7", "#FF4D8D" } })
@@ -126,15 +127,15 @@ local function gift(e, x, y, node)
 		app.toast_key("shop.gift_unavailable", nil, { color = "blue" })
 		return
 	end
-	local now = app.now()
-	if gift_at and now - gift_at < ads.GIFT_COOLDOWN then
+	local wait = ads.cooldown_left("shop_gift", app.now())
+	if wait > 0 then
 		kit.sfx("swap_fail")
-		app.toast_key("shop.gift_wait", { time = i18n.duration(ads.GIFT_COOLDOWN - (now - gift_at)) }, { color = "blue" })
+		app.toast_key("shop.gift_wait", { time = i18n.duration(wait) }, { color = "blue" })
 		return
 	end
 	ads.show_rewarded("shop_gift", function(ok)
 		if not ok then return end
-		gift_at = app.now()
+		ads.mark_rewarded("shop_gift", app.now())
 		local r = ads.REWARDS.shop_gift
 		local before = app.meta:coins()
 		e.shown_coins = before
@@ -174,7 +175,7 @@ local function booster_card(e, body, b, x, y, focus)
 	if not b.affordable then gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.7)) end
 	e:target("pack_" .. b.id, x, y - 62)
 	if hl and e.first then
-		e.fx:after(0.3, function() if not e.closing then e.fx:pop(card, 0.12, 0.35) end end)
+		e:later(0.3, function() e.fx:pop(card, 0.12, 0.35) end)
 	end
 	return card
 end
@@ -279,8 +280,12 @@ local function gift_row(e, body, y)
 	s:text(inner, "+" .. i18n.number(r.coins or 0), -132, -17, { font = "number", size = 26, color = "gold", pivot = gui.PIVOT_W })
 	local btn
 	if avail then
-		btn = s:button({ parent = inner, x = 196, y = 0, w = 176, h = 92, style = "green", icon = "ui/icons/play", icon_size = 44,
-			text = i18n.t("shop.gift_desc"), text_size = 22, sfx = false, on_click = function() gift(e, 196, y, row) end })
+		btn = s:button({ parent = inner, x = 196, y = 0, w = 176, h = 92, style = "green", sfx = false,
+			on_click = function() gift(e, 196, y, row) end })
+		-- the words wrap onto a second line before they shrink ("Watch a video" / "Посмотри видео")
+		local edge = ui.STYLES.green[4]
+		kit.label(e, btn.node, i18n.t("shop.gift_desc"), 0, 6, { font = "button", size = 26, color = "white",
+			outline = edge, shadow = edge, max_width = 152 })
 	else
 		btn = s:button({ parent = inner, x = 196, y = 0, w = 176, h = 92, style = "white", text = i18n.t("nav.soon"), text_size = 30,
 			sfx = false, on_click = function() gift(e, 196, y, row) end })

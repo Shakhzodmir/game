@@ -386,3 +386,103 @@ describe("core combos: determinism with effects in flight", function()
 		end
 	end)
 end)
+
+-- Audit B2: details of 8.5 that the tests above leave open.
+
+describe("core combos: audit B2 (8.5)", function()
+	it("Colour X: the Riff axis follows the index k in L, so a skipped transform does not shift it", function()
+		local g = combo_game({ ["3,3"] = "D", ["4,3"] = "R", ["1,1"] = "B" })
+		H.arm(g, { 3, 3 }, { 4, 3 })
+		g:step()
+		local axes = {}
+		for _, e in ipairs(H.of_type(g:drain_events(), "transform")) do axes[#axes + 1] = e.t .. e.axis end
+		assert_true(g:input({ type = "tap", at = { 1, 1 } }))
+		g:step() -- tick 2: the Bird's cross destroys (2,1) = L[3] (k = 3), whose transform is due at tick 7
+		for _, e in ipairs(H.of_type(H.steps(g, 16), "transform")) do axes[#axes + 1] = e.t .. e.axis end
+		-- k = 0 h at 1, then 1 v, 2 h, (3 skipped), 4 h, 5 v, 6 h, 7 v, 8 h
+		assert_same(axes, { "1h", "3v", "5h", "9h", "11v", "13h", "15v", "17h" })
+	end)
+
+	it("Colour X: the list leaves out wired pieces, balloons, pinned pieces and pieces in other states", function()
+		local B = require("core.board")
+		local g = H.game(FULL, { goals = { { type = "break", item = "balloon", count = 1 } },
+			overlay = { { at = { 0, 0 }, type = "wires", hp = 1 } }, slots = { { at = { 5, 5 }, type = "balloon", color = "red" } } })
+		H.board(g, { "rrbrry", "rrrgrr", "brDRbr", "rbrrbr", "rrgrrb", "yrbrrA" })
+		g.s.wires[1] = 1 -- the red piece (1,1) is under wires
+		B.pin(H.obj_at(g, 2, 1), 99) -- pinned by another source
+		local fading = H.obj_at(g, 3, 2) -- not idle (and no landing that would dirty the board)
+		fading.state, fading.tk, fading.td = C.S_CLEAR, C.TM_CLEAR, 100
+		local balloon = H.obj_at(g, 6, 6)
+		H.arm(g, { 3, 3 }, { 4, 3 })
+		g:step()
+		local ev = g:drain_events()
+		assert_eq(ev[1].color, "red", "red is the most frequent colour without wires")
+		local sid = H.sources(g)[1]
+		local n = 0
+		for _, o in ipairs(B.objects(g.s)) do
+			if o.pins[1] == sid then
+				n = n + 1
+				assert_eq(o.color, C.COLOR.red)
+				assert_eq(g.s.wires[o.cell], 0, "no wired piece")
+				assert_true(o.cell ~= H.idx(g, 2, 1) and o.cell ~= H.idx(g, 3, 2), "no pinned or fading piece")
+			end
+		end
+		-- 22 reds in the picture, less the wired one, the pinned one and the fading one; the first
+		-- transform has already run (its piece is armed now)
+		assert_eq(n, 22 - 3 - 1)
+		assert_same(balloon.pins, {}, "balloons are not in the list of Colour X")
+		assert_same(H.obj_at(g, 1, 1).pins, {}, "wired")
+	end)
+
+	it("Colour X: a transformed piece keeps its id and its label (1.4.4)", function()
+		local g = combo_game({ ["3,3"] = "D", ["4,3"] = "R" })
+		local piece = H.obj_at(g, 4, 2) -- L[1]: the nearest red piece, index first
+		piece.mv, piece.wv = 7, 2
+		local id, next_id = piece.id, g.s.next_piece_id
+		H.arm(g, { 3, 3 }, { 4, 3 })
+		g:step()
+		assert_eq(H.obj_at(g, 4, 2), piece, "converted in place")
+		assert_same({ piece.id, piece.mv, piece.wv, piece.kind, piece.state }, { id, 7, 2, C.K_SPECIAL, C.S_ARMED })
+		assert_eq(g.s.next_piece_id, next_id, "no new id for a transformation")
+	end)
+
+	it("Colour X: completing the last goal with a transform ends in `won_wait` right after the goal event", function()
+		-- the goal needs 2 reds; the transforms k = 0 and k = 1 collect them
+		local g = H.game(FULL, { goals = { { type = "collect", color = "red", count = 2 } } })
+		H.board(g, H.rows(6, 6, { ["3,3"] = "D", ["4,3"] = "S" }))
+		H.arm(g, { 3, 3 }, { 4, 3 })
+		g:step()
+		local ev = g:drain_events()
+		local seq = {}
+		for _, e in ipairs(ev) do seq[#seq + 1] = e.type .. (e.left or "") end
+		assert_same(seq, { "activate", "transform", "score", "goal1" })
+		ev = H.steps(g, 2) -- tick 3: transform k = 1
+		seq = {}
+		for _, e in ipairs(ev) do
+			if e.type ~= "spawn" then seq[#seq + 1] = e.type .. (e.left or e.state or "") end
+		end
+		assert_same(seq, { "transform", "score", "goal0", "statewon_wait" })
+		g:run_to_rest()
+		assert_same(H.sources(g), {})
+	end)
+
+	it("Triple cross next to a void: the exit point may be a void, the bolt still leaves it", function()
+		-- voids (3,2) and (4,2): the row y-1 of a centre at (3,3) leaves from the void (3,2)
+		local g = H.game({ "######", "##..##", "######", "######", "######", "######" })
+		H.board(g, H.rows(6, 6, { ["3,3"] = "R", ["4,3"] = "S", ["3,2"] = ".", ["4,2"] = "." }))
+		H.arm(g, { 3, 3 }, { 4, 3 })
+		g:step()
+		local ev = g:drain_events()
+		local from_void = {}
+		for _, e in ipairs(H.of_type(ev, "bolt")) do
+			if e.x == 3 and e.y == 2 then from_void[#from_void + 1] = e.dir .. e.at end
+		end
+		assert_same(from_void, { "l7", "r7" }, "both bolts leave the void at t0 + 6")
+		-- (2,2) is at d = 1 from the exit, (5,2) at d = 2, (1,2) at d = 2, (6,2) at d = 3
+		local at = {}
+		for _, h in ipairs(H.hits(g)) do
+			if h[3] == 2 then at[#at + 1] = h[2] .. ":" .. h[1] end
+		end
+		assert_same(at, { "2:10", "1:12", "5:12", "6:14" })
+	end)
+end)

@@ -212,12 +212,20 @@ function M.set_moves(text, moves)
 	return text:sub(1, a - 1) .. string.format("%d", moves) .. text:sub(b + 1)
 end
 
+-- Checksum of a level's text without the digits of "moves": two texts with
+-- the same signature differ at most in the move limit.
+function M.level_sig(text)
+	local v, a, b = M.find_moves(text)
+	if v then text = text:sub(1, a - 1) .. text:sub(b + 1) end
+	return M.checksum(text)
+end
+
 -- A level entry from JSON text: {path, text, raw, id, difficulty, moves,
 -- goals, level} or nil, errors (array of strings).
 function M.entry_from_text(text, path, core)
 	core = core or require("core.game")
 	local raw, jerr = M.decode(text)
-	if not raw then return nil, { "json: " .. jerr } end
+	if type(raw) ~= "table" then return nil, { "json: " .. (jerr or "the level is not a JSON object") } end
 	local level, errs = core.load_level(text)
 	if not level then return nil, errs end
 	return {
@@ -305,21 +313,35 @@ end
 
 -- Command line ---------------------------------------------------------------
 
--- Parses `--key value`, `--flag` and positional arguments. `flags` lists
--- the options that take no value.
-function M.parse_args(argv, flags)
+-- Parses `--key value`, `--key=value`, `--flag` and positional arguments.
+-- `flags` is the set of options that take no value. With `values` (the set
+-- of options that take one) any other `--option` is an error, so a typo such
+-- as `--level 5` cannot silently select every level. Returns opts, pos and,
+-- on a bad command line, an error text as the third value.
+function M.parse_args(argv, flags, values)
 	flags = flags or {}
 	local opts, pos = {}, {}
 	local i = 1
 	while i <= #argv do
 		local a = argv[i]
-		local key = a:match("^%-%-([%w%-_]+)$")
+		local key, inline = a:match("^%-%-([%w%-_]+)=(.*)$")
+		if not key then key = a:match("^%-%-([%w%-_]+)$") end
 		if key then
 			if flags[key] then
+				if inline ~= nil then return opts, pos, "option --" .. key .. " takes no value" end
 				opts[key] = true
 				i = i + 1
+			elseif values and not values[key] then
+				return opts, pos, "unknown option --" .. key
+			elseif inline ~= nil then
+				opts[key] = inline
+				i = i + 1
 			else
-				opts[key] = argv[i + 1]
+				local v = argv[i + 1]
+				if values and (v == nil or v:match("^%-%-[%a]")) then
+					return opts, pos, "option --" .. key .. " needs a value"
+				end
+				opts[key] = v
 				i = i + 2
 			end
 		else
@@ -330,15 +352,37 @@ function M.parse_args(argv, flags)
 	return opts, pos
 end
 
--- "1-5,8,10" -> {1,2,3,4,5,8,10}
+-- Integer option: value in [lo, hi] or the default when the option is absent.
+-- Returns nil and a message for a bad value (not a number, fraction, range).
+function M.int_option(opts, key, default, lo, hi)
+	local raw = opts[key]
+	if raw == nil then return default end
+	local v = tonumber(raw)
+	if not v or v ~= v or v == math.huge or v == -math.huge or v ~= math.floor(v) then
+		return nil, string.format("--%s: an integer is expected, got '%s'", key, tostring(raw))
+	end
+	if (lo and v < lo) or (hi and v > hi) then
+		return nil, string.format("--%s: %s..%s expected, got %d", key, tostring(lo or "-inf"), tostring(hi or "inf"), v)
+	end
+	return v
+end
+
+-- "1-5,8,10" -> {1,2,3,4,5,8,10}. A malformed part or a backwards range
+-- gives nil and a message instead of being skipped silently.
 function M.parse_ids(spec)
 	local out = {}
+	if type(spec) ~= "string" or spec == "" then return nil, "an empty list of levels" end
 	for part in spec:gmatch("[^,]+") do
 		local a, b = part:match("^(%d+)%-(%d+)$")
 		if a then
-			for k = tonumber(a), tonumber(b) do out[#out + 1] = k end
+			a, b = tonumber(a), tonumber(b)
+			if b < a then return nil, "backwards range '" .. part .. "'" end
+			if b - a > 100000 then return nil, "range too long '" .. part .. "'" end
+			for k = a, b do out[#out + 1] = k end
 		elseif part:match("^%d+$") then
 			out[#out + 1] = tonumber(part)
+		else
+			return nil, "cannot read '" .. part .. "' (expected N, A-B or a comma list)"
 		end
 	end
 	return out

@@ -88,10 +88,16 @@ function S.town_streak()
 	app.commit("snapshot")
 end
 function S.town_concert()
-	app.meta:set_view("cafe", "concert")
+	require("client.bus").publish("meta_qa", { action = "view", view = "concert" }) -- as the QA command does
 end
 function S.town_jazz()
 	done_tasks_of_cafe()
+end
+function S.town_browse()
+	done_tasks_of_cafe()
+	E.step(10)
+	E.tap(68, 1108 + 0) -- the left arrow of the ribbon (design-area coordinates, no safe area)
+	E.step(60)
 end
 function S.start() popup(main, "start") end
 function S.start_streak()

@@ -298,6 +298,9 @@ describe("core gravity: scan table and transfers (10.1)", function()
 		for _, e in ipairs(g:drain_events()) do
 			if e.type == "spawn" then assert_true(e.x ~= 3, "no spawn in column 3") end
 		end
+		for _, p in ipairs(g:pieces()) do
+			if p.x == 3 and p.y == 3 then assert_false(p.hidden, "no spawner above: nothing to hide behind") end
+		end
 	end)
 
 	it("a faller that moves on keeps vy and delay and does not advance the start counter", function()
@@ -423,10 +426,11 @@ describe("core gravity: help colours (10.3)", function()
 		local goals = { goals = { { type = "collect", color = "red", count = 999 } } }
 		local o = spawn_one(rows, goals, { help = 2, seed = seed }, function(g) g.s.goal_left = { 0 } end)
 		assert_eq(o.color, C.COLOR.green, "green and blue tie high; green is smaller")
-		-- wired green pieces still count
+		-- wired green pieces still count (14 green against 13 blue, two of the green under wires)
 		o = spawn_one(rows, goals, { help = 2, seed = seed }, function(g)
 			g.s.goal_left = { 0 }
-			g.s.wires[8] = 1
+			g.s.wires[7] = 1
+			g.s.wires[9] = 1
 		end)
 		assert_eq(o.color, C.COLOR.green)
 		-- pinning the green pieces hands the colour to blue
@@ -530,5 +534,53 @@ describe("core gravity: microphones (10.4)", function()
 		local ev = H.of_type(g:drain_events(), "mic_delivered")
 		assert_same({ ev[1].x, ev[2].x }, { 1, 6 })
 		assert_eq(g.s.goal_left[1], 1)
+	end)
+end)
+
+describe("core gravity: diagonal details (10.1)", function()
+	it("the faller below must be strictly higher than the cell: equal centres still slide", function()
+		-- c = (2,3) under the box (2,2); a faller in (2,4) whose centre sits exactly on c
+		local rows = { "byrgby", "yXgbyr", "r_byrg", "gbyrgb", "byrgby", "yrggbg" }
+		local g = fresh(rows)
+		local below = H.obj_at(g, 2, 4)
+		below.state, below.offy, below.vy, below.delay = C.S_FALL, 3600, 300, 3
+		local right = H.obj_at(g, 3, 2)
+		assign(g)
+		assert_eq(H.obj_at(g, 2, 3), right, "vis_y = y_c * 3600: not higher, so the slide goes ahead")
+		local g2 = fresh(rows)
+		local b2 = H.obj_at(g2, 2, 4)
+		b2.state, b2.offy, b2.vy, b2.delay = C.S_FALL, 3601, 300, 3
+		assign(g2)
+		assert_eq(H.obj_at(g2, 2, 3), nil, "one unit higher: wait")
+	end)
+
+	it("a pinned piece is no donor", function()
+		local g = fresh({ "byrgby", "yXgbyr", "r_byrg", "gbyrgb", "byrgby", "yrggbg" })
+		H.obj_at(g, 3, 2).pins = { 9 } -- the right donor, first in tick 1
+		local left = H.obj_at(g, 1, 2)
+		assign(g)
+		assert_eq(H.obj_at(g, 2, 3), left, "the left donor takes over")
+		local g2 = fresh({ "byrgby", "yXgbyr", "r_byrg", "gbyrgb", "byrgby", "yrggbg" })
+		H.obj_at(g2, 3, 2).pins = { 9 }
+		H.obj_at(g2, 1, 2).pins = { 9 }
+		assign(g2)
+		assert_eq(H.obj_at(g2, 2, 3), nil, "no donor: a hole")
+	end)
+
+	it("a piece with wires is no donor", function()
+		local g = fresh({ "byrgby", "yXgbyr", "r_byrg", "gbyrgb", "byrgby", "yrggbg" })
+		g.s.wires[9] = 1 -- (3,2)
+		local left = H.obj_at(g, 1, 2)
+		assign(g)
+		assert_eq(H.obj_at(g, 2, 3), left)
+	end)
+
+	it("a donor above a void is supported: the cell under it does not exist", function()
+		local lvl = H.load({ "######", "######", "##.###", "######", "######", "######" })
+		local g = core.new(lvl, { seed = 1 })
+		H.board(g, { "byrgby", "XXrbyr", "r_.yrg", "gbyrgb", "byrgby", "yrggbg" })
+		local donor = H.obj_at(g, 3, 2)
+		assign(g)
+		assert_eq(H.obj_at(g, 2, 3), donor)
 	end)
 end)

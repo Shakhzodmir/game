@@ -104,6 +104,44 @@ describe("screens.town.show", function()
 		assert_true(ran)
 	end)
 
+	it("goes on with the next step when one raises, so the town is never stuck busy", function()
+		local t = fake_town()
+		local sh = show_mod.new(t)
+		local hooks = require("client.hooks")
+		local warned, reported = {}, {}
+		local old_warn = show_mod.warn
+		show_mod.warn = function(text) warned[#warned + 1] = text end
+		local off = hooks.on_error(function(source, message) reported[#reported + 1] = source .. ": " .. message end)
+		local landed, ran = false, false
+		sh:push({ name = "broken", run = function() error("boom") end, finish = function() landed = true end })
+		sh:push({ name = "after", run = function(done) ran = true; done() end })
+		sh:update()
+		off()
+		show_mod.warn = old_warn
+		assert_true(landed, "what the step held is landed")
+		assert_eq(#warned, 1)
+		assert_true(string.find(warned[1], "boom", 1, true) ~= nil)
+		assert_eq(#reported, 1)
+		assert_eq(sh:name(), nil)
+		assert_eq(t.fx.cleared, 1)
+		sh:update()
+		assert_true(ran)
+		assert_false(sh:busy())
+	end)
+
+	it("waits while a district slides in", function()
+		local t = fake_town()
+		local sh = show_mod.new(t)
+		local ran = false
+		sh:push({ name = "x", run = function() ran = true end })
+		t.sliding = true
+		sh:update()
+		assert_false(ran)
+		t.sliding = false
+		sh:update()
+		assert_true(ran)
+	end)
+
 	it("skips a skippable step to its end state; a late done is ignored", function()
 		local t = fake_town()
 		local sh = show_mod.new(t)

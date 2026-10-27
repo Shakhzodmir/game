@@ -288,8 +288,26 @@ async function debugChecks() {
 	await tap(page, 660, 1210);
 	await sleep(700);
 	await page.screenshot({ path: `${outDir}/client_town_ru_settings.png` });
-	await tap(page, 360 + 140, 660 - (150 + 150 + 260) / 2 + 90); // "Закрыть"
-	await sleep(500);
+	check((await state(page)).app.ui.popup === 'settings', 'settings: the gear opens the settings window', (await state(page)).app.ui.popup);
+	await command(page, 'close');
+	await waitFor(page, s => !s.app.ui.popup, 'settings closed', 5000);
+
+	// every window of the town through the bridge (client/meta_qa.lua "open"): it opens, is drawn and closes
+	await command(page, 'lang en');
+	for (const [popup, params, shot] of [
+		['start', '', 'client_start'], ['lives', '', 'client_lives'], ['shop', '{"tab":"boosters"}', 'client_shop'],
+		['shop', '{"tab":"coins"}', 'client_shop_coins'], ['jukebox', '', 'client_jukebox'], ['gift', '{"id":"riff"}', 'client_gift'],
+		['chest', '', 'client_chest'], ['concert', '', 'client_concert'],
+	]) {
+		await command(page, 'open ' + popup + (params ? ' ' + params : ''));
+		await waitFor(page, st => st.app.ui && st.app.ui.popup === popup, 'window ' + popup, 8000);
+		await sleep(popup === 'concert' ? 1500 : 800);
+		await page.screenshot({ path: `${outDir}/${shot}.png` });
+		await command(page, 'close');
+		await waitFor(page, st => !st.app.ui.popup, 'window ' + popup + ' closed', 8000);
+		check(true, 'window ' + popup + ' opens, draws and closes');
+	}
+	await command(page, 'lang ru'); // the reload check below expects the saved language
 
 	// a failed save is retried and reported
 	await command(page, 'save_fail 1');

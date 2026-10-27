@@ -56,4 +56,31 @@ function F.capture(cmd)
 	return out
 end
 
+-- The interpreter running the tests (the CLI tests use the same one).
+function F.vm()
+	return (jit and "luajit") or "lua5.1"
+end
+
+-- Runs a shell command with stderr merged into stdout; returns the output
+-- and the exit code.
+function F.sh(cmd)
+	local out = F.capture("(" .. cmd .. ") 2>&1; echo \"[exit $?]\"")
+	local code = tonumber(out:match("%[exit (%d+)%]%s*$"))
+	return (out:gsub("%[exit %d+%]%s*$", "")), code
+end
+
+-- Writes `level_NNNN.json` fixture files into a directory; `extras[id]`
+-- overrides keys of the level with that id. Returns the paths.
+function F.write_levels(dir, ids, extras)
+	local paths = {}
+	for _, id in ipairs(ids) do
+		local extra = { id = id, moves = 33, goals = { { type = "collect", color = "red", count = 6 } } }
+		for k, v in pairs((extras or {})[id] or {}) do extra[k] = v end
+		local path = string.format("%s/level_%04d.json", dir, id)
+		assert(common.write_file(path, F.level_text(extra)))
+		paths[#paths + 1] = path
+	end
+	return paths
+end
+
 return F

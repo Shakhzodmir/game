@@ -81,6 +81,13 @@ local S = {
 	["hud.no_boosters"] = { en = "No boosters of this kind left", ru = "Таких бустеров не осталось" },
 	["hud.wait_board"] = { en = "Wait until the board settles", ru = "Подожди, пока поле успокоится" },
 	["hud.booster_no"] = { en = "Nothing to do there: pick another spot", ru = "Тут нечего делать — выбери другое место" },
+	["hud.pick_cell"] = { en = "Pick a piece", ru = "Выбери фишку" },
+	["hud.pick_row"] = { en = "Pick a row", ru = "Выбери ряд" },
+	["hud.pick_col"] = { en = "Pick a column", ru = "Выбери колонку" },
+	["hud.hard"] = { en = "Hard", ru = "Сложный" },
+	["hud.super_hard"] = { en = "Super Hard", ru = "Суперсложный" },
+	["hud.boosters_free"] = { en = "Free boosters in this test level", ru = "В тестовом уровне бустеры бесплатные" },
+	["hud.tutorial_blocked"] = { en = "Do the move the hand shows", ru = "Сделай ход, который показывает рука" },
 	["popup.level.out_title"] = { en = "Out of moves!", ru = "Ходы закончились!" },
 	["popup.level.out_text"] = { en = "Get {n} more moves for {price} coins?", ru = "Ещё {n} ходов за {price} монет?" },
 	["popup.level.out_text_free"] = { en = "Debug level: {n} more moves for free", ru = "Отладка: ещё {n} ходов бесплатно" },
@@ -197,6 +204,14 @@ local S = {
 	},
 	["pause.quit_streak"] = { en = "Your hit streak will be lost.", ru = "Серия хитов сгорит." },
 	["pause.quit_free"] = { en = "Nothing is lost before your first move.", ru = "До первого хода ничего не теряется." },
+	["pause.boosters_back"] = {
+		en = "The boosters you took along come back.",
+		ru = "Бустеры, которые ты взял с собой, вернутся.",
+	},
+	["pause.warn_loss"] = { en = "Leaving counts as a loss.", ru = "Выход засчитается как поражение." },
+	["pause.leave_title"] = { en = "Leave the level?", ru = "Выйти из уровня?" },
+	["pause.stay"] = { en = "Keep playing", ru = "Остаться" },
+	["pause.level"] = { en = "Level {n}", ru = "Уровень {n}" },
 
 	-- out of moves -------------------------------------------------------------------------------
 	["continue.title"] = { en = "Out of moves!", ru = "Ходы кончились!" },
@@ -212,6 +227,17 @@ local S = {
 		ru = "Серия хитов ({n}) сгорит!",
 	},
 	["continue.life_warning"] = { en = "You will lose a life.", ru = "Ты потеряешь жизнь." },
+	["continue.warn_loss"] = { en = "Giving up counts as a loss.", ru = "Сдача засчитается как поражение." },
+	["continue.if_give_up"] = { en = "If you give up:", ru = "Если сдашься:" },
+	["continue.no_coins"] = { en = "Not enough coins: you have {n}", ru = "Не хватает монет: у тебя {n}" },
+	["continue.use_booster"] = { en = "Or use a booster:", ru = "Или возьми бустер:" },
+	["continue.sub"] = { en = "A few more moves can do it!", ru = "Ещё пара ходов — и победа!" },
+	["continue.stuck"] = {
+		en = "No move is left on the board. Use a booster or give up.",
+		ru = "На поле не осталось ходов. Возьми бустер или сдайся.",
+	},
+	["continue.free_debug"] = { en = "Test level: free", ru = "Тестовый уровень: бесплатно" },
+	["continue.limit"] = { en = "No more extra moves for this attempt.", ru = "Дополнительных ходов в этой попытке больше нет." },
 
 	-- lose ------------------------------------------------------------------------------------------
 	["lose.title"] = { en = "Level failed", ru = "Уровень не пройден" },
@@ -219,6 +245,20 @@ local S = {
 	["lose.town"] = { en = "To town", ru = "В город" },
 	["lose.life_lost"] = { en = "−1 life", ru = "−1 жизнь" },
 	["lose.streak_lost"] = { en = "Hit streak lost", ru = "Серия хитов сгорела" },
+	["lose.close"] = { en = "So close!", ru = "Совсем чуть-чуть!" },
+	["lose.left"] = { en = "Still to do", ru = "Осталось сделать" },
+	["lose.lives"] = { en = "Lives: {n} of {max}", ru = "Жизни: {n} из {max}" },
+	["lose.no_lives"] = { en = "No lives left. A new one in {time}", ru = "Жизней нет. Новая через {time}" },
+	["lose.quit"] = { en = "You left the level", ru = "Ты вышел из уровня" },
+	["lose.cheer"] = { en = "Next time!", ru = "В следующий раз получится!" },
+
+	-- buying a booster in the level (gui/booster_buy.lua) -------------------------------------------------
+	["buy.text"] = { en = "None left! Get a pack of {n}?", ru = "Закончились! Взять набор из {n}?" },
+	["buy.pack"] = { en = "Pack of {n}", ru = "Набор из {n}" },
+	["buy.have"] = { en = "You have {n}", ru = "У тебя {n}" },
+	["buy.done"] = { en = "+{n} {name}!", ru = "+{n} {name}!" },
+	["buy.no_coins"] = { en = "Not enough coins: you have {n}", ru = "Не хватает монет: у тебя {n}" },
+	["buy.locked"] = { en = "Opens at level {n}", ru = "Откроется на уровне {n}" },
 
 	-- win / results ------------------------------------------------------------------------------------
 	["win.title"] = { en = "Level complete!", ru = "Уровень пройден!" },
@@ -235,6 +275,20 @@ local S = {
 	["win.unlocked"] = { en = "New booster: {name}", ru = "Новый бустер: {name}" },
 	["win.streak"] = { en = "Hit streak: {n}", ru = "Серия хитов: {n}" },
 	["win.chest"] = { en = "Chest!", ru = "Сундук!" },
+	["win.score"] = { en = "Score: {n}", ru = "Очки: {n}" },
+	["win.moves_left"] = {
+		en = { one = "{n} move left", other = "{n} moves left" },
+		ru = { one = "Остался {n} ход", few = "Осталось {n} хода", many = "Осталось {n} ходов" },
+	},
+	["win.chest_in"] = {
+		en = { one = "Chest in {n} level", other = "Chest in {n} levels" },
+		ru = { one = "Сундук через {n} уровень", few = "Сундук через {n} уровня", many = "Сундук через {n} уровней" },
+	},
+	["win.chest_waits"] = { en = "It opens in the town", ru = "Откроется в городе" },
+	["win.free_next"] = { en = "Free next start:", ru = "Бесплатно на старте:" },
+	["win.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
+	["win.refund"] = { en = "Returned to you: {names}", ru = "Возвращено тебе: {names}" },
+	["win.debug"] = { en = "Test level: no reward", ru = "Тестовый уровень: без награды" },
 
 	-- tutorial -----------------------------------------------------------------------------------------------------
 	["tutorial.swap"] = {
@@ -256,6 +310,41 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	-- steps of content/tutorials*.json (client/tutorial.lua): one line per step
+	["tutorial.disco_swap"] = {
+		en = "Swap the Disco ball with any piece",
+		ru = "Поменяй Диско-шар местами с любой фишкой",
+	},
+	["tutorial.record_box_match"] = {
+		en = "Match next to a box to crack it",
+		ru = "Собери фишки рядом с коробкой — она треснет",
+	},
+	["tutorial.record_box_layers"] = { en = "Some boxes take several hits", ru = "Некоторым коробкам нужно несколько ударов" },
+	["tutorial.combo"] = {
+		en = "Swap two special pieces for a combo!",
+		ru = "Поменяй две спецфишки местами — выйдет комбо!",
+	},
+	["tutorial.pre_boosters"] = {
+		en = "Pick boosters before the level: they start on the board",
+		ru = "Выбирай бустеры перед уровнем: они сразу ложатся на поле",
+	},
+	["tutorial.dancefloor_match"] = { en = "Match on the tiles to light them", ru = "Собирай фишки на плитках — они загорятся" },
+	["tutorial.dancefloor_double"] = { en = "A double outline takes two matches", ru = "Двойной обводке нужно два матча" },
+	["tutorial.wires_match"] = {
+		en = "Wired pieces can't move, but you can still match them",
+		ru = "Фишка в проводах не двигается, но её можно собрать в ряд",
+	},
+	["tutorial.wires_free"] = { en = "Wires cut: the piece is free again!", ru = "Провода порваны — фишка снова свободна!" },
+	["tutorial.mic_drop"] = { en = "Clear the way under the microphone", ru = "Расчисти путь под микрофоном" },
+	["tutorial.mic_stand"] = {
+		en = "Bring the microphone to its stand to deliver it",
+		ru = "Опусти микрофон на стойку — и он доставлен",
+	},
+	["tutorial.concrete_riff"] = {
+		en = "Tap the Riff: its lightning cracks the concrete",
+		ru = "Нажми на Рифф — его разряд треснет бетон",
+	},
+	["tutorial.tap_continue"] = { en = "Tap to continue", ru = "Нажми, чтобы продолжить" },
 
 	-- music stems (layer names shown by tasks and the jukebox) -------------------------------------------------------
 	["stem.beat"] = { en = "Beat", ru = "Бит" },
@@ -349,6 +438,7 @@ local S = {
 	["town.bit_cheer"] = { en = "Yeah! Hear that?", ru = "Йе-е! Слышишь?" },
 	["town.bit_more"] = { en = "Win a level for more stars!", ru = "Пройди уровень — будут звёзды!" },
 	["town.item_wait"] = { en = "{item}: coming soon to the track", ru = "{item}: скоро зазвучит в треке" },
+	["town.back_to"] = { en = "Back to {name}", ru = "Назад: {name}" },
 	["town.next_tasks"] = { en = "Next: {item}", ru = "Дальше: {item}" },
 	["town.all_done_short"] = { en = "All done!", ru = "Всё пройдено!" },
 	["nav.shop"] = { en = "Shop", ru = "Магазин" },

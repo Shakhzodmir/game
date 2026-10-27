@@ -10,7 +10,10 @@
 --   complete_task          the next district task: on the town through its card
 --                          (the full animation), elsewhere straight in the meta
 --   open <popup> [json]    a meta popup of the town: start, lives, shop, settings,
---                          jukebox, concert, chest, gift, confirm (json = params)
+--                          jukebox, concert, chest, gift, confirm (json = params); from
+--                          another screen the town opens first and shows it
+--   browse <prev|next|id>  pages the town to another open district
+--   view <day|concert>     the look of the district on display
 --   close                  closes the top popup
 --   town_skip              skips the running town animation (task, rewards)
 --   advance <n>            wins levels through the meta until level n is next
@@ -25,6 +28,10 @@ local flow = require("client.flow")
 local qa_bridge = require("client.qa_bridge")
 
 local M = {}
+
+-- the windows the town can host (screens/town/town.gui_script registry)
+M.POPUPS = { start = true, lives = true, shop = true, settings = true, jukebox = true, concert = true, chest = true,
+	gift = true, confirm = true }
 
 M.decode = nil -- test hook: fn(text) -> table
 
@@ -83,7 +90,7 @@ function M.handlers()
 		open = function(args, cmd)
 			local name = args[1]
 			if not name then return { ok = false, error = "open needs a popup name" } end
-			if not town_on_display() then return { ok = false, error = "the town is not on display" } end
+			if not M.POPUPS[name] then return { ok = false, error = "unknown popup '" .. name .. "'" } end
 			local params
 			local text = rest(cmd, 2)
 			if text ~= "" then
@@ -91,12 +98,33 @@ function M.handlers()
 				if type(p) ~= "table" then return { ok = false, error = "bad params: " .. tostring(err) } end
 				params = p
 			end
+			if not town_on_display() then
+				-- another screen (or a transition): the town opens first and shows the window
+				app.show_screen("town", { open = name, open_params = params })
+				return { ok = true, popup = name, via = "town_screen" }
+			end
 			app.open_popup(name, params)
-			return { ok = true, popup = name }
+			return { ok = true, popup = name, via = "popup" }
 		end,
 		close = function()
 			app.close_popup()
 			return { ok = true }
+		end,
+		browse = function(args)
+			if not town_on_display() then return { ok = false, error = "the town is not on display" } end
+			local a = args[1] or "next"
+			if a == "prev" or a == "next" then
+				bus.publish("meta_qa", { action = "browse", dir = a == "prev" and -1 or 1 })
+			else
+				bus.publish("meta_qa", { action = "browse", id = a })
+			end
+			return { ok = true, to = a }
+		end,
+		view = function(args)
+			if not town_on_display() then return { ok = false, error = "the town is not on display" } end
+			if args[1] ~= "day" and args[1] ~= "concert" then return { ok = false, error = "view needs day or concert" } end
+			bus.publish("meta_qa", { action = "view", view = args[1] })
+			return { ok = true, view = args[1] }
 		end,
 		town_skip = function()
 			bus.publish("meta_qa", { action = "skip" })
