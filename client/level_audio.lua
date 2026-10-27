@@ -24,6 +24,20 @@ M.SFX_GAP = 0.05        -- same effect again only after this long
 M.BIG_WAVE = 4          -- a wave this deep ducks the music (audio.combo)
 
 M.SPECIAL_SFX = { riff = "riff", sub = "sub", bird = "bird", disco = "disco" }
+-- What each of the ten combos sounds like: effects in order, {name, delay seconds, gain}. The
+-- Bird's cargo and the pieces "Colour X" turns into specials sound on their own when they fire.
+M.COMBO_SFX = {
+	cross = { { "riff", 0 }, { "riff", 0.08, 0.8 } },
+	triple_cross = { { "riff", 0 }, { "sub", 0.1 } },
+	bass_drop = { { "sub", 0 }, { "combo_drop", 0.05 } },
+	bird_riff = { { "bird", 0 }, { "riff", 0.1, 0.5 } },
+	bird_sub = { { "bird", 0 }, { "sub", 0.1, 0.5 } },
+	trio = { { "bird", 0 }, { "bird", 0.12, 0.8 }, { "bird", 0.24, 0.7 } },
+	color_riff = { { "disco", 0 }, { "riff", 0.2, 0.8 } },
+	color_sub = { { "disco", 0 }, { "sub", 0.2, 0.8 } },
+	color_bird = { { "disco", 0 }, { "bird", 0.2, 0.8 } },
+	finale = { { "finale", 0 } },
+}
 M.BLOCKER_HIT = { record_box = "box_hit", concrete = "concrete_hit", column = "column_hit", noise = "noise_fizz" }
 M.BLOCKER_BREAK = {
 	record_box = "box_break", concrete = "concrete_break", noise = "noise_break",
@@ -137,7 +151,11 @@ function LA:event(e)
 			self:sfx("finale", nil, 0)
 			self:buzz("finale")
 		elseif e.combo then
-			self:sfx("combo_drop", nil, 0.2)
+			local list = M.COMBO_SFX[e.combo] or M.COMBO_SFX.bass_drop
+			for i = 1, #list do
+				local c = list[i]
+				self:sfx(c[1], { delay = c[2] > 0 and c[2] or nil, gain = c[3] }, 0)
+			end
 			self:buzz("combo")
 		else
 			self:sfx(M.SPECIAL_SFX[e.special] or "riff", nil, 0.04)

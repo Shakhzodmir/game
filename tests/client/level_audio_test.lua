@@ -69,8 +69,27 @@ describe("client.level_audio", function()
 			{ type = "shuffle", moves = {} },
 			{ type = "swap_fail" },
 		})
-		assert_same(names(calls, "sfx"), { "sub", "combo_drop", "finale", "box_hit", "concrete_break",
+		assert_same(names(calls, "sfx"), { "sub", "riff", "riff", "finale", "box_hit", "concrete_break",
 			"floor_light", "wires_snap", "mic_collect", "praise_3", "goal_done", "shuffle", "swap_fail" })
+	end)
+
+	it("gives each of the ten combos its own sound, in time with its picture", function()
+		local level_effects = require("client.level_effects")
+		local seen = {}
+		for _, name in ipairs(level_effects.COMBOS) do
+			local a, calls = fake_audio()
+			local t = 0
+			local la = level_audio.new({ audio = a, now = function() t = t + 1; return t end })
+			la:event({ type = "activate", special = "riff", combo = name, color = "red" })
+			local parts = {}
+			for _, c in ipairs(calls) do
+				if c[1] == "sfx" then parts[#parts + 1] = c[2] .. "@" .. tostring(c[3] and c[3].delay or 0) end
+			end
+			assert_true(#parts >= 1, name .. " is silent")
+			local key = table.concat(parts, ",")
+			assert_eq(seen[key], nil, name .. " sounds like " .. tostring(seen[key]))
+			seen[key] = name
+		end
 	end)
 
 	it("plays the Disco arpeggio in its colour", function()

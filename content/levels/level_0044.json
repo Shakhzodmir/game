@@ -1,0 +1,49 @@
+{
+  "id": 44, "version": 1,
+  "size": [9, 10],
+  "moves": 24,
+  "difficulty": "hard",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "concrete", "count": 9},
+    {"type": "collect", "color": "orange", "count": 30}
+  ],
+  "cells": [
+    "#.#.#.#.#",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "overlay": [
+    {"at": [3, 3], "type": "wires", "hp": 1},
+    {"at": [5, 3], "type": "wires", "hp": 1},
+    {"at": [1, 5], "type": "wires", "hp": 1},
+    {"at": [7, 5], "type": "wires", "hp": 1},
+    {"at": [2, 9], "type": "wires", "hp": 1},
+    {"at": [6, 9], "type": "wires", "hp": 1}
+  ],
+  "slots": [
+    {"at": [1, 2], "type": "concrete", "hp": 1},
+    {"at": [4, 2], "type": "concrete", "hp": 2},
+    {"at": [7, 2], "type": "concrete", "hp": 1},
+    {"at": [3, 3], "type": "piece", "color": "orange"},
+    {"at": [5, 3], "type": "piece", "color": "orange"},
+    {"at": [2, 4], "type": "concrete", "hp": 2},
+    {"at": [6, 4], "type": "concrete", "hp": 2},
+    {"at": [1, 5], "type": "piece", "color": "orange"},
+    {"at": [4, 5], "type": "concrete", "hp": 1},
+    {"at": [7, 5], "type": "piece", "color": "orange"},
+    {"at": [1, 7], "type": "concrete", "hp": 1},
+    {"at": [3, 7], "type": "concrete", "hp": 2},
+    {"at": [5, 7], "type": "concrete", "hp": 2},
+    {"at": [7, 7], "type": "concrete", "hp": 1},
+    {"at": [2, 9], "type": "piece", "color": "orange"},
+    {"at": [6, 9], "type": "piece", "color": "orange"}
+  ]
+}
