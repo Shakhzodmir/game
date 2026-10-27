@@ -46,11 +46,13 @@ end
 
 -- Seed fold of 3.1: h = (h*48271 + v + 1) % (2^31 - 1) over the values,
 -- result h % (2^31 - 2) + 1. Used for attempt seeds and clone reseeding.
+-- Each value is reduced first: the result is the same, but h*48271 + v + 1
+-- stays below 2^53 (exact on doubles) even for ids and salts near 2^53.
 function R.fold_seed(a, b, c)
 	local h = 0
-	h = (h * 48271 + a + 1) % MINSTD
-	h = (h * 48271 + b + 1) % MINSTD
-	h = (h * 48271 + c + 1) % MINSTD
+	h = (h * 48271 + a % MINSTD + 1) % MINSTD
+	h = (h * 48271 + b % MINSTD + 1) % MINSTD
+	h = (h * 48271 + c % MINSTD + 1) % MINSTD
 	return h % (MINSTD - 1) + 1
 end
 

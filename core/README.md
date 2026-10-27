@@ -162,6 +162,17 @@ Turbo keeps the same natural order; every effect delay is 0 there, so a
 whole effect (Bird flight included) runs inside its activation record, and
 chains (delay 0) run later in the same step 3.
 
+Readings fixed by the audit of §8-§9 (`docs/handoff/core-audit-B2.md`):
+
+- The Bird's cross is its five cells in plain index order, so a neighbour
+  above is hit before the Bird's own cell.
+- Reservations and deduplication keys are object keys (a column: its
+  top-left cell); a pinned piece zeroes its whole cell in the level table.
+- The "Triple cross" has no bolt for a row or column outside the field; an
+  exit point in a void still sends its two bolts.
+- A cargo's `activate` event has no `id`, `combo` or `partner`; its source
+  starts at the impact and carries the Bird's label.
+
 ## Status
 
 Implemented: all of §0-§17, including every special and combo (§8), Bird
@@ -170,3 +181,11 @@ targeting (§9), taps and special swaps (§5.1.4, §5.1.5, §5.2).
 Tests: `tests/core/*_test.lua`, run by `./tools/test.sh` on both VMs.
 `tests/core/helper.lua` builds levels from pictures and can rebuild a live
 board (`H.board`) for tick-by-tick scenarios.
+
+Sections 8 and 9 are also checked against oracles written from the text of
+the specification, not from the code: `geometry_test.lua` (every hit of the
+Riff, Sabwoofer, Cross, Triple cross, Bass drop and Grand finale: tick, cell,
+order, bolts, rings, path pins, removal of the specials), `bird_oracle_test.lua`
+(the level table, candidates, density, single and cargo choices, draws of the
+`effects` stream on random boards) and `disco_lists_test.lua` (the list of
+the Disco ball and of "Colour X", the steps, transforms and fires).

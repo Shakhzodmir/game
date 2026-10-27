@@ -225,8 +225,13 @@ end
 local HASH = {}
 HASH.__tostring = function(h) return "hash: [" .. h.s .. "]" end
 
+-- One interning table for the whole process: like the engine's, hash("x") is the same value in every
+-- install, so a module that keeps hash("touch") in a constant (client/ui.lua, gui/kit.lua) still
+-- compares equal after the stub is installed again.
+local INTERNED = {}
+
 local function make_hash_table()
-	local interned = {}
+	local interned = INTERNED
 	local function hash(s)
 		if type(s) ~= "string" then error("hash: string expected, got " .. type(s), 2) end
 		local h = interned[s]

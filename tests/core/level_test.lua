@@ -197,6 +197,23 @@ describe("core level: validation (2.1)", function()
 		assert_true(core.load_level(H.level(FULL, { slots = { { at = { 2, 1 }, type = "concrete", hp = 1 } } })) ~= nil)
 	end)
 
+	it("2.1.7: board B1 has no wires: a wired cell is an ordinary donor there", function()
+		-- Column 7 below the void (7,4) has no spawner: (7,5) is filled only by a
+		-- diagonal move from (6,4). In B1 ("only voids remain") (6,4) is an
+		-- ordinary piece, so the level is fillable; wires there must not block it.
+		local cells = {}
+		for y = 1, 11 do cells[y] = y == 5 and "#######." or "########" end
+		local lvl = {
+			id = 1, version = 1, size = { 8, 11 }, moves = 20, difficulty = "easy",
+			colors = { "red", "green", "blue", "yellow" },
+			goals = { { type = "collect", color = "red", count = 5 } },
+			cells = cells,
+			overlay = { { at = { 6, 4 }, type = "wires", hp = 1 }, { at = { 7, 5 }, type = "wires", hp = 1 } },
+		}
+		local loaded, errs = core.load_level(lvl)
+		assert_true(loaded ~= nil, errs and table.concat(errs, " | "))
+	end)
+
 	it("2.1.8: mics only with deliver, exits cover segment bottoms", function()
 		expect(H.level(FULL, { slots = { { at = { 1, 1 }, type = "mic" } } }), "2.1.8 mic pieces without a deliver goal")
 		local deliver = { goals = { { type = "deliver", count = 2 } }, mic = { total = 2, on_board_max = 1, gap_moves = 2 } }
@@ -227,8 +244,106 @@ describe("core level: validation (2.1)", function()
 		expect(H.level({ "##KKKK", "KKKKKK", "KKKKKK", "KKKKKK", "KKKKKK", "KKKKKK" }), "2.1.10 start board for seed 1")
 	end)
 
+	it("prints large coordinates in full, not in exponent form (0.7 rule 6)", function()
+		local errs = errors_of(H.level(FULL, { floor = { { at = { 123456789012345, -7 }, hp = 1 } } }))
+		assert_true(has_error(errs, "2.1.2 floor is not on an existing cell at 123456789012345,-7"), table.concat(errs, " | "))
+	end)
+
 	it("reports errors with zero-based JSON coordinates", function()
 		local errs = errors_of(H.level(FULL, { overlay = { { at = { 4, 3 }, type = "wires", hp = 1 } }, slots = { { at = { 4, 3 }, type = "mic" } } }))
 		assert_true(has_error(errs, "2.1.3 wires over a cell without a regular piece at 4,3"), table.concat(errs, " | "))
+	end)
+end)
+
+-- The canonical form (2.2) and the level hash (17.1), against an independent
+-- implementation (Python: sorted keys, no spaces, null keys dropped, folded
+-- over the bytes with the integer fold of 17.2).
+describe("core level: canonical form and hash (2.2, 17.1)", function()
+	local LS = require("core.level_schema")
+
+	local RICH = [==[
+	{ "version": 3, "id": 42, "moves": 28, "difficulty": "hard",
+	  "size": [7, 8], "colors": ["purple", "red", "blue", "yellow", "orange"],
+	  "goals": [ {"count": 30, "type": "collect", "color": "red"},
+	             {"type": "break", "item": "record_box", "count": 2}, {"type": "light"} ],
+	  "cells": ["#######", "#######", "###.###", "#######", "#######", "#######", "#######", "#######"],
+	  "spawners": [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0]], "exits": null,
+	  "floor": [{"at": [3, 4], "hp": 2}, {"hp": 1, "at": [0, 7]}],
+	  "overlay": [{"at": [2, 6], "type": "wires", "hp": 1}],
+	  "slots": [{"at": [4, 4], "type": "record_box", "hp": 3}, {"at": [1, 1], "type": "record_box", "hp": 1},
+	            {"at": [4, 0], "type": "riff", "axis": "h"}, {"at": [5, 1], "type": "piece", "color": "blue"},
+	            {"at": [0, 6], "type": "disco"}, {"at": [6, 6], "type": "bird"}, {"at": [3, 6], "type": "sub"}],
+	  "mic": null,
+	  "spawn_weights": {"purple": 3, "red": 1, "blue": 1000, "yellow": 2, "orange": 7} }
+	]==]
+	local RICH_CANON = '{"cells":["#######","#######","###.###","#######","#######","#######","#######","#######"],'
+		.. '"colors":["purple","red","blue","yellow","orange"],"difficulty":"hard",'
+		.. '"floor":[{"at":[3,4],"hp":2},{"at":[0,7],"hp":1}],'
+		.. '"goals":[{"color":"red","count":30,"type":"collect"},{"count":2,"item":"record_box","type":"break"},{"type":"light"}],'
+		.. '"id":42,"moves":28,"overlay":[{"at":[2,6],"hp":1,"type":"wires"}],"size":[7,8],'
+		.. '"slots":[{"at":[4,4],"hp":3,"type":"record_box"},{"at":[1,1],"hp":1,"type":"record_box"},'
+		.. '{"at":[4,0],"axis":"h","type":"riff"},{"at":[5,1],"color":"blue","type":"piece"},'
+		.. '{"at":[0,6],"type":"disco"},{"at":[6,6],"type":"bird"},{"at":[3,6],"type":"sub"}],'
+		.. '"spawn_weights":{"blue":1000,"orange":7,"purple":3,"red":1,"yellow":2},'
+		.. '"spawners":[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0]],"version":3}'
+
+	local DELIVER = [==[
+	{"id": 9, "version": 1, "size": [6, 6], "moves": 12, "difficulty": "easy", "colors": ["red", "green", "blue", "yellow"],
+	 "goals": [{"type": "deliver", "count": 3}, {"type": "collect", "color": "green", "count": 5}],
+	 "cells": ["######", "######", "######", "######", "######", "######"],
+	 "exits": [[0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5]],
+	 "mic": {"total": 3, "on_board_max": 2, "gap_moves": 0},
+	 "slots": [{"at": [2, 2], "type": "mic"}]}
+	]==]
+	local DELIVER_CANON = '{"cells":["######","######","######","######","######","######"],'
+		.. '"colors":["red","green","blue","yellow"],"difficulty":"easy","exits":[[0,5],[1,5],[2,5],[3,5],[4,5],[5,5]],'
+		.. '"goals":[{"count":3,"type":"deliver"},{"color":"green","count":5,"type":"collect"}],'
+		.. '"id":9,"mic":{"gap_moves":0,"on_board_max":2,"total":3},"moves":12,"size":[6,6],'
+		.. '"slots":[{"at":[2,2],"type":"mic"}],"version":1}'
+
+	it("sorts keys by bytes, drops null keys, adds no defaults, keeps array order (pinned strings)", function()
+		local lvl = assert(core.load_level(RICH))
+		assert_eq(lvl.canonical, RICH_CANON)
+		assert_eq(lvl.hash, 469747379)
+		local d = assert(core.load_level(DELIVER))
+		assert_eq(d.canonical, DELIVER_CANON)
+		assert_eq(d.hash, 484183498)
+	end)
+
+	it("does not depend on key order, spacing or null keys of the source text", function()
+		local a = assert(core.load_level(RICH))
+		local compact = string.gsub(RICH, "%s+", " ")
+		local b = assert(core.load_level(compact))
+		local c = assert(core.load_level(json.decode(RICH)))
+		assert_eq(b.canonical, a.canonical)
+		assert_eq(c.canonical, a.canonical)
+		assert_eq(c.hash, a.hash)
+		-- the same level without the explicit nulls
+		local plain = string.gsub(string.gsub(RICH, ',%s*"exits": null', ""), ',%s*"mic": null', "")
+		assert_eq(assert(core.load_level(plain)).hash, a.hash)
+	end)
+
+	it("a changed value changes the hash; the hash is the 17.2 fold over the canonical bytes", function()
+		local a = assert(core.load_level(RICH))
+		local other = string.gsub(RICH, '"moves": 28', '"moves": 29')
+		local b = assert(core.load_level(other))
+		assert_true(a.hash ~= b.hash)
+		assert_eq(a.hash, HS.fold_bytes(a.canonical))
+	end)
+
+	it("escapes only the quote and the backslash; integers go through %.0f", function()
+		assert_eq(LS.canonical({ s = 'a"b\\c\td', n = 2 ^ 40, big = 1e15, z = 0 }),
+			'{"big":1000000000000000,"n":1099511627776,"s":"a\\"b\\\\c\td","z":0}')
+		assert_eq(LS.canonical({ floor = {}, size = { 6, 7 }, mic = { gap_moves = 0, total = 2 } }),
+			'{"floor":[],"mic":{"gap_moves":0,"total":2},"size":[6,7]}')
+	end)
+
+	it("prints minus zero as 0, so decoded tables and text give one canonical form", function()
+		local zero = 0
+		local nz = -zero
+		assert_eq(LS.canonical({ id = nz, size = { nz, 1 } }), '{"id":0,"size":[0,1]}')
+		local text = string.gsub(VALID_TEXT, '"moves": 20', '"moves": 20, "spawners": [[-0, -0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0]]')
+		local lvl = assert(core.load_level(text))
+		assert_true(string.find(lvl.canonical, '"spawners":[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0]]', 1, true) ~= nil, lvl.canonical)
 	end)
 end)

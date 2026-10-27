@@ -163,6 +163,25 @@ function M.install(opts)
 		return text
 	end
 
+	-- save files in memory (sys.get_save_file / sys.save / sys.load): the engine's contract is that sys.load of a
+	-- missing file returns an empty table and sys.save returns true
+	E.files = {}
+	local function deep_copy(v)
+		if type(v) ~= "table" then return v end
+		local out = {}
+		for k, x in pairs(v) do out[k] = deep_copy(x) end -- order-free: a copy
+		return out
+	end
+	sys.get_save_file = function(app_id, name) return "memory:" .. tostring(app_id) .. "/" .. tostring(name) end
+	sys.save = function(path, tbl)
+		if type(tbl) ~= "table" then error("sys.save: a table was expected", 2) end
+		E.files[path] = deep_copy(tbl)
+		return true
+	end
+	sys.load = function(path) return deep_copy(E.files[path]) or {} end
+	sys.set_error_handler = function(fn) E.error_handler = fn end
+	window.set_listener = function(fn) E.window_listener = fn end
+
 	-- sound: recorded, no mixing ---------------------------------------------------------------------------
 	local sound = {}
 	function sound.play(url, props, cb) E.sounds.played[#E.sounds.played + 1] = { url = tostring(url), props = props } end
@@ -857,6 +876,11 @@ function M.install(opts)
 		return run_in(self, fn, self.self, ...)
 	end
 
+	-- Runs fn(...) in the script's GUI context (to call gui.* or its modules from a test).
+	function Script:ctx(fn, ...)
+		return run_in(self, fn, ...)
+	end
+
 	function Script:init()
 		self:call("init")
 		return self
@@ -905,6 +929,11 @@ function M.install(opts)
 	-- harness' msg.post and delivered by E.pump
 	local board_post = rawget(_G, "msg").post
 	rawget(_G, "msg").post = function(receiver, id, message)
+		if type(receiver) == "table" and receiver.socket ~= nil or (type(receiver) == "table" and receiver.path ~= nil) then
+			-- a url object: the same text as the string form "socket:/path#fragment"
+			receiver = string.format("%s:%s%s", tostring(receiver.socket or ""), tostring(receiver.path or ""),
+				receiver.fragment and ("#" .. tostring(receiver.fragment)) or "")
+		end
 		local who = E.current_script
 		if (receiver == "." or receiver == "#") and who then
 			if id == "acquire_input_focus" then
@@ -946,8 +975,62 @@ function M.install(opts)
 		end
 	end
 
+	-- Game object scripts (main/audio.script, main/app.script): no GUI scene, the same userdata self.
+	local go_ = rawget(_G, "go")
+	go_.get_id = function() return hash("/stub_object") end
+
+	local Object = {}
+	Object.__index = Object
+
+	-- opts: {url = "main:/audio#audio"}
+	function E.object(path, opts)
+		opts = opts or {}
+		local o = setmetatable({ E = E, path = path, self = new_self(), env = base.load_script(path), frames = 0, url = opts.url }, Object)
+		if opts.url then E.receivers[opts.url] = o end
+		E.scripts[#E.scripts + 1] = o
+		return o
+	end
+
+	function Object:call(name, ...)
+		local fn = self.env[name]
+		if not fn then return nil end
+		local before_script = E.current_script
+		E.current_script = self
+		local res = { pcall(fn, self.self, ...) }
+		E.current_script = before_script
+		if not res[1] then error(res[2], 0) end
+		return unpack(res, 2)
+	end
+
+	function Object:init() self:call("init") return self end
+	function Object:final()
+		if self.finalized then return end
+		self.finalized = true
+		self:call("final")
+		if self.url and E.receivers[self.url] == self then E.receivers[self.url] = nil end
+	end
+	function Object:frame(dt, keep_clock)
+		dt = dt or 1 / 60
+		if not keep_clock then E.clock = E.clock + dt end
+		self.frames = self.frames + 1
+		self:call("update", dt)
+	end
+	function Object:step(n, dt)
+		for _ = 1, n or 1 do
+			E.pump()
+			self:frame(dt)
+		end
+		E.pump()
+	end
+	function Object:run(seconds) self:step(math.ceil(seconds * 60)) end
+	function Object:message(id, message, sender)
+		return self:call("on_message", hash(id), message or {}, sender)
+	end
+	function Object:input(action_id, action) return self:call("on_input", action_id, action) end
+
 	-- the unrouted messages with this id (and optional receiver), oldest first
 	function E.posted(id, to)
+		E.pump()
 		local out = {}
 		for _, m in ipairs(E.unrouted) do
 			if m.id == id and (to == nil or m.to == to) then out[#out + 1] = m end
@@ -1066,9 +1149,26 @@ function M.install(opts)
 		return self:tap(lx, ly), lx, ly
 	end
 
+	-- nodes / animations now and at their peak, textures made with gui.new_texture that are alive, and
+	-- how many of those are loose images ("img:<key>")
 	function Script:stats()
 		local s = self.scene
-		return { nodes = s.n, peak = s.peak, anims = s.n_anims, peak_anims = s.peak_anims, textures = s.n_dyn or 0 }
+		local textures, loose = 0, 0
+		for name in pairs(s.dyn) do -- order-free: counts
+			textures = textures + 1
+			if string.sub(name, 1, 4) == "img:" then loose = loose + 1 end
+		end
+		return { nodes = s.n, peak = s.peak, anims = s.n_anims, peak_anims = s.peak_anims, textures = textures, loose = loose }
+	end
+
+	-- the keys of the loose images alive now ("districts/jazz/bg"), sorted
+	function Script:loose_images()
+		local out = {}
+		for name in pairs(self.scene.dyn) do -- order-free: sorted below
+			if string.sub(name, 1, 4) == "img:" then out[#out + 1] = string.sub(name, 5) end
+		end
+		table.sort(out)
+		return out
 	end
 
 
@@ -1202,8 +1302,10 @@ function M.restore()
 end
 
 -- Installs the stub and boots the app on the real content (content/districts.json): the
--- meta, the save store (in memory), the language. opts: {window, safe, language = "en",
--- seed = 42, backend = save_io backend, debug = true}.
+-- meta, the save store (in memory), the language, the store / ad services. opts: {window, safe,
+-- language = "en", seed = 42, backend = save_io backend, debug = true, stores = false}.
+-- The services are process-wide singletons, so every boot sets them: the web demo's way
+-- (no store, no video) unless opts.stores is true (a debug build: test purchases, a free video gift).
 function M.boot(opts)
 	opts = opts or {}
 	local E = M.install(opts)
@@ -1226,6 +1328,17 @@ function M.boot(opts)
 			clock = E.now, sys_language = opts.language or "en", debug = opts.debug ~= false,
 		})
 		i18n.set_language(opts.language or "en")
+		require("client.levels")._reset() -- the level files are read again through this stub's sys.load_resource
+		local stores = opts.stores == true
+		require("client.services.iap").init({
+			debug = stores,
+			grant = function(reward, tag)
+				local granted, why = app.meta:grant(reward, tag, app.now())
+				app.commit(tag)
+				return granted, why
+			end,
+		})
+		require("client.services.ads").init({ debug = stores })
 		E.bus = bus
 	end)
 	if not ok then

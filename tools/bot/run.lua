@@ -2,6 +2,7 @@
 --
 --   luajit tools/bot/run.lua <level id|file> [--seed 1] [--bot greedy|strong]
 --         [--bot-seed <seed>] [--budget 200] [--turbo] [--json] [--games 1]
+--         [--dir content/levels]
 --
 -- The real game runs in NORMAL timing (decisions #5; turbo only inside the
 -- bots' lookahead) unless --turbo. The move budget is effectively unlimited
@@ -34,7 +35,9 @@
 local MAIN = (...) ~= "tools.bot.run"
 local ROOT = ""
 if MAIN then
-	ROOT = (arg and arg[0] or ""):match("^(.-)tools[/\\]bot[/\\]run%.lua$") or ""
+	-- the repository root from the script path (also when started from another directory)
+	ROOT = (arg and arg[0] or ""):match("^(.-)tools[/\\]bot[/\\]run%.lua$")
+	if not ROOT then ROOT = ((arg and arg[0] or ""):match("^(.*)[/\\][^/\\]*$") or ".") .. "/../../" end
 	package.path = ROOT .. "?.lua;" .. ROOT .. "?/init.lua;" .. package.path
 end
 
@@ -66,6 +69,7 @@ function Run.play(entry, opts)
 	local seed = opts.seed or 1
 	local budget = opts.budget or 200
 	local limit = opts.limit or entry.moves
+	if budget < 5 then error("run: the budget must be at least 5 moves (the schema's minimum)", 2) end
 	local first = math.min(budget, 60)
 	local level = common.level_with_moves(entry, first, core)
 	local timing = opts.turbo and "turbo" or "normal"
@@ -182,29 +186,50 @@ local function fmt_record(r)
 end
 Run.format = fmt_record
 
+local USAGE = "usage: luajit tools/bot/run.lua <level id|file> [--seed 1] [--bot greedy|strong]"
+	.. " [--bot-seed n] [--budget 200] [--turbo] [--json] [--games 1] [--dir content/levels]"
+local FLAGS = { turbo = true, json = true, help = true }
+local VALUES = { seed = true, bot = true, ["bot-seed"] = true, budget = true, games = true, dir = true }
+local MAX_SEED = 2147483646
+Run.OPTIONS = { flags = FLAGS, values = VALUES }
+
 function Run.main(argv)
-	local opts, pos = common.parse_args(argv, { turbo = true, json = true, help = true })
+	local opts, pos, perr = common.parse_args(argv, FLAGS, VALUES)
+	if perr then
+		io.stderr:write("run: " .. perr .. "\n" .. USAGE .. "\n")
+		return 2
+	end
 	if opts.help or #pos == 0 then
-		print("usage: luajit tools/bot/run.lua <level id|file> [--seed 1] [--bot greedy|strong]"
-			.. " [--bot-seed n] [--budget 200] [--turbo] [--json] [--games 1]")
+		print(USAGE)
 		return 0
 	end
-	local path = common.level_path(pos[1], ROOT .. "content/levels")
+	local seed, games, budget, bot_seed, e1, e2, e3, e4
+	seed, e1 = common.int_option(opts, "seed", 1, 1, MAX_SEED)
+	games, e2 = common.int_option(opts, "games", 1, 1, 100000)
+	budget, e3 = common.int_option(opts, "budget", 200, 5, 100000)
+	bot_seed, e4 = common.int_option(opts, "bot-seed", nil, 1, MAX_SEED)
+	local bad = e1 or e2 or e3 or e4
+	if not bad and not Bot.KINDS[opts.bot or "greedy"] then bad = "--bot: greedy or strong expected, got '" .. tostring(opts.bot) .. "'" end
+	if not bad and #pos > 1 then bad = "one level expected, got " .. #pos end
+	if not bad and seed + games - 1 > MAX_SEED then bad = "--seed + --games - 1 must not exceed " .. MAX_SEED end
+	if bad then
+		io.stderr:write("run: " .. bad .. "\n" .. USAGE .. "\n")
+		return 2
+	end
+	local path = common.level_path(pos[1], opts.dir or (ROOT .. "content/levels"))
 	local entry, errs = common.load_entry(path)
 	if not entry then
 		io.stderr:write(path .. ": " .. table.concat(errs, "; ") .. "\n")
 		return 1
 	end
 	common.jit_opts()
-	local seed = tonumber(opts.seed or 1)
-	local games = tonumber(opts.games or 1)
 	local t0 = common.clock()
 	local recs = {}
 	for g = 0, games - 1 do
 		local r = Run.play(entry, {
 			seed = seed + g, bot = opts.bot or "greedy",
-			bot_seed = opts["bot-seed"] and tonumber(opts["bot-seed"]) + g or nil,
-			budget = tonumber(opts.budget or 200), turbo = opts.turbo,
+			bot_seed = bot_seed and bot_seed + g or nil,
+			budget = budget, turbo = opts.turbo,
 		})
 		recs[#recs + 1] = r
 		if not opts.json then print(fmt_record(r)) end

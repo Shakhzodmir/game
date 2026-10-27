@@ -434,3 +434,109 @@ describe("core specials: non-blocking play (7.2.7, 8.3, 8.4)", function()
 		assert_same({ m.t, m.act, m.wave, m.color }, { 13, 2, 1, "blue" })
 	end)
 end)
+
+-- Audit B2: details of sections 7.2.6 and 8.4 that the tests above leave open.
+
+describe("core specials: audit B2 (7.2.6, 8.4)", function()
+	it("a column on a Riff's path is hit once, not once per cell (one hit per object)", function()
+		local g = H.game(FULL, { slots = { { at = { 2, 2 }, type = "column", hp = 6 } },
+			goals = { { type = "break", item = "column", count = 1 } } })
+		H.board(g, H.rows(6, 6, { ["1,3"] = "R", ["3,3"] = "L", ["4,3"] = "l", ["3,4"] = "l", ["4,4"] = "l" }))
+		g:input({ type = "tap", at = { 1, 3 } })
+		g:step()
+		-- d = 1 (2,3); d = 2 the column; d = 3 is the same object and drops out; d = 4, d = 5
+		assert_same(H.hits(g), { { 4, 2, 3 }, { 6, 3, 3 }, { 10, 5, 3 }, { 12, 6, 3 } })
+		local hits = 0
+		for _, e in ipairs(H.steps(g, 12)) do
+			if e.type == "hit" and e.layer == "blocker" then hits = hits + 1 end
+		end
+		assert_eq(hits, 1)
+		assert_eq(H.obj_at(g, 3, 3).hp, 5)
+	end)
+
+	it("a wired piece of the Disco's list loses one layer at its step and is released", function()
+		local g = H.game(FULL, { overlay = { { at = { 0, 0 }, type = "wires", hp = 2 } } })
+		H.board(g, { "b_____", "______", "__b___", "___D__", "______", "______" })
+		local wired, near = H.obj_at(g, 1, 1), H.obj_at(g, 3, 3)
+		assert_eq(g.s.wires[1], 2)
+		H.arm(g, { 4, 4 }, nil, 1, 1, C.COLOR.blue)
+		local sid = g.s.next_source_id
+		g:step() -- t0 = 1: step 0 hits (3,3) at once
+		g:drain_events()
+		assert_eq(near.state, C.S_CLEAR)
+		assert_same(wired.pins, { sid }, "pinned although it is wired")
+		local ev = H.steps(g, 2) -- tick 3: step 1
+		local wires = {}
+		for _, e in ipairs(ev) do
+			if e.type == "hit" and e.x == 1 and e.y == 1 then wires[#wires + 1] = e.layer .. e.hp end
+			assert_true(e.type ~= "freed", "one layer of two: not freed")
+		end
+		assert_same(wires, { "wires1" })
+		assert_eq(g.s.wires[1], 1)
+		assert_eq(wired.state, C.S_IDLE)
+		assert_same(wired.pins, {}, "the hit released the pin")
+		local sc = H.of_type(ev, "score")
+		assert_same({ sc[1].delta, sc[1].x, sc[1].y }, { 50, 1, 1 }, "50 per hp of wires")
+	end)
+
+	it("another source that takes a layer of a listed piece does not release the Disco's mark", function()
+		local g = H.game(FULL, { overlay = { { at = { 0, 0 }, type = "wires", hp = 2 } } })
+		H.board(g, { "b_____", "______", "__b___", "___D__", "______", "______" })
+		local wired = H.obj_at(g, 1, 1)
+		H.arm(g, { 4, 4 }, nil, 1, 1, C.COLOR.blue)
+		local sid = g.s.next_source_id
+		g:step()
+		assert_same(wired.pins, { sid })
+		local hits = require("core.hits")
+		local other = hits.new_source(g.s, C.SRC_EFFECT, 9, 1, 0)
+		g.s.now = g.s.tick
+		hits.hit(g.s, 1, other) -- another source: one layer of two
+		require("core.sched").retire_if_done(g.s, other)
+		assert_eq(g.s.wires[1], 1)
+		assert_same(wired.pins, { sid }, "still pinned by the Disco, whose step is pending")
+		H.steps(g, 2) -- tick 3: the Disco's own step takes the last layer and releases its mark
+		assert_eq(g.s.wires[1], 0)
+		assert_same(wired.pins, {})
+	end)
+
+	it("an empty list: the own cell is hit at t0; X is named when it was given, not when no colour exists", function()
+		local rows = { "______", "______", "__D___", "______", "______", "______" }
+		local g = H.game(FULL)
+		H.board(g, rows)
+		H.arm(g, { 3, 3 }, nil, 1, 1, C.COLOR.red) -- X remembered from a swap, no red piece left
+		g:step()
+		local ev = g:drain_events()
+		assert_same({ ev[1].type, ev[1].color }, { "activate", "red" })
+		assert_eq(#H.of_type(ev, "disco_ray"), 0)
+		local cl = H.of_type(ev, "clear")
+		assert_same({ #cl, cl[1].t, cl[1].cause, cl[1].special }, { 1, 1, "fired", "disco" })
+		assert_same(H.queue(g), {})
+		assert_same(H.sources(g), {})
+		-- a tapped Disco on a board without pieces: mf() finds no colour
+		local g2 = H.game(FULL)
+		H.board(g2, rows)
+		H.arm(g2, { 3, 3 })
+		g2:step()
+		local act = g2:drain_events()[1]
+		assert_same({ act.type, act.color }, { "activate", nil })
+	end)
+
+	it("mf() of a single Disco counts wired pieces and skips pinned ones; ties go to the smaller colour", function()
+		-- red 12 (two pinned), green 11, blue 12 (one wired): blue wins with 12; without the wired
+		-- piece green would win (11 = 11, smaller code), with the pinned reds red would win
+		local rows = { "rgbrgb", "gbrgbr", "brgbrg", "rgbrgb", "gbrgbr", "brgbrD" }
+		local g = H.game(FULL, { overlay = { { at = { 2, 0 }, type = "wires", hp = 1 } } })
+		H.board(g, rows)
+		require("core.board").pin(H.obj_at(g, 1, 1), 99)
+		require("core.board").pin(H.obj_at(g, 4, 1), 99)
+		H.arm(g, { 6, 6 })
+		g:step()
+		assert_eq(H.of_type(g:drain_events(), "activate")[1].color, "blue")
+		-- tie: 12 reds against 12 blues once the wire is gone -> red (the smaller code)
+		local g2 = H.game(FULL)
+		H.board(g2, rows)
+		H.arm(g2, { 6, 6 })
+		g2:step()
+		assert_eq(H.of_type(g2:drain_events(), "activate")[1].color, "red")
+	end)
+end)

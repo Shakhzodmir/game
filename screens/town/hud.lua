@@ -16,6 +16,8 @@ local fx = require("client.fx")
 local views = require("client.views")
 local levels = require("client.levels")
 local assets = require("client.assets")
+local analytics = require("client.services.analytics")
+local kit = require("gui.kit")
 
 local M = {}
 
@@ -162,25 +164,50 @@ function Hud:level_pos() return self:bottom(360, M.LEVEL_Y) end
 
 -- ribbon ----------------------------------------------------------------------------------------
 
+M.RIBBON_X, M.RIBBON_W = 328, 484
+M.NAV_RIBBON_X, M.NAV_RIBBON_W = 312, 388 -- the narrower ribbon between the two district arrows
+M.ARROW_PREV_X, M.ARROW_NEXT_X = 68, 550
+
+local function arrow_button(self, parent, x, dir, enabled)
+	local s, town = self.ui, self.town
+	local has_icon = assets.has_image("ui/icons/arrow")
+	local b = s:button({ parent = parent, x = x, y = M.RIBBON_Y, w = 80, h = 80, style = "blue", icon = "ui/icons/arrow", icon_size = 48,
+		text = not has_icon and (dir < 0 and "<" or ">") or nil, enabled = enabled, sfx = "button",
+		on_click = function() town:browse(dir) end })
+	if b.icon and dir < 0 then gui.set_euler(b.icon, vmath.vector3(0, 0, 180)) end
+	s:anchor(b.node, "top")
+	self:target(dir < 0 and "nav_prev" or "nav_next", self:top(x, M.RIBBON_Y))
+	return b
+end
+
 function Hud:build_ribbon(parent)
 	local s, town = self.ui, self.town
 	local p = views.progress(app.meta, town.district)
-	local rib = s:image(parent, "ui/button_purple", 328, M.RIBBON_Y, { w = 484, h = 104, slice9 = true })
-		or s:round(parent, 328, M.RIBBON_Y, 484, 104, "purple")
+	local nav = views.browse(app.meta, town.district)
+	self.paging = nav
+	local paged = nav.count > 1 -- more than one district is open: arrows on both sides of the ribbon
+	local rx, rw = M.RIBBON_X, M.RIBBON_W
+	if paged then rx, rw = M.NAV_RIBBON_X, M.NAV_RIBBON_W end
+	local rib = s:image(parent, "ui/button_purple", rx, M.RIBBON_Y, { w = rw, h = 104, slice9 = true })
+		or s:round(parent, rx, M.RIBBON_Y, rw, 104, "purple")
 	s:anchor(rib, "top")
 	self.ribbon = rib
-	s:text(rib, i18n.name(p.name), 0, 22, { font = "button", size = 34, color = "white", outline = "#5220A6",
-		shadow = "#5220A6", max_width = 440 })
+	s:text(rib, i18n.name(p.name), 0, 22, { font = "button", size = paged and 30 or 34, color = "white", outline = "#5220A6",
+		shadow = "#5220A6", max_width = rw - 44 })
 	s:text(rib, i18n.t("town.layers", { done = p.done, total = p.total }), 0, -10, {
-		font = "small", size = 21, color = "#F1E6FF", max_width = 420,
+		font = "small", size = 21, color = "#F1E6FF", max_width = rw - 64,
 	})
 	-- the track progress: one segment per layer
 	local n = math.max(1, p.total)
-	local bw = 400
+	local bw = rw - 84
 	local seg = (bw - (n - 1) * 5) / n
 	for i = 1, n do
 		local x = -bw / 2 + (i - 0.5) * seg + (i - 1) * 5
 		s:round(rib, x, -36, seg, 12, i <= p.done and "#FFDB1A" or "#6A2BD1", { radius = 5 })
+	end
+	if paged then
+		arrow_button(self, parent, M.ARROW_PREV_X, -1, nav.prev ~= nil)
+		arrow_button(self, parent, M.ARROW_NEXT_X, 1, nav.next ~= nil)
 	end
 	local view = app.meta:view(town.district)
 	local toggle = s:button({ parent = parent, x = 652, y = M.RIBBON_Y, w = 112, h = 96, style = view == "day" and "blue" or "gold",
@@ -203,16 +230,35 @@ end
 
 function Hud:build_task(parent)
 	local s, town = self.ui, self.town
-	local task = views.task(app.meta)
-	self.task = task
+	local cv = views.card(app.meta, town.district)
+	local task = cv.task
+	self.task, self.card_kind = task, cv.kind
 	local x, y = M.TASK_X, M.TASK_Y
-	if not task then
+	self.chip, self.chip_star, self.thumb = nil, nil, nil
+	if cv.kind == "done" then
 		local card = s:round(parent, x, y, 588, 112, "white", { alpha = 0.97, radius = 34 })
 		s:anchor(card, "bottom")
 		icon(s, card, "ui/icons/star", -236, 0, 76, "yellow")
 		s:text(card, i18n.t("town.town_done"), 30, 2, { font = "button", size = 30, color = "pink", max_width = 470 })
 		self.card = card
-		self.chip = nil
+		return
+	end
+	if cv.kind == "back" then
+		-- another district is on display: one tap takes the player back to the one being built
+		local card = s:button({ parent = parent, x = x, y = y, w = 588, h = 128, style = "blue",
+			on_click = function() town:browse_to(cv.district, 1) end })
+		s:anchor(card.node, "bottom")
+		self.card = card.node
+		self:target("back", self:bottom(x, y))
+		local arrow = s:image(card.node, "ui/icons/arrow", 232, 4, { w = 72, h = 72 })
+			or s:circle(card.node, 232, 4, 56, "white")
+		if arrow and not fx.reduced() then
+			local p = gui.get_position(arrow)
+			gui.animate(arrow, "position.x", p.x + 10, gui.EASING_INOUTSINE, 0.5, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+		end
+		kit.label({ ui = s }, card.node, i18n.t("town.back_to", { name = i18n.name(cv.name) }), -34, 4, {
+			font = "button", size = 32, color = "white", outline = "#174E9E", shadow = "#174E9E", max_width = 440, lines = 2,
+		})
 		return
 	end
 	local card = s:button({ parent = parent, x = x, y = y, w = 588, h = 128, style = "white",
@@ -254,6 +300,45 @@ function Hud:build_task(parent)
 		outline = task.affordable and "#C96A00" or false,
 	})
 	if task.affordable and not fx.reduced() then ui.pulse(card.node, 0.035, 0.7) end
+end
+
+-- hint -------------------------------------------------------------------------------------------
+
+M.HINT_Y = M.TASK_Y + 150
+
+-- The pointing hand and the speech bubble over the task card (views.town_hint): the first star of
+-- the game should go into the first task.
+function Hud:build_hint(parent)
+	local s = self.ui
+	local hint = views.town_hint(app.meta, self.task)
+	self.hint = hint
+	if not hint then return end
+	-- logged once per visit, not at every rebuild of the bars
+	local town = self.town
+	town.hints_logged = town.hints_logged or {}
+	if not town.hints_logged[hint.id] then
+		town.hints_logged[hint.id] = true
+		analytics.log("tutorial_step", { id = hint.id, level = app.meta:level_to_play() })
+	end
+	local x = M.TASK_X
+	local holder = s:layer(parent)
+	gui.set_position(holder, vmath.vector3(0, M.HINT_Y, 0))
+	s:anchor(holder, "bottom")
+	local border = s:round(holder, x, 0, 548, 104, "#C9A7FF", { radius = 36 })
+	local bubble = s:round(border, 0, 0, 536, 92, "white", { radius = 32 })
+	-- the tail points down at the card
+	local tail = s:box(border, 150, -50, 34, 34, { color = "#C9A7FF" })
+	gui.set_euler(tail, vmath.vector3(0, 0, 45))
+	s:box(border, 150, -45, 30, 30, { color = "white" })
+	kit.label({ ui = s }, bubble, i18n.tr(hint.text), 0, 0, { font = "body", size = 28, color = "#5220A6", max_width = 490, lines = 2 })
+	-- the hand taps the star price
+	local hand = s:image(holder, "ui/icons/hand", M.TASK_X + 236, -92, { w = 96, h = 96 })
+	if hand and not fx.reduced() then
+		local p = gui.get_position(hand)
+		gui.animate(hand, "position", vmath.vector3(p.x - 14, p.y + 16, 0), gui.EASING_INOUTSINE, 0.45, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+	end
+	if not fx.reduced() then ui.pulse(border, 0.025, 0.9) end
+	self:target("hint", self:bottom(x, M.HINT_Y))
 end
 
 function Hud:chip_pos()
@@ -382,6 +467,7 @@ function Hud:build()
 	self:build_ribbon(self.layer)
 	self:build_task(self.layer)
 	self:build_level(self.layer)
+	self:build_hint(self.layer)
 	self:build_nav(self.layer)
 	app.ui.targets = self.targets
 end

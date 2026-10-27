@@ -16,8 +16,9 @@ local M = {}
 
 local W, H = 660, 1120
 
+-- the town track of the district on display (the town may be paging through the districts)
 local function restore_music()
-	audio.music(app.focus_district())
+	audio.music(app.ui.district or app.focus_district())
 end
 
 local function play(e, row)

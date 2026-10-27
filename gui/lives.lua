@@ -9,6 +9,7 @@ local app = require("client.app")
 local i18n = require("client.i18n")
 local views = require("client.views")
 local ui = require("client.ui")
+local analytics = require("client.services.analytics")
 local kit = require("gui.kit")
 local config = require("meta.config")
 
@@ -43,6 +44,7 @@ local function refill(e)
 	local ok = app.meta:refill_lives(app.now())
 	app.commit("refill_lives")
 	if not ok then return end
+	analytics.log("lives_refill", { price = o.price })
 	e.busy = true -- no rebuild while the hearts fill
 	kit.sfx("unlock")
 	if e.bit then e.bit:cheer(2, 2) end
@@ -50,7 +52,7 @@ local function refill(e)
 	for i = before + 1, #hearts do
 		local node = hearts[i]
 		local delay = (i - before - 1) * 0.12
-		e.fx:after(delay, function()
+		e:later(delay, function()
 			gui.set_color(node, vmath.vector4(1, 1, 1, 1))
 			e.fx:pop(node, 0.4, 0.3)
 			local x, y = kit.abs(e.hearts_x[i], e.hearts_y)

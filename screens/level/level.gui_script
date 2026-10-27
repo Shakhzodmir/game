@@ -1,373 +1,415 @@
--- Level HUD (over the board of screens/level/board.script):
---   top:    pause, the goals (up to three icons with what is left, a tick when
---           done, a pop when one goes down) and the moves badge (pulses at <= 5);
---   bottom: the four in-level boosters with their counts (tap: target mode on
---           the board through client/level_link.lua; tap again: cancel) and the
---           level name.
--- Minimal level windows through the overlay (app.modal): pause (resume /
--- leave), out of moves (+moves for coins / give up), and the end of the
--- level: the meta attempt is finished (client/rewards.lua shows the reward in
--- the town) and the town comes back. A standalone debug start (no meta
--- attempt) plays with free boosters and free "+5 moves".
--- Music is started and ducked by the board. The HUD is rebuilt when the
--- language changes or the window is resized.
+-- Level HUD and level windows (client-architecture.md, 4.2), over the board of screens/level/board.script.
+--
+-- This script is glue: what is drawn lives in screens/level/hud.lua (the top row, the booster bar, Bit,
+-- the flights to the goals, the score pops) and screens/level/tutorial_view.lua (spotlight, hand,
+-- bubble); where things stand and what they do in client/level_hud.lua, client/level_bit.lua and
+-- client/tutorial.lua (pure, tested); what the windows say in client/level_windows.lua; how an attempt
+-- ends in client/level_end.lua (through the meta: client/flow.lua and the meta API own the rules). The
+-- windows (gui/pause.lua, moves.lua, defeat.lua, result.lua, booster_buy.lua, and the meta's start, lives,
+-- shop, settings, confirm) are hosted by client/popups.lua over everything.
+--
+-- The board talks to this script through the bus topics listed in screens/level/board.script and
+-- client/level_link.lua; this script talks to the board through that module.
+--   level_ready   build the HUD and Bit, start the tutorial of the level (if it has one and it was not seen)
+--   level_moves / level_goal / level_score / level_special / level_noise / level_praise   the HUD, Bit
+--   level_state   out_of_moves -> the offer window; the booster bar follows the state
+--   level_result  complete -> finish the attempt (meta) and show the results; lost -> the defeat
+--   level_booster target mode on / off, the booster used
+--
+-- Flow of the end: win -> results -> "Next level" opens the start window of the next level -> Play (three taps
+-- from the win with the skip of the concert); defeat -> "Try again" opens the start window of the same level ->
+-- Play (two taps). Pause -> leave: before the first move the attempt is dropped, after it a loss that the town
+-- shows. A level started without a meta attempt (debug keys, the QA "level n" command) plays with free boosters
+-- and free "+5 moves" and gets stand-in results.
+-- State for QA / debug: app.ui.level (the HUD) and app.ui.popup (client/popups.lua).
 
 local app = require("client.app")
 local ui = require("client.ui")
 local i18n = require("client.i18n")
 local bus = require("client.bus")
-local assets = require("client.assets")
-local levels = require("client.levels")
+local audio = require("client.audio")
+local fx_mod = require("client.fx")
+local bit = require("client.bit")
+local popups = require("client.popups")
 local link = require("client.level_link")
+local level_hud = require("client.level_hud")
+local level_windows = require("client.level_windows")
+local level_end = require("client.level_end")
+local tutorial = require("client.tutorial")
+local ads = require("client.services.ads")
+local analytics = require("client.services.analytics")
+local hud_mod = require("screens.level.hud")
+local tutorial_view = require("screens.level.tutorial_view")
 
 local GUI = "/screens/level/level.gui"
-local BOOSTERS = { "stick", "row_light", "col_light", "remix" }
-local BOOSTER_STYLE = { stick = "pink", row_light = "gold", col_light = "blue", remix = "purple" }
-local LOW_MOVES = 5
-local END_DELAY = 1.6
+local TOUCH = hash("touch")
+local BACK = hash("back")
 
-local function run()
-	return app.meta and app.meta:run() or nil
+-- literal requires: bob bundles only modules it can see
+local REGISTRY = {
+	pause = require("gui.pause"),
+	moves = require("gui.moves"),
+	defeat = require("gui.defeat"),
+	result = require("gui.result"),
+	booster_buy = require("gui.booster_buy"),
+	start = require("gui.start"),
+	lives = require("gui.lives"),
+	shop = require("gui.shop"),
+	settings = require("gui.settings"),
+	confirm = require("gui.confirm"),
+}
+
+local Level = {}
+Level.__index = Level
+
+-- Cosmetic code must never stop the level: an error is logged (the first few) and the frame goes on.
+local function guard(self, what, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		self.errors = (self.errors or 0) + 1
+		if self.errors <= 5 then print("ERROR: level HUD (" .. what .. "): " .. tostring(err)) end
+	end
+	return ok
 end
 
-local function booster_info(id)
-	if not run() then return { count = nil, unlocked = true } end -- standalone: free
-	for _, b in ipairs(app.meta:inventory()) do
-		if b.id == id then return { count = b.count, unlocked = b.unlocked, unlock_level = b.unlock_level } end
-	end
-	return { count = 0, unlocked = false }
+-- windows ------------------------------------------------------------------------------------------------------
+
+function Level:open(name, params)
+	return self.popups:open(name, params)
 end
 
--- goals ---------------------------------------------------------------------------------
-
-local function build_goals(self, parent)
-	local s = self.ui
-	local info = link.info()
-	local data = { goals = info and info.goals or {}, floor = nil }
-	local goals = levels.goals(data)
-	local n = math.max(1, #goals)
-	local w = 420
-	local panel = s:image(parent, "ui/panel", 330, 1280 - 110, { w = w, h = 170, slice9 = true })
-		or s:round(parent, 330, 1280 - 110, w, 170, "white", { alpha = 0.95 })
-	s:anchor(panel, "top")
-	self.goal_nodes = {}
-	local st = link.status()
-	for k, gdef in ipairs(goals) do
-		local x = -w / 2 + w * (k - 0.5) / n
-		local icon = s:image(panel, gdef.image, x, 22, { w = 84, h = 84 })
-		local left = st and st.goals and st.goals[k] or gdef.count or 0
-		local txt, tinfo = s:text(panel, tostring(left), x, -52, { font = "title", size = 44, color = "text", max_width = 120 })
-		local check = s:image(panel, "ui/icons/check", x + 30, -40, { w = 56, h = 56 })
-		if check then gui.set_enabled(check, left <= 0) end
-		gui.set_enabled(txt, left > 0)
-		self.goal_nodes[k] = { icon = icon, text = txt, info = tinfo, check = check, left = left }
-	end
-	self.goals_panel = panel
-end
-
-local function set_goal(self, k, left)
-	local g = self.goal_nodes and self.goal_nodes[k]
-	if not g then return end
-	if g.left == left then return end
-	g.left = left
-	self.ui:set_text(g.text, tostring(math.max(0, left)), g.info)
-	gui.set_enabled(g.text, left > 0)
-	if g.check then
-		gui.set_enabled(g.check, left <= 0)
-		if left <= 0 then ui.pop_in(g.check, 0, 0.3) end
-	end
-	if g.icon then
-		gui.cancel_animations(g.icon, "scale")
-		gui.set_scale(g.icon, vmath.vector3(1.25, 1.25, 1))
-		gui.animate(g.icon, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3)
+-- the board stands still while a window is open; the tutorial hides
+function Level:on_popups()
+	local open = self.popups:count() > 0
+	if open ~= self.paused then
+		self.paused = open
+		link.pause(open)
+		self.tutv:set_visible(not open)
 	end
 end
 
--- moves ---------------------------------------------------------------------------------
-
-local function set_moves(self, left)
-	if not self.moves_text then return end
-	self.moves_left = left
-	self.ui:set_text(self.moves_text, tostring(left), self.moves_info)
-	local low = left > 0 and left <= LOW_MOVES
-	if low ~= self.moves_low then
-		self.moves_low = low
-		if low then ui.pulse(self.moves_badge, 0.07, 0.35) else ui.stop_pulse(self.moves_badge) end
-	end
-end
-
--- boosters ------------------------------------------------------------------------------
-
-local function refresh_boosters(self)
-	for _, id in ipairs(BOOSTERS) do
-		local b = self.booster_btns and self.booster_btns[id]
-		if b then
-			local inf = booster_info(id)
-			local targeting = link.targeting() == id
-			if b.badge_text then
-				-- standalone debug start: free boosters, no count
-				gui.set_enabled(b.badge, inf.count ~= nil)
-				self.ui:set_text(b.badge_text, tostring(inf.count or ""), b.badge_info)
-			end
-			self.ui:set_enabled(b.btn, inf.unlocked)
-			if b.lock then gui.set_enabled(b.lock, not inf.unlocked) end
-			if targeting and not b.pulsing then
-				b.pulsing = true
-				ui.pulse(b.btn.node, 0.08, 0.3)
-			elseif not targeting and b.pulsing then
-				b.pulsing = false
-				ui.stop_pulse(b.btn.node)
-			end
-		end
-	end
-	if self.pick_text then gui.set_enabled(self.pick_text, link.targeting() ~= nil) end
-end
-
-local function on_booster_tap(self, id)
-	if self.ended then return end
-	if link.targeting() == id then
-		link.cancel_booster()
-		refresh_boosters(self)
-		return
-	end
-	if link.targeting() then link.cancel_booster() end
-	local inf = booster_info(id)
-	if not inf.unlocked then
-		app.toast_key("hud.booster_locked", { n = inf.unlock_level or "?" }, { color = "blue" })
-		return
-	end
-	if inf.count ~= nil and inf.count <= 0 then
-		app.toast_key("hud.no_boosters", nil, { color = "pink" })
-		return
-	end
-	local ok, why = link.booster(id)
-	if not ok and why ~= "busy" then
-		app.toast_key(why == "not_rest" and "hud.wait_board" or "hud.booster_no", nil, { color = "blue" })
-	end
-	refresh_boosters(self)
-end
-
-local function build_boosters(self, parent)
-	local s = self.ui
-	local bar = s:image(parent, "ui/panel", 360, 70, { w = 704, h = 132, slice9 = true })
-		or s:round(parent, 360, 70, 704, 132, "white", { alpha = 0.92 })
-	s:anchor(bar, "bottom")
-	self.booster_btns = {}
-	for i, id in ipairs(BOOSTERS) do
-		local x = -250 + (i - 1) * 166
-		local btn = s:button({ parent = bar, x = x, y = 2, w = 104, h = 96, style = BOOSTER_STYLE[id],
-			icon = "ui/icons/" .. id, icon_size = 72, on_click = function() on_booster_tap(self, id) end })
-		local badge = s:image(btn.node, "ui/badge_count", 46, 40, { w = 46, h = 46 })
-			or s:circle(btn.node, 46, 40, 46, "pink")
-		local bt, binfo = s:text(badge, "", 0, 1, { font = "number", size = 26, color = "white", outline = "#A8204F",
-			max_width = 40 })
-		local lock = s:image(btn.node, "ui/icons/lock", 30, -30, { w = 44, h = 44 })
-		self.booster_btns[id] = { btn = btn, badge = badge, badge_text = bt, badge_info = binfo, lock = lock }
-	end
-	local pick = s:text(parent, i18n.t("hud.pick_target"), 360, 176, {
-		font = "button", size = 34, color = "white", outline = "#8B45FF", shadow = "shadow", max_width = 640,
-	})
-	s:anchor(pick, "bottom")
-	self.pick_text = pick
-	refresh_boosters(self)
-end
-
--- windows -------------------------------------------------------------------------------
-
-local function go_town(self, delay)
+function Level:go_town(delay)
 	self.leave_in = delay or 0
 end
 
-local function finish(self, result)
+function Level:open_pause()
+	if self.ended or not self.ctx or self.popups:count() > 0 then return end
+	self:open("pause", {
+		view = level_windows.pause(app.meta, app.now()), level_id = self.ctx.level_id,
+		on_close = function(result) if result == "leave" then self:leave() end end,
+	})
+end
+
+-- pause -> leave: the attempt is dropped (before the first move) or lost (after it), then the town
+function Level:leave()
 	if self.ended then return end
 	self.ended = true
 	link.cancel_booster()
-	local r = run()
-	if r then
-		local ok, res = pcall(function()
-			if result.won then
-				return app.meta:finish_level({ won = true, level_id = r.level_id, moves_at_win = result.moves_at_win or 0 },
-					app.now())
-			end
-			return app.meta:finish_level({ won = false, level_id = r.level_id }, app.now())
-		end)
-		app.commit(result.won and "level_win" or "level_lose")
-		if ok and res and result.won then app.push_reward(res) end
-		if not ok then print("WARNING: level HUD: finish_level failed: " .. tostring(res)) end
-	end
-	app.toast_key(result.won and "hud.win" or "hud.lost", nil, { color = result.won and "gold" or "pink" })
-	go_town(self, END_DELAY)
+	level_end.quit(self.ctx)
+	self:go_town(0)
 end
 
-local function open_out_of_moves(self, stuck)
-	if self.ended then return end
-	local r = run()
-	local offer = r and app.meta:continue_offer() or nil
-	local buttons = {}
-	local text
-	if stuck then
-		text = { key = "popup.level.stuck" }
-	elseif r and offer then
-		text = { key = "popup.level.out_text", vars = { n = offer.moves, price = offer.price } }
-		buttons[#buttons + 1] = { id = "continue", text = { key = "popup.level.continue", vars = { n = offer.moves } }, style = "gold" }
-	elseif not r then
-		text = { key = "popup.level.out_text_free", vars = { n = 5 } }
-		buttons[#buttons + 1] = { id = "continue", text = { key = "popup.level.continue", vars = { n = 5 } }, style = "gold" }
-	else
-		text = { key = "popup.level.no_offer" }
-	end
-	buttons[#buttons + 1] = { id = "give_up", text = { key = "popup.level.give_up" }, style = "pink" }
-	self.offer = offer
-	self.modal = "level_out"
-	app.modal({ id = "level_out", title = { key = "popup.level.out_title" }, text = text, buttons = buttons })
+function Level:moves_view()
+	local st = link.status() or {}
+	return level_windows.out_of_moves(app.meta, { state = st.state, stuck = st.stuck, goals = st.goals }, app.now(),
+		{ ads = ads.can_show("continue"), boosters = level_hud.BOOSTERS })
 end
 
-local function on_out_result(self, button)
-	self.modal = nil
-	if button == "continue" then
-		local r = run()
-		if r and self.offer then
-			local res, why = app.meta:buy_continue(self.offer.k)
-			app.commit("continue")
-			if res then
-				link.continue(res.moves, res.riff)
-			else
-				app.toast_key(why == "not_enough_coins" and "common.not_enough_coins" or "common.error", nil, { color = "pink" })
-				self.reopen_out = 0.4
-			end
-		else
-			link.continue(5, false)
-		end
-	elseif button == "give_up" then
-		link.give_up()
-	elseif button ~= "screen_changed" then
-		self.reopen_out = 0.3 -- the choice is needed to go on
-	end
-end
-
-local function open_pause(self)
-	if self.ended or self.modal then return end
-	local r = run()
-	local text
-	if r and r.moved and not r.free then
-		text = { key = "popup.level.quit_life" }
-	else
-		text = { key = "popup.level.quit_free" }
-	end
-	link.pause(true)
-	self.modal = "level_pause"
-	app.modal({ id = "level_pause", title = { key = "popup.level.pause_title" }, text = text, buttons = {
-		{ id = "resume", text = { key = "popup.level.resume" }, style = "green" },
-		{ id = "quit", text = { key = "popup.level.quit" }, style = "pink" },
-	} })
-end
-
-local function on_pause_result(self, button)
-	self.modal = nil
-	link.pause(false)
-	if button ~= "quit" then return end
-	self.ended = true
-	local r = run()
-	if r then
-		pcall(function()
-			if r.moved then
-				app.meta:finish_level({ won = false, level_id = r.level_id, quit_after_first_move = true }, app.now())
-			else
-				app.meta:cancel_level()
-			end
-		end)
-		app.commit("level_quit")
-	end
-	go_town(self, 0)
-end
-
--- build ---------------------------------------------------------------------------------
-
-local function build(self)
-	local s = self.ui
-	if self.l_hud then s:clear(self.l_hud) end
-	self.l_hud = s:layer(self.c_hud)
-	local parent = self.l_hud
-	local info = link.info()
-	local pause = s:button({ parent = parent, x = 62, y = 1280 - 110, w = 96, h = 96, style = "purple",
-		icon = "ui/icons/pause", icon_size = 60, text = not assets.has_image("ui/icons/pause") and "II" or nil,
-		on_click = function() open_pause(self) end })
-	s:anchor(pause.node, "top")
-	build_goals(self, parent)
-	local badge = s:image(parent, "ui/moves_badge", 632, 1280 - 110, { w = 160, h = 160, slice9 = true })
-		or s:circle(parent, 632, 1280 - 110, 150, "pink")
-	s:anchor(badge, "top")
-	self.moves_badge = badge
-	self.moves_low = nil
+function Level:open_moves()
+	if self.ended or not self.ctx or self.popups:find("moves") then return end
 	local st = link.status()
-	self.moves_text, self.moves_info = s:text(badge, tostring(st and st.moves_left or "–"), 0, 12, {
-		font = "title", size = 64, color = "white", outline = "#A8204F", max_width = 130,
+	if not st or st.state ~= "out_of_moves" then return end -- it has moved on since the event
+	local view = self:moves_view()
+	level_end.offer_shown(view.offer, self.ctx)
+	self:open("moves", {
+		view = view, ctx = self.ctx, refresh = function() return self:moves_view() end,
+		on_close = function(r) self:on_moves_close(r) end,
 	})
-	s:text(badge, i18n.t("hud.moves"), 0, -46, { font = "button", size = 24, color = "white", outline = "#A8204F",
-		max_width = 130 })
-	if st then set_moves(self, st.moves_left) end
-	build_boosters(self, parent)
-	if info then
-		local name = s:text(parent, i18n.t("hud.level", { n = info.level_id }), 360, 158, {
-			font = "button", size = 28, color = "white", outline = "#2F80ED", shadow = "shadow", max_width = 400,
+end
+
+function Level:on_moves_close(r)
+	if type(r) ~= "table" then return end
+	if r.action == "continue" then
+		link.continue(r.moves, r.riff)
+	elseif r.action == "ad" then
+		link.continue(r.moves, false)
+	elseif r.action == "booster" then
+		self:on_booster(r.id)
+	elseif r.action == "give_up" then
+		link.give_up()
+	end
+end
+
+function Level:open_buy(id)
+	self:open("booster_buy", { id = id, on_close = function(r)
+		if type(r) == "table" and r.action == "bought" then self:on_booster(r.id) end
+	end })
+end
+
+-- the end of the attempt ----------------------------------------------------------------------------------------
+
+function Level:fail_end()
+	app.toast_key("common.error", nil, { color = "pink" })
+	self:go_town(1.0)
+end
+
+function Level:on_result(result)
+	if self.ended or not self.ctx then return end
+	self.ended = true
+	link.cancel_booster()
+	self.hud:set_target(nil)
+	if self.tutorial then
+		self.tutorial:update(0) -- it hears the end of the level
+	end
+	if result.won then
+		local res = level_end.win(result, self.ctx)
+		if not res then return self:fail_end() end
+		local view = level_windows.result(app.meta, res, result, app.now())
+		self:open("result", {
+			view = view, refund = res.refund, standalone = res.standalone,
+			on_close = function(r)
+				if r == "town" then
+					self:go_town(0)
+				elseif type(r) == "table" and r.action == "next" then
+					app.show_screen("level", { level = r.level, from = "level" })
+				end
+			end,
 		})
-		s:anchor(name, "bottom")
-		self.level_name = name
+	else
+		local res = level_end.lose(result, self.ctx)
+		if not res then return self:fail_end() end
+		audio.sfx("lose")
+		local st = link.status() or {}
+		local view = level_windows.defeat(app.meta, res, st, self.hud.goal_defs, self.hud.goals and self.hud.goals.total, app.now())
+		self:open("defeat", {
+			view = view, level_id = self.ctx.level_id, standalone = res.standalone,
+			on_close = function(r)
+				if r == "town" then
+					if not res.standalone then app.push_reward(res) end -- the town shows the life and the streak
+					self:go_town(0)
+				elseif type(r) == "table" and r.action == "retry" then
+					app.show_screen("level", { level = self.ctx.level_id, from = "level" })
+				end
+			end,
+		})
 	end
-	self.built = true
 end
 
-function init(self)
-	msg.post(".", "acquire_input_focus")
-	gui.set_render_order(2)
-	self.ui = ui.scene({ gui = GUI, on_resize = function() self.dirty = true end })
-	self.c_hud = self.ui:layer(self.ui.root, "hud")
-	self.sub = bus.subscribe({ "level_ready", "level_moves", "level_goal", "level_state", "level_result",
-		"level_booster", "meta_changed", "language_changed", "modal_result" }, "level_hud")
-	self.on_bus = function(topic, p)
-		if topic == "level_ready" or topic == "language_changed" then
-			self.dirty = true
-		elseif topic == "level_moves" then
-			set_moves(self, p.left)
-		elseif topic == "level_goal" then
-			set_goal(self, p.index, p.left)
-		elseif topic == "level_state" then
-			if p.state == "out_of_moves" then open_out_of_moves(self, p.reason == "stuck") end
-		elseif topic == "level_result" then
-			finish(self, p.result or {})
-		elseif topic == "level_booster" then
-			if p.phase == "rejected" then app.toast_key("hud.booster_no", nil, { color = "blue" }) end
-			refresh_boosters(self)
-		elseif topic == "meta_changed" then
-			refresh_boosters(self)
-		elseif topic == "modal_result" then
-			if p.id == "level_out" then on_out_result(self, p.button)
-			elseif p.id == "level_pause" then on_pause_result(self, p.button) end
+-- boosters -----------------------------------------------------------------------------------------------------------
+
+function Level:cancel_booster()
+	link.cancel_booster()
+end
+
+function Level:on_booster(id)
+	if self.ended or not self.ctx or self.popups:count() > 0 then return end
+	local st = link.status() or {}
+	local info = hud_mod.booster_info(id)
+	local bs = level_hud.booster_state(info)
+	local act = level_hud.booster_tap(id, bs, {
+		state = st.state, targeting = link.targeting(), allowed = link.allow_booster(id),
+	})
+	if act == "blocked" then
+		self.tutv:shake()
+	elseif act == "cancel" then
+		link.cancel_booster()
+	elseif act == "locked" then
+		app.toast_key("hud.booster_locked", { n = info.unlock_level or "?" }, { color = "blue" })
+	elseif act == "buy" then
+		self:open_buy(id)
+	elseif act == "wait" then
+		app.toast_key("hud.wait_board", nil, { color = "blue" })
+	else
+		if link.targeting() then link.cancel_booster() end
+		local ok, why = link.booster(id)
+		if not ok and why ~= "busy" then
+			app.toast_key(why == "not_rest" and "hud.wait_board" or "hud.booster_no", nil, { color = "blue" })
 		end
 	end
 end
 
-function final(self)
-	self.sub:close()
-	self.ui:final()
+function Level:on_booster_event(p)
+	if p.phase == "target" then
+		self.hud:set_target(p.booster)
+	elseif p.phase == "cancel" or p.phase == "used" then
+		self.hud:set_target(nil)
+		-- aimed at nothing while the moves are out: the offer is back
+		if p.phase == "cancel" and self.state == "out_of_moves" and not self.ended then self:open_moves() end
+	elseif p.phase == "rejected" then
+		app.toast_key("hud.booster_no", nil, { color = "blue" })
+	elseif p.phase == "done" then
+		if p.ok ~= false then level_end.booster_used(self.ctx, p.booster) end
+		self.hud:refresh_boosters()
+	end
 end
 
-function update(self, dt)
+-- the tutorial -----------------------------------------------------------------------------------------------------------
+
+function Level:start_tutorial(info)
+	if not app.meta then return end
+	local ok, t = pcall(tutorial.start, info.level_id, {
+		seen = function(id) return app.meta:tutorial_seen(id) end,
+		mark = function(id)
+			app.meta:mark_tutorial_seen(id)
+			app.commit("tutorial")
+		end,
+		on_step = function(i)
+			pcall(analytics.log, "tutorial_step", { id = tutorial.id(info.level_id) .. ":" .. i, level = info.level_id })
+		end,
+		env = {
+			state = function() local st = link.status() return st and st.state or nil end,
+			stable = link.stable, can_swap = link.can_swap, piece = link.piece, specials = link.specials,
+			hint = link.core_hint, targeting = link.targeting,
+			moves_left = function() local st = link.status() return st and st.moves_left or nil end,
+			booster_ready = function(id)
+				local b = hud_mod.booster_info(id)
+				return b.unlocked and (b.count == nil or b.count > 0)
+			end,
+			mode = function() return app.meta:settings().input_mode end,
+		},
+	})
+	if not ok then
+		print("WARNING: level HUD: tutorial: " .. tostring(t))
+		return
+	end
+	if t then
+		self.tutorial = t
+		link.set_guard(t:guard())
+	end
+end
+
+function Level:stop_tutorial()
+	if self.tutorial then
+		self.tutorial = nil
+		link.clear_guard()
+		self.tutv:set(nil)
+	end
+end
+
+function Level:skip_tutorial()
+	if self.tutorial then self.tutorial:skip() end
+end
+
+function Level:update_tutorial(dt)
+	local t = self.tutorial
+	if not t then return end
+	t:update(dt)
+	if t:finished() then
+		self:stop_tutorial()
+		return
+	end
+	local rect = link.board_rect()
+	self.tutv:set(t:view(), rect)
+	if t.blocked ~= self.blocked_seen then
+		self.blocked_seen = t.blocked
+		self.tutv:shake()
+	end
+	self.tutv:update(dt)
+end
+
+-- the board's events ------------------------------------------------------------------------------------------------------
+
+function Level:on_ready()
+	local info, st = link.info(), link.status()
+	if not info or not st then return end
+	self.state = st.state
+	self.ctx = { level_id = info.level_id, t0 = app.now(), standalone = info.standalone }
+	self.moves0, self.moved = st.moves_left, false
+	self.hud:build(info, st, link.board_rect())
+	self.hud:start_bit(st.state, st.moves_left)
+	self.dirty = false
+	self:stop_tutorial()
+	self:start_tutorial(info)
+end
+
+function Level:on_state(p)
+	self.state = p.state
+	self.hud:set_state(p.state)
+	guard(self, "bit", self.hud.bit_event, self.hud, "level_state", p)
+	if p.state == "out_of_moves" then
+		self:open_moves()
+	else
+		local e = self.popups:find("moves")
+		if e then e:close("auto") end -- the moves came back (a debug command, a booster that solved it)
+	end
+end
+
+function Level:on_bus(topic, p)
+	self.popups:on_event(topic, p)
+	if topic == "level_ready" then
+		self:on_ready()
+	elseif topic == "level_moves" then
+		self.hud:set_moves(p.left)
+		guard(self, "bit", self.hud.bit_event, self.hud, topic, p)
+		if self.ctx and not self.moved and self.moves0 and p.left < self.moves0 then
+			self.moved = true
+			level_end.first_move(self.ctx)
+		end
+	elseif topic == "level_goal" then
+		guard(self, "goal", self.hud.on_goal, self.hud, p)
+		guard(self, "bit", self.hud.bit_event, self.hud, topic, p)
+	elseif topic == "level_score" then
+		self.hud:on_score(p)
+	elseif topic == "level_state" then
+		self:on_state(p)
+	elseif topic == "level_result" then
+		self:on_result(p.result or {})
+	elseif topic == "level_booster" then
+		self:on_booster_event(p)
+	elseif topic == "level_special" or topic == "level_noise" or topic == "level_praise" then
+		guard(self, "bit", self.hud.bit_event, self.hud, topic, p)
+	elseif topic == "meta_changed" then
+		self.hud:refresh_boosters()
+	elseif topic == "language_changed" then
+		self.dirty = true
+	elseif topic == "settings_changed" then
+		self.hud:set_reduced(app.reduced_motion())
+	elseif topic == "screen_leaving" then
+		self.leaving = true
+		self.popups:close_all()
+	elseif topic == "popup_request" then
+		-- app.open_popup / app.close_popup (QA, debug): any window of the registry
+		if p.close then
+			self.popups:close()
+		elseif p.name and REGISTRY[p.name] and not self.ended then
+			local params = p.params or {}
+			if p.name == "start" then params.level = params.level or (app.meta and app.meta:level_to_play()) end
+			self:open(p.name, params)
+		end
+	end
+end
+
+-- frame ----------------------------------------------------------------------------------------------------------------------
+
+function Level:publish()
+	local u = app.ui
+	u.screen = "level"
+	local g = self.hud.goals
+	u.level = {
+		state = self.state, moves = self.hud.moves, low = self.hud.moves_low or false, goals = g and g.shown or nil,
+		targeting = link.targeting(), bit = self.hud.bit and self.hud.bit.mood or nil, ended = self.ended or false,
+		tutorial = self.tutorial and { index = self.tutorial.index, phase = self.tutorial.phase, blocked = self.tutorial.blocked } or nil,
+		errors = self.errors or 0,
+	}
+end
+
+function Level:update(dt)
 	self.ui:update(dt)
-	if not self.built and link.active() then self.dirty = true end
-	if self.dirty and link.active() then
-		self.dirty = false
-		build(self)
-	end
-	self.sub:drain(self.on_bus)
-	if self.reopen_out then
-		self.reopen_out = self.reopen_out - dt
-		if self.reopen_out <= 0 then
-			self.reopen_out = nil
-			local st = link.status()
-			if st and st.state == "out_of_moves" then open_out_of_moves(self, st.stuck) end
+	self.sub:drain(self.bus_cb)
+	if link.active() then
+		if not self.ctx then
+			self:on_ready() -- the board came up after this script
+		elseif self.dirty then
+			self.dirty = false
+			self.hud:build(link.info(), link.status(), link.board_rect())
+		else
+			self.hud:follow_board(link.board_rect())
 		end
 	end
+	guard(self, "hud", self.hud.update, self.hud, dt)
+	self.fx:update(dt)
+	self.popups:update(dt)
+	guard(self, "tutorial", self.update_tutorial, self, dt)
 	if self.leave_in then
 		self.leave_in = self.leave_in - dt
 		if self.leave_in <= 0 then
@@ -375,12 +417,91 @@ function update(self, dt)
 			app.show_screen("town", { from = "level" })
 		end
 	end
+	self:publish()
+end
+
+function Level:on_input(action_id, action)
+	if self.popups:on_input(action_id, action) then return true end
+	if action_id == BACK then
+		if action.released then self:open_pause() end
+		return true
+	end
+	if action_id ~= TOUCH then return false end
+	if self.swallow then
+		if action.released then self.swallow = false end
+		return true
+	end
+	if self.ui:on_input(action_id, action) then return true end
+	if action.pressed then
+		local t = self.tutorial
+		local v = t and t:view()
+		if v and v.dismiss == "tap" then
+			-- a tip: this tap is the one that dismisses it (and does not reach the board)
+			t:tap()
+			self.swallow = not action.released
+			return true
+		end
+		if self.hud:pick_bit(action) then
+			self.swallow = not action.released
+			return true
+		end
+	end
+	return false
+end
+
+local function new_level()
+	local t = setmetatable({}, Level)
+	t.ui = ui.scene({ gui = GUI, on_resize = function() t.dirty = true end })
+	app.ui = { screen = "level" }
+	t.c_hud = t.ui:layer(t.ui.root, "hud_root")
+	t.c_tut = t.ui:layer(t.ui.root, "tutorial_root")
+	t.c_popups = t.ui:layer(t.ui.root, "popups_root")
+	t.fx = fx_mod.new(t.ui, t.ui.root)
+	t.hud = hud_mod.new(t.ui, {
+		fx = t.fx, layer = t.c_hud,
+		actions = {
+			pause = function() t:open_pause() end,
+			booster = function(id) t:on_booster(id) end,
+			cancel_booster = function() t:cancel_booster() end,
+		},
+	})
+	t.tutv = tutorial_view.new(t.ui, { parent = t.c_tut, fx = t.fx, hud = t.hud, on_skip = function() t:skip_tutorial() end })
+	t.popups = popups.new(t.ui, t.c_popups, {
+		registry = REGISTRY, fx = t.fx,
+		release = function() t.ui:release_images(bit.images()) end,
+		on_change = function() t:on_popups() end,
+	})
+	t.sub = bus.subscribe({
+		"level_ready", "level_moves", "level_goal", "level_score", "level_state", "level_result", "level_booster",
+		"level_special", "level_noise", "level_praise", "meta_changed", "language_changed", "settings_changed",
+		"screen_leaving", "lives_tick", "popup_request",
+	}, "level_hud")
+	t.bus_cb = function(topic, p) t:on_bus(topic, p) end
+	t.state, t.dirty, t.paused, t.ended = "playing", false, false, false
+	return t
+end
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	gui.set_render_order(2)
+	self.l = new_level()
+	-- the board may be ready already (its init ran first): build at once
+	if link.active() and link.info() then self.l:on_ready() end
+end
+
+function final(self)
+	local t = self.l
+	link.clear_guard()
+	t.sub:close()
+	t.popups:close_all()
+	t.ui:final()
+	app.ui = {}
+end
+
+function update(self, dt)
+	self.l:update(dt)
 end
 
 function on_input(self, action_id, action)
-	if action_id == hash("back") and action.released then
-		open_pause(self)
-		return true
-	end
-	return self.ui:on_input(action_id, action)
+	return self.l:on_input(action_id, action)
 end

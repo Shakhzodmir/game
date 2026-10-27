@@ -26,7 +26,8 @@
 --   M.fullscreen, M.dim_alpha, M.rebuild_on_meta, M.no_back   optional flags
 -- The entry e: {name, params, state (kept across rebuilds), ui, fx, host,
 -- first, targets}; e:close(result), e:open(name, params), e:rebuild(),
--- e:target(name, x, y) (a tap target for QA, centre coordinates).
+-- e:target(name, x, y) (a tap target for QA, centre coordinates); e:later(delay, fn) (a delayed call that
+-- is dropped when the window closed or was rebuilt meanwhile).
 -- Bus out: "popup_opened" {name}, "popup_closed" {name, result}.
 -- Status for QA: app.ui.popup (top name), app.ui.popups (stack),
 -- app.ui.popup_targets (logical tap targets of the top window).
@@ -58,6 +59,15 @@ end
 
 function Entry:rebuild()
 	self.host:rebuild(self)
+end
+
+-- fn() after `delay` seconds of the town's effects, unless the window was closed or rebuilt meanwhile
+-- (a rebuild deletes the nodes the callback would touch: a language change, a meta change).
+function Entry:later(delay, fn)
+	local n = self.build_n
+	return self.fx:after(delay, function()
+		if not self.closing and self.build_n == n then fn() end
+	end)
 end
 
 -- A tap target for QA (logical coordinates), from centre coordinates.
@@ -109,14 +119,23 @@ function Host:_build(e)
 	if e.back then s:clear(e.back) end
 	if e.content then s:clear(e.content) end
 	e.targets = {}
+	e.build_n = (e.build_n or 0) + 1
+	e.sliders, e.dragging = nil, nil -- per-build state: the nodes it points at are gone
 	e.back = s:layer(e.base)
 	e.content = s:layer(e.root)
 	e.mod.build(e)
 	if e == self.stack[#self.stack] then app.ui.popup_targets = e.targets end
 end
 
+-- A rebuild deletes every node of the window, the button a finger is down on included: it waits for the
+-- release (at most a second: a lost release must not freeze the window).
 function Host:rebuild(e)
 	if e and not e.closing then
+		if self.ui.pressed and (self.press_age or 0) < 1 then
+			e.rebuild_later = true
+			return
+		end
+		e.rebuild_later = nil
 		e.first = false
 		self:_build(e)
 	end
@@ -201,8 +220,10 @@ function Host:rebuild_all()
 end
 
 function Host:update(dt)
+	if self.ui.pressed then self.press_age = (self.press_age or 0) + dt else self.press_age = 0 end
 	for i = 1, #self.stack do
 		local e = self.stack[i]
+		if e and e.rebuild_later and not e.closing then self:rebuild(e) end
 		if e and e.mod.update and not e.closing then e.mod.update(e, dt) end
 	end
 end

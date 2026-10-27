@@ -193,7 +193,8 @@ function M.concert(town, res)
 		name = "concert",
 		run = function(done)
 			analytics.log("district_complete", { district = res.district })
-			town:open_popup("concert", { district = res.district, on_close = function() done() end })
+			-- a window that cannot open must not hold the show up
+			if not town:open_popup("concert", { district = res.district, on_close = function() done() end }) then done() end
 		end,
 	}
 end
@@ -253,7 +254,10 @@ function M.chest(town, params, acct)
 				done()
 			end
 		end
-		town:open_popup("chest", p)
+		if not town:open_popup("chest", p) then
+			settle(town, acct)
+			done()
+		end
 	end
 	step.finish = function()
 		for _, t in ipairs(tracks) do land_all(town, "coins", t) end
@@ -275,7 +279,7 @@ function M.next_district(town, next_id)
 				return
 			end
 			local d = app.district(next_id)
-			town.district = next_id
+			town.district, town.focus = next_id, next_id
 			audio.music(next_id)
 			town.fx:sfx("win")
 			town.scene:slide_to(next_id, function()
@@ -361,7 +365,7 @@ function M.rewards(town, r)
 				out[#out + 1] = {
 					name = "reward_gift",
 					run = function(done)
-						town:open_popup("gift", { id = id, on_close = function(result)
+						local opened = town:open_popup("gift", { id = id, on_close = function(result)
 							if type(result) == "table" and result.action == "collect" then
 								town.fx:fly({ image = require("client.views").booster_icon(id), size = 110,
 									from = { result.x, result.y }, to = function() return town.hud:level_pos() end,
@@ -375,6 +379,7 @@ function M.rewards(town, r)
 								done()
 							end
 						end })
+						if not opened then done() end
 					end,
 				}
 			end

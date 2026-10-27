@@ -7,6 +7,9 @@
 --   views.booster_icon("riff")               --> "specials/riff"
 --   views.lives(meta:lives(now))             --> {state, count, max, seconds, icon}
 --   views.task(meta)                         --> the next-task card | nil
+--   views.card(meta, viewing)                --> what the card above the level button shows
+--   views.browse(meta, viewing)              --> the open districts the player can page through
+--   views.town_hint(meta, task)              --> the hint to show over the town | nil
 --   views.level_button(meta, levels)         --> {level, tag, notes, all_done}
 --   views.start(meta, n, info, now, levels, free_up_to) --> the start window of level n
 --   views.start_boosters(meta, level)        --> the three pre-level slots
@@ -90,6 +93,47 @@ function M.task(meta)
 	}
 end
 
+-- What the card above the "Level N" button shows while district `viewing` is on display:
+--   {kind = "task", task}         the next task of the district being built
+--   {kind = "back", district, name}  another district is on display: a way back to the one being built
+--   {kind = "done"}               the whole town is complete
+function M.card(meta, viewing)
+	local task = M.task(meta)
+	if not task then return { kind = "done" } end
+	if viewing and task.district ~= viewing then
+		local d = meta:district(task.district)
+		return { kind = "back", district = task.district, name = d.name }
+	end
+	return { kind = "task", task = task }
+end
+
+-- The open districts (finished ones and the one being built, in town order) and where `viewing`
+-- stands among them: {count, index, ids, prev = id | nil, next = id | nil}.
+function M.browse(meta, viewing)
+	local ids = {}
+	for _, d in ipairs(meta:districts()) do
+		if d.available then ids[#ids + 1] = d.id end
+	end
+	local index = 1
+	for i, id in ipairs(ids) do
+		if id == viewing then index = i end
+	end
+	return { count = #ids, index = index, ids = ids, prev = ids[index - 1], next = ids[index + 1] }
+end
+
+-- The hint to show over the town now: {id, target, text = {key}} or nil. The first task of the
+-- town (a star is in the purse, nothing was built yet) gets a pointing hand; the hint is
+-- remembered in the save (meta:mark_tutorial_seen) once the player builds.
+-- task = M.task(meta) (nil when the town is complete).
+M.HINT_TASK = "town_first_task"
+function M.town_hint(meta, task)
+	if not task or not task.affordable or meta:tutorial_seen(M.HINT_TASK) then return nil end
+	for _, d in ipairs(meta:districts()) do
+		if d.done > 0 then return nil end
+	end
+	return { id = M.HINT_TASK, target = "task", text = { key = "tutorial.town" } }
+end
+
 -- The green "Level N" button: {level, difficulty, tag (i18n key or nil),
 -- notes = {{lit, booster, unlocked}} (the hit streak), streak_active,
 -- all_done}. levels = client/levels.lua (or anything with difficulty(n)
@@ -153,7 +197,7 @@ end
 -- The start window of level n. info = client/levels.lua load(n) (nil when
 -- the file is missing); free_up_to = app.free_levels(). {level, difficulty,
 -- tag, goals, moves, boosters, streak = {count, active, notes}, infinite,
--- lives, life_cost (a loss would cost a life), can_start, why (the meta's
+-- lives, next_life_in (seconds), life_cost (a loss would cost a life), can_start, why (the meta's
 -- refusal: "no_lives", "run_active", ...)}.
 function M.start(meta, n, info, now, levels, free_up_to)
 	local ok, why = meta:can_start(n, now)
@@ -174,6 +218,7 @@ function M.start(meta, n, info, now, levels, free_up_to)
 		streak = { count = streak.count, active = streak.active, notes = notes },
 		infinite = (l.infinite_seconds or 0) > 0,
 		lives = l.count,
+		next_life_in = l.next_in_seconds or 0,
 		life_cost = (free_up_to == nil or n > free_up_to) and (l.infinite_seconds or 0) <= 0,
 		can_start = ok and true or false,
 		why = why,
