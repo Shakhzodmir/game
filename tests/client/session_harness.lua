@@ -91,7 +91,7 @@ function M.run(opts, fn)
 			end
 			real_print(first, ...)
 		end)
-		s = setmetatable({ E = E, screens = {}, log = {}, frames = 0, warnings = warnings }, Session)
+		s = setmetatable({ E = E, screens = {}, log = {}, frames = 0, warnings = warnings, audited = {} }, Session)
 		-- the save files of an earlier session (Session:files): a cold start from them
 		for path, tbl in pairs(opts.files or {}) do E.files[path] = deep_copy(tbl) end
 		-- every posted message knows who posted it, so a reply finds its way back (the engine's `sender`)
@@ -264,6 +264,19 @@ function Session:frame()
 	E.step(1)
 	self:engine()
 	self.frames = self.frames + 1
+	if self.frames % 30 == 0 then self:audit() end
+end
+
+-- What the strict GUI stub finds wrong with the text on display (a glyph the font lacks, an outline on a font that
+-- bakes none, too many characters), reported once each as a warning of the session.
+function Session:audit()
+	for _, line in ipairs(self.E.audit()) do
+		local text = "AUDIT: " .. line
+		if not self.audited[text] then
+			self.audited[text] = true
+			self.warnings[#self.warnings + 1] = text
+		end
+	end
 end
 
 function Session:step(n)
