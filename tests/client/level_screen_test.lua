@@ -77,6 +77,14 @@ end
 
 local function tap_booster(c, id) return c.tap(BOOSTER_AT[id][1], BOOSTER_AT[id][2]) end
 
+-- the live text node of the level scene that shows `text`
+local function node_with(c, text)
+	for _, n in ipairs(c.E.alive_nodes(c.E.scene("/screens/level/level.gui"))) do
+		if n.text == text then return n end
+	end
+	return nil
+end
+
 local function empty_stock(app)
 	for _, id in ipairs(level_hud.BOOSTERS) do
 		local n = app.meta:booster_count(id)
@@ -189,6 +197,32 @@ describe("level screen: boosters", function()
 		end)
 	end)
 
+	it("dims what is drawn on a booster button together with its face: the icon and the count follow its alpha", function()
+		G.with_level({ level = 9 }, function(c)
+			local E = c.E
+			local hud = c.hud.self.l.hud
+			local b = hud.btns.stick
+			assert_eq(E.opacity(b.btn.node), 1)
+			assert_eq(E.opacity(b.btn.icon), 1)
+			c.hud:ctx(function() hud:set_state("lost") end) -- no booster can be used now
+			assert_eq(E.opacity(b.btn.node), 0.5)
+			assert_eq(E.opacity(b.btn.icon), 0.5, "the icon is dimmed with the face")
+			assert_eq(E.opacity(b.badge), 0.5, "and so is the count")
+			assert_eq(E.opacity(b.text), 0.5)
+			c.hud:ctx(function() hud:set_state("playing") end)
+			assert_eq(E.opacity(b.btn.icon), 1)
+			assert_eq(E.opacity(b.badge), 1)
+		end)
+		-- a locked one: dimmed with its icon, the padlock stays solid
+		G.with_level({ level = 3 }, function(c)
+			local E = c.E
+			local b = c.hud.self.l.hud.btns.stick
+			assert_eq(E.opacity(b.btn.node), 0.5)
+			assert_eq(E.opacity(b.btn.icon), 0.5)
+			assert_eq(E.opacity(b.lock), 1, "the padlock is not dimmed")
+		end)
+	end)
+
 	it("answers a locked booster with the level it opens at", function()
 		G.with_level({ level = 3 }, function(c)
 			local info
@@ -232,6 +266,7 @@ describe("level screen: boosters", function()
 			tap_booster(c, "stick")
 			c.step(30)
 			assert_eq(top(c), "booster_buy")
+			assert_eq(c.E.opacity(node_with(c, "Pack of 3")), 0.78, "the unaffordable pack is dimmed as a whole")
 			c.tap_target("buy")
 			c.step(10)
 			assert_eq(top(c), "booster_buy")
@@ -496,6 +531,9 @@ describe("level screen: out of moves and defeat", function()
 			out_of_moves(c)
 			assert_eq(top(c), "moves")
 			assert_true(c.has("Not enough coins: you have 100"))
+			-- the button looks unavailable as a whole: its label and its price are dimmed with the face
+			assert_eq(c.E.opacity(node_with(c, "+5 moves")), 0.78)
+			assert_eq(c.E.opacity(node_with(c, "700")), 0.78)
 			c.tap_target("continue")
 			c.step(10)
 			assert_eq(top(c), "moves")

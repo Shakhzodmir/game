@@ -313,6 +313,10 @@ local S = {
 		en = "Match their colour next to a balloon to pop it",
 		ru = "Собери фишки такого же цвета рядом с шариком — он лопнет",
 	},
+	["tutorial.column_match"] = {
+		en = "Every match next to the speaker knocks off some dust",
+		ru = "Каждый матч рядом с колонкой сбивает с неё пыль",
+	},
 	["tutorial.tap_continue"] = { en = "Tap to continue", ru = "Нажми, чтобы продолжить" },
 
 	-- music stems (layer names shown by tasks and the jukebox) -------------------------------------------------------

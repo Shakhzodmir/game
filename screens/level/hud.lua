@@ -160,6 +160,10 @@ function Hud:_bar()
 			icon = "ui/icons/" .. id, icon_size = 72, sfx = "booster", on_click = function() self:_tap_booster(id) end })
 		local badge = s:image(btn.node, "ui/badge_count", 46, 40, { w = 46, h = 46 }) or s:circle(btn.node, 46, 40, 46, "green")
 		local bt, binfo = s:text(badge, "", 0, 1, { font = "number", size = 26, color = "white", outline = "#0F7A3B", max_width = 40 })
+		-- the count dims with the face of a button that cannot be used now; the plus (a call to buy) and the
+		-- padlock stay as they are on purpose
+		gui.set_inherit_alpha(badge, true)
+		gui.set_inherit_alpha(bt, true)
 		local plus = s:image(btn.node, "ui/icons/plus", 40, 36, { w = 56, h = 56 }) or s:circle(btn.node, 40, 36, 44, "green")
 		local lock = s:image(btn.node, "ui/icons/lock", 30, -30, { w = 44, h = 44 })
 		self.btns[id] = { btn = btn, badge = badge, text = bt, info = binfo, plus = plus, lock = lock, x = xs[i] }
@@ -312,8 +316,9 @@ function Hud:refresh_boosters()
 		if b.lock then gui.set_enabled(b.lock, st.lock == true) end
 		local a = (st.dim or dim) and 0.5 or 1
 		gui.set_color(b.btn.node, vmath.vector4(1, 1, 1, a))
+		-- the icon takes the face's alpha (client/ui.lua lets a button's icon inherit it): its own colour is a tint only
 		if b.btn.icon then
-			gui.set_color(b.btn.icon, st.mode == "locked" and vmath.vector4(0.75, 0.72, 0.85, 0.6) or vmath.vector4(1, 1, 1, dim and 0.6 or 1))
+			gui.set_color(b.btn.icon, st.mode == "locked" and vmath.vector4(0.75, 0.72, 0.85, 1) or vmath.vector4(1, 1, 1, 1))
 		end
 		b.unlock_level = info.unlock_level
 	end

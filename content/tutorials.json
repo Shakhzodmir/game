@@ -65,5 +65,9 @@
   "65": {"steps": [
     {"kind": "tip", "at": [2, 6], "text": "tutorial.balloon"},
     {"kind": "swap", "from": [4, 7], "to": [4, 8], "text": "tutorial.balloon_match"}
+  ]},
+  "90": {"steps": [
+    {"kind": "tip", "at": [3, 8], "text": "tutorial.column"},
+    {"kind": "swap", "from": [1, 7], "to": [2, 7], "text": "tutorial.column_match"}
   ]}
 }
