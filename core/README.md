@@ -213,6 +213,27 @@ Readings fixed by the audit of §5.3, §10-§13 and §16-§17
 - The hash entry of a swap taken back keeps the number and the remembered
   marks of the swap it undoes.
 
+Readings fixed by the audit of §0-§5, §14 and §15
+(`docs/handoff/core-audit-A.md`):
+
+- Rule 2.1.7: board B1 keeps only the voids. The wire layer goes with the
+  pieces under it, so a wired cell is an ordinary piece (and donor) there.
+- `mic` is required with a `deliver` goal (the schema reports a missing
+  block as 2.1.1) and forbidden without one (2.1.8). Rule 2.1.6 counts
+  "mic" for a deliver goal, a mic block or a starting mic, and the dance
+  floor for any tile.
+- A `swap` from a free special is a tap when `to` is off the field, a void,
+  an empty slot, a whole (idle) blocker or a piece under wires. A blocker in
+  `clear` is none of these: the swap is `not_movable`.
+- The `swap_back` event lists the ids of the pieces now standing in `a` and
+  `b`; the piece in `a` is the one that moves to `b`.
+- The seed fold reduces every value modulo 2^31 - 1 first (same result,
+  exact up to 2^53). The JSON reader refuses integers of more than 15 digits,
+  nesting deeper than 32 and `\u` escapes above ASCII, reads `-0` as 0 and
+  names the byte where the offending token starts.
+- `skip` twice is harmless; `set_timing('normal')` on a turbo clone changes
+  the mode only.
+
 ## Status
 
 Implemented: all of §0-§17, including every special and combo (§8), Bird
@@ -245,3 +266,18 @@ holds eight replays (§17.1) with the final hash and a digest of every event of
 the game; `golden_test.lua` plays them back on both VMs. After a deliberate
 change of the rules run `lua5.1 tests/golden/regen.lua` and read the diff of
 the summaries (state, tick, score, commands, events).
+
+Sections 0-5, 14 and 15 are pinned by `const_test.lua` (the tables of §14,
+§17.2, §7.4 and §15.2 typed from the text), `sched_test.lua`, `board_test.lua`,
+`tick_test.lua` (the duration of every timer kind in both timing modes, the
+order of the steps, the record queue inside a tick, the 100 000-record guard,
+the switch to turbo) and blocks in `rng_test.lua` (known answers of an
+independent implementation), `json_test.lua`, `level_test.lua` (every range
+of the schema at both ends), `start_test.lua` and `input_test.lua`. Three
+oracles written from the text, in `oracle_a.lua`, run on random data:
+`level_oracle_test.lua` (stage and rules 2.0-2.1.9 of `load_level` on random
+and mutated levels; the empty cells of boards B0 and B1), `start_oracle_test.lua`
+(section 4 on valid, dense and walled levels, start shuffle included) and
+`swap_oracle_test.lua` (5.1.1 and 5.1.2 in the middle of random games). The
+swap oracle reads the state (`objs`, `swaps`, timers) and must be kept in step
+with it.

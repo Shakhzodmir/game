@@ -420,6 +420,8 @@ describe("core input: coordinates and the replay record (5.0)", function()
 		-- a half-named table is no coordinate
 		assert_same({ g:input({ type = "tap", at = { 3, y = 1 } }) }, { false, "bad_cmd" })
 		assert_same({ g:input({ type = "tap", at = { x = 3 } }) }, { false, "bad_cmd" })
+		-- the named pair is read only when both positions are empty
+		assert_same({ g:input({ type = "tap", at = { 3, x = 2, y = 1 } }) }, { false, "bad_cmd" })
 		assert_same({ g:input({ type = "tap", at = "3,1" }) }, { false, "bad_cmd" })
 	end)
 
