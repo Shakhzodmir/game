@@ -125,6 +125,7 @@ function Level:open_moves()
 	if not st or st.state ~= "out_of_moves" then return end -- it has moved on since the event
 	local view = self:moves_view()
 	level_end.offer_shown(view.offer, self.ctx)
+	if view.ad then ads.offer_shown("continue") end -- once per opening: the window rebuilds itself on a language change
 	self:open("moves", {
 		view = view, ctx = self.ctx, refresh = function() return self:moves_view() end,
 		on_close = function(r) self:on_moves_close(r) end,
@@ -138,7 +139,9 @@ function Level:on_moves_close(r)
 	elseif r.action == "ad" then
 		link.continue(r.moves, false)
 	elseif r.action == "booster" then
-		self:on_booster(r.id)
+		-- the window is gone: if the booster could not start (the board is still moving, nothing to shuffle...) the
+		-- player is not left without the offer, the moves to buy and the way to give up
+		if not self:on_booster(r.id) and self.state == "out_of_moves" and not self.ended then self:open_moves() end
 	elseif r.action == "give_up" then
 		link.give_up()
 	end
@@ -222,8 +225,11 @@ function Level:cancel_booster()
 	link.cancel_booster()
 end
 
+-- A tap on a booster (the bar, or the out-of-moves window). Returns true when the booster is going on: target
+-- mode is on, it was applied, or a purchase window took over; false when nothing started (a tutorial step does
+-- not allow it, it is locked, the board is moving, the core refused it) or it was cancelled.
 function Level:on_booster(id)
-	if self.ended or not self.ctx or self.popups:count() > 0 then return end
+	if self.ended or not self.ctx or self.popups:count() > 0 then return false end
 	local st = link.status() or {}
 	local info = hud_mod.booster_info(id)
 	local bs = level_hud.booster_state(info)
@@ -238,15 +244,18 @@ function Level:on_booster(id)
 		app.toast_key("hud.booster_locked", { n = info.unlock_level or "?" }, { color = "blue" })
 	elseif act == "buy" then
 		self:open_buy(id)
+		return true
 	elseif act == "wait" then
 		app.toast_key("hud.wait_board", nil, { color = "blue" })
 	else
 		if link.targeting() then link.cancel_booster() end
 		local ok, why = link.booster(id)
 		if not ok and why ~= "busy" then
-			app.toast_key(why == "not_rest" and "hud.wait_board" or "hud.booster_no", nil, { color = "blue" })
+			app.toast_key(level_hud.refusal_key(why), nil, { color = "blue" })
 		end
+		return ok and true or false
 	end
+	return false
 end
 
 function Level:on_booster_event(p)
@@ -257,7 +266,7 @@ function Level:on_booster_event(p)
 		-- aimed at nothing while the moves are out: the offer is back
 		if p.phase == "cancel" and self.state == "out_of_moves" and not self.ended then self:open_moves() end
 	elseif p.phase == "rejected" then
-		app.toast_key("hud.booster_no", nil, { color = "blue" })
+		app.toast_key(level_hud.refusal_key(p.reason), nil, { color = "blue" })
 	elseif p.phase == "done" then
 		if p.ok ~= false then level_end.booster_used(self.ctx, p.booster) end
 		self.hud:refresh_boosters()

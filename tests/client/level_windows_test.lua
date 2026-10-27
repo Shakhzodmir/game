@@ -9,6 +9,7 @@ local level_end = require("client.level_end")
 local save_io = require("client.save_io")
 local analytics = require("client.services.analytics")
 local ads = require("client.services.ads")
+local config = require("meta.config")
 local H = require("tests.meta.helper")
 
 local NOW = H.T0
@@ -166,27 +167,42 @@ describe("client.level_windows out of moves", function()
 		start({}, true)
 		local ids = { "stick", "row_light", "col_light", "remix" }
 		local v = lw.out_of_moves(app.meta, { state = "out_of_moves", stuck = false }, NOW, { boosters = ids, ads = true })
-		assert_eq(#v.boosters, 4)
+		-- a Remix gives no move: it is not offered (see the test below), the other three are
+		assert_eq(#v.boosters, 3)
 		assert_eq(v.boosters[1].id, "stick")
 		assert_eq(v.boosters[1].count, inv.stick)
 		assert_true(v.ad)
+		assert_eq(v.ad_moves, config.ad_moves, "the video's number is the meta's")
 		assert_true(app.meta:grant_ad_moves())
 		assert_false(lw.out_of_moves(app.meta, { state = "out_of_moves" }, NOW, { ads = true }).ad) -- once per attempt
 		-- an empty one is not listed
 		H.give(app.meta, "stick", -inv.stick)
 		local v2 = lw.out_of_moves(app.meta, { state = "out_of_moves" }, NOW, { boosters = ids })
-		assert_eq(#v2.boosters, 3)
+		assert_eq(#v2.boosters, 2)
 		assert_eq(v2.boosters[1].id, "row_light")
 	end)
 
-	it("gives a free offer in a debug level and lists all four boosters", function()
+	it("does not offer a Remix once the moves are out: it gives no move, and a stuck board has nothing to shuffle", function()
+		boot(26) -- the Remix is open and in stock
+		assert_true(app.meta:booster_count("remix") > 0)
+		start({}, true)
+		local ids = { "remix", "stick" }
+		for _, status in ipairs({ { state = "out_of_moves", stuck = false }, { state = "out_of_moves", stuck = true } }) do
+			local v = lw.out_of_moves(app.meta, status, NOW, { boosters = ids })
+			assert_eq(#v.boosters, 1)
+			assert_eq(v.boosters[1].id, "stick")
+		end
+	end)
+
+	it("gives a free offer in a debug level and lists the boosters that can help", function()
 		boot()
 		local v = lw.out_of_moves(app.meta, { state = "out_of_moves", stuck = false }, NOW,
 			{ boosters = { "stick", "remix" } })
 		assert_true(v.offer.free)
-		assert_eq(v.offer.moves, 5)
+		assert_eq(v.offer.moves, config.continues.moves, "the moves of a purchase, from the meta's config")
 		assert_same(v.lines, {})
-		assert_eq(#v.boosters, 2)
+		assert_eq(#v.boosters, 1)
+		assert_eq(v.boosters[1].id, "stick")
 		assert_eq(v.boosters[1].count, nil)
 	end)
 end)

@@ -1,7 +1,9 @@
 -- "Out of moves" window of the level screen: +5 moves for coins (the price and the number of the
--- offer come from the meta; the second and third also put a Riff on the board), +3 moves for a
--- rewarded video, a booster from the stock instead, or give up. Honest about what giving up costs:
--- the life and the hit streak that burn. A board with no move left (stuck) sells no moves.
+-- offer come from the meta; the second and third also put a Riff on the board), moves for a rewarded
+-- video (the number comes from the meta too: view.ad_moves), a booster from the stock instead, or give up.
+-- Honest about what giving up costs: the life and the hit streak that burn. A board with no move left
+-- (stuck) sells no moves. The ad_offer analytics event belongs to the screen that opens the window
+-- (screens/level/level.gui_script), not to this builder: a rebuild must not log it again.
 -- params = {view = level_windows.out_of_moves(...), ctx = {level_id, t0}, refresh = fn() -> view}
 -- Result: {action = "continue", moves, riff} | {action = "ad", moves} | {action = "booster", id} |
 --   {action = "give_up"}. No back key: a choice is needed.
@@ -9,7 +11,6 @@
 local app = require("client.app")
 local i18n = require("client.i18n")
 local level_end = require("client.level_end")
-local ads = require("client.services.ads")
 local kit = require("gui.kit")
 local lkit = require("gui.level_kit")
 
@@ -163,9 +164,8 @@ function M.build(e)
 		local ad = s:button({ parent = body, x = 0, y = y, w = 540, h = 92, style = "green", icon = "ui/icons/play",
 			icon_size = 50, text = i18n.t("continue.ad"), text_size = 32, sfx = false, on_click = function() watch(e, v) end })
 		local pill = s:round(ad.node, 540 / 2 - 90, 0, 120, 52, "white", { radius = 24 })
-		s:text(pill, "+3", 0, 1, { font = "number", size = 32, color = "green", max_width = 100 })
+		s:text(pill, "+" .. i18n.number(v.ad_moves or 0), 0, 1, { font = "number", size = 32, color = "green", max_width = 100 })
 		e:target("ad", 0, y)
-		ads.offer_shown("continue")
 		y = y - 46 - gap
 	end
 

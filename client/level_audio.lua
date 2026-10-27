@@ -112,6 +112,7 @@ end
 
 -- The tension layer follows the moves left while playing.
 function LA:_moves(left)
+	self.left = left
 	local low = self.state == "playing" and left > 0 and left <= M.LOW_MOVES
 	if low and not self.moves_low_played then
 		self.moves_low_played = true
@@ -129,6 +130,10 @@ function LA:_state(st)
 		self:layer("party", true)
 	elseif st ~= "playing" then
 		self:layer("tension", false)
+	elseif self.left then
+		-- back to playing: "+5 moves" arrives as `moves` BEFORE the `state` event, while the game still
+		-- counted as out of moves, so the layer is judged again now
+		self:_moves(self.left)
 	end
 end
 

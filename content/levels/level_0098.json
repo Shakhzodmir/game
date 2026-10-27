@@ -1,0 +1,46 @@
+{
+  "id": 98, "version": 1,
+  "size": [8, 10],
+  "moves": 26,
+  "difficulty": "hard",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "collect", "color": "purple", "count": 36},
+    {"type": "break", "item": "record_box", "count": 8}
+  ],
+  "cells": [
+    "########",
+    "########",
+    "########",
+    "########",
+    ".######.",
+    ".######.",
+    ".######.",
+    "..####..",
+    "..####..",
+    "..####.."
+  ],
+  "slots": [
+    {"at": [2, 0], "type": "piece", "color": "purple"},
+    {"at": [5, 0], "type": "piece", "color": "purple"},
+    {"at": [0, 1], "type": "piece", "color": "purple"},
+    {"at": [1, 1], "type": "piece", "color": "purple"},
+    {"at": [2, 1], "type": "piece", "color": "red"},
+    {"at": [5, 1], "type": "piece", "color": "orange"},
+    {"at": [6, 1], "type": "piece", "color": "purple"},
+    {"at": [7, 1], "type": "piece", "color": "purple"},
+    {"at": [0, 3], "type": "record_box", "hp": 2},
+    {"at": [7, 3], "type": "record_box", "hp": 2},
+    {"at": [2, 5], "type": "piece", "color": "purple"},
+    {"at": [3, 5], "type": "piece", "color": "purple"},
+    {"at": [4, 5], "type": "piece", "color": "yellow"},
+    {"at": [1, 6], "type": "record_box", "hp": 2},
+    {"at": [4, 6], "type": "piece", "color": "purple"},
+    {"at": [6, 6], "type": "record_box", "hp": 2},
+    {"at": [2, 9], "type": "record_box", "hp": 2},
+    {"at": [3, 9], "type": "record_box", "hp": 2},
+    {"at": [4, 9], "type": "record_box", "hp": 2},
+    {"at": [5, 9], "type": "record_box", "hp": 2}
+  ],
+  "spawn_weights": {"red": 4, "orange": 4, "yellow": 4, "green": 4, "purple": 1}
+}

@@ -135,6 +135,25 @@ describe("client.level_effects", function()
 		assert_eq(#by_kind(c, "stinger"), 1)
 	end)
 
+	it("explains the automatic shuffle with a banner, not the player's own Remix", function()
+		local E = level_effects.new({ geom = G() })
+		-- Remix: the core emits `booster` and then `shuffle` in the same tick
+		E:event({ type = "booster", t = 40, booster = "remix", ok = true })
+		E:event({ type = "shuffle", t = 40, moves = {}, recolors = {}, duration = 30 })
+		assert_eq(#by_kind(E:drain(), "banner"), 0)
+		-- the next automatic shuffle is explained again
+		E:event({ type = "shuffle", t = 200, moves = {}, recolors = {}, duration = 30 })
+		assert_eq(by_kind(E:drain(), "banner")[1].key, "hud.shuffle")
+		-- a Remix that found nothing to shuffle (ok = false) is followed by no shuffle: it must not eat the next banner
+		E:event({ type = "booster", t = 300, booster = "remix", ok = false })
+		E:event({ type = "shuffle", t = 400, moves = {}, recolors = {}, duration = 30 })
+		assert_eq(by_kind(E:drain(), "banner")[1].key, "hud.shuffle")
+		-- another booster's tick does not mark the shuffle as the player's
+		E:event({ type = "booster", t = 500, booster = "stick", ok = true, at = { 2, 2 } })
+		E:event({ type = "shuffle", t = 500, moves = {}, recolors = {}, duration = 30 })
+		assert_eq(#by_kind(E:drain(), "banner"), 1)
+	end)
+
 	it("plans effects for every event of a real game", function()
 		local s = assert(level_session.new({ params = { level = 2 }, read_level = function()
 			return [[{

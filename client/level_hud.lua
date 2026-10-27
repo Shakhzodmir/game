@@ -159,6 +159,13 @@ end
 -- The text key of the target-mode prompt of a booster.
 M.PROMPT = { stick = "hud.pick_cell", row_light = "hud.pick_row", col_light = "hud.pick_col" }
 
+-- The toast for a booster the core refused (its reason): the board is still moving -> wait for it; a Remix with
+-- nothing to shuffle; anything else (a spot with nothing to do) -> pick another spot.
+M.REFUSAL = { not_rest = "hud.wait_board", no_candidates = "hud.remix_no" }
+function M.refusal_key(reason)
+	return M.REFUSAL[reason] or "hud.booster_no"
+end
+
 -- goals --------------------------------------------------------------------------------------------
 
 local Goals = {}

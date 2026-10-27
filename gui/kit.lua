@@ -318,6 +318,7 @@ function M.slider_input(e, action_id, action)
 		for _, sl in ipairs(e.sliders or {}) do
 			if gui.pick_node(sl.hit, action.x, action.y) then
 				e.dragging = sl
+				gui.cancel_animations(sl.knob, "scale") -- (the stale drag above may have just set it settling back)
 				gui.animate(sl.knob, "scale", vmath.vector3(1.15, 1.15, 1), gui.EASING_OUTBACK, 0.15)
 				break
 			end

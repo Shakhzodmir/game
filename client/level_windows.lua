@@ -63,6 +63,11 @@ function M.pause(meta, now)
 	return out
 end
 
+-- Boosters that cannot help once the moves are out. A Remix only rearranges the pieces: it gives no move, so
+-- the level would fall straight back to this window with the booster spent; and on a stuck board it has
+-- nothing to shuffle (the core refuses it: no candidates). The wand and the two lights can still finish a goal.
+M.NO_HELP_OUT_OF_MOVES = { remix = true }
+
 -- In-level boosters the player can still use: {{id, count}} (unlocked, in stock). In a debug level
 -- (no attempt) all four are free: count nil.
 function M.usable_boosters(meta, ids)
@@ -82,8 +87,9 @@ function M.usable_boosters(meta, ids)
 end
 
 -- The "out of moves" window. status = core status (state, stuck, goals); opts = {ads = bool (a rewarded
--- video can be shown now), boosters = list of in-level booster ids}.
+-- video can be shown now), boosters = list of in-level booster ids (the ones that can still help are listed)}.
 -- offer = meta:continue_offer() {k, price, moves, riff, affordable} or nil (limit reached / stuck / no attempt).
+-- ad_moves = what the rewarded video gives (the meta's number, the window only prints it).
 function M.out_of_moves(meta, status, now, opts)
 	opts = opts or {}
 	local s = M.stake(meta, now)
@@ -96,13 +102,19 @@ function M.out_of_moves(meta, status, now, opts)
 	}
 	if not s.run then
 		out.lines, out.at_stake = {}, false
-		-- a debug level: five moves for nothing
-		out.offer = not out.stuck and { k = 0, price = 0, moves = 5, riff = false, affordable = true, free = true } or nil
+		-- a debug level: the moves of a purchase for nothing
+		out.offer = not out.stuck and { k = 0, price = 0, moves = config.continues.moves, riff = false, affordable = true,
+			free = true } or nil
 	elseif not out.stuck then
 		out.offer = meta:continue_offer()
 	end
-	out.boosters = M.usable_boosters(meta, opts.boosters or {})
+	local ids = {}
+	for _, id in ipairs(opts.boosters or {}) do
+		if not M.NO_HELP_OUT_OF_MOVES[id] then ids[#ids + 1] = id end
+	end
+	out.boosters = M.usable_boosters(meta, ids)
 	out.ad = (opts.ads and s.run and not s.run.ad_used and not out.stuck) and true or false
+	out.ad_moves = config.ad_moves
 	return out
 end
 

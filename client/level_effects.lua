@@ -257,6 +257,9 @@ function H.booster(self, e)
 	local t = e.t or 0
 	local cell = self.geom.cell
 	self.cur = nil
+	if e.booster == "remix" and e.ok ~= false then
+		self.remix_t = t -- the shuffle that follows in this tick is the player's own (H.shuffle)
+	end
 	if e.booster == "row_light" or e.booster == "col_light" then
 		self.light = { booster = e.booster, t = t }
 	elseif e.booster == "stick" and e.at then
@@ -462,6 +465,12 @@ function H.noise_spread(self, e)
 end
 
 function H.shuffle(self, e)
+	-- the banner explains the automatic shuffle ("No moves"); the player's own Remix (a `booster` event of
+	-- this very tick) needs no explanation
+	if self.remix_t ~= nil and self.remix_t == (e.t or 0) then
+		self.remix_t = nil
+		return
+	end
 	self:push({ kind = "banner", key = "hud.shuffle", at = e.t or 0 })
 end
 
