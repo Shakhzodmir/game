@@ -5,7 +5,7 @@
   "difficulty": "hard",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "deliver", "count": 5},
+    {"type": "deliver", "count": 6},
     {"type": "break", "item": "concrete", "count": 6}
   ],
   "cells": [
@@ -43,5 +43,5 @@
     {"at": [5, 10], "type": "piece", "color": "yellow"},
     {"at": [6, 10], "type": "piece", "color": "orange"}
   ],
-  "mic": {"total": 5, "on_board_max": 2, "gap_moves": 4}
+  "mic": {"total": 6, "on_board_max": 2, "gap_moves": 4}
 }

@@ -111,12 +111,13 @@ local function font_data()
 end
 
 -- opts: {window = {w, h}, safe = {left, top, right, bottom} (window pixels), clock = seconds,
---        root = "."}. Returns the environment E (also M.env).
+--        root = ".", collections = {"/screens/level/level.collection"} (the factories of a level screen)}.
+-- Returns the environment E (also M.env).
 function M.install(opts)
 	opts = opts or {}
 	ROOT = opts.root or "."
 	if current_env then M.restore() end
-	local E = base.install({ window = opts.window, root = ROOT, collections = {} })
+	local E = base.install({ window = opts.window, root = ROOT, collections = opts.collections or {} })
 	local vmath, hash = _G.vmath, E.hash
 	local V3, V4 = getmetatable(vmath.vector3(0, 0, 0)), getmetatable(vmath.vector4(0, 0, 0, 0))
 	local function is_v3(v) return getmetatable(v) == V3 end
@@ -979,7 +980,8 @@ function M.install(opts)
 		for _, m in ipairs(pending) do
 			local target = E.receivers[m.to]
 			if target and not target.finalized then
-				target:message(m.id, m.message, E.sender_url)
+				-- m.from: the url of the script that posted it (tests/client/session_harness.lua sets it), the engine's `sender`
+				target:message(m.id, m.message, m.from and msg.url(m.from) or E.sender_url)
 			elseif m.to == "." then
 				-- input focus requests and the like: nothing to do
 			else

@@ -5,8 +5,8 @@
   "difficulty": "medium",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "deliver", "count": 4},
-    {"type": "collect", "color": "purple", "count": 24}
+    {"type": "deliver", "count": 3},
+    {"type": "collect", "color": "purple", "count": 30}
   ],
   "cells": [
     "#######",
@@ -31,5 +31,5 @@
   "slots": [
     {"at": [3, 2], "type": "mic"}
   ],
-  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 2}
+  "mic": {"total": 3, "on_board_max": 2, "gap_moves": 4}
 }

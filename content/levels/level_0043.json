@@ -34,5 +34,5 @@
     {"at": [7, 7], "type": "record_box", "hp": 1},
     {"at": [8, 7], "type": "record_box", "hp": 1}
   ],
-  "mic": {"total": 3, "on_board_max": 3, "gap_moves": 1}
+  "mic": {"total": 3, "on_board_max": 2, "gap_moves": 2}
 }

@@ -5,7 +5,7 @@
   "difficulty": "hard",
   "colors": ["red", "orange", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "break", "item": "balloon", "count": 8},
+    {"type": "break", "item": "balloon", "count": 9},
     {"type": "break", "item": "record_box", "count": 8}
   ],
   "cells": [
@@ -38,6 +38,7 @@
     {"at": [8, 4], "type": "record_box", "hp": 2},
     {"at": [7, 6], "type": "piece", "color": "green"},
     {"at": [2, 7], "type": "balloon", "color": "green"},
+    {"at": [4, 7], "type": "balloon", "color": "blue"},
     {"at": [6, 7], "type": "balloon", "color": "green"},
     {"at": [7, 7], "type": "piece", "color": "green"},
     {"at": [0, 8], "type": "balloon", "color": "green"},

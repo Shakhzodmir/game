@@ -6,7 +6,7 @@
   "colors": ["red", "orange", "green", "blue", "purple"],
   "goals": [
     {"type": "light"},
-    {"type": "break", "item": "concrete", "count": 8}
+    {"type": "break", "item": "concrete", "count": 7}
   ],
   "cells": [
     "..#####..",
