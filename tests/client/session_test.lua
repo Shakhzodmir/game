@@ -12,7 +12,6 @@ local bus = require("client.bus")
 local link = require("client.level_link")
 local rewards = require("client.rewards")
 local flow = require("client.flow")
-local qa = require("client.qa_bridge")
 local i18n = require("client.i18n")
 local audio = require("client.audio")
 
@@ -58,6 +57,7 @@ local function run_out_of_moves(s)
 	s:step_until(function() local st = link.status(); return st and st.state == "out_of_moves" end, 600, "out of moves")
 	s:step_until(function() return s.app.ui.popup == "moves" end, 20, "the moves window")
 	s:run(1.2)
+	assert_eq(link.board.session.auto, nil, "the autoplay ended at the moves window")
 end
 
 local function texts(s, path)
@@ -85,6 +85,21 @@ describe("a session: the first launch", function()
 			-- the splash is gone: its scene was freed, the level's scripts are the ones in the input stack
 			assert_eq(s.screens.splash, nil)
 			assert_true(s.screens.level ~= nil)
+		end)
+	end)
+
+	it("ignores touches while a screen fades in: the overlay is on top of the screens", function()
+		S.run({}, function(s)
+			s:step_until(function()
+				local lv = s.app.ui and s.app.ui.level
+				return s.app.transitioning and lv and lv.targets and s.app.overlay.fading
+			end, 8, "the level to be under the fade")
+			s:tap_target_at(s.app.ui.level.targets.pause)
+			assert_eq(s.app.ui.popup, nil, "a touch under the fade opens nothing")
+			s:step_until(function() return not s.app.transitioning end, 4, "the fade to end")
+			s:run(1)
+			s:tap_target_at(s.app.ui.level.targets.pause)
+			s:step_until(function() return s.app.ui.popup == "pause" end, 3, "the pause window once the fade is over")
 		end)
 	end)
 
@@ -197,19 +212,19 @@ describe("a session: the town", function()
 			assert_eq(s.app.meta:next_task().id, "sign")
 			local coins = s.app.meta:coins()
 			s:tap_target("task")
-			local seen = {}
+			local seen, tapped = {}, {}
 			for _ = 1, 60 * 90 do
 				s:frame()
 				local ui = s.app.ui
 				local key = (ui.step or "") .. "/" .. (ui.popup or "")
 				if seen[#seen] ~= key then seen[#seen + 1] = key end
 				if ui.popup == "chest" and ui.popup_targets then
-					if ui.popup_targets.collect then
-						s:run(0.5)
-						s:tap_target("collect")
-					elseif ui.popup_targets.chest then
-						s:run(0.5)
-						s:tap_target("chest")
+					-- the closed chest first (a tap opens it), then the Collect button of the open one; each once
+					local name = (ui.popup_targets.collect and "collect") or (ui.popup_targets.chest and "chest") or nil
+					if name and not tapped[name] then
+						tapped[name] = true
+						s:run(1.5) -- the window and the items have come in
+						s:tap_target(name)
 					end
 				end
 				if #seen >= 4 and not ui.busy then break end
@@ -315,7 +330,10 @@ describe("a session: out of moves, defeat, lives", function()
 	end)
 
 	it("books a loss when the player leaves through the pause window after a move, and nothing before it", function()
-		S.run({ setup = function(app) advance(app, 20) end }, function(s)
+		S.run({ setup = function(app, s)
+			advance(app, 20)
+			s.E.clock = s.E.clock + 3600 * 3 -- the unlimited lives of the chests are over
+		end }, function(s)
 			on_town(s)
 			-- before the first move: the attempt is dropped, no life is lost
 			start_from_town(s, 21)
@@ -477,21 +495,21 @@ describe("a session: the shop, the settings and the app", function()
 	end)
 
 	it("tells the player once that saving failed, retries every second, and says when it works again", function()
-		S.run({}, function(s)
+		S.run({ setup = function(app) advance(app, 1) end }, function(s)
 			on_town(s)
-			qa.execute("save_fail 1")
+			s:qa("save_fail 1")
 			s.app.meta:grant({ coins = 10 }, "test", s.app.now())
 			s.app.commit("test")
 			s:run(1.5)
 			assert_true(s.app.store.failing >= 1)
-			assert_eq(s.app.overlay.toast, "Could not save progress")
+			assert_eq(s.app.overlay.toast, i18n.t("toast.saved_failed"))
 			local failing = s.app.store.failing
 			s:run(3.2)
 			assert_true(s.app.store.failing > failing, "retried every second")
 			assert_eq(s.app.overlay.toasts_queued, 0, "the failure is announced once per series")
-			qa.execute("save_fail 0")
+			s:qa("save_fail 0")
 			s:step_until(function() return s.app.store.failing == 0 end, 4, "the retry to succeed")
-			s:step_until(function() return s.app.overlay.toast == "Progress saved" end, 4, "the recovery toast")
+			s:step_until(function() return s.app.overlay.toast == i18n.t("toast.saved_again") end, 4, "the recovery toast")
 		end)
 	end)
 end)
@@ -515,13 +533,84 @@ describe("a session: what a screen leaves behind", function()
 			s:step_until(function() return s.app.ui.popup == "start" end, 3, "the start window")
 			s:run(1)
 			s:tap_target("play")
-			s:step_until(function() return s.app.screen == "level" and not s.app.transitioning end, 8, "the level screen")
-			-- (moves 3 is below the schema's minimum: the board refuses it and returns)
-			s:step_until(function() return s.app.screen == "town" and not s.app.transitioning end, 12, "the town again")
+			-- (moves 3 is below the schema's minimum: the board refuses the level and the app returns to the town)
+			local entered = false
+			s:step_until(function()
+				if s.app.screen == "level" then entered = true end
+				return entered and s.app.screen == "town" and not s.app.transitioning
+			end, 12, "the town again")
 			s:run(2)
+			assert_eq(#s:take_warnings("2.1.1 moves: 5..60 required"), 1, "the board said why")
+			assert_eq(s.app.overlay.toast, i18n.t("common.error"), "and the player was told")
 			assert_eq(s.app.meta:run(), nil, "the attempt of a level that never started is dropped")
 			assert_eq(s.app.meta:lives(s.app.now()).count, 5)
 			assert_eq(#bus.default.subs, 2, "overlay and town")
 		end)
 	end)
 end)
+
+describe("a session: a cold start", function()
+	-- the first process plays until `act` is done and dies there (what it wrote to disk, the clock); the second starts from that
+	local function killed_in_level(act)
+		local disk, clock
+		S.run({ setup = function(app, s)
+			advance(app, 20)
+			s.E.clock = s.E.clock + 3600 * 3 -- the unlimited lives of the chests are over
+		end }, function(s)
+			on_town(s)
+			start_from_town(s, 21)
+			act(s)
+			disk, clock = s:files()
+		end)
+		return disk, clock + 30
+	end
+
+	it("settles an attempt that was open when the app was killed: a loss after a move, nothing before it", function()
+		local disk, clock = killed_in_level(function(s)
+			link.board.session:qa("hint_move")
+			s:run(2)
+			assert_true(s.app.meta:run().moved)
+		end)
+		S.run({ files = disk, clock = clock }, function(s)
+			assert_eq(s.app.load_info.interrupted, "loss", "the save said the attempt was open after a move")
+			assert_eq(s.app.meta:run(), nil, "the meta settled it while loading")
+			assert_eq(s.app.meta:lives(s.app.now()).count, 4, "a move was made: it was a loss")
+			s:step_until(function() return s.app.overlay.toast == i18n.t("splash.interrupted") end, 6, "the notice about the lost attempt")
+			assert_false(s.app.first_launch(), "a player with progress does not land in level 1")
+			on_town(s)
+			assert_eq(s.app.meta:level_to_play(), 21)
+			assert_eq(rewards.count(), 0)
+		end)
+		disk, clock = killed_in_level(function(s) s:run(1) end)
+		S.run({ files = disk, clock = clock }, function(s)
+			assert_eq(s.app.load_info.interrupted, "cancelled")
+			assert_eq(s.app.meta:run(), nil)
+			assert_eq(s.app.meta:lives(s.app.now()).count, 5, "no move was made: nothing was lost")
+			s:step_until(function() return s.app.overlay.toast == i18n.t("splash.cancelled") end, 6, "the notice about the dropped attempt")
+			on_town(s)
+		end)
+	end)
+
+	it("keeps the language, the settings and the progress through a restart", function()
+		local disk, clock
+		S.run({ setup = function(app) advance(app, 12) end }, function(s)
+			on_town(s)
+			s:tap_target("settings")
+			s:step_until(function() return s.app.ui.popup == "settings" end, 3, "the settings")
+			s:run(1)
+			s:tap_target("lang_ru")
+			s:run(1)
+			s:tap_target("input_taptap")
+			s:run(1)
+			disk, clock = s:files()
+		end)
+		S.run({ files = disk, clock = clock + 5, language = "en" }, function(s)
+			assert_eq(i18n.language(), "ru", "the saved language wins over the system's")
+			assert_eq(s.app.meta:settings().input_mode, "taptap")
+			on_town(s)
+			assert_eq(s.app.meta:level_to_play(), 13)
+			expect_text(s, TOWN, "Уровень 13")
+		end)
+	end)
+end)
+

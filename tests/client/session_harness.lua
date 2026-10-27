@@ -40,10 +40,19 @@ M.SCREEN_SCRIPTS = {
 local Session = {}
 Session.__index = Session
 
+local function deep_copy(v)
+	if type(v) ~= "table" then return v end
+	local out = {}
+	for k, x in pairs(v) do out[k] = deep_copy(x) end -- (a copy: the order does not matter)
+	return out
+end
+
 local function proxy_url(name) return msg.url("main", "/screens", name) end
 
 -- Starts the stub and the application objects of main/main.collection and runs fn(s). Always shuts the stub down.
--- opts: {window = {w, h}, safe = {...}, language = "en", seed = n, setup = fn(app) (after the app script booted),
+-- opts: {window = {w, h}, safe = {...}, language = "en", seed = n (the player's salt: boards are the same in every run),
+--        setup = fn(app, s) (after the app script booted), levels = {[n] = fn(data)} (patch a level file),
+--        files = {...}, clock = seconds (the disk and the clock of an earlier session: s:files(), a cold start),
 --        audio = true (the audio object too), quiet = false (echo the analytics lines)}
 -- The game reports what it swallowed with print("WARNING: ...") / print("ERROR: ..."): the harness keeps those lines
 -- (s.warnings) and fails the session if any is left when it ends, so a test either expects them (s:take_warnings)
@@ -55,8 +64,10 @@ function M.run(opts, fn)
 	local rewards = require("client.rewards")
 	local real_print = print
 	local warnings = {}
+	local restore_platform
+	local language = require("client.i18n").language()
 	local E = town_stub.install({
-		window = opts.window, safe = opts.safe, collections = { "/screens/level/level.collection" },
+		window = opts.window, safe = opts.safe, clock = opts.clock, collections = { "/screens/level/level.collection" },
 	})
 	local s
 	local ok, err = pcall(function()
@@ -65,6 +76,8 @@ function M.run(opts, fn)
 		rewards.clear()
 		require("client.levels")._reset()
 		require("client.tutorial")._reset()
+		-- the player's salt (and so every board) is the same in every session and on both VMs: math.random differs
+		restore_platform = require("client.platform").stub({ random_seed = function() return opts.seed or 20240607 end })
 		rawset(_G, "print", function(first, ...)
 			if type(first) == "string" then
 				if string.find(first, "^analytics: ") then
@@ -79,6 +92,8 @@ function M.run(opts, fn)
 			real_print(first, ...)
 		end)
 		s = setmetatable({ E = E, screens = {}, log = {}, frames = 0, warnings = warnings }, Session)
+		-- the save files of an earlier session (Session:files): a cold start from them
+		for path, tbl in pairs(opts.files or {}) do E.files[path] = deep_copy(tbl) end
 		-- every posted message knows who posted it, so a reply finds its way back (the engine's `sender`)
 		local inner_post = msg.post
 		rawset(msg, "post", function(receiver, id, message)
@@ -113,6 +128,23 @@ function M.run(opts, fn)
 		if opts.audio then
 			s.audio = E.object("main/audio.script", { url = "main:/audio#audio" })
 		end
+		-- Input order of the engine: the main collection's stack has the app object, /screens (the host of the proxies) and the
+		-- overlay on top; a screen's own scripts have a stack of their own that /screens forwards to. So the overlay sees a touch
+		-- first (it swallows it during a fade and under a modal), then the screens (the last script that took focus first), then
+		-- the app object. The stub keeps one stack for all of them, so the dispatch is redone here.
+		E.input = function(action_id, action)
+			local snapshot = {}
+			for i = #E.input_stack, 1, -1 do snapshot[#snapshot + 1] = E.input_stack[i] end -- top first
+			local function offer(wanted)
+				for _, sc in ipairs(snapshot) do
+					if wanted(sc) and not sc.finalized and sc:call("on_input", action_id, action) then return sc end
+				end
+				return nil
+			end
+			return offer(function(sc) return not sc.screen and sc ~= s.main end)
+				or offer(function(sc) return sc.screen ~= nil end)
+				or offer(function(sc) return sc == s.main end)
+		end
 		-- init order of main/main.collection: audio, app, screens, overlay (the overlay starts opaque)
 		if s.audio then s.audio:init() end
 		s.overlay:init()
@@ -126,6 +158,10 @@ function M.run(opts, fn)
 	end
 	hooks._reset()
 	bus.default.subs = {}
+	rewards.clear()
+	require("client.levels")._reset() -- (the read hook of opts.levels and the cache of patched files)
+	require("client.i18n").set_language(language)
+	if restore_platform then restore_platform() end
 	town_stub.shutdown()
 	rawset(_G, "print", real_print)
 	if not ok then
@@ -172,6 +208,10 @@ function Session:unload_screen(name, quiet)
 			if E.scripts[k] == sc_script then table.remove(E.scripts, k) end
 		end
 	end
+	-- the engine deletes every game object of an unloaded collection, the ones a factory spawned too
+	local ids = {}
+	for _, o in pairs(E.objects) do ids[#ids + 1] = o.id end -- (the order does not matter)
+	if #ids > 0 then go.delete(ids) end
 	self.screens[name] = nil
 end
 
@@ -244,6 +284,24 @@ function Session:step_until(pred, seconds, what)
 	if pred() then return true end
 	error("timeout waiting for " .. tostring(what) .. "; screen " .. tostring(self.app.screen) .. ", pending " ..
 		tostring(self.app.pending and self.app.pending.name) .. ", popup " .. tostring(self.app.ui and self.app.ui.popup), 2)
+end
+
+-- A copy of what the game has written to disk so far, and the clock: S.run({files = ..., clock = ...}) starts the
+-- game again from it, as after the process was killed.
+function Session:files()
+	return deep_copy(self.E.files), self.E.clock
+end
+
+-- Runs a QA bridge command (client/qa_bridge.lua) the way the engine does: from the app script's update, so the
+-- messages it posts (a fade, a screen load) come from main:/app and their replies find their way back.
+function Session:qa(cmd)
+	local E = self.E
+	local before = E.current_script
+	E.current_script = self.main
+	local ok, res = pcall(require("client.qa_bridge").execute, cmd)
+	E.current_script = before
+	if not ok then error(res, 0) end
+	return res
 end
 
 -- Takes the warnings the game printed that contain `text` (plain match) off the list the session is judged by;

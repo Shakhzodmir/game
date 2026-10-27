@@ -7,8 +7,8 @@
 -- and cross-checks every kind of reference:
 --
 --   a  require("x.y") resolves to x/y.lua; runtime code never requires tools/
---      or tests/ (those are not in the bundle: .defignore); requires are
---      literals (bob bundles only the modules it can see); no load-time
+--      or tests/ (tooling that needs io / os, listed in .defignore); requires
+--      are literals (bob bundles only the modules it can see); no load-time
 --      require cycles
 --   b  every image id ("ui/icons/coin", "pieces/" .. color, ...) is in
 --      client/assets_index.lua; every atlas animation name ("blockers_wires_1",
@@ -29,8 +29,17 @@
 --      from game.project, from the generated registry and from a Lua string
 --      exists (and is not in .defignore); game.project is consistent with the
 --      code (proxies, input actions, component ids)
+--   h  module.member of a required module exists; obj:method( is defined somewhere
+--      in the runtime code; meta:xxx( calls name a method of meta/meta.lua with at
+--      most as many arguments as it takes and always with `now` where it wants one
+--   i  Defold script contexts: a module shared by scripts does not touch an engine
+--      module its context lacks (gui.* outside GUI scripts, go.* / sprite.* / ...
+--      outside game object scripts); a script defines only the engine callbacks
+--      as global functions
 --
 --   lua5.1 tools/check_refs.lua [--quiet] [--unused]       (from the repository root)
+--     --quiet    print nothing when everything is fine
+--     --unused   also list the i18n keys no source names (dead strings)
 --
 -- Exit status 1 when anything is wrong. tests/client/refs_test.lua runs it with
 -- the test suite; M.run() returns the problems for it.

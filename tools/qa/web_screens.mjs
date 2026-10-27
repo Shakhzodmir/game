@@ -428,6 +428,7 @@ async function debugChecks() {
 		['start', '', 'client_start'], ['lives', '', 'client_lives'], ['shop', '{"tab":"boosters"}', 'client_shop'],
 		['shop', '{"tab":"coins"}', 'client_shop_coins'], ['jukebox', '', 'client_jukebox'], ['gift', '{"id":"riff"}', 'client_gift'],
 		['chest', '', 'client_chest'], ['concert', '', 'client_concert'],
+		['confirm', '{"title":{"key":"settings.reset_title"},"text":{"key":"settings.reset_text"},"confirm":{"text":{"key":"settings.reset_do"},"style":"pink"}}', 'client_confirm'],
 	]) {
 		await command(page, 'open ' + popup + (params ? ' ' + params : ''));
 		await waitFor(page, st => st.app.ui && st.app.ui.popup === popup, 'window ' + popup, 8000);

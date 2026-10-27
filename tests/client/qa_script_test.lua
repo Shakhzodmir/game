@@ -1,7 +1,8 @@
 -- tools/qa/web_screens.mjs drives a real debug build through the QA bridge (client/qa_bridge.lua). Nobody can
 -- run it in the dev container, so this keeps it honest against the code it talks to: every command it sends
 -- exists, with arguments the bridge understands; every field of the game state it reads is published by the
--- game; every button it taps is one the game reports (app.ui.targets, popup_targets, level.targets).
+-- game; every button it taps is one the game reports (app.ui.targets, popup_targets, level.targets); every window of
+-- its `open` loop opens with the JSON it sends (the whole session runs on tests/client/session_harness.lua).
 
 local S = require("tests.client.session_harness")
 local qa = require("client.qa_bridge")
@@ -119,12 +120,18 @@ describe("tools/qa/web_screens.mjs", function()
 			end
 			-- the windows of the "open" loop, with their JSON
 			local rows = window_rows()
-			assert_true(#rows >= 8, "the loop opens " .. #rows .. " windows")
+			assert_true(#rows >= 9, "the loop opens " .. #rows .. " windows")
+			local function strings_exist(v, where)
+				if type(v) ~= "table" then return end
+				if type(v.key) == "string" then assert_true(i18n.has(v.key), "no string " .. v.key .. ": " .. where) end
+				for _, x in pairs(v) do strings_exist(x, where) end
+			end
 			for _, r in ipairs(rows) do
 				assert_true(meta_qa.POPUPS[r.popup], "window " .. r.popup .. " is not in the registry of the town")
 				if r.params ~= "" then
 					local ok, v = pcall(json.decode, r.params)
 					assert_true(ok and type(v) == "table", "bad JSON for " .. r.popup .. ": " .. r.params)
+					strings_exist(v, r.popup .. " " .. r.params)
 				end
 			end
 		end)
@@ -196,6 +203,23 @@ describe("tools/qa/web_screens.mjs", function()
 			s:tap_target_at(targets.pause)
 			s:step_until(function() return s.app.ui.popup == "pause" end, 3, "the pause window")
 			assert_true(s.app.ui.popup_targets.leave ~= nil)
+		end)
+	end)
+
+	it("opens every window of its loop through the bridge, as sent, and closes it again", function()
+		local flow = require("client.flow")
+		S.run({ setup = function(app) assert(flow.debug_win(3)) end }, function(s)
+			s:step_until(function() return s.app.screen == "town" and not s.app.transitioning end, 8, "the town")
+			s:run(3)
+			for _, r in ipairs(window_rows()) do
+				local res = s:qa("open " .. r.popup .. (r.params ~= "" and (" " .. r.params) or ""))
+				assert_true(res.ok, "open " .. r.popup .. ": " .. tostring(res.error))
+				s:step_until(function() return s.app.ui.popup == r.popup end, 3, "window " .. r.popup)
+				s:run(1.2)
+				assert_true(s.app.ui.popup_targets ~= nil, r.popup .. " has no tap targets")
+				assert_true(s:qa("close").ok)
+				s:step_until(function() return s.app.ui.popup == nil end, 3, "window " .. r.popup .. " to close")
+			end
 		end)
 	end)
 end)
