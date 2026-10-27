@@ -71,6 +71,36 @@ function M.panel(e, w, h, opts)
 	return body, h / 2
 end
 
+-- Width of a text in logical px at `size` (the font's own metrics; an estimate without the engine).
+function M.text_width(font, str, size)
+	local base = assets.font_size(font)
+	local ok, m = pcall(function()
+		local res = gui.get_font_resource(font)
+		return resource.get_text_metrics(res, str)
+	end)
+	local w = ok and m and m.width or (#str * base * 0.55)
+	return w * (size or base) / base
+end
+
+-- A text that wraps onto up to `lines` lines before it shrinks (long Russian names): opts = {font,
+-- size, color, outline, pivot, max_width, lines = 2}. A single line when it fits max_width.
+-- Returns the node, info (for Scene:set_text).
+function M.label(e, parent, str, x, y, opts)
+	opts = opts or {}
+	local font, size = opts.font or "body", opts.size or 24
+	local max_w = opts.max_width or 300
+	local o = { font = font, size = size, color = opts.color, outline = opts.outline, shadow = opts.shadow, pivot = opts.pivot }
+	if (opts.lines or 2) <= 1 or M.text_width(font, str, size) <= max_w then
+		o.max_width = max_w
+		return e.ui:text(parent, str, x, y, o)
+	end
+	o.width = max_w
+	o.height = size * 1.4 * (opts.lines or 2)
+	local n, info = e.ui:text(parent, str, x, y, o)
+	-- even two lines may be too wide for one very long word: shrink to the widest word
+	return n, info
+end
+
 -- A section caption with thin lines on both sides.
 function M.section(e, parent, text, x, y, w)
 	local s = e.ui

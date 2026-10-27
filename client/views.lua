@@ -71,6 +71,12 @@ function M.lives(l)
 	return out
 end
 
+-- Minutes to the next life, for the rule shown in the lives window. config =
+-- meta/config.lua (read for display only).
+function M.regen_minutes(config)
+	return math.max(1, math.floor(((config and config.lives and config.lives.regen_seconds) or 1200) / 60 + 0.5))
+end
+
 -- The next task card: {district, id, name, cost, stem, affordable, need,
 -- image} or nil when the town is complete.
 function M.task(meta)

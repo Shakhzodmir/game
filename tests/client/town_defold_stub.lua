@@ -548,7 +548,7 @@ function M.install(opts)
 				" needs " .. (w * h * bpp), 2)
 		end
 		if current.dyn[name] or current.textures[name] then return false, gui.RESULT_TEXTURE_ALREADY_EXISTS end
-		current.dyn[name] = { w = w, h = h, kind = kind }
+		current.dyn[name] = { w = w, h = h, kind = kind, buf = buf }
 		current.n_dyn = (current.n_dyn or 0) + 1
 		return true, gui.RESULT_OK
 	end
@@ -1069,6 +1069,59 @@ function M.install(opts)
 	function Script:stats()
 		local s = self.scene
 		return { nodes = s.n, peak = s.peak, anims = s.n_anims, peak_anims = s.peak_anims, textures = s.n_dyn or 0 }
+	end
+
+
+	-- A picture of a scene for tests/client/gui_snapshot.py: its nodes in draw order (parents first,
+	-- siblings in order) with world positions (window pixels), scales, rotation, colours, textures,
+	-- texts. dyn textures carry their pixels (hex), loose images the file they come from.
+	local function hex_of(buf)
+		return (string.gsub(buf, ".", function(c) return string.format("%02x", string.byte(c)) end))
+	end
+
+	function E.dump_scene(scene)
+		if type(scene) == "string" then scene = E.scenes[scene] end
+		local out = { path = scene.path, order = scene.order, nodes = {}, textures = {}, atlases = {} }
+		for name, t in pairs(scene.textures) do -- order-free: a map
+			out.atlases[name] = t.path
+		end
+		local assets = require("client.assets")
+		local function walk(n, rot, vis)
+			if n.dead then return end
+			local wx, wy, sx, sy = world(n)
+			local z = rot + (n.euler.z or 0)
+			vis = vis and n.enabled
+			local item = {
+				k = n.kind, x = wx, y = wy, sx = sx, sy = sy, w = n.size.x, h = n.size.y, pv = PIVOT_NAME[n.pivot],
+				c = { n.color.x, n.color.y, n.color.z, n.color.w }, z = z, en = vis, id = n.id,
+				add = (n.blend == gui.BLEND_ADD) or nil, mat = n.material,
+			}
+			if n.slice9 then item.s9 = { n.slice9.x, n.slice9.y, n.slice9.z, n.slice9.w } end
+			if n.texture then
+				item.tex = n.texture
+				local dyn = n.scene.dyn[n.texture]
+				if dyn and not out.textures[n.texture] then
+					if string.sub(n.texture, 1, 4) == "img:" then
+						local e = assets.image(string.sub(n.texture, 5))
+						out.textures[n.texture] = { file = e and e.file or nil, w = dyn.w, h = dyn.h }
+					else
+						out.textures[n.texture] = { w = dyn.w, h = dyn.h, hex = hex_of(dyn.buf) }
+					end
+				end
+				if n.anim then item.anim = n.anim end
+			end
+			if n.kind == "text" then
+				item.text, item.font, item.lb = n.text, n.font, n.line_break or nil
+				item.oc = { n.outline.x, n.outline.y, n.outline.z, n.outline.w }
+				item.sc = { n.shadow.x, n.shadow.y, n.shadow.z, n.shadow.w }
+			end
+			out.nodes[#out.nodes + 1] = item
+			for _, c in ipairs(n.children) do walk(c, z, vis) end
+		end
+		for _, n in ipairs(scene.nodes) do
+			if not n.dead and not n.parent then walk(n, 0, true) end
+		end
+		return out
 	end
 
 	-- audit ---------------------------------------------------------------------------------------------------------------
