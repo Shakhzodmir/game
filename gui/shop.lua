@@ -68,8 +68,9 @@ local function buy_pack(e, b, x, y, node)
 	end
 	app.commit("booster_pack")
 	kit.sfx("booster")
-	e.fx:burst(kit.abs(x, y), { count = 12, radius = 120 })
-	e.fx:float_text(i18n.t("shop.pack_got", { n = res.count, name = i18n.t("booster." .. b.id) }), kit.abs(x, y + 60),
+	local ax, ay = kit.abs(x, y)
+	e.fx:burst(ax, ay, { count = 12, radius = 120 })
+	e.fx:float_text(i18n.t("shop.pack_got", { n = res.count, name = i18n.t("booster." .. b.id) }), ax, ay + 60,
 		{ size = 34, outline = "#8B45FF" })
 	e.fx:pop(node, 0.18, 0.3)
 	-- the spent coins leave the pill
@@ -90,7 +91,8 @@ local function refill(e, x, y, node)
 	end
 	app.commit("refill_lives")
 	kit.sfx("unlock")
-	e.fx:burst(kit.abs(x, y), { count = 12, radius = 120, colors = { "#FFFFFF", "#FFB3C7", "#FF4D8D" } })
+	local ax, ay = kit.abs(x, y)
+	e.fx:burst(ax, ay, { count = 12, radius = 120, colors = { "#FFFFFF", "#FFB3C7", "#FF4D8D" } })
 	app.toast_key("lives.refilled", nil, { color = "green" })
 end
 
@@ -111,8 +113,9 @@ local function buy_product(e, p, x, y, node)
 		end
 		kit.sfx("win")
 		app.toast_key("shop.bought", nil, { color = "gold" })
-		e.fx:burst(kit.abs(x, y), { count = 16, radius = 150 })
-		coins_fly(e, app.meta:coins() - before, kit.abs(x, y))
+		local ax, ay = kit.abs(x, y)
+		e.fx:burst(ax, ay, { count = 16, radius = 150 })
+		coins_fly(e, app.meta:coins() - before, ax, ay)
 	end)
 end
 

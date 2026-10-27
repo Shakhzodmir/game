@@ -70,7 +70,8 @@ local function booster_slot(e, body, slot, x, y, view)
 	gui.set_color(b.node, vmath.vector4(1, 1, 1, 0))
 	e:target("booster_" .. slot.id, x, y)
 	if st.just == slot.id and not kit.reduced() then
-		e.fx:burst(kit.abs(x, y), { count = 10, radius = 110, size = 30 })
+		local ax, ay = kit.abs(x, y)
+		e.fx:burst(ax, ay, { count = 10, radius = 110, size = 30 })
 	end
 	return face
 end
@@ -111,7 +112,8 @@ local function play(e, v)
 		kit.sfx("win")
 		if e.bit then e.bit:cheer(2, 2) end
 		if e.play_btn then e.fx:pop(e.play_btn.node, 0.12) end
-		e.fx:burst(kit.abs(0, -400), { count = 14, radius = 180 })
+		local ax, ay = kit.abs(0, -400)
+		e.fx:burst(ax, ay, { count = 14, radius = 180 })
 		return
 	end
 	if why == "no_lives" then
