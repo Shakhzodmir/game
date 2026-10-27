@@ -278,9 +278,17 @@ describe("client.level_view and level_anim in the hot loop", function()
 			E.reset_counts()
 			collectgarbage()
 			collectgarbage()
+			-- The collector is stopped and the LuaJIT compiler is off while measuring: the trace
+			-- recorder allocates on its own (it grew this number to 165 KB on a CI runner) and is
+			-- not what the test guards; the interpreter-level allocation of a frame at rest is.
+			local jit_was_on = jit and jit.status and jit.status()
+			if jit_was_on then jit.off() end
+			collectgarbage("stop")
 			local before = collectgarbage("count")
 			for k = 1, 600 do V:sync(A:frame(pieces, 1 + k, k / 60), 0, 0) end
 			local grown = collectgarbage("count") - before
+			collectgarbage("restart")
+			if jit_was_on then jit.on() end
 			for name, n in pairs(E.counts) do -- order-independent
 				assert_true(false, "a frame at rest called " .. name .. " x" .. n)
 			end
