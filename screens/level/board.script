@@ -194,6 +194,7 @@ end
 local function command(self, cmd)
 	local ok, res = self.session:command(cmd)
 	self.status = self.session.status
+	level_link.sent(cmd, ok, res) -- the tutorial hears what the core answered
 	return ok, res
 end
 
@@ -210,6 +211,7 @@ end
 
 local function dispatch(self, cmd)
 	if not cmd then return end
+	if not level_link.allow_command(cmd) then return end -- a tutorial step lets only its own move through
 	if cmd.type == "swap" then
 		try_swap(self, cmd)
 	elseif cmd.type == "tap" then
@@ -516,7 +518,7 @@ function update(self, dt)
 	-- hint after 5 s without touches
 	local allowed = playing and not self.input.selected and not self.input.targeting and not s:halted()
 		and not s.auto and game:is_stable()
-	if self.hint:update(dt, allowed) then self.hint_cmd = s:hint_command() end
+	if self.hint:update(dt, allowed) then self.hint_cmd = level_link.hint(s:hint_command()) end
 	local phase = self.hint:phase()
 	local h = self.hint_cmd
 	if phase and h then
@@ -553,6 +555,7 @@ function on_input(self, action_id, action)
 		local targeting = self.input.targeting
 		if st ~= "playing" and not (targeting and st == "out_of_moves") then return false end
 		local fx, fy, x, y = board_point(self, lx, ly)
+		if fx and not level_link.allow_cell(x, y) then return true end -- tutorial: only the guided cells
 		self.input:press(fx, fy)
 		if fx then
 			local p = self.cellmap[(y - 1) * self.W + x]

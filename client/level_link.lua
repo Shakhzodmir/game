@@ -26,25 +26,50 @@
 --                                  --  {rev, geom, cells, floor0, floor_rev, lit = {[i] = t}, deliver,
 --                                  --   shake_x, shake_y}; rev grows when the layout changed,
 --                                  --   floor_rev when a floor tile was hit or lit
+--   link.stable()                  -- the board is at rest (game:is_stable())
+--   link.piece(x, y)               -- {kind, special, state, pinned} of core cell (x, y), or nil
+--   link.can_swap(from, to)        -- game:can_swap: "ok" | "fail" | "reject" (nil without a board)
+--   link.specials()                -- {{x, y}, ...} the idle special pieces
+--   link.core_hint()               -- game:hint(): {from, to} | {at} | nil
 --
 -- Bus topics published by the board (client/bus.lua; payloads are read-only):
---   level_ready    {level_id, W, H, moves, goals, rect}     the board is built
+--   level_ready    {level_id, W, H, moves, goals, rect, standalone}   the board is built
 --   level_moves    {left}                                    moves left changed
 --   level_goal     {index, left, x, y, lx, ly, kind, color, item}  a goal went down
 --                  (lx, ly = where the collected thing was: fly it to the goal icon)
 --   level_score    {delta, total, lx, ly}
---   level_state    {state, reason}                           game state changed
+--   level_state    {state, reason}                           game state changed (reason "stuck")
 --   level_praise   {word, index (1..5, i18n "praise.<index>"), wave}
 --   level_banner   {key}                                     e.g. "hud.shuffle"
---   level_booster  {booster, phase = "target" | "cancel" | "used" | "done", ok}
+--   level_booster  {booster, phase = "target" | "cancel" | "used" | "rejected" | "done", ok, reason}
+--                  (target / cancel: target mode on / off; used: the core took the command;
+--                  rejected: it refused, reason = core reason; done: the booster ran, ok = false
+--                  when a remix had nothing to shuffle)
 --   level_result   {result = game:result()}                  complete or lost
 --   level_special  {special, combo, lx, ly}                  a special fired (Bit scratches)
 --   level_flash    {color, alpha, dur}                       the whole screen flashes (fx GUI)
 --   level_floor    {x, y, lx, ly}                            a dance-floor tile was lit
+--   level_noise    {x, y, lx, ly}                            noise grew onto a piece (Bit covers his ears)
+--
+-- The tutorial's guard (client/tutorial.lua): while a guided step is on, the
+-- board asks before it takes a press or sends a command, and the HUD asks
+-- before it starts a booster. A guard is a table of optional functions; a
+-- missing one lets everything through, and a guard that raises an error is
+-- dropped at once (a tutorial bug must never trap the player).
+--   link.set_guard(g) / link.clear_guard() / link.guard()
+--   g.cell(x, y) -> bool         a press on core cell (x, y); called once per press
+--   g.command(cmd) -> bool       a swap / tap / booster command the board is about to send
+--   g.booster(id) -> bool        the HUD is about to start booster `id`
+--   g.hint(cmd) -> cmd | nil     the hint the board shows after 5 s of idleness
+--   g.sent(cmd, ok, res)         what the core answered to a command the board sent
+--   link.allow_cell(x, y), link.allow_command(cmd), link.allow_booster(id), link.hint(cmd), link.sent(...)
 
 local M = {}
 
 M.board = nil -- set by the board script: {session, input, geom, on_booster}
+M.on_guard_error = nil -- test / debug hook: fn(name, err)
+
+local guard_ref = nil
 
 function M.attach(board)
 	M.board = board
@@ -87,7 +112,9 @@ function M.booster(id)
 	local b = M.board
 	if not b then return false, "no_board" end
 	if id == "remix" then
-		local ok, res = b.session:command({ type = "booster", booster = "remix" })
+		local cmd = { type = "booster", booster = "remix" }
+		local ok, res = b.session:command(cmd)
+		M.sent(cmd, ok, res)
 		if not ok then return false, res end
 		return true
 	end
@@ -148,6 +175,101 @@ function M.board_rect()
 	if not b or not b.geom then return nil end
 	local r = b.geom.rect
 	return { x0 = r.x0, y0 = r.y0, x1 = r.x1, y1 = r.y1, cell = r.cell }
+end
+
+-- queries for the tutorial ---------------------------------------------------------------------
+
+function M.stable()
+	local b = M.board
+	return b ~= nil and b.session.game:is_stable()
+end
+
+-- The object in core cell (x, y): {kind, special, state, pinned}, or nil.
+function M.piece(x, y)
+	local b = M.board
+	if not b then return nil end
+	local list = b.session.game:pieces()
+	for i = 1, #list do
+		local p = list[i]
+		if p.x == x and p.y == y then
+			return { kind = p.kind, special = p.special, state = p.state, pinned = p.pinned and true or false, item = p.item }
+		end
+	end
+	return nil
+end
+
+-- "ok" | "fail" | "reject": what a swap would do now (core game:can_swap).
+function M.can_swap(from, to)
+	local b = M.board
+	if not b then return nil end
+	return b.session.game:can_swap(from, to)
+end
+
+-- The idle, free special pieces: {{x, y}, ...}.
+function M.specials()
+	local b = M.board
+	local out = {}
+	if not b then return out end
+	local list = b.session.game:pieces()
+	for i = 1, #list do
+		local p = list[i]
+		if p.kind == "special" and p.state == "idle" and not p.pinned then out[#out + 1] = { p.x, p.y } end
+	end
+	return out
+end
+
+-- The core's own pick: {from, to} | {at} | nil.
+function M.core_hint()
+	local b = M.board
+	return b and b.session.game:hint() or nil
+end
+
+-- the guard --------------------------------------------------------------------------------------
+
+function M.set_guard(g)
+	guard_ref = type(g) == "table" and g or nil
+end
+
+function M.clear_guard()
+	guard_ref = nil
+end
+
+function M.guard()
+	return guard_ref
+end
+
+-- Calls guard function `name`; a guard that raises an error is dropped.
+local function ask(name, default, ...)
+	local g = guard_ref
+	local fn = g and g[name]
+	if not fn then return default end
+	local ok, res = pcall(fn, ...)
+	if ok then return res end
+	guard_ref = nil
+	if M.on_guard_error then M.on_guard_error(name, res) end
+	return default
+end
+
+function M.allow_cell(x, y)
+	return ask("cell", true, x, y) ~= false
+end
+
+function M.allow_command(cmd)
+	return ask("command", true, cmd) ~= false
+end
+
+function M.allow_booster(id)
+	return ask("booster", true, id) ~= false
+end
+
+-- The hint the board shows: its own pick, or whatever the guard makes of it
+-- (nil: no hint).
+function M.hint(cmd)
+	return ask("hint", cmd, cmd)
+end
+
+function M.sent(cmd, ok, res)
+	ask("sent", nil, cmd, ok, res)
 end
 
 return M

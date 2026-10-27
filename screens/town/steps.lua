@@ -169,8 +169,12 @@ function M.task(town, task, res)
 			spent.left = 0
 		end
 		town:sync_disp()
+		-- a skip before the light landed: the event the animation would have logged
+		local was_lit = lit
 		light_up()
-		if not lit then analytics.log("task_complete", { district = res.district, task = task.id, cost = task.cost, stem = task.stem }) end
+		if not was_lit then
+			analytics.log("task_complete", { district = res.district, task = task.id, cost = task.cost, stem = task.stem })
+		end
 		town.scene:refresh()
 		town.hud:build()
 		town.bit:cheer(1.5, 1)

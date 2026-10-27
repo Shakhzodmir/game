@@ -10,6 +10,7 @@ local i18n = require("client.i18n")
 local views = require("client.views")
 local ui = require("client.ui")
 local kit = require("gui.kit")
+local config = require("meta.config")
 
 local M = {}
 
@@ -119,7 +120,8 @@ function M.build(e)
 		end
 		if v.state == "empty" and o.affordable and not kit.reduced() then ui.pulse(b.node, 0.04, 0.7) end
 	else
-		kit.caption(e, body, i18n.t("lives.full"), 0, ry, { size = 28, color = "green" })
+		-- full lives: the status line above already says so; tell the rule instead
+		kit.caption(e, body, i18n.t("lives.rule", { n = views.regen_minutes(config) }), 0, ry, { size = 26, width = W - 100 })
 	end
 
 	-- first levels are free

@@ -21,8 +21,26 @@ end
 function M.write_file(path, text)
 	local f, err = io.open(path, "wb")
 	if not f then return nil, err end
-	f:write(text)
+	local ok, werr = f:write(text)
 	f:close()
+	if not ok then return nil, werr end
+	return true
+end
+
+-- Writes next to the target and renames over it, so an interrupted run never
+-- leaves a half-written file behind.
+function M.write_file_atomic(path, text)
+	local tmp = path .. ".tmp"
+	local ok, err = M.write_file(tmp, text)
+	if not ok then
+		os.remove(tmp)
+		return nil, err
+	end
+	local moved, rerr = os.rename(tmp, path)
+	if not moved then
+		os.remove(tmp)
+		return nil, rerr
+	end
 	return true
 end
 
@@ -32,17 +50,54 @@ function M.file_exists(path)
 	return false
 end
 
--- Sorted list of level files `level_NNNN.json` in a directory.
-function M.level_files(dir)
+-- A string quoted for /bin/sh.
+function M.shell_quote(s)
+	return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
+end
+
+-- Sorted names (not paths) of the entries of `dir` that match a Lua pattern.
+function M.list_dir(dir, pattern)
 	local out = {}
-	local p = io.popen('ls "' .. dir .. '" 2>/dev/null')
+	local p = io.popen("ls " .. M.shell_quote(dir) .. " 2>/dev/null")
 	if not p then return out end
 	for name in p:lines() do
-		if name:match("^level_%d+%.json$") then out[#out + 1] = dir .. "/" .. name end
+		if not pattern or name:match(pattern) then out[#out + 1] = name end
 	end
 	p:close()
 	table.sort(out)
 	return out
+end
+
+-- Sorted list of level files `level_NNNN.json` in a directory.
+function M.level_files(dir)
+	local out = {}
+	for _, name in ipairs(M.list_dir(dir, "^level_%d+%.json$")) do out[#out + 1] = dir .. "/" .. name end
+	return out
+end
+
+-- Portable checksum of a string as 16 hex digits: two polynomial rolling
+-- hashes over the bytes (exact in doubles, no bit operations, so Lua 5.1 and
+-- LuaJIT agree). It tells whether a text changed; it is not a secure hash.
+function M.checksum(text)
+	local h1, h2 = 5381, 52711
+	local byte = string.byte
+	for i = 1, #text do
+		local b = byte(text, i)
+		h1 = (h1 * 33 + b) % 2147483629
+		h2 = (h2 * 65599 + b + 1) % 2147483587
+	end
+	return string.format("%08x%08x", h1, h2)
+end
+
+-- Checksum of several files (names and contents), or nil when one is unreadable.
+function M.checksum_files(paths)
+	local parts = {}
+	for i = 1, #paths do
+		local text = M.read_file(paths[i])
+		if not text then return nil, paths[i] end
+		parts[#parts + 1] = paths[i] .. "\0" .. text
+	end
+	return M.checksum(table.concat(parts, "\0"))
 end
 
 -- `5`, `level_0005`, `level_0005.json` or a path -> a path.
