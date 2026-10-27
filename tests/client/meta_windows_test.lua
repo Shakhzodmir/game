@@ -162,6 +162,19 @@ describe("meta windows: start", function()
 		end)
 	end)
 
+	it("tells the level screen where the player comes from: the town, or the level screen that hosts the window", function()
+		for _, case in ipairs({ { "town", "town" }, { "level", "level" } }) do
+			G.with_town({}, function(c)
+				c.app.set_screen(case[1], {}) -- the window is hosted by this screen (after a win: "Next level")
+				open(c, "start")
+				wtap(c, "play")
+				local posts = c.E.posted("show_screen", "main:/app")
+				assert_eq(#posts, 1)
+				assert_eq(c.app.claim(posts[1].message.ticket).from, case[2])
+			end)
+		end
+	end)
+
 	it("marks the streak boosters free and lets them be tapped without choosing", function()
 		G.with_town({ setup = function(app) G.win(app, 13) end }, function(c)
 			assert_eq(c.app.meta:streak().count, 2)
@@ -337,6 +350,48 @@ describe("meta windows: shop", function()
 		end)
 	end)
 
+	it("lets the coins of a purchase land when the window is closed while they fly", function()
+		G.with_town({ stores = true }, function(c)
+			open(c, "shop", { tab = "coins" })
+			local coins = c.app.meta:coins()
+			wtap(c, "product_coins_small")
+			c.run(0.1) -- the coins are in the air
+			c.app.close_popup()
+			c.run(0.4) -- the window is gone (0.18 s), the coins are still flying
+			assert_eq(c.app.ui.popup, nil)
+			c.run(2) -- every landing: no node of the closed window is touched
+			assert_eq(c.app.meta:coins(), coins + 500)
+			assert_eq(c.app.ui.disp.coins, coins + 500)
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("logs the video offer once per visit of the shop, not at every rebuild", function()
+		G.with_town({ stores = true }, function(c)
+			analytics.drain()
+			open(c, "shop", { tab = "coins" })
+			c.app.set_setting("language", "ru") -- every window rebuilds
+			c.run(0.3)
+			c.app.set_setting("language", "en")
+			c.run(0.3)
+			local offers = {}
+			for _, ev in ipairs(analytics.drain()) do
+				if ev.name == "ad_offer" then offers[#offers + 1] = ev.params end
+			end
+			assert_same(offers, { { placement = "shop_gift", available = true } })
+		end)
+		-- the web demo has no video: the offer is still on screen, and says it is not available
+		G.with_town({}, function(c)
+			analytics.drain()
+			open(c, "shop", { tab = "coins" })
+			local offers = {}
+			for _, ev in ipairs(analytics.drain()) do
+				if ev.name == "ad_offer" then offers[#offers + 1] = ev.params end
+			end
+			assert_same(offers, { { placement = "shop_gift", available = false } })
+		end)
+	end)
+
 	it("gives the free video gift in a debug build, once a minute", function()
 		G.with_town({ stores = true }, function(c)
 			open(c, "shop", { tab = "coins" })
@@ -429,6 +484,23 @@ describe("meta windows: settings", function()
 			assert_near(c.app.meta:settings().music, 0.5, 1e-9)
 			assert_eq(#vol >= 1 or #c.E.posted("volumes", "main:/audio#audio") >= 1, true)
 			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("ends a drag whose release never came (focus lost mid-drag) with the next press, and does not drag on", function()
+		G.with_town({}, function(c)
+			open(c, "settings")
+			local before = c.app.meta:settings().music
+			local t = c.app.ui.popup_targets.slider_music
+			local track_x0 = 360 + 128 - 150
+			-- the finger goes down on the knob and the app loses focus: no release ever comes
+			c.E.input(TOUCH(), c.E.touch_action(track_x0 + before * 300, t.y, true, false))
+			c.step(2)
+			-- the next press is a new gesture: it hits Close, not the slider
+			wtap(c, "close")
+			c.run(0.6)
+			assert_eq(c.app.ui.popup, nil, "the Close button was not eaten by a phantom drag")
+			assert_near(c.app.meta:settings().music, before, 1e-9)
 		end)
 	end)
 
@@ -553,6 +625,52 @@ describe("meta windows: chests and gifts", function()
 			wtap(c, "collect")
 			wait_for(c, function() return not c.app.ui.busy end, 12, "the flights")
 			assert_eq(c.app.ui.disp.coins, c.app.meta:coins())
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("keeps the lives pill as it was until the chest's unlimited lives have flown into it", function()
+		G.with_town({ setup = function(app) G.win(app, 9) end }, function(c)
+			local res = G.win(c.app, 1) -- level 10: the chest holds 15 minutes of unlimited lives
+			assert_eq(res.chest.infinite_minutes, 15)
+			c.app.push_reward(res)
+			assert_true(c.app.meta:lives(c.app.now()).infinite_seconds > 0, "the meta has them from the win on")
+			c.run(0.8)
+			assert_true(has(c, "Full"), "the pill still shows the lives as they were: " .. texts(c))
+			assert_false(has(c, "15:00"))
+			assert_eq(c.app.ui.hold.infinite, 900)
+			wait_for(c, function() return c.app.ui.popup == "chest" end, 8, "the level chest")
+			assert_true(has(c, "Full") and not has(c, "15:00"), "not while the chest is closed: " .. texts(c))
+			c.run(0.5)
+			wtap(c, "chest")
+			wait_for(c, function() return c.app.ui.popup_targets and c.app.ui.popup_targets.collect ~= nil end, 3, "the open chest")
+			c.run(1.5)
+			assert_true(has(c, "Full") and not has(c, "15:00"), "nor while it is open")
+			wtap(c, "collect")
+			c.run(0.2) -- the hearts and the coins are in the air
+			assert_eq(c.app.ui.hold.infinite, 900)
+			assert_true(has(c, "Full"))
+			wait_for(c, function() return not c.app.ui.busy end, 12, "the flights")
+			assert_eq(c.app.ui.hold.infinite, 0)
+			assert_true(c.town:find("^14:%d%d$", true) ~= nil, "the unlimited lives landed in the pill (the clock runs): " .. texts(c))
+			assert_false(has(c, "Full"))
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("keeps the title of a district chest readable on its ribbon in Russian (two lines, not a speck)", function()
+		G.with_town({ language = "ru" }, function(c)
+			open(c, "chest", { kind = "district", district = "square", district_name = c.app.district("square").name,
+				chest = { coins = 600, boosters = { "disco" } } })
+			local title = c.town:find("оркестра:", true) -- "Площадь уличного оркестра:\nсундук района!"
+			assert_true(title ~= nil, texts(c))
+			assert_true(c.E.text_px(title) >= 26, "title size " .. c.E.text_px(title))
+			-- the short titles stay on one line at the full size
+			close(c)
+			open(c, "chest", { kind = "level", level_id = 10, chest = { coins = 60 } })
+			local short = c.town:find("Сундук уровня 10!")
+			assert_true(short ~= nil, texts(c))
+			assert_near(c.E.text_px(short), 40, 0.01)
 			assert_same(c.E.audit(), {})
 		end)
 	end)

@@ -1,8 +1,11 @@
--- The authored tutorials (content/tutorials.json, or the part files until they are merged) played on the real
+-- The authored tutorials (content/tutorials.json, the one file the game reads) played on the real
 -- boards with the real runtime (client/tutorial.lua) behind the guard of client/level_link.lua, in both input
 -- modes: every step must be possible on the board the player has when it comes (no repair from the core's hint,
 -- no step given up), the guided move must complete it, and the lesson must end as "completed". A failure names
--- the level: the step of the author is wrong for the board (or the board changed under it).
+-- the level: the step of the author is wrong for the board (or the board changed under it). The file must
+-- exist and be what the runtime loads through sys.load_resource, and every level that brings a new element
+-- (levels-plan.md, section 2) must have its lesson: the build fails otherwise, so the game cannot ship without
+-- tutorials unnoticed.
 
 local tutorial = require("client.tutorial")
 local link = require("client.level_link")
@@ -19,17 +22,9 @@ local function read(path)
 end
 
 local function authored()
-	local defs, sources = {}, {}
-	local files = read("content/tutorials.json") and { "content/tutorials.json" }
-		or { "content/tutorials_part1.json", "content/tutorials_part2.json" }
-	for _, path in ipairs(files) do
-		local text = read(path)
-		if text then
-			sources[#sources + 1] = path
-			for k, v in pairs(json.decode(text)) do defs[k] = v end
-		end
-	end
-	return defs, sources
+	local text = read("content/tutorials.json")
+	assert_true(text ~= nil, "content/tutorials.json is missing: the game would ship without tutorials")
+	return json.decode(text)
 end
 
 local function levels_of(defs)
@@ -98,11 +93,66 @@ local function play(level, defs, mode)
 	return t, done
 end
 
+-- The first level that has each of the elements of the plan (slots, floor tiles, overlay): the level that brings it.
+local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column" }
+
+local function first_levels()
+	local want, first = {}, {}
+	for _, k in ipairs(ELEMENTS) do want[k] = true end
+	for n = 1, 100 do
+		local text = read(string.format("content/levels/level_%04d.json", n))
+		if text then
+			local level = json.decode(text)
+			local kinds = {}
+			for _, slot in ipairs(level.slots or {}) do kinds[slot.type] = true end
+			for _, o in ipairs(level.overlay or {}) do kinds[o.type] = true end
+			if level.floor and #level.floor > 0 then kinds.dancefloor = true end
+			for _, k in ipairs(ELEMENTS) do
+				if kinds[k] and not first[k] then first[k] = n end
+			end
+		end
+	end
+	return first
+end
+
 describe("the authored tutorials on the real boards", function()
+	it("are in the file the game loads: /content/tutorials.json through sys.load_resource", function()
+		local town_stub = require("tests.client.town_defold_stub")
+		town_stub.install({})
+		local ok, err = pcall(function()
+			tutorial._reset()
+			local warnings = {}
+			tutorial.warn = function(text) warnings[#warnings + 1] = text end
+			local loaded = tutorial.load() -- the runtime's own path, the project's custom resources
+			assert_same(warnings, {}, "the game cannot read " .. tutorial.PATH)
+			local defs = authored()
+			local ids = levels_of(defs)
+			assert_true(#ids >= 15, "lessons in the file: " .. #ids)
+			for _, n in ipairs(ids) do
+				assert_true(tutorial.steps(loaded, n) ~= nil, "level " .. n .. " has no lesson in what the game loads")
+			end
+		end)
+		tutorial._reset()
+		town_stub.shutdown()
+		if not ok then error(err, 0) end
+	end)
+
+	it("have a lesson for the level that brings each new element", function()
+		local defs = authored()
+		local first = first_levels()
+		assert_true(first.record_box ~= nil and first.mic ~= nil and first.noise ~= nil, "the level files were found")
+		for _, k in ipairs(ELEMENTS) do
+			if first[k] then
+				assert_true(defs[tostring(first[k])] ~= nil,
+					"level " .. first[k] .. " brings " .. k .. " and has no lesson in content/tutorials.json")
+			end
+		end
+	end)
+
 	it("are well formed: known kinds, cells on the board, texts in both languages", function()
 		local defs = authored()
 		local ids = levels_of(defs)
-		if #ids == 0 then return end -- no content yet
+		assert_true(#ids > 0, "no lessons")
 		local missing = {}
 		for _, n in ipairs(ids) do
 			local steps, errors = tutorial.steps(defs, n)

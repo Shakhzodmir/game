@@ -33,6 +33,22 @@ describe("client.services.analytics", function()
 		assert_eq(analytics.recent(1)[1].params.reason, "level_win")
 	end)
 
+	it("prints each event with its params when the echo is on (a debug build)", function()
+		analytics.init({ strict = true, echo = true })
+		local lines, real = {}, print
+		rawset(_G, "print", function(...) lines[#lines + 1] = table.concat({ ... }, " ") end)
+		local ok, err = pcall(function()
+			analytics.log("level_start", { level = 3, attempt = 1 })
+			analytics.log("screen_view", { name = "town" })
+			analytics.log("lives_out")
+		end)
+		rawset(_G, "print", real)
+		assert_true(ok, err)
+		assert_same(lines, { "analytics: level_start attempt=1 level=3", "analytics: screen_view name=town", "analytics: lives_out" })
+		analytics.init({ strict = true }) -- quiet again
+		analytics.log("lives_out", { level = 1 })
+	end)
+
 	it("keeps the queue bounded", function()
 		for i = 1, analytics.MAX_QUEUE + 10 do analytics.log("lives_out", { level = i }) end
 		assert_eq(#analytics.drain(), analytics.MAX_QUEUE)

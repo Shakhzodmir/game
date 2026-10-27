@@ -70,8 +70,9 @@ local function items(e, parent, district, beat)
 			gui.set_blend_mode(g, gui.BLEND_ADD)
 			local n = s:image(parent, scene.item_key(district, t.id), x, y, { w = w, h = h })
 			if n and not kit.reduced() then
+				-- on the beat: one bob and one breath of the glow per beat (a PINGPONG duration is the whole cycle)
 				fx.bob(n, 7, beat, (i % 2) * beat / 2)
-				ui.pulse(g, 0.1, beat / 2)
+				ui.pulse(g, 0.1, beat)
 			end
 		end
 	end

@@ -26,7 +26,10 @@
 --     node raises;
 --   * values are type checked (vector4 for colours, string for text, a gui.EASING_* constant);
 --   * a new gui.animate on a property replaces the running one WITHOUT calling its callback, as the
---     engine does; looping animations never complete;
+--     engine does; looping animations never complete; a PINGPONG animation plays 0 -> 1 -> 0 within
+--     its `duration` (the engine's gui.cpp: the duration is the whole cycle, not the one-way time);
+--   * nodes made by script do not inherit their parent's alpha (gui.set_inherit_alpha is off by
+--     default, like the engine's NewNode); E.opacity(node) is what the engine would draw;
 --   * sys.load_resource only finds files under the custom_resources of game.project;
 --   * E.audit() lists texts with glyphs the font does not contain (the engine draws nothing for
 --     them) and the live text characters against gui max_characters;
@@ -340,6 +343,7 @@ function M.install(opts)
 			scale = vmath.vector3(1, 1, 1), euler = vmath.vector3(0, 0, 0),
 			color = vmath.vector4(1, 1, 1, 1), outline = vmath.vector4(1, 1, 1, 1), shadow = vmath.vector4(1, 1, 1, 1),
 			enabled = true, pivot = gui.PIVOT_CENTER, blend = gui.BLEND_ALPHA, text = nil, font = scene.font_list[1],
+			inherit_alpha = false,
 		}, NODE)
 		scene.nodes[#scene.nodes + 1] = n
 		scene.n = scene.n + 1
@@ -431,6 +435,12 @@ function M.install(opts)
 		if not is_v4(v) then error("gui.set_shadow: a vector4 was expected, got " .. tostring(v), 2) end
 		n.shadow = vmath.vector4(v)
 	end
+	function gui.set_inherit_alpha(n, on)
+		live(n)
+		if type(on) ~= "boolean" then error("gui.set_inherit_alpha: a boolean was expected, got " .. type(on), 2) end
+		n.inherit_alpha = on
+	end
+	function gui.get_inherit_alpha(n) return live(n).inherit_alpha end
 	function gui.set_enabled(n, on)
 		live(n)
 		if type(on) ~= "boolean" then error("gui.set_enabled: a boolean was expected, got " .. type(on), 2) end
@@ -758,11 +768,12 @@ function M.install(opts)
 					elseif pb == "LOOP_BACKWARD" then
 						k = a.dur > 0 and (1 - (a.t % a.dur) / a.dur) or 0
 					elseif pb == "LOOP_PINGPONG" then
-						local ph = a.dur > 0 and ((a.t % (2 * a.dur)) / a.dur) or 0
-						k = ph <= 1 and ph or 2 - ph
+						-- the engine (gui.cpp UpdateAnimations: t2 = 2 * t, then 2 - t2 past 1): 0 -> 1 -> 0 within ONE `dur`
+						local u = a.dur > 0 and ((a.t % a.dur) / a.dur) or 0
+						k = u <= 0.5 and 2 * u or 2 - 2 * u
 					elseif pb == "ONCE_PINGPONG" then
-						local ph = a.dur > 0 and (a.t / a.dur) or 2
-						if ph >= 2 then k, finished = 0, true else k = ph <= 1 and ph or 2 - ph end
+						local u = a.dur > 0 and (a.t / a.dur) or 1
+						if u >= 1 then k, finished = 0, true else k = u <= 0.5 and 2 * u or 2 - 2 * u end
 					elseif pb == "ONCE_BACKWARD" then
 						k = a.dur > 0 and (1 - a.t / a.dur) or 0
 						if a.t >= a.dur then k, finished = 0, true end
@@ -809,6 +820,15 @@ function M.install(opts)
 		return true
 	end
 	E.visible = visible
+
+	-- The alpha the engine draws a node with: its own colour alpha, times its parent's drawn alpha when
+	-- the node inherits it (gui.set_inherit_alpha; off for nodes made by script).
+	local function opacity(n)
+		local a = n.color.w
+		if n.parent and n.inherit_alpha then a = a * opacity(n.parent) end
+		return a
+	end
+	E.opacity = opacity
 
 	function E.text_width(n)
 		local f = font_for(n.font or "body")
@@ -1193,7 +1213,7 @@ function M.install(opts)
 			vis = vis and n.enabled
 			local item = {
 				k = n.kind, x = wx, y = wy, sx = sx, sy = sy, w = n.size.x, h = n.size.y, pv = PIVOT_NAME[n.pivot],
-				c = { n.color.x, n.color.y, n.color.z, n.color.w }, z = z, en = vis, id = n.id,
+				c = { n.color.x, n.color.y, n.color.z, opacity(n) }, z = z, en = vis, id = n.id,
 				add = (n.blend == gui.BLEND_ADD) or nil, mat = n.material,
 			}
 			if n.slice9 then item.s9 = { n.slice9.x, n.slice9.y, n.slice9.z, n.slice9.w } end
@@ -1224,8 +1244,31 @@ function M.install(opts)
 		return out
 	end
 
+	-- What a font bakes (assets/gen/fonts/<name>.font): an outline and a shadow are drawn only by a
+	-- MODE_MULTI_LAYER font with outline_width / shadow_alpha above zero; on any other font the colours a text
+	-- node is given (gui.set_outline / set_shadow) do nothing.
+	local font_fx = {}
+	local function effects_of(name)
+		local fx = font_fx[name]
+		if fx == nil then
+			local text = read_file("/assets/gen/fonts/" .. tostring(name) .. ".font")
+			if text then
+				local multi = string.match(text, "render_mode:%s*(%S+)") == "MODE_MULTI_LAYER"
+				fx = {
+					outline = multi and (tonumber(string.match(text, "outline_width:%s*([%d%.]+)")) or 0) > 0,
+					shadow = multi and (tonumber(string.match(text, "shadow_alpha:%s*([%d%.]+)")) or 0) > 0,
+				}
+			else
+				fx = false
+			end
+			font_fx[name] = fx
+		end
+		return fx or nil
+	end
+
 	-- audit ---------------------------------------------------------------------------------------------------------------
-	-- A list of problems in every live scene: glyphs the font lacks, characters over the budget, ...
+	-- A list of problems in every live scene: glyphs the font lacks, an outline or a shadow on a font that
+	-- bakes none (it would not show), characters over the budget, ...
 	function E.audit()
 		local problems = {}
 		local chars = 0
@@ -1237,6 +1280,15 @@ function M.install(opts)
 					for _, cp in ipairs(utf8_codepoints(n.text)) do
 						if cp ~= 10 and f and not f.chars[cp] then
 							problems[#problems + 1] = string.format("%s: U+%04X is not in the font '%s' (text '%s')", path, cp, n.font, n.text)
+						end
+					end
+					local fx = effects_of(n.font or "body")
+					if fx and n.color.w > 0.01 then
+						if n.outline.w > 0.01 and not fx.outline then
+							problems[#problems + 1] = string.format("%s: an outline on the font '%s', which bakes none (text '%s')", path, n.font, n.text)
+						end
+						if n.shadow.w > 0.01 and not fx.shadow then
+							problems[#problems + 1] = string.format("%s: a shadow on the font '%s', which bakes none (text '%s')", path, n.font, n.text)
 						end
 					end
 				end

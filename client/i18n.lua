@@ -304,6 +304,14 @@ local S = {
 		en = "Tap the Riff: its lightning cracks the concrete",
 		ru = "Нажми на Рифф — его разряд треснет бетон",
 	},
+	["tutorial.noise_match"] = {
+		en = "Match next to the noise to clear it",
+		ru = "Собери фишки рядом с помехой — она исчезнет",
+	},
+	["tutorial.balloon_match"] = {
+		en = "Match their colour next to a balloon to pop it",
+		ru = "Собери фишки такого же цвета рядом с шариком — он лопнет",
+	},
 	["tutorial.tap_continue"] = { en = "Tap to continue", ru = "Нажми, чтобы продолжить" },
 
 	-- music stems (layer names shown by tasks and the jukebox) -------------------------------------------------------

@@ -1,6 +1,6 @@
 -- client/tutorial.lua: the parser of tutorials.json, the step machine and the guard,
--- on a fake board (inline fixtures: the real content/tutorials.json is merged later) and
--- once on a real core game through client/level_link.lua.
+-- on a fake board (inline fixtures; the authored content/tutorials.json is played in
+-- tutorial_content_test.lua) and once on a real core game through client/level_link.lua.
 
 local tutorial = require("client.tutorial")
 local link = require("client.level_link")
@@ -110,8 +110,10 @@ describe("client.tutorial parsing", function()
 		assert_eq(tutorial.steps({ [1] = defs["1"] }, 1) ~= nil, true) -- a numeric key works too
 	end)
 
-	it("reads /content/tutorials.json once and survives a missing or broken file", function()
+	it("reads /content/tutorials.json once and survives a missing or broken file, saying so", function()
 		tutorial._reset()
+		local warnings = {}
+		tutorial.warn = function(text) warnings[#warnings + 1] = text end
 		local reads = 0
 		tutorial.read = function(path)
 			reads = reads + 1
@@ -122,13 +124,22 @@ describe("client.tutorial parsing", function()
 		assert_true(tutorial.steps(tutorial.load(), 1) ~= nil)
 		tutorial.load()
 		assert_eq(reads, 1)
+		assert_same(warnings, {}) -- a good file is quiet
+		-- a missing file means a game without tutorials: it is logged (once, however often it is asked for)
 		tutorial._reset()
+		tutorial.warn = function(text) warnings[#warnings + 1] = text end
 		tutorial.read = function() return nil end
 		assert_same(tutorial.load(), {})
+		assert_same(tutorial.load(), {})
+		assert_eq(#warnings, 1)
+		assert_true(string.find(warnings[1], "WARNING: tutorials: /content/tutorials.json cannot be read", 1, true) ~= nil, warnings[1])
 		tutorial._reset()
+		tutorial.warn = function(text) warnings[#warnings + 1] = text end
 		tutorial.read = function() return "{ not json" end
 		tutorial.decode = json.decode
 		assert_same(tutorial.load(), {})
+		assert_eq(#warnings, 2)
+		assert_true(string.find(warnings[2], "is not valid JSON", 1, true) ~= nil, warnings[2])
 		tutorial._reset()
 	end)
 

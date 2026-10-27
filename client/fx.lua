@@ -33,8 +33,7 @@ local sin, cos, pi = math.sin, math.cos, math.pi
 M.CONFETTI_COLORS = { "#FF4D8D", "#FFDB1A", "#3AA4FF", "#2BE38F", "#9B52FF", "#FF9A1F" }
 M.SPARK_COLORS = { "#FFFFFF", "#FFF3A6", "#FFD84D", "#FFB020" }
 
-local base_scale = setmetatable({}, { __mode = "k" })
-local base_pos = setmetatable({}, { __mode = "k" })
+local base_scale = setmetatable({}, { __mode = "k" }) -- node -> rest scale of a node that is not a button
 
 function M.reduced()
 	return app.reduced_motion()
@@ -50,7 +49,8 @@ function M.buzz(ms)
 end
 
 function M.new(scene, parent)
-	local self = setmetatable({ ui = scene, parent = parent or scene.root, tweens = {}, sfx_at = {}, clock = 0 }, Fx)
+	local self = setmetatable({ ui = scene, parent = parent or scene.root, tweens = {}, sfx_at = {}, clock = 0,
+		shaking = setmetatable({}, { __mode = "k" }) }, Fx)
 	self.layer = scene:layer(self.parent, "fx")
 	return self
 end
@@ -336,10 +336,12 @@ function Fx:confetti(o)
 	return handle
 end
 
--- A quick scale punch. Pulsing nodes (ui.pulse) keep their pulse instead.
+-- A quick scale punch. Pulsing nodes (ui.pulse) keep their pulse instead. The node settles back to its rest
+-- scale: a button's own (it may be mid-press right now, a pop from its on_click: the live scale is then
+-- the pressed one), else the scale it had when it was first popped.
 function Fx:pop(node, amount, dur)
 	if not node or ui.is_pulsing(node) then return end
-	local b = base_scale[node]
+	local b = ui.rest_scale(node) or base_scale[node]
 	if not b then
 		b = gui.get_scale(node)
 		base_scale[node] = b
@@ -352,17 +354,27 @@ end
 
 local SHAKE = vmath.vector({ 0, 1, -1, 0.75, -0.55, 0.35, -0.15, 0 })
 
--- A sideways shake (a refusal). Nothing under reduced motion.
+-- A sideways shake (a refusal). Nothing under reduced motion. It moves only the node's x and puts back only
+-- the x: the y of a node anchored to a screen edge follows the window (client/ui.lua refit) while it shakes
+-- or after it. The rest x is read where the node stands when no shake of it is running (a window resize may
+-- have moved it since the last one); a shake that starts while another runs returns to the rest x of
+-- the first, so a quick run of taps cannot walk the node away.
 function Fx:shake(node, amp, dur)
 	if not node or M.reduced() then return end
-	local p = base_pos[node]
-	if not p then
-		p = gui.get_position(node)
-		base_pos[node] = p
-	end
+	dur = dur or 0.4
+	local run = self.shaking[node]
+	local x
+	if run and run.t_end > self.clock then x = run.x else x = gui.get_position(node).x end
+	self.shaking[node] = { x = x, t_end = self.clock + dur }
+	local p = gui.get_position(node)
+	p.x = x
 	gui.cancel_animations(node, "position.x")
 	gui.set_position(node, p)
-	gui.animate(node, "position.x", p.x + (amp or 14), SHAKE, dur or 0.4, 0, function() gui.set_position(node, p) end)
+	gui.animate(node, "position.x", x + (amp or 14), SHAKE, dur, 0, function()
+		local q = gui.get_position(node)
+		q.x = x
+		gui.set_position(node, q)
+	end)
 end
 
 -- Slow rays turning behind a reward (a chest, a new booster). Returns the node.
@@ -384,11 +396,12 @@ function Fx:rays(parent, x, y, o)
 	return holder
 end
 
--- Gentle idle bob (restored items, Bit). Nothing under reduced motion.
+-- Gentle idle bob (restored items, Bit): up `amp` px and back once per `period` seconds (a PINGPONG
+-- animation's duration is the whole cycle). Nothing under reduced motion.
 function M.bob(node, amp, period, delay)
 	if M.reduced() then return end
 	local p = gui.get_position(node)
-	gui.animate(node, "position.y", p.y + (amp or 5), gui.EASING_INOUTSINE, (period or 2.4) / 2, delay or 0, nil,
+	gui.animate(node, "position.y", p.y + (amp or 5), gui.EASING_INOUTSINE, period or 2.4, delay or 0, nil,
 		gui.PLAYBACK_LOOP_PINGPONG)
 end
 

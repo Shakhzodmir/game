@@ -26,6 +26,22 @@ local function item_x(i, n)
 	return (i - (n + 1) / 2) * 176
 end
 
+-- The ribbon title: one line at 40 px, or - when one line would shrink to a speck (the longest district name
+-- in Russian: "Площадь уличного оркестра: сундук района!") - two lines split after the colon, each fitted to
+-- the ribbon's band (the folded ends of the ribbon art take the rest of its 620 px).
+local RIBBON_TEXT_W = 440
+
+local function ribbon_title(e, ribbon, title)
+	local text, size = title, 40
+	if kit.text_width("button", title, size) > RIBBON_TEXT_W * 1.4 then
+		local head, tail = string.match(title, "^(.-:)%s+(.+)$")
+		if head then text, size = head .. "\n" .. tail, 34 end
+	end
+	return e.ui:text(ribbon, text, 0, 8, {
+		font = "button", size = size, color = "white", outline = "#5220A6", shadow = "#5220A6", max_width = RIBBON_TEXT_W,
+	})
+end
+
 local function amount_text(it)
 	if it.kind == "coins" then return "+" .. i18n.number(it.amount) end
 	if it.kind == "infinite" then return i18n.t("shop.minutes", { n = it.amount }) end
@@ -119,7 +135,7 @@ function M.build(e)
 	end
 	local ribbon = s:image(e.content, "ui/ribbon", 0, 420, { w = 620, h = 116, slice9 = true })
 		or s:round(e.content, 0, 420, 560, 96, "purple")
-	s:text(ribbon, title, 0, 8, { font = "button", size = 40, color = "white", outline = "#5220A6", shadow = "#5220A6", max_width = 420 })
+	ribbon_title(e, ribbon, title)
 	if e.first and not kit.reduced() then kit.pop_in(ribbon, 0.05, 0.4) end
 
 	-- rays and glow behind the chest

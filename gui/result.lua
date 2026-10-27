@@ -31,8 +31,8 @@ end
 
 local function refund_ids(refund)
 	local out = {}
-	for _, id in ipairs({ "stick", "row_light", "col_light", "remix", "riff", "sub", "disco" }) do
-		if refund and refund[id] then out[#out + 1] = id end
+	for _, def in ipairs(config.boosters) do -- the catalogue's order
+		if refund and refund[def.id] then out[#out + 1] = def.id end
 	end
 	return out
 end

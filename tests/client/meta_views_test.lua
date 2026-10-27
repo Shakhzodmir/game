@@ -229,4 +229,28 @@ describe("client.views (meta screens)", function()
 		assert_eq(s.language, "auto")
 		assert_eq(#s.languages, 3)
 	end)
+
+	it("takes the booster slots, the pack order and the settings choices from the meta's config", function()
+		local pre = {}
+		for _, b in ipairs(config.boosters) do
+			if b.kind == "pre" then pre[#pre + 1] = b.id end
+		end
+		assert_same(views.PRE, pre)
+		assert_eq(#views.PRE, 3, "the start window lays out three slots: widen it before adding a fourth")
+		local s = views.settings(H.new())
+		assert_same(s.input_modes, config.input_modes)
+		assert_same(s.languages, config.languages)
+		local i18n = require("client.i18n")
+		for _, id in ipairs(config.input_modes) do assert_true(i18n.has("settings.input_" .. id), "label of " .. id) end
+		for _, id in ipairs(config.languages) do assert_true(i18n.has("settings.lang_" .. id), "label of " .. id) end
+		-- the boosters of a product come in the catalogue's order
+		local list = views.shop_products(iap.PRODUCTS, true)
+		local starter
+		for _, p in ipairs(list) do
+			if p.id == "starter_pack" then starter = p end
+		end
+		local ids = {}
+		for _, b in ipairs(starter.boosters) do ids[#ids + 1] = b.id end
+		assert_same(ids, { "stick", "riff", "sub" })
+	end)
 end)

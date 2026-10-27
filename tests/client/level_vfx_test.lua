@@ -128,6 +128,73 @@ describe("client.level_vfx", function()
 		end)
 	end)
 
+	it("tints every emitter of every kind of burst with the colour it was asked for, after the play", function()
+		with_vfx(function(E, vfx)
+			local colors = { pop = "#FF4468", sparkle = "#FFD84D", debris = "#B07A45", dust = "#C9C2D6",
+				confetti = "#3AA4FF", spark = "#2BE38F" }
+			for _, k in ipairs(level_vfx.KINDS) do
+				vfx:play({ { kind = "burst", fx = k, x = 100, y = 500, color = colors[k], count = 4, at = 0 } })
+			end
+			vfx:update(1 / 60, 1, 0.0)
+			-- the strict stub raises when a constant is set on an effect that is not playing (the engine drops it)
+			assert_eq(E.counts.particlefx_set_constant_lost, nil)
+			for _, k in ipairs(level_vfx.KINDS) do
+				local list = E.by_factory(k .. "_factory")
+				assert_eq(#list, 1, k)
+				local comp = list[1].proto.comps.fx
+				local r, g, b = level_view.rgb(colors[k])
+				for _, em in ipairs(level_vfx.EMITTERS[k]) do
+					local t = comp.tints[em]
+					assert_true(t ~= nil, k .. "/" .. em .. ": no tint reached the playing effect")
+					assert_true(math.abs(t.x - r) < 1e-6 and math.abs(t.y - g) < 1e-6 and math.abs(t.z - b) < 1e-6,
+						k .. "/" .. em .. ": wrong tint")
+					assert_eq(t.w, 1)
+				end
+			end
+			-- what the offline renderer would draw is the asked colour, not the white of the image
+			local snap = E.snapshot()
+			assert_eq(#snap.particles, 7) -- pop has two emitters, the other five kinds one
+			for _, p in ipairs(snap.particles) do
+				assert_true(not (p.r == 1 and p.g == 1 and p.b == 1), p.kind .. "/" .. p.emitter .. " is still white")
+			end
+		end)
+	end)
+
+	it("tints a reused burst object again, although its previous instance was pruned by the engine", function()
+		with_vfx(function(E, vfx)
+			vfx:play({ { kind = "burst", fx = "pop", x = 100, y = 500, color = "#FF4468", count = 4, at = 0 } })
+			vfx:update(1 / 60, 1, 0.0)
+			assert_eq(E.counts.factory_create, 1)
+			E.advance(level_vfx.LIFE.pop + 0.05) -- the engine prunes the sleeping instance
+			vfx:play({ { kind = "burst", fx = "pop", x = 200, y = 500, color = "#3AA4FF", count = 4, at = 0 } })
+			vfx:update(1 / 60, 2, level_vfx.LIFE.pop + 0.05)
+			assert_eq(E.counts.factory_create, 1, "the object is reused")
+			assert_eq(E.counts.particlefx_play_overlap, nil, "the pool reused an object whose instance was still alive")
+			local comp = E.by_factory("pop_factory")[1].proto.comps.fx
+			local r, g, b = level_view.rgb("#3AA4FF")
+			for _, em in ipairs(level_vfx.EMITTERS.pop) do
+				local t = comp.tints[em]
+				assert_true(t and math.abs(t.x - r) < 1e-6 and math.abs(t.z - b) < 1e-6, em .. ": the new colour is lost")
+			end
+		end)
+	end)
+
+	it("keeps a burst object busy longer than the engine keeps its particle instance", function()
+		with_vfx(function(E, vfx)
+			for _, k in ipairs(level_vfx.KINDS) do
+				vfx:play({ { kind = "burst", fx = k, x = 100, y = 500, color = "#FFFFFF", count = 4, at = 0 } })
+			end
+			vfx:update(1 / 60, 1, 0.0)
+			for _, k in ipairs(level_vfx.KINDS) do
+				local comp = E.by_factory(k .. "_factory")[1].proto.comps.fx
+				local inst = comp.instances[#comp.instances]
+				-- start delay + emission + the longest particle life: when the engine drops the instance
+				assert_true(level_vfx.LIFE[k] >= inst.alive_until - E.time,
+					k .. ": LIFE " .. level_vfx.LIFE[k] .. " < the instance's " .. (inst.alive_until - E.time))
+			end
+		end)
+	end)
+
 	it("halves the particles of a slow device (lite) and under reduced motion", function()
 		with_vfx(function(E, vfx)
 			vfx:set_lite(true)

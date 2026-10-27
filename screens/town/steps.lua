@@ -8,8 +8,9 @@
 --   M.next_district(town, id)      the next district slides in with its music
 --   M.rewards(town, result)        the steps of one level result (rewards.steps)
 -- Amounts already paid by the meta but not landed yet are held back from the
--- counters: town.hold (coins, stars) grows when a step takes them over and
--- shrinks as every icon lands (town:sync_disp()).
+-- counters: town.hold (coins, stars, and the seconds of a chest's unlimited
+-- lives for the lives pill) grows when a step takes them over and shrinks as
+-- every icon lands (town:sync_disp(), hud:lives_view()).
 
 local app = require("client.app")
 local i18n = require("client.i18n")
@@ -82,10 +83,13 @@ end
 -- Lands whatever of a result is still held (acct = {coins, stars} left).
 local function settle(town, acct)
 	if not acct then return end
+	local infinite = acct.infinite or 0
 	town.hold.coins = town.hold.coins - acct.coins
 	town.hold.stars = town.hold.stars - acct.stars
-	acct.coins, acct.stars = 0, 0
+	town.hold.infinite = town.hold.infinite - infinite
+	acct.coins, acct.stars, acct.infinite = 0, 0, 0
 	town:sync_disp()
+	if infinite ~= 0 then town.hud:build() end -- the lives pill shows them from now on
 end
 M.settle = settle
 M.land_all = land_all
@@ -241,6 +245,10 @@ function M.chest(town, params, acct)
 					town.fx:fly({ image = "ui/icons/heart_infinite", size = 100, from = { it.x, it.y },
 						to = function() return town.hud:lives_pos() end, dur = 0.7, arc = -160, trail = "#FFB3E1",
 						on_land = function()
+							-- the unlimited lives reach the pill now (not before: hud:lives_view holds them back)
+							local secs = it.amount * 60
+							town.hold.infinite = town.hold.infinite - secs
+							if acct then acct.infinite = (acct.infinite or 0) - secs end
 							town.hud:build()
 							if town.hud.heart then town.fx:pop(town.hud.heart, 0.4, 0.3) end
 							town.fx:sfx("unlock", nil, 0.1)
@@ -302,9 +310,10 @@ end
 function M.rewards(town, r)
 	local out = {}
 	local a = rewards.amounts(r)
-	local acct = { coins = a.coins, stars = a.stars }
+	local acct = { coins = a.coins, stars = a.stars, infinite = a.infinite }
 	town.hold.coins = town.hold.coins + a.coins
 	town.hold.stars = town.hold.stars + a.stars
+	town.hold.infinite = town.hold.infinite + a.infinite
 	for _, s in ipairs(rewards.steps(r)) do
 		if s.kind == "win" then
 			local tracks = {}
@@ -342,12 +351,16 @@ function M.rewards(town, r)
 				name = "reward_streak", skippable = true,
 				run = function(done)
 					local hud, fxi = town.hud, town.fx
-					local lit = math.min(3, s.count)
-					for i = 1, lit do
-						fxi:after(0.1 + (i - 1) * 0.28, function()
-							hud:streak_pop(i)
-							fxi:sfx("star", { speed = 1 + i * 0.12 })
-						end)
+					-- the notes light up one by one; a note whose booster is still locked stays closed
+					local pops = 0
+					for i = 1, math.min(3, s.count) do
+						if hud:note_open(i) then
+							pops = pops + 1
+							local k = pops
+							fxi:after(0.1 + (k - 1) * 0.28, function()
+								if town.hud:streak_pop(i) then fxi:sfx("star", { speed = 1 + k * 0.12 }) end
+							end)
+						end
 					end
 					local x, y = hud:level_pos()
 					fxi:after(0.2, function()
@@ -355,7 +368,7 @@ function M.rewards(town, r)
 							size = 36, outline = "#FF4D8D", dur = 1.4,
 						})
 					end)
-					fxi:after(0.3 + lit * 0.28 + 0.4, done)
+					fxi:after(0.3 + pops * 0.28 + 0.4, done)
 				end,
 			}
 		elseif s.kind == "chest" then
