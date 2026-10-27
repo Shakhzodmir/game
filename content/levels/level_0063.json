@@ -1,0 +1,25 @@
+{
+  "id": 63, "version": 1,
+  "size": [6, 11],
+  "moves": 28,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "collect", "color": "green", "count": 24}
+  ],
+  "cells": [
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######",
+    "######"
+  ],
+  "mic": {"total": 4, "on_board_max": 3, "gap_moves": 1}
+}

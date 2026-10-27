@@ -4,8 +4,13 @@ local U = {}
 
 local floor = math.floor
 
+-- Doubles hold every integer exactly up to 2^53 and skip some above it, so
+-- a "number" beyond that range is no integer for the rules of section 0.
+local MAX_EXACT = 9007199254740992
+
+-- An exact integer (NaN and infinities fail both comparisons).
 function U.is_int(v)
-	return type(v) == "number" and v == floor(v) and v - v == 0
+	return type(v) == "number" and v == floor(v) and v >= -MAX_EXACT and v <= MAX_EXACT
 end
 
 -- Cell index <-> 1-based coordinates.

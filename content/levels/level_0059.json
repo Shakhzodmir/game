@@ -1,0 +1,22 @@
+{
+  "id": 59, "version": 1,
+  "size": [9, 9],
+  "moves": 24,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "collect", "color": "orange", "count": 32},
+    {"type": "collect", "color": "blue", "count": 28}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "##.###.##",
+    "##.###.##",
+    "##.###.##",
+    "##.###.##",
+    "##.###.##",
+    "##.###.##"
+  ]
+}
