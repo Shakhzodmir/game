@@ -456,3 +456,157 @@ describe("core level: hostile input", function()
 		assert_true(string.find(errs[1], "2.2", 1, true) ~= nil)
 	end)
 end)
+
+-- Every range of 2.0 is inclusive at both ends, and each goal, list entry and row is checked (audit A).
+describe("core level: ranges and entries of the schema", function()
+	local function rect(W, Hh)
+		local rows = {}
+		for y = 1, Hh do rows[y] = string.rep("#", W) end
+		return rows
+	end
+	local function loads(rows, extra)
+		return core.load_level(H.level(rows, extra)) ~= nil
+	end
+	local function check(rows, extra, want, label)
+		local lvl, errs = core.load_level(H.level(rows, extra))
+		assert_eq(lvl ~= nil, want, label .. (errs and (": " .. table.concat(errs, " | ")) or ""))
+	end
+
+	it("size 6..9 x 6..11", function()
+		for _, c in ipairs({ { 5, 6, false }, { 6, 5, false }, { 6, 6, true }, { 9, 11, true }, { 10, 6, false }, { 9, 12, false },
+			{ 6, 11, true }, { 9, 6, true }, { 7, 8, true } }) do
+			check(rect(c[1], c[2]), nil, c[3], c[1] .. "x" .. c[2])
+		end
+	end)
+
+	it("id, version >= 1, moves 5..60", function()
+		check(FULL, { id = 0 }, false, "id 0")
+		check(FULL, { id = 1 }, true, "id 1")
+		check(FULL, { id = 999999999999999 }, true, "id of 15 digits")
+		check(FULL, { version = 0 }, false, "version 0")
+		check(FULL, { version = 1 }, true, "version 1")
+		check(FULL, { moves = 4 }, false, "moves 4")
+		check(FULL, { moves = 5 }, true, "moves 5")
+		check(FULL, { moves = 60 }, true, "moves 60")
+		check(FULL, { moves = 61 }, false, "moves 61")
+		check(FULL, { moves = 5.5 }, false, "moves 5.5")
+	end)
+
+	it("4..6 different colours", function()
+		local six = { "red", "orange", "yellow", "green", "blue", "purple" }
+		check(FULL, { colors = { "red", "green", "blue" } }, false, "3 colours")
+		check(FULL, { colors = { "red", "green", "blue", "yellow" } }, true, "4 colours")
+		check(FULL, { colors = six }, true, "6 colours")
+		check(FULL, { colors = { "red", "green", "blue", "yellow", "orange", "purple", "red" } }, false, "7 entries")
+		check(FULL, { colors = { "red", "green", "blue", "gold" } }, false, "unknown colour")
+	end)
+
+	it("1..3 goals, a count of at least 1, one goal per (type, colour or item)", function()
+		local box = { { at = { 0, 0 }, type = "record_box", hp = 1 }, { at = { 2, 0 }, type = "record_box", hp = 1 } }
+		local noise = { { at = { 4, 4 }, type = "noise" } }
+		check(FULL, { goals = {} }, false, "no goal")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 0 } } }, false, "collect 0")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 1 } } }, true, "collect 1")
+		check(FULL, { goals = { { type = "break", item = "record_box", count = 0 } }, slots = box }, false, "break 0")
+		check(FULL, { goals = { { type = "break", item = "record_box", count = 2 } }, slots = box }, true, "break 2")
+		check(FULL, { goals = { { type = "break", item = "record_box", count = 3 } }, slots = box }, false, "break 3 of 2")
+		check(FULL, { goals = { { type = "deliver", count = 0 } }, mic = { total = 0, on_board_max = 1, gap_moves = 0 } }, false, "deliver 0")
+		-- two collect goals of different colours, collect and break, two breaks of different items
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "green", count = 3 } } }, true, "two collects")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "green", count = 3 },
+			{ type = "collect", color = "blue", count = 3 } } }, true, "three collects")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "green", count = 3 },
+			{ type = "collect", color = "blue", count = 3 }, { type = "collect", color = "yellow", count = 3 } } }, false, "four goals")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "break", item = "record_box", count = 1 } }, slots = box }, true, "collect and break")
+		check(FULL, { goals = { { type = "break", item = "noise", count = 1 }, { type = "break", item = "record_box", count = 1 } },
+			slots = { box[1], noise[1] } }, true, "two breaks of different items")
+		check(FULL, { goals = { { type = "break", item = "noise", count = 1 }, { type = "break", item = "noise", count = 1 } },
+			slots = noise }, false, "the same break twice")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "red", count = 2 } } }, false, "the same collect twice")
+		check(FULL, { goals = { { type = "light" }, { type = "light" } }, floor = { { at = { 0, 0 }, hp = 1 } } }, false, "light twice")
+	end)
+
+	it("element hp: record_box 1..3, concrete 1..2, column 6..12, floor and wires 1..2", function()
+		for hp = 0, 4 do
+			check(FULL, { slots = { { at = { 1, 1 }, type = "record_box", hp = hp } } }, hp >= 1 and hp <= 3, "record_box " .. hp)
+		end
+		for hp = 0, 3 do
+			check(FULL, { slots = { { at = { 1, 1 }, type = "concrete", hp = hp } } }, hp >= 1 and hp <= 2, "concrete " .. hp)
+		end
+		for _, hp in ipairs({ 5, 6, 12, 13 }) do
+			check(FULL, { slots = { { at = { 1, 1 }, type = "column", hp = hp } } }, hp >= 6 and hp <= 12, "column " .. hp)
+		end
+		for hp = 0, 3 do
+			check(FULL, { floor = { { at = { 1, 1 }, hp = hp } } }, hp >= 1 and hp <= 2, "floor " .. hp)
+			check(FULL, { overlay = { { at = { 1, 1 }, type = "wires", hp = hp } } }, hp >= 1 and hp <= 2, "wires " .. hp)
+		end
+	end)
+
+	it("the mic block: total >= 1, on_board_max >= 1, gap_moves >= 0, total = the deliver count", function()
+		local function mic(total, max, gap, count)
+			return { goals = { { type = "deliver", count = count or total } }, mic = { total = total, on_board_max = max, gap_moves = gap } }
+		end
+		check(FULL, mic(0, 1, 0), false, "total 0")
+		check(FULL, mic(1, 1, 0), true, "1, 1, 0")
+		check(FULL, mic(1, 0, 0), false, "on_board_max 0")
+		check(FULL, mic(1, 1, -1), false, "gap_moves -1")
+		check(FULL, mic(3, 5, 9), true, "3, 5, 9")
+		check(FULL, mic(2, 1, 0, 3), false, "total <> deliver count")
+		local m = mic(2, 1, 0)
+		m.mic.total = 2.5
+		check(FULL, m, false, "fractional total")
+		m = mic(2, 1, 0)
+		m.mic.on_board_max = "1"
+		check(FULL, m, false, "text on_board_max")
+		m = mic(2, 1, 0)
+		m.mic.gap_moves = true
+		check(FULL, m, false, "boolean gap_moves")
+	end)
+
+	it("spawn_weights 1..1000 for every colour of the level", function()
+		local colors = { "red", "green", "blue", "yellow" }
+		local function w(a, b, c, d) return { red = a, green = b, blue = c, yellow = d } end
+		check(FULL, { colors = colors, spawn_weights = w(1, 1, 1, 1) }, true, "all 1")
+		check(FULL, { colors = colors, spawn_weights = w(1000, 1000, 1000, 1000) }, true, "all 1000")
+		check(FULL, { colors = colors, spawn_weights = w(0, 1, 1, 1) }, false, "a zero")
+		check(FULL, { colors = colors, spawn_weights = w(1, 1, 1, 1001) }, false, "1001")
+		check(FULL, { colors = colors, spawn_weights = w(1, 1, 1.5, 1) }, false, "a fraction")
+		check(FULL, { colors = colors, spawn_weights = { red = 1, green = 1, blue = 1, yellow = 1, purple = 1 } }, false, "a colour not in the level")
+		check(FULL, { colors = colors, spawn_weights = { red = 1, green = 1, blue = 1 } }, false, "a colour missing")
+		check(FULL, { colors = colors, spawn_weights = { 1, 1, 1, 1 } }, false, "a list")
+	end)
+
+	it("spawners and exits: the words, and every entry of a list is looked at", function()
+		check(FULL, { spawners = "top" }, true, "top")
+		check(FULL, { spawners = "bottom" }, false, "spawners 'bottom'")
+		check(FULL, { exits = "top" }, false, "exits 'top'")
+		check(FULL, { exits = "bottom" }, true, "exits 'bottom'")
+		check(FULL, { spawners = 5 }, false, "spawners 5")
+		local all = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 } }
+		check(FULL, { spawners = all }, true, "all columns")
+		local bad_first = { { 1 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 } }
+		check(FULL, { spawners = bad_first }, false, "a bad first entry")
+		local bad_last = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, "0" } }
+		check(FULL, { spawners = bad_last }, false, "a bad last entry")
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		local exits_bad = { goals = deliver.goals, mic = deliver.mic, exits = { { 0, 5 }, { 1, 5 }, { 2, 5 }, { 3, 5 }, { 4, 5 }, { 5, 5.5 } } }
+		check(FULL, exits_bad, false, "a bad exit entry")
+	end)
+
+	it("cells: H rows of W characters '#' or '.', each row looked at", function()
+		local function cells_of(edit)
+			local rows = { "######", "######", "######", "######", "######", "######" }
+			edit(rows)
+			return rows
+		end
+		check(FULL, nil, true, "plain")
+		check(FULL, { cells = cells_of(function(r) r[1] = "#####" end) }, false, "a short first row")
+		check(FULL, { cells = cells_of(function(r) r[6] = "#####x" end) }, false, "a bad character in the last row")
+		check(FULL, { cells = cells_of(function(r) r[3] = "#######" end) }, false, "a long row")
+		check(FULL, { cells = cells_of(function(r) r[4] = 7 end) }, false, "a row that is no string")
+		check(FULL, { cells = cells_of(function(r) r[2] = "#.##.#" end) }, false, "voids that break the fill (2.1.7)")
+		check(FULL, { cells = { "######" } }, false, "one row")
+		check(FULL, { cells = { "######", "######", "######", "######", "######", "######", "######" } }, false, "seven rows")
+	end)
+end)
+end)
