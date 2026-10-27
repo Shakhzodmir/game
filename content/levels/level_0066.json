@@ -1,7 +1,7 @@
 {
   "id": 66, "version": 1,
   "size": [9, 9],
-  "moves": 25,
+  "moves": 23,
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "purple"],
   "goals": [{"type": "break", "item": "balloon", "count": 20}],

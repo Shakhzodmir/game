@@ -1029,6 +1029,10 @@ function M.install(opts)
 		if self.finalized then return end
 		self.finalized = true
 		self:call("final")
+		-- the engine releases the input focus of a game object that goes away
+		for i = #E.input_stack, 1, -1 do
+			if E.input_stack[i] == self then table.remove(E.input_stack, i) end
+		end
 		if self.url and E.receivers[self.url] == self then E.receivers[self.url] = nil end
 	end
 	function Object:frame(dt, keep_clock)

@@ -226,7 +226,7 @@ end
 -- returns the command it sent (or nil).
 function Session:autoplay_step()
 	local a = self.auto
-	if not a or self.paused or self.hold then return nil end
+	if not a or self.hold then return nil end
 	local st = self.game:status()
 	if st.state == "won_wait" or st.state == "concert" or st.state == "complete" or st.state == "lost" then
 		self.auto = nil
@@ -237,14 +237,19 @@ function Session:autoplay_step()
 		return nil
 	end
 	if st.state == "out_of_moves" then
+		-- By now the HUD has opened the moves window and paused the session. A player would answer the window with a
+		-- button; the autoplay takes the free moves and lets the session run again, so that the state change reaches
+		-- the HUD, which closes the window (and pauses again for whatever opens next).
 		if a.free_moves > 0 and not st.stuck then
 			a.free_moves = a.free_moves - 1
 			local ok = self:command({ type = "continue", moves = 5, riff = true })
+			if ok then self.paused = false end
 			return ok and { type = "continue" } or nil
 		end
 		self.auto = nil
 		return nil
 	end
+	if self.paused then return nil end -- a window of the level is open
 	if st.state ~= "playing" or not self.game:is_stable() then return nil end
 	local cmd = self:hint_command()
 	if not cmd then return nil end
