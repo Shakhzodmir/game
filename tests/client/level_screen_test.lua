@@ -412,6 +412,83 @@ describe("level screen: out of moves and defeat", function()
 		end)
 	end)
 
+	it("brings the offer back when the booster chosen in it cannot start, with the right words", function()
+		G.with_level({ level = 21, hours = 4, level_text = LOSER }, function(c)
+			out_of_moves(c)
+			assert_eq(top(c), "moves")
+			local real = link.booster
+			link.booster = function() return false, "not_rest" end -- the board is not at rest after all
+			c.tap_target("booster_stick")
+			link.booster = real
+			c.step(40)
+			assert_eq(top(c), "moves", "the offer is back: the player can still buy moves or give up")
+			assert_eq(c.app.overlay.toast, "Wait until the board settles")
+			assert_eq(ui(c).state, "out_of_moves")
+			c.run(4) -- the first toast is gone
+			-- a Remix with nothing to shuffle has its own words (it is no spot to pick)
+			link.booster = function() return false, "no_candidates" end
+			c.tap_target("booster_row_light")
+			link.booster = real
+			c.step(40)
+			assert_eq(top(c), "moves")
+			assert_eq(c.app.overlay.toast, "Nothing to shuffle")
+			-- and the way on is open: the booster starts the second time
+			c.tap_target("booster_stick")
+			c.step(30)
+			assert_eq(top(c), nil)
+			assert_eq(ui(c).targeting, "stick")
+			clean(c)
+		end)
+	end)
+
+	it("does not offer a Remix in the window: it gives no move", function()
+		local loser26 = string.gsub(LOSER, '"id": 21', '"id": 26')
+		G.with_level({ level = 26, hours = 4, level_text = loser26 }, function(c)
+			assert_true(c.app.meta:booster_count("remix") > 0, "a Remix is in stock")
+			out_of_moves(c)
+			assert_eq(top(c), "moves")
+			local targets = c.app.ui.popup_targets
+			assert_true(targets.booster_stick ~= nil and targets.booster_row_light ~= nil and targets.booster_col_light ~= nil)
+			assert_eq(targets.booster_remix, nil, "a Remix would be spent for nothing")
+			clean(c)
+		end)
+	end)
+
+	it("takes the number of the video's moves from the meta and logs the ad offer once per opening", function()
+		local analytics = require("client.services.analytics")
+		local config = require("meta.config")
+		local was = config.ad_moves
+		config.ad_moves = 4
+		local ok, err = pcall(function()
+			G.with_level({ level = 21, hours = 4, level_text = LOSER, stores = true }, function(c)
+				local function offers()
+					local n = 0
+					for _, e in ipairs(analytics.drain()) do
+						if e.name == "ad_offer" then n = n + 1 end
+					end
+					return n
+				end
+				analytics.drain()
+				out_of_moves(c)
+				assert_eq(top(c), "moves")
+				assert_true(c.has("+4"), "the label is the meta's number")
+				assert_false(c.has("+3"))
+				assert_eq(offers(), 1)
+				-- the window redraws itself in another language: it is the same offer
+				assert_true(c.app.set_setting("language", "ru"))
+				c.step(20)
+				assert_true(c.has("Ходы кончились!"))
+				assert_true(c.has("+4"))
+				assert_true(c.app.set_setting("language", "en"))
+				c.step(20)
+				assert_eq(offers(), 0, "a rebuild of the window is not a new offer")
+				clean(c)
+			end)
+		end)
+		config.ad_moves = was
+		if not ok then error(err, 0) end
+	end)
+
 	it("sells no moves to someone who cannot pay: the price shakes and the shop is one tap away", function()
 		G.with_level({ level = 21, hours = 4, level_text = LOSER, ready = function(app)
 			app.meta:_change("test", { { "coins", -(app.meta:coins() - 100) } })
