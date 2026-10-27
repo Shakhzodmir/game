@@ -70,6 +70,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "fx_note"
+  images {
+    image: "/assets/images/fx/note.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "fx_ring"
   images {
     image: "/assets/images/fx/ring.png"
