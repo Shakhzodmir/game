@@ -10,7 +10,7 @@
 --   hud (level 1), hud_two (level 3), hud_three (level 60, super hard), hud_hard (level 24), hud_low (3 moves left),
 --   hud_target (a drumstick being aimed), hud_locked, hud_empty (stock 0: the "+"), hud_free (a debug level)
 --   pause, pause_loss (after a move on level 21 with a streak), pause_free (after a move on level 3)
---   moves, moves_poor (not enough coins), moves_stuck, defeat, result (level 3), result_chest (level 10),
+--   moves, moves_poor (not enough coins), defeat, result (level 3), result_chest (level 10),
 --   result_streak (level 14), result_last (level 100), buy (the "+" of an empty booster)
 --   tutorial_swap, tutorial_tip, tutorial_booster, tutorial_taptap
 

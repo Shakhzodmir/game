@@ -550,6 +550,21 @@ describe("core bird: audit B2 (8.3, section 9)", function()
 		assert_same({ act[#act].x, act[#act].y, act[#act].special, act[#act].axis }, { 2, 6, "riff", "v" })
 	end)
 
+	it("a chain launched by an action at t0 is queued before the later actions of the same effect (7.2.6)", function()
+		-- the only candidate is an idle Sabwoofer: the cargo Riff lands on it, its own-cell hit at t0
+		-- launches it (activation at t0 + T.chain = t0 + 3) and its d = 1 bolts are due at t0 + R(1) = t0 + 3 too
+		local g = H.game(FULL)
+		H.board(g, with(EMPTY, { ["3,3"] = "S", ["1,6"] = "B", ["2,6"] = "R" }))
+		H.arm(g, { 1, 6 }, { 2, 6 })
+		g:step()
+		local fly = H.of_type(g:drain_events(), "bird_fly")[1]
+		assert_same({ fly.tx, fly.ty, fly.carry, fly.axis }, { 3, 3, "riff", "h" })
+		H.steps(g, 33) -- tick 34: the impact
+		local q = H.queue(g)
+		assert_same({ q[1][1], q[1][2], q[2][1], q[2][2], q[3][1], q[3][2] },
+			{ 37, C.R_ACTIVATE, 37, C.R_HIT, 37, C.R_HIT }, "the launch comes first at tick 37")
+	end)
+
 	it("an impact releases its own reservation and no other (the Trio holds the rest until their impacts)", function()
 		local g = H.game({ "K####K", "######", "######", "######", "######", "K#####" },
 			{ goals = { { type = "break", item = "concrete", count = 3 } } })

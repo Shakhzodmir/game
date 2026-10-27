@@ -14,7 +14,7 @@
 --   start           the start window of the next level
 --   start_streak    level 14, a streak of two (free boosters), stock in the purse
 --   lives_full / lives_empty / lives_infinite
---   shop_boosters / shop_coins
+--   shop_boosters / shop_coins / shop_coins_debug (a debug build: test purchases and the video gift)
 --   settings / confirm (the reset question)
 --   jukebox         one finished district, one in progress
 --   chest_level / chest_level_open / chest_district / gift / gift_open
@@ -38,7 +38,7 @@ local w, h = string.match(arg[4] or "720x1280", "^(%d+)x(%d+)$")
 w, h = tonumber(w) or 720, tonumber(h) or 1280
 local seconds = tonumber(arg[5]) or 1.5
 
-local E = town.boot({ window = { w, h }, language = language })
+local E = town.boot({ window = { w, h }, language = language, stores = scenario == "shop_coins_debug" })
 local app = require("client.app")
 local flow = require("client.flow")
 local rewards = require("client.rewards")
@@ -125,6 +125,7 @@ function S.shop_boosters()
 	popup(main, "shop", { tab = "boosters" })
 end
 function S.shop_coins() popup(main, "shop", { tab = "coins" }) end
+function S.shop_coins_debug() popup(main, "shop", { tab = "coins" }) end -- a debug build: test purchases, the video gift
 function S.settings() popup(main, "settings") end
 function S.confirm()
 	popup(main, "confirm", {

@@ -431,6 +431,30 @@ describe("core hash: every field of 17.2 counts", function()
 		end
 	end)
 
+	it("lists of the same length but other content hash differently", function()
+		local lvl = H.load(FULL, { goals = { { type = "collect", color = "red", count = 30 } } })
+		local base = core.new(lvl, { seed = 5 })
+		local function src(own, keys, reserves)
+			return { id = 1, kind = 3, mv = 1, wv = 1, color = 0, all_layers = false, own = own, centre = 7, keys = keys, reserves = reserves, nrec = 0 }
+		end
+		local pairs_of = {
+			{ function(s) s.unplaced = { C.IT_REMIX } end, function(s) s.unplaced = { C.IT_PRE_RIFF } end },
+			{ function(s) s.objs[s.slot[5]].pins = { 4 } end, function(s) s.objs[s.slot[5]].pins = { 5 } end },
+			{ function(s) s.sources[1] = src({ 4 }, {}, {}) end, function(s) s.sources[1] = src({ 5 }, {}, {}) end },
+			{ function(s) s.sources[1] = src({}, { 2, 9 }, {}) end, function(s) s.sources[1] = src({}, { 2, 10 }, {}) end },
+			{ function(s) s.sources[1] = src({}, {}, { 12 }) end, function(s) s.sources[1] = src({}, {}, { 13 }) end },
+			{ function(s) s.praise[2] = 3 end, function(s) s.praise[2] = 5 end },
+			{ function(s) s.praise[2] = 3 end, function(s) s.praise[3] = 3 end },
+			{ function(s) s.goal_left = { 29 } end, function(s) s.goal_left = { 28 } end },
+		}
+		for k, pr in ipairs(pairs_of) do
+			local a, b = base:clone(), base:clone()
+			pr[1](a.s)
+			pr[2](b.s)
+			assert_true(a:hash() ~= b:hash(), "pair " .. k)
+		end
+	end)
+
 	it("a zero entry and an absent one are the same, true is 1, a list is preceded by its length", function()
 		assert_eq(HS2.fold(5, nil), HS2.fold(5, false))
 		assert_eq(HS2.fold(5, false), HS2.fold(5, 0))
@@ -562,5 +586,22 @@ describe("core replay: all kinds of command and the failure modes (17.1)", funct
 		assert_false(tamper(function(r) r.help = 2 end))
 		assert_false(tamper(function(r) r.timing = "turbo" end))
 		assert_false(tamper(function(r) r.final_tick = r.final_tick + 1 end))
+	end)
+end)
+
+describe("core hash: a swap taken back (17.2 item 3)", function()
+	it("the refund's entry keeps the number and the remembered marks of the swap it undoes", function()
+		local g = game()
+		H.board(g, { "rrgrby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" })
+		local red, green = H.obj_at(g, 3, 1), H.obj_at(g, 4, 1)
+		red.mv, red.wv, green.mv, green.wv = 0, 7, 0, 8
+		g:input({ type = "swap", from = { 3, 1 }, to = { 4, 1 } })
+		local sw = g.s.swaps[1]
+		assert_same({ sw.kind, sw.a, sw.m1, sw.w1, sw.m2, sw.w2 }, { C.TM_SWAP, 1, 0, 7, 0, 8 })
+		H.obj_at(g, 1, 1).color = C.COLOR.blue -- the match goes before the swap ends
+		for _ = 1, 11 do g:step() end
+		local back = g.s.swaps[1]
+		assert_same({ back.kind, back.a, back.from, back.to, back.m1, back.w1, back.m2, back.w2, back.due },
+			{ C.TM_BACK, 1, 3, 4, 0, 7, 0, 8, 21 })
 	end)
 end)

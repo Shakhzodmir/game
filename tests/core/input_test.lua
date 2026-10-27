@@ -461,40 +461,81 @@ end)
 describe("core input: swipe of a special and the cells of a swap (5.1.1, 5.1.5)", function()
 	local SPECIAL_ROWS = { "Rbygby", "yXgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" }
 
-	it("a free special swiped onto the edge, a void, an empty slot, a whole blocker or a wired piece is a tap", function()
-		local rows = { "Rbygby", "yXgbyr", "rgSyrg", "gbyrgb", "byrgby", "yrgbyr" }
-		local targets = {
-			{ from = { 1, 1 }, to = { 0, 1 }, what = "off the board" },
-			{ from = { 1, 1 }, to = { 1, 0 }, what = "off the board (up)" },
-			{ from = { 1, 1 }, to = { 1, 2 }, what = "an empty slot", prep = function(g) g.s.slot[7] = 0 end },
-			{ from = { 2, 1 }, to = { 2, 2 }, what = "a whole blocker" },
-			{ from = { 3, 3 }, to = { 4, 3 }, what = "a wired piece", prep = function(g) g.s.wires[15] = 1 end },
+	-- Does a swap command run as a tap (the special is armed at once), as a swap (the pieces start to swap),
+	-- as a failed swap, or is it refused (the reason)?
+	local function outcome(g, cmd)
+		local ok, res = g:input(cmd)
+		if not ok then return res end
+		if res == "fail" then return "fail" end
+		if #g.s.swaps > 0 then return "swap" end
+		return "tap"
+	end
+
+	it("a free special swiped over the edge, onto a void, an empty slot, a whole blocker or a wired piece is a tap", function()
+		local rows = { "Rbygby", "SXgbyr", "rgbyrg", "gbyrgb", "byrgbR", "yrgbDy" }
+		local cases = {
+			{ { 1, 1 }, { 0, 1 }, "the left edge" },
+			{ { 1, 2 }, { 0, 2 }, "the left edge of row 2 (no wrap to the row above)" },
+			{ { 1, 1 }, { 1, 0 }, "the top edge" },
+			{ { 6, 5 }, { 7, 5 }, "the right edge (no wrap to the row below)" },
+			{ { 5, 6 }, { 5, 7 }, "the bottom edge" },
+			{ { 1, 2 }, { 2, 2 }, "a whole blocker" },
+			{ { 1, 1 }, { 2, 1 }, "an empty slot", function(g) g.s.slot[2] = 0 end },
+			{ { 1, 2 }, { 1, 3 }, "a piece under wires", function(g) g.s.wires[13] = 1 end },
 		}
-		for _, t in ipairs(targets) do
+		for _, c in ipairs(cases) do
 			local g = fresh(rows)
-			if t.prep then t.prep(g) end
-			local cell = H.obj_at(g, t.from[1], t.from[2])
-			if cell.kind == C.K_REGULAR then cell = nil end
-			assert_eq(g:can_swap(t.from, t.to), cell and "ok" or "reject", t.what)
+			if c[4] then c[4](g) end
+			assert_eq(g:can_swap(c[1], c[2]), "ok", c[3])
+			assert_eq(outcome(g, { type = "swap", from = c[1], to = c[2] }), "tap", c[3])
+			assert_eq(H.obj_at(g, c[1][1], c[1][2]).state, C.S_ARMED, c[3])
+			assert_same({ g.s.act, g.s.moves_left, g.s.moves_made }, { 1, 19, 1 }, c[3])
+			assert_same(g.s.eom, { { a = 1, noise_hit = false, merged = 0 } }, c[3])
+			assert_same(g.s.cmds[1].cmd.to, c[2], "the replay keeps the swap command: " .. c[3])
 		end
-		-- explicit: the special at (1,1) swiped left and up
-		local g = fresh(rows)
-		assert_same({ g:input({ type = "swap", from = { 1, 1 }, to = { 1, 0 } }) }, { true, "ok" })
-		assert_eq(g.s.act, 1)
-		assert_eq(g.s.moves_left, 19)
-		assert_eq(H.obj_at(g, 1, 1).state, C.S_ARMED)
 	end)
 
-	it("a void next to a special is a tap, an empty slot too, a blocker in clear is not movable", function()
-		local lvl = { "R.gbyr", "yrgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" }
-		local g = H.game({ "#r####", "######", "######", "######", "######", "######" }, nil)
-		H.board(g, { "R_gbyr", "yXgbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" })
-		assert_eq(g:can_swap({ 1, 1 }, { 2, 1 }), "ok", "an empty slot: swipe = tap")
+	it("a special swiped onto a void inside the field is a tap too", function()
+		local g = H.game({ "######", "#.####", "######", "######", "######", "######" })
+		H.board(g, { "byrgby", "S.gbyr", "rgbyrg", "gbyrgb", "byrgby", "yrgbyr" })
+		assert_eq(outcome(g, { type = "swap", from = { 1, 2 }, to = { 2, 2 } }), "tap")
+		assert_eq(H.obj_at(g, 1, 2).state, C.S_ARMED)
+	end)
+
+	it("a special swapped with a piece, a mic or a special really swaps, also at the edges of the field", function()
+		local rows = { "bRygby", "yrgbyr", "rgbMyr", "gbyrgb", "byrgbS", "yrgDby" }
+		local cases = {
+			{ { 2, 1 }, { 1, 1 }, "towards column 1" },
+			{ { 2, 1 }, { 3, 1 }, "a piece to the right" },
+			{ { 3, 3 }, { 4, 3 }, "a special and a mic" },
+			{ { 6, 5 }, { 5, 5 }, "from the last column" },
+			{ { 4, 6 }, { 5, 6 }, "in the last row" },
+			{ { 6, 5 }, { 6, 6 }, "down to the last row" },
+		}
+		for _, c in ipairs(cases) do
+			local g = fresh(rows)
+			if c[3] == "a special and a mic" then g = fresh({ "bbygby", "yrgbyr", "rgSMyr", "gbyrgb", "byrgbS", "yrgDby" }) end
+			assert_eq(outcome(g, { type = "swap", from = c[1], to = c[2] }), "swap", c[3])
+			assert_eq(H.obj_at(g, c[1][1], c[1][2]).state, C.S_SWAP, c[3])
+			assert_eq(#g.s.swaps, 1)
+			assert_eq(g.s.swaps[1].kind, C.TM_SWAP)
+		end
+		-- two specials swap as well
+		local g = fresh({ "bRSgby", "yrgbyr", "rgbMyr", "gbyrgb", "byrgbS", "yrgDby" })
+		assert_eq(outcome(g, { type = "swap", from = { 2, 1 }, to = { 3, 1 } }), "swap")
+	end)
+
+	it("a blocker that is being destroyed is no empty slot and no piece: not_movable", function()
+		local g = fresh({ "Rbygby", "SXgbyr", "rgbyrg", "gbyrgb", "byrgbR", "yrgbDy" })
 		H.obj_at(g, 2, 2).state = C.S_CLEAR
-		assert_eq(g:can_swap({ 1, 2 }, { 2, 2 }), "reject", "a blocker in clear is no empty slot and no piece")
-		local v = H.load({ "######", "#.####", "######", "######", "######", "######" })
-		assert_true(v ~= nil)
-		assert_true(lvl ~= nil)
+		assert_eq(outcome(g, { type = "swap", from = { 1, 2 }, to = { 2, 2 } }), "not_movable")
+	end)
+
+	it("a failed swap keeps the zero label fields and action number in the swap list (the hash writes them)", function()
+		local g = fresh()
+		assert_same({ g:input({ type = "swap", from = { 5, 5 }, to = { 6, 5 } }) }, { true, "fail" })
+		local sw = g.s.swaps[1]
+		assert_same({ sw.kind, sw.a, sw.from, sw.to, sw.m1, sw.w1, sw.m2, sw.w2, sw.due }, { C.TM_FAIL, 0, 29, 30, 0, 0, 0, 0, 15 })
 	end)
 
 	it("a special swapped with a piece, a mic, a special or a falling piece", function()
@@ -600,5 +641,83 @@ describe("core input: continue, give up and the input lock (5.4, 5.0)", function
 		assert_same({ h:input({ type = "swap", from = { 5, 5 }, to = { 6, 5 } }) }, { true, "fail" })
 		assert_same({ h:input({ type = "swap", from = { 3, 1 }, to = { 4, 1 } }) }, { true, "ok" }, "no lock: input while the board moves")
 		assert_same({ h:input({ type = "booster", booster = "stick", at = { 1, 1 } }) }, { false, "not_rest" })
+	end)
+end)
+
+describe("core input: edges of the commands (audit A)", function()
+	it("a command that is not a table, or has no string type, is bad_cmd and never raises", function()
+		local g = fresh()
+		for _, cmd in ipairs({ 5, true, false, "swap", print, {}, { type = 5 }, { type = true }, { type = {} }, { swap = 1 } }) do
+			assert_same({ g:input(cmd) }, { false, "bad_cmd" }, type(cmd))
+		end
+		assert_same({ g:input(nil) }, { false, "bad_cmd" })
+		assert_same({ g:input() }, { false, "bad_cmd" })
+	end)
+
+	it("can_swap with a broken coordinate answers 'reject' instead of raising", function()
+		local g = fresh()
+		assert_eq(g:can_swap({ 1, 1 }, "x"), "reject")
+		assert_eq(g:can_swap(nil, { 1, 2 }), "reject")
+		assert_eq(g:can_swap({ 1, 1 }, { 1.5, 1 }), "reject")
+		assert_eq(g:can_swap({ 1 }, { 2, 1 }), "reject")
+		assert_eq(g:can_swap(), "reject")
+	end)
+
+	it("row_light and col_light take row 1..H and column 1..W, nothing outside", function()
+		for _, row in ipairs({ 1, 6 }) do
+			local g = fresh()
+			assert_same({ g:input({ type = "booster", booster = "row_light", row = row }) }, { true, "ok" }, "row " .. row)
+		end
+		for _, col in ipairs({ 1, 6 }) do
+			local g = fresh()
+			assert_same({ g:input({ type = "booster", booster = "col_light", col = col }) }, { true, "ok" }, "col " .. col)
+		end
+		local g = fresh()
+		for _, row in ipairs({ 0, 7, -1, 1.5 }) do
+			assert_same({ g:input({ type = "booster", booster = "row_light", row = row }) }, { false, "bad_cmd" }, "row " .. row)
+		end
+		for _, col in ipairs({ 0, 7, -1, 2.5 }) do
+			assert_same({ g:input({ type = "booster", booster = "col_light", col = col }) }, { false, "bad_cmd" }, "col " .. col)
+		end
+	end)
+
+	it("an accepted booster clears rest_flag, takes the next action number and queues its record at now", function()
+		local g = fresh()
+		assert_true(g.s.rest_flag)
+		assert_same({ g:input({ type = "booster", booster = "col_light", col = 3 }) }, { true, "ok" })
+		assert_false(g.s.rest_flag)
+		assert_same({ g.s.act, g.s.moves_left, g.s.moves_made, #g.s.eom }, { 1, 20, 0, 0 })
+		assert_same({ g.s.queue[1].due, g.s.queue[1].kind, g.s.queue[1].d }, { 1, C.R_BOOSTER, { C.IT_COL, 3, 1, 1 } })
+		local h = fresh()
+		assert_same({ h:input({ type = "booster", booster = "remix" }) }, { true, "ok" })
+		assert_same(h.s.queue[1].d, { C.IT_REMIX, 0, 1, 1 }, "the target of a Remix is 0")
+		local r = fresh()
+		assert_same({ r:input({ type = "booster", booster = "row_light", row = 4 }) }, { true, "ok" })
+		assert_same(r.s.queue[1].d, { C.IT_ROW, 4, 1, 1 }, "a row light: its row number")
+		local k = fresh()
+		assert_same({ k:input({ type = "booster", booster = "stick", at = { 2, 3 } }) }, { true, "ok" })
+		assert_same(k.s.queue[1].d, { C.IT_STICK, 14, 1, 1 }, "a stick: the cell index (2, 3)")
+	end)
+
+	it("Remix needs two candidates: two are enough, one is not", function()
+		local rows = { "RSBDRS", "SBDRSB", "BDRSBD", "DRSBDR", "RSBDRS", "SBDRrr" }
+		local g = fresh(rows)
+		assert_same({ g:input({ type = "booster", booster = "remix" }) }, { true, "ok" })
+		local rows1 = { "RSBDRS", "SBDRSB", "BDRSBD", "DRSBDR", "RSBDRS", "SBDRRr" }
+		local h = fresh(rows1)
+		assert_same({ h:input({ type = "booster", booster = "remix" }) }, { false, "no_candidates" })
+	end)
+
+	it("the switch to turbo reaches the object in cell 1 (id 1) and in the last cell", function()
+		local g = fresh()
+		for _, i in ipairs({ 1, 36 }) do
+			local o = g.s.objs[g.s.slot[i]]
+			o.state, o.tk, o.td = C.S_CLEAR, C.TM_CLEAR, 30
+		end
+		g.s.state = C.G_WON_WAIT
+		assert_same({ g:input({ type = "skip" }) }, { true, "ok" })
+		assert_eq(g.s.objs[g.s.slot[1]].td, 2)
+		assert_eq(g.s.objs[g.s.slot[36]].td, 2)
+		assert_eq(g.s.slot[1], 1, "the object in cell 1 has id 1")
 	end)
 end)

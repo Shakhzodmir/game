@@ -10,7 +10,7 @@
 --   O.install()          -- wraps match.search, hits.hit and effects.run
 --   ... play ...
 --   O.uninstall()
---   assert_same(O.errors, {})
+--   assert_eq(#O.errors, 0)   -- one line per mismatch (at most 20)
 --
 -- Every wrapper takes a snapshot, lets the real function run and compares
 -- the outcome (events with all their fields, queue, state, labels, vac).

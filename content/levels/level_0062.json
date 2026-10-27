@@ -1,12 +1,12 @@
 {
   "id": 62, "version": 1,
   "size": [9, 9],
-  "moves": 26,
+  "moves": 24,
   "difficulty": "medium",
   "colors": ["red", "orange", "yellow", "blue", "purple"],
   "goals": [
     {"type": "break", "item": "noise", "count": 6},
-    {"type": "collect", "color": "orange", "count": 30}
+    {"type": "collect", "color": "orange", "count": 34}
   ],
   "cells": [
     "..#####..",
@@ -19,7 +19,7 @@
     ".#######.",
     "..#####.."
   ],
-  "spawners": [[0, 2], [1, 1], [2, 0], [3, 0], [3, 6], [4, 0], [4, 6], [5, 0], [5, 6], [6, 0], [7, 1], [8, 2]],
+  "spawners": [[2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [1, 1], [7, 1], [0, 2], [8, 2], [3, 6], [4, 6], [5, 6]],
   "slots": [
     {"at": [2, 2], "type": "noise"},
     {"at": [6, 2], "type": "noise"},

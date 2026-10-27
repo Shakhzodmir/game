@@ -347,3 +347,112 @@ describe("core level: canonical form and hash (2.2, 17.1)", function()
 		assert_true(string.find(lvl.canonical, '"spawners":[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0]]', 1, true) ~= nil, lvl.canonical)
 	end)
 end)
+
+-- Robustness: a bad level file must come back as errors, never as a Lua error.
+describe("core level: hostile input", function()
+	local function rng_from(seed)
+		local x = seed
+		return function(n)
+			x = (x * 1103515245 + 12345) % 2147483648
+			return math.floor(x / 65536) % n + 1
+		end
+	end
+	local JUNK = { 0, 1, -1, 2, 6, 7, 12, 13, 61, 1000, 1001, 1.5, 1e300, -1e300, 2 ^ 53, 2 ^ 60, 1 / 0, -1 / 0, 0 / 0,
+		"", "x", "top", "bottom", "red", "riff", "wires", true, false, {}, { 1 }, { "a" }, { x = 1 }, { 1, 2 }, { 1, 2, 3 } }
+
+	local function copy(v)
+		if type(v) ~= "table" then return v end
+		local t = {}
+		for k, x in pairs(v) do t[k] = copy(x) end
+		return t
+	end
+
+	local function containers(root)
+		local list = {}
+		local function walk(t)
+			list[#list + 1] = t
+			local keys = {}
+			for k in pairs(t) do keys[#keys + 1] = k end
+			table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+			for _, k in ipairs(keys) do if type(t[k]) == "table" then walk(t[k]) end end
+		end
+		walk(root)
+		return list
+	end
+
+	it("structurally mutated tables never raise: the answer is a level or a list of strings", function()
+		local rnd = rng_from(2026)
+		local base = H.level({ "######", "#r####", "##X###", "######", "####R#", "######" }, {
+			floor = { { at = { 0, 5 }, hp = 1 } }, overlay = { { at = { 3, 3 }, type = "wires", hp = 1 } },
+			goals = { { type = "collect", color = "red", count = 3 }, { type = "break", item = "record_box", count = 1 }, { type = "light" } },
+			spawn_weights = { red = 1, orange = 2, yellow = 3, green = 4, blue = 5, purple = 6 },
+		})
+		assert_true(core.load_level(copy(base)) ~= nil, "the base level must be valid")
+		local rejected = 0
+		for _ = 1, 500 do
+			local lvl = copy(base)
+			for _ = 1, rnd(3) do
+				local nodes = containers(lvl)
+				local t = nodes[rnd(#nodes)]
+				local keys = {}
+				for k in pairs(t) do keys[#keys + 1] = k end
+				table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+				if #keys > 0 then
+					local k = keys[rnd(#keys)]
+					local op = rnd(4)
+					if op == 1 then t[k] = nil
+					elseif op == 2 then t[k] = copy(JUNK[rnd(#JUNK)])
+					elseif op == 3 then t["extra"] = 1
+					else t[k] = copy(t[keys[rnd(#keys)]]) end
+				end
+			end
+			local ok, res, errs = pcall(core.load_level, lvl)
+			assert_true(ok, "raised: " .. tostring(res))
+			if res == nil then
+				rejected = rejected + 1
+				assert_eq(type(errs), "table")
+				assert_true(#errs >= 1)
+				for _, e in ipairs(errs) do
+					assert_eq(type(e), "string")
+					assert_true(string.find(e, "^2%.%d") ~= nil, "an error starts with its rule: " .. e)
+				end
+			else
+				assert_true(res.hash ~= nil and res.canonical ~= nil)
+			end
+		end
+		assert_true(rejected > 100, "the mutations must actually break levels")
+	end)
+
+	it("mutated JSON text never raises either", function()
+		local rnd = rng_from(77)
+		local text = VALID_TEXT
+		local pieces = { "{", "}", "[", "]", ",", ":", '"', "-", "0", "9", ".", "e", "null", "true", " ", "\\" }
+		for _ = 1, 600 do
+			local t = text
+			for _ = 1, rnd(3) do
+				local pos = rnd(#t)
+				local op = rnd(3)
+				if op == 1 then t = string.sub(t, 1, pos - 1) .. string.sub(t, pos + 1)
+				elseif op == 2 then t = string.sub(t, 1, pos - 1) .. pieces[rnd(#pieces)] .. string.sub(t, pos)
+				else t = string.sub(t, 1, pos - 1) .. pieces[rnd(#pieces)] .. string.sub(t, pos + 1) end
+			end
+			local ok, res, errs = pcall(core.load_level, t)
+			assert_true(ok, "raised: " .. tostring(res))
+			if res == nil then
+				assert_eq(type(errs), "table")
+				assert_eq(type(errs[1]), "string")
+			end
+		end
+	end)
+
+	it("things that are not levels are refused with a message", function()
+		for _, v in ipairs({ 5, true, {}, { 1, 2 }, "[]", "5", '"x"', "null", "" }) do
+			local lvl, errs = core.load_level(v)
+			assert_eq(lvl, nil, tostring(v))
+			assert_eq(type(errs[1]), "string")
+		end
+		local lvl, errs = core.load_level(nil)
+		assert_eq(lvl, nil)
+		assert_true(string.find(errs[1], "2.2", 1, true) ~= nil)
+	end)
+end)

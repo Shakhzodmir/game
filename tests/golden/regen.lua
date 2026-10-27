@@ -21,6 +21,23 @@ local digest = require("tests.golden.digest")
 
 local COLORS6 = { "red", "orange", "yellow", "green", "blue", "purple" }
 
+
+local function combos_level()
+	local function sp(x, y, kind, axis) return { at = { x, y }, type = kind, axis = axis } end
+	return {
+		id = 9107, version = 1, size = { 8, 8 }, moves = 30, difficulty = "super_hard",
+		colors = { "red", "orange", "yellow", "green" },
+		goals = { { type = "collect", color = "red", count = 400 } },
+		cells = { "########", "########", "########", "########", "########", "########", "########", "########" },
+		slots = {
+			sp(0, 1, "disco"), sp(1, 1, "riff", "h"), sp(3, 1, "disco"), sp(4, 1, "bird"), sp(6, 1, "sub"), sp(7, 1, "sub"),
+			sp(0, 3, "bird"), sp(1, 3, "sub"), sp(3, 3, "bird"), sp(4, 3, "riff", "v"), sp(6, 3, "bird"), sp(7, 3, "bird"),
+			sp(0, 5, "riff", "h"), sp(1, 5, "riff", "v"), sp(3, 5, "riff", "h"), sp(4, 5, "sub"), sp(6, 5, "disco"), sp(7, 5, "disco"),
+			sp(0, 7, "disco"), sp(1, 7, "sub"),
+		},
+	}
+end
+
 local SCENARIOS = {
 	{
 		name = "classic",
@@ -70,6 +87,20 @@ local SCENARIOS = {
 		policy = { seed = 3, rate = 2, boosters = 2, continues = 2, give_up = false },
 	},
 	{
+		-- narrow strips and noise: dead boards (shuffles) and the growth of noise
+		name = "strips",
+		level = {
+			id = 9106, version = 1, size = { 8, 6 }, moves = 20, difficulty = "hard",
+			colors = { "red", "orange", "yellow", "green", "blue" },
+			goals = { { type = "collect", color = "red", count = 30 } },
+			cells = { "##.##.##", "##.##.##", "##.##.##", "##.##.##", "##.##.##", "##.##.##" },
+			slots = { { at = { 0, 2 }, type = "noise" }, { at = { 4, 3 }, type = "noise" }, { at = { 7, 4 }, type = "noise" },
+				{ at = { 1, 1 }, type = "record_box", hp = 1 } },
+		},
+		opts = { seed = 4, attempt = 1, salt = 5, help = 0, timing = "normal" },
+		policy = { seed = 4, rate = 2, boosters = 0, continues = 0, give_up = true },
+	},
+	{
 		-- the blocking mode (input_lock): commands every tick, most of them refused with not_rest
 		name = "locked",
 		level = {
@@ -81,6 +112,19 @@ local SCENARIOS = {
 		},
 		opts = { seed = 31, attempt = 1, salt = 1, help = 0, timing = "normal", input_lock = true },
 		policy = { seed = 11, rate = 1, boosters = 2, continues = 0, give_up = true },
+	},
+	{
+		-- every pair of specials next to each other: the ten combos, chains, Colour X (both timings)
+		name = "combos_normal",
+		level = combos_level(),
+		opts = { seed = 5, timing = "normal" },
+		policy = { hint_only = true, seed = 1, continues = 0, give_up = true },
+	},
+	{
+		name = "combos_turbo",
+		level = combos_level(),
+		opts = { seed = 5, timing = "turbo", boosters = { "disco" } },
+		policy = { hint_only = true, seed = 1, continues = 0, give_up = true },
 	},
 	{
 		name = "concert",
@@ -125,6 +169,16 @@ local function play(game, p, events)
 		elseif st == "concert" or st == "won_wait" then
 			concert_ticks = concert_ticks + 1
 			if p.skip_after and concert_ticks == p.skip_after then game:input({ type = "skip" }) end
+		elseif p.hint_only then
+			-- the best move of the hint whenever the board is at rest
+			if game:is_stable() then
+				local h = game:hint()
+				if h and h.from then
+					game:input({ type = "swap", from = h.from, to = h.to })
+				elseif h and h.at then
+					game:input({ type = "tap", at = h.at })
+				end
+			end
 		elseif rnd(p.rate) == 1 then
 			local r = rnd(20)
 			if r <= 9 then

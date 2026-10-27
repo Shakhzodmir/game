@@ -92,8 +92,12 @@ function Level:go_town(delay)
 	self.leave_in = delay or 0
 end
 
+-- Pause only while the level is being played: once the last goal is down the win is certain, and a leave
+-- from the finale would be booked as a loss.
+local PAUSABLE = { playing = true, out_of_moves = true }
+
 function Level:open_pause()
-	if self.ended or not self.ctx or self.popups:count() > 0 then return end
+	if self.ended or not self.ctx or self.popups:count() > 0 or not PAUSABLE[self.state] then return end
 	self:open("pause", {
 		view = level_windows.pause(app.meta, app.now()), level_id = self.ctx.level_id,
 		on_close = function(result) if result == "leave" then self:leave() end end,
@@ -138,6 +142,23 @@ function Level:on_moves_close(r)
 	elseif r.action == "give_up" then
 		link.give_up()
 	end
+end
+
+-- The windows that need what only the game knows (a view, a booster) get a sensible default when a QA
+-- request names none; returns false for one that cannot be made up (the results, the defeat).
+function Level:fill_params(name, params)
+	if name == "moves" then
+		if not params.view then
+			if not self.ctx then return false end
+			params.view, params.ctx = self:moves_view(), self.ctx
+			params.refresh = function() return self:moves_view() end
+		end
+	elseif name == "booster_buy" then
+		params.id = params.id or "stick"
+	elseif name == "defeat" or name == "result" then
+		if not params.view then return false end
+	end
+	return true
 end
 
 function Level:open_buy(id)
@@ -374,7 +395,7 @@ function Level:on_bus(topic, p)
 		elseif p.name and REGISTRY[p.name] and not self.ended then
 			local params = p.params or {}
 			if p.name == "start" then params.level = params.level or (app.meta and app.meta:level_to_play()) end
-			self:open(p.name, params)
+			if self:fill_params(p.name, params) then self:open(p.name, params) end
 		end
 	end
 end
@@ -384,13 +405,24 @@ end
 function Level:publish()
 	local u = app.ui
 	u.screen = "level"
+	-- one table, refilled every frame (no garbage)
+	local l = self.pub
+	if not l then
+		l = {}
+		self.pub = l
+	end
 	local g = self.hud.goals
-	u.level = {
-		state = self.state, moves = self.hud.moves, low = self.hud.moves_low or false, goals = g and g.shown or nil,
-		targeting = link.targeting(), bit = self.hud.bit and self.hud.bit.mood or nil, ended = self.ended or false,
-		tutorial = self.tutorial and { index = self.tutorial.index, phase = self.tutorial.phase, blocked = self.tutorial.blocked } or nil,
-		errors = self.errors or 0,
-	}
+	l.state, l.moves, l.low, l.goals = self.state, self.hud.moves, self.hud.moves_low or false, g and g.shown or nil
+	l.targeting, l.bit, l.ended, l.errors = link.targeting(), self.hud.bit and self.hud.bit.mood or nil, self.ended or false, self.errors or 0
+	local t = self.tutorial
+	if t then
+		local tt = l.tutorial or {}
+		tt.index, tt.phase, tt.blocked = t.index, t.phase, t.blocked
+		l.tutorial = tt
+	else
+		l.tutorial = nil
+	end
+	u.level = l
 end
 
 function Level:update(dt)

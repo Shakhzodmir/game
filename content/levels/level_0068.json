@@ -1,7 +1,7 @@
 {
   "id": 68, "version": 1,
-  "size": [9, 10],
-  "moves": 28,
+  "size": [9, 11],
+  "moves": 25,
   "difficulty": "hard",
   "colors": ["red", "orange", "yellow", "green", "blue", "purple"],
   "goals": [
@@ -18,15 +18,14 @@
     "#########",
     "#########",
     "#########",
+    "#########",
     "#########"
   ],
   "overlay": [
     {"at": [1, 2], "type": "wires", "hp": 1},
     {"at": [7, 2], "type": "wires", "hp": 1},
     {"at": [3, 5], "type": "wires", "hp": 1},
-    {"at": [5, 5], "type": "wires", "hp": 1},
-    {"at": [2, 8], "type": "wires", "hp": 1},
-    {"at": [6, 8], "type": "wires", "hp": 1}
+    {"at": [5, 5], "type": "wires", "hp": 1}
   ],
   "slots": [
     {"at": [2, 2], "type": "piece", "color": "red"},
@@ -37,21 +36,21 @@
     {"at": [2, 4], "type": "piece", "color": "yellow"},
     {"at": [3, 4], "type": "piece", "color": "red"},
     {"at": [8, 4], "type": "record_box", "hp": 2},
-    {"at": [7, 5], "type": "piece", "color": "green"},
-    {"at": [2, 6], "type": "balloon", "color": "green"},
-    {"at": [6, 6], "type": "balloon", "color": "green"},
     {"at": [7, 6], "type": "piece", "color": "green"},
-    {"at": [0, 7], "type": "balloon", "color": "green"},
-    {"at": [2, 7], "type": "record_box", "hp": 2},
-    {"at": [4, 7], "type": "record_box", "hp": 3},
-    {"at": [6, 7], "type": "record_box", "hp": 2},
-    {"at": [7, 7], "type": "piece", "color": "yellow"},
-    {"at": [8, 7], "type": "balloon", "color": "green"},
-    {"at": [3, 8], "type": "balloon", "color": "red"},
-    {"at": [5, 8], "type": "balloon", "color": "red"},
-    {"at": [7, 8], "type": "piece", "color": "green"},
-    {"at": [1, 9], "type": "record_box", "hp": 2},
-    {"at": [4, 9], "type": "record_box", "hp": 2},
-    {"at": [7, 9], "type": "record_box", "hp": 2}
+    {"at": [2, 7], "type": "balloon", "color": "green"},
+    {"at": [6, 7], "type": "balloon", "color": "green"},
+    {"at": [7, 7], "type": "piece", "color": "green"},
+    {"at": [0, 8], "type": "balloon", "color": "green"},
+    {"at": [2, 8], "type": "record_box", "hp": 2},
+    {"at": [4, 8], "type": "record_box", "hp": 3},
+    {"at": [6, 8], "type": "record_box", "hp": 2},
+    {"at": [7, 8], "type": "piece", "color": "yellow"},
+    {"at": [8, 8], "type": "balloon", "color": "green"},
+    {"at": [3, 9], "type": "balloon", "color": "red"},
+    {"at": [5, 9], "type": "balloon", "color": "red"},
+    {"at": [7, 9], "type": "piece", "color": "green"},
+    {"at": [1, 10], "type": "record_box", "hp": 2},
+    {"at": [4, 10], "type": "record_box", "hp": 2},
+    {"at": [7, 10], "type": "record_box", "hp": 2}
   ]
 }

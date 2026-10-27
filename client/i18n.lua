@@ -3,7 +3,7 @@
 --   local i18n = require("client.i18n")
 --   i18n.set_language("auto", sys.get_sys_info().language)  -- setting from the meta
 --   i18n.t("town.level", {n = 12})              --> "Level 12" / "Уровень 12"
---   i18n.t("win.coins", {n = 3})                --> plural form picked by n
+--   i18n.t("common.stars", {n = 3})             --> plural form picked by n
 --   i18n.number(1050)                           --> "1,050" / "1 050"
 --   i18n.duration(125)                          --> "2:05"
 --   i18n.name({en = "Jazz Bar", ru = "Джаз-бар"}) --> by current language
@@ -70,15 +70,9 @@ local S = {
 	["hud.level"] = { en = "Level {n}", ru = "Уровень {n}" },
 	["hud.moves"] = { en = "Moves", ru = "Ходы" },
 	["hud.goals"] = { en = "Goals", ru = "Цели" },
-	["hud.last_moves"] = { en = "Last moves!", ru = "Последние ходы!" },
 	["hud.shuffle"] = { en = "No moves — shuffling!", ru = "Ходов нет — перемешиваем!" },
-	["hud.pick_target"] = { en = "Pick a piece", ru = "Выбери фишку" },
-	["hud.placeholder"] = { en = "The board is on its way", ru = "Поле скоро будет здесь" },
 	["hud.tap_skip"] = { en = "Tap to skip", ru = "Нажми, чтобы пропустить" },
-	["hud.win"] = { en = "Level complete!", ru = "Уровень пройден!" },
-	["hud.lost"] = { en = "Out of moves", ru = "Ходы закончились" },
 	["hud.booster_locked"] = { en = "Opens at level {n}", ru = "Откроется на уровне {n}" },
-	["hud.no_boosters"] = { en = "No boosters of this kind left", ru = "Таких бустеров не осталось" },
 	["hud.wait_board"] = { en = "Wait until the board settles", ru = "Подожди, пока поле успокоится" },
 	["hud.booster_no"] = { en = "Nothing to do there: pick another spot", ru = "Тут нечего делать — выбери другое место" },
 	["hud.pick_cell"] = { en = "Pick a piece", ru = "Выбери фишку" },
@@ -86,23 +80,6 @@ local S = {
 	["hud.pick_col"] = { en = "Pick a column", ru = "Выбери колонку" },
 	["hud.hard"] = { en = "Hard", ru = "Сложный" },
 	["hud.super_hard"] = { en = "Super Hard", ru = "Суперсложный" },
-	["hud.boosters_free"] = { en = "Free boosters in this test level", ru = "В тестовом уровне бустеры бесплатные" },
-	["hud.tutorial_blocked"] = { en = "Do the move the hand shows", ru = "Сделай ход, который показывает рука" },
-	["popup.level.out_title"] = { en = "Out of moves!", ru = "Ходы закончились!" },
-	["popup.level.out_text"] = { en = "Get {n} more moves for {price} coins?", ru = "Ещё {n} ходов за {price} монет?" },
-	["popup.level.out_text_free"] = { en = "Debug level: {n} more moves for free", ru = "Отладка: ещё {n} ходов бесплатно" },
-	["popup.level.stuck"] = {
-		en = "No move is left on the board. Use a booster or give up.",
-		ru = "На поле не осталось ходов. Возьми бустер или сдайся.",
-	},
-	["popup.level.no_offer"] = { en = "No more extra moves for this attempt.", ru = "Дополнительных ходов больше нет." },
-	["popup.level.continue"] = { en = "+{n} moves", ru = "+{n} ходов" },
-	["popup.level.give_up"] = { en = "Give up", ru = "Сдаться" },
-	["popup.level.pause_title"] = { en = "Pause", ru = "Пауза" },
-	["popup.level.quit_life"] = { en = "Leave the level? You will lose a life.", ru = "Выйти из уровня? Потеряешь жизнь." },
-	["popup.level.quit_free"] = { en = "Leave the level?", ru = "Выйти из уровня?" },
-	["popup.level.resume"] = { en = "Resume", ru = "Продолжить" },
-	["popup.level.quit"] = { en = "Leave", ru = "Выйти" },
 	["praise.1"] = { en = "Juicy!", ru = "Сочно!" },
 	["praise.2"] = { en = "Hit!", ru = "Хит!" },
 	["praise.3"] = { en = "Drive!", ru = "Драйв!" },
@@ -198,11 +175,6 @@ local S = {
 	["pause.settings"] = { en = "Settings", ru = "Настройки" },
 	["pause.quit"] = { en = "Quit level", ru = "Выйти из уровня" },
 	["pause.quit_confirm"] = { en = "Quit", ru = "Выйти" },
-	["pause.quit_life"] = {
-		en = "You will lose a life and your hit streak.",
-		ru = "Ты потеряешь жизнь и серию хитов.",
-	},
-	["pause.quit_streak"] = { en = "Your hit streak will be lost.", ru = "Серия хитов сгорит." },
 	["pause.quit_free"] = { en = "Nothing is lost before your first move.", ru = "До первого хода ничего не теряется." },
 	["pause.boosters_back"] = {
 		en = "The boosters you took along come back.",
@@ -228,7 +200,6 @@ local S = {
 	},
 	["continue.life_warning"] = { en = "You will lose a life.", ru = "Ты потеряешь жизнь." },
 	["continue.warn_loss"] = { en = "Giving up counts as a loss.", ru = "Сдача засчитается как поражение." },
-	["continue.if_give_up"] = { en = "If you give up:", ru = "Если сдашься:" },
 	["continue.no_coins"] = { en = "Not enough coins: you have {n}", ru = "Не хватает монет: у тебя {n}" },
 	["continue.use_booster"] = { en = "Or use a booster:", ru = "Или возьми бустер:" },
 	["continue.sub"] = { en = "A few more moves can do it!", ru = "Ещё пара ходов — и победа!" },
@@ -249,27 +220,16 @@ local S = {
 	["lose.left"] = { en = "Still to do", ru = "Осталось сделать" },
 	["lose.lives"] = { en = "Lives: {n} of {max}", ru = "Жизни: {n} из {max}" },
 	["lose.no_lives"] = { en = "No lives left. A new one in {time}", ru = "Жизней нет. Новая через {time}" },
-	["lose.quit"] = { en = "You left the level", ru = "Ты вышел из уровня" },
 	["lose.cheer"] = { en = "Next time!", ru = "В следующий раз получится!" },
 
 	-- buying a booster in the level (gui/booster_buy.lua) -------------------------------------------------
 	["buy.text"] = { en = "None left! Get a pack of {n}?", ru = "Закончились! Взять набор из {n}?" },
 	["buy.pack"] = { en = "Pack of {n}", ru = "Набор из {n}" },
-	["buy.have"] = { en = "You have {n}", ru = "У тебя {n}" },
 	["buy.done"] = { en = "+{n} {name}!", ru = "+{n} {name}!" },
-	["buy.no_coins"] = { en = "Not enough coins: you have {n}", ru = "Не хватает монет: у тебя {n}" },
 	["buy.locked"] = { en = "Opens at level {n}", ru = "Откроется на уровне {n}" },
 
 	-- win / results ------------------------------------------------------------------------------------
 	["win.title"] = { en = "Level complete!", ru = "Уровень пройден!" },
-	["win.stars"] = {
-		en = { one = "+{n} star", other = "+{n} stars" },
-		ru = { one = "+{n} звезда", few = "+{n} звезды", many = "+{n} звёзд" },
-	},
-	["win.coins"] = {
-		en = { one = "+{n} coin", other = "+{n} coins" },
-		ru = { one = "+{n} монета", few = "+{n} монеты", many = "+{n} монет" },
-	},
 	["win.next"] = { en = "Next level", ru = "Следующий уровень" },
 	["win.town"] = { en = "To town", ru = "В город" },
 	["win.unlocked"] = { en = "New booster: {name}", ru = "Новый бустер: {name}" },
@@ -410,21 +370,17 @@ local S = {
 	},
 	["splash.gift"] = { en = "Gift: {name} boosters!", ru = "Подарок: бустеры «{name}»!" },
 	["splash.chest"] = { en = "{name}: the district chest is yours!", ru = "{name}: сундук района твой!" },
-	["splash.tap"] = { en = "Tap to start", ru = "Нажми, чтобы начать" },
 
 	-- town: top bar, task card, level button, navigation, hints --------------------------------------------------------
 	["town.level"] = { en = "Level {n}", ru = "Уровень {n}" },
 	["town.hard"] = { en = "Hard", ru = "Сложный" },
 	["town.super_hard"] = { en = "Super Hard", ru = "Суперсложный" },
 	["town.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
-	["town.task_unlocks"] = { en = "New layer: {stem}", ru = "Новый слой: {stem}" },
 	["town.task_ready"] = { en = "Tap to build!", ru = "Нажми, чтобы построить!" },
 	["town.task_need"] = {
 		en = { one = "Need {n} more star", other = "Need {n} more stars" },
 		ru = { one = "Нужна ещё {n} звезда", few = "Нужно ещё {n} звезды", many = "Нужно ещё {n} звёзд" },
 	},
-	["town.task_done"] = { en = "{item} is back!", ru = "{item} на месте!" },
-	["town.district_done"] = { en = "District complete!", ru = "Район восстановлен!" },
 	["town.town_done"] = { en = "The whole town is shining!", ru = "Весь город сияет!" },
 	["town.new_district"] = { en = "New district: {name}", ru = "Открыт новый район: {name}" },
 	["town.day"] = { en = "Day", ru = "День" },
@@ -434,13 +390,8 @@ local S = {
 	["town.task_adds"] = { en = "Adds {stem} to the track", ru = "Добавит в трек: {stem}" },
 	["town.layer_added"] = { en = "+ {stem}!", ru = "+ {stem}!" },
 	["town.stars_hint"] = { en = "Win levels to earn stars", ru = "Звёзды дают за победы в уровнях" },
-	["town.bit_hi"] = { en = "Let's make some noise!", ru = "Зажжём!" },
-	["town.bit_cheer"] = { en = "Yeah! Hear that?", ru = "Йе-е! Слышишь?" },
-	["town.bit_more"] = { en = "Win a level for more stars!", ru = "Пройди уровень — будут звёзды!" },
 	["town.item_wait"] = { en = "{item}: coming soon to the track", ru = "{item}: скоро зазвучит в треке" },
 	["town.back_to"] = { en = "Back to {name}", ru = "Назад: {name}" },
-	["town.next_tasks"] = { en = "Next: {item}", ru = "Дальше: {item}" },
-	["town.all_done_short"] = { en = "All done!", ru = "Всё пройдено!" },
 	["nav.shop"] = { en = "Shop", ru = "Магазин" },
 	["nav.band"] = { en = "Band", ru = "Группа" },
 	["nav.town"] = { en = "Town", ru = "Город" },
@@ -456,13 +407,10 @@ local S = {
 	["lives.title"] = { en = "Lives", ru = "Жизни" },
 	["lives.next_in"] = { en = "Next life in {time}", ru = "Следующая жизнь через {time}" },
 	["lives.full"] = { en = "All lives are here!", ru = "Все жизни на месте!" },
-	["lives.none"] = { en = "No lives left", ru = "Жизни кончились" },
 	["lives.refill"] = { en = "Refill for {price}", ru = "Пополнить за {price}" },
 	["lives.infinite"] = { en = "Unlimited lives: {time}", ru = "Бесконечные жизни: {time}" },
 	["lives.free_levels"] = { en = "Levels 1–{n} don't cost lives", ru = "Уровни 1–{n} не тратят жизни" },
-	["lives.refill_short"] = { en = "Refill", ru = "Пополнить" },
 	["lives.refilled"] = { en = "Lives refilled!", ru = "Жизни пополнены!" },
-	["lives.infinite_short"] = { en = "Unlimited", ru = "Безлимит" },
 	["lives.get_coins"] = { en = "Get coins", ru = "Взять монеты" },
 	["lives.wait"] = { en = "…or wait for a new life", ru = "…или подожди новую жизнь" },
 	["lives.play_free"] = { en = "Unlimited lives are on: play as much as you like!", ru = "Жизни бесконечны: играй сколько хочешь!" },
@@ -476,10 +424,6 @@ local S = {
 	["start.goals"] = { en = "Goals", ru = "Цели" },
 	["start.boosters"] = { en = "Boosters", ru = "Бустеры" },
 	["start.streak"] = { en = "Hit streak", ru = "Серия хитов" },
-	["start.streak_desc"] = {
-		en = "Win in a row to get free boosters!",
-		ru = "Побеждай подряд — получай бустеры бесплатно!",
-	},
 	["start.locked"] = { en = "Unlocks at level {n}", ru = "Откроется на уровне {n}" },
 	["start.no_lives"] = { en = "You need a life to play", ru = "Для игры нужна жизнь" },
 	["start.play"] = { en = "Play", ru = "Играть" },
@@ -490,19 +434,14 @@ local S = {
 	["start.all"] = { en = "all", ru = "все" },
 	["start.life_cost"] = { en = "A loss costs a life", ru = "Поражение отнимет жизнь" },
 	["start.pick_hint"] = { en = "Tap a booster to take it along", ru = "Нажми на бустер, чтобы взять его" },
-	["start.get_more"] = { en = "Get more in the shop", ru = "Ещё — в магазине" },
 	["start.no_goals"] = { en = "Goals will be shown in the level", ru = "Цели покажем в уровне" },
 	["start.safe"] = { en = "A loss costs nothing here", ru = "Поражение здесь ничего не стоит" },
 	["start.streak_from"] = { en = "The hit streak starts at level {n}", ru = "Серия хитов начнётся с уровня {n}" },
 	["start.selected"] = { en = "Taking {name} along!", ru = "Берём с собой: {name}!" },
 
 	-- district concert and rewards brought back to the town ------------------------------------------------------------
-	["concert.title"] = { en = "Concert!", ru = "Концерт!" },
 	["concert.skip"] = { en = "Tap to skip", ru = "Нажми, чтобы пропустить" },
 	["concert.subtitle"] = { en = "The whole street sings along!", ru = "Вся улица подпевает!" },
-	["concert.chest"] = { en = "Tap to open the district chest!", ru = "Нажми, чтобы открыть сундук района!" },
-	["concert.town_done"] = { en = "The whole town is shining! More districts are coming.", ru = "Весь город сияет! Скоро откроются новые районы." },
-	["reward.title"] = { en = "Welcome back!", ru = "С возвращением!" },
 	["reward.stars"] = {
 		en = { one = "+{n} star", other = "+{n} stars" },
 		ru = { one = "+{n} звезда", few = "+{n} звезды", many = "+{n} звёзд" },
@@ -516,15 +455,9 @@ local S = {
 	["reward.life_lost"] = { en = "−1 life", ru = "−1 жизнь" },
 	["reward.chest_level"] = { en = "Level {n} chest!", ru = "Сундук уровня {n}!" },
 	["reward.chest_district"] = { en = "{name}: district chest!", ru = "{name}: сундук района!" },
-	["reward.booster"] = { en = "+{n} {name}", ru = "+{n} {name}" },
-	["reward.infinite"] = { en = "+{time} of unlimited lives", ru = "+{time} бесконечных жизней" },
-	["reward.gift_desc"] = { en = "{desc}. You get {n}!", ru = "{desc}. Держи {n}!" },
 	["district.concert"] = { en = "{name}: concert!", ru = "{name}: концерт!" },
-	["district.chest"] = { en = "District chest", ru = "Сундук района" },
 
 	-- chest and unlock gift --------------------------------------------------------------------------------------------
-	["chest.title"] = { en = "Chest", ru = "Сундук" },
-	["chest.open"] = { en = "Open", ru = "Открыть" },
 	["chest.infinite"] = { en = "+{time} of unlimited lives", ru = "+{time} бесконечных жизней" },
 	["chest.tap"] = { en = "Tap the chest!", ru = "Нажми на сундук!" },
 	["chest.level"] = { en = "Level chest", ru = "Сундук уровня" },
@@ -533,7 +466,6 @@ local S = {
 
 	-- shop -------------------------------------------------------------------------------------------------------------
 	["shop.title"] = { en = "Shop", ru = "Магазин" },
-	["shop.boosters"] = { en = "Booster packs", ru = "Наборы бустеров" },
 	["shop.pack"] = { en = "{n} × {name}", ru = "{n} × {name}" },
 	["shop.lives"] = { en = "Lives", ru = "Жизни" },
 	["shop.coins"] = { en = "Coins", ru = "Монеты" },
@@ -577,8 +509,6 @@ local S = {
 	["settings.lang_auto"] = { en = "Auto", ru = "Авто" },
 	["settings.lang_en"] = { en = "English", ru = "English" },
 	["settings.lang_ru"] = { en = "Русский", ru = "Русский" },
-	["settings.on"] = { en = "On", ru = "Вкл" },
-	["settings.off"] = { en = "Off", ru = "Выкл" },
 	["settings.version"] = { en = "Version {v}", ru = "Версия {v}" },
 	["settings.reset"] = { en = "Reset progress", ru = "Сбросить прогресс" },
 	["settings.reset_title"] = { en = "Reset progress?", ru = "Сбросить прогресс?" },
@@ -593,15 +523,12 @@ local S = {
 
 	-- jukebox ----------------------------------------------------------------------------------------------------------
 	["jukebox.title"] = { en = "Jukebox", ru = "Музыкальный автомат" },
-	["jukebox.play"] = { en = "Play", ru = "Слушать" },
-	["jukebox.stop"] = { en = "Stop", ru = "Стоп" },
 	["jukebox.layers"] = { en = "Layers: {done}/{total}", ru = "Слоёв: {done}/{total}" },
 	["jukebox.locked"] = { en = "Build {name} to unlock", ru = "Восстанови район «{name}», чтобы открыть" },
 	["jukebox.full_song"] = { en = "Full song", ru = "Полная песня" },
 	["jukebox.now_playing"] = { en = "Now playing: {name}", ru = "Сейчас играет: {name}" },
 	["jukebox.pick"] = { en = "Pick a song", ru = "Выбери песню" },
 	["jukebox.no_layers"] = { en = "Build a task to hear it", ru = "Выполни задачу, чтобы услышать" },
-	["jukebox.current"] = { en = "Being built", ru = "Строится" },
 	["jukebox.back_home"] = { en = "Back to the town track", ru = "Вернуть музыку города" },
 
 	-- toasts (overlay, debug keys) -------------------------------------------------------------------------------------

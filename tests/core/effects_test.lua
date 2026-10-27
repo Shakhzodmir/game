@@ -74,6 +74,20 @@ describe("core effects: the action list (7.2.6)", function()
 		assert_true(g.s.queue[1].seq < g.s.queue[2].seq)
 	end)
 
+	it("row_light: the chain launched by cell 1 and the hit on cell 4 are due in the same tick, the chain first", function()
+		local g = fresh({ "byrgby", "yrgbyr", "Srbyrg", "gbyrgb", "byrgby", "yrggbg" })
+		assert_same({ g:input({ type = "booster", booster = "row_light", row = 3 }) }, { true, "ok" })
+		g:step() -- tick 1: the record runs; cell 1 is hit at once, cell x at tick 1 + x - 1
+		local at4 = {}
+		for _, r in ipairs(g.s.queue) do
+			if r.due == 4 then at4[#at4 + 1] = { r.kind, r.seq } end
+		end
+		assert_eq(#at4, 2)
+		assert_eq(at4[1][1], C.R_ACTIVATE)
+		assert_eq(at4[2][1], C.R_HIT)
+		assert_true(at4[1][2] < at4[2][2])
+	end)
+
 	it("keeps the first occurrence per object after sorting", function()
 		local g = fresh()
 		local src = source(g)
@@ -144,6 +158,16 @@ describe("core effects: path pins (7.2.7)", function()
 		assert_same(s.objs[17].pins, {}, "not idle")
 		assert_same(s.objs[18].pins, { src.id })
 		assert_same(s.objs[19].pins, {}, "no hit there")
+	end)
+
+	it("only hit actions pin: the second field of another kind of action is no cell", function()
+		local g = fresh()
+		local s = g.s
+		local src = source(g)
+		-- a Disco step carries {source, k, object id}: k = 14 must not be taken for a cell
+		EF.run(s, src, { { 7, C.R_DISCO, { src.id, 14, s.objs[3].id } } }, true)
+		assert_same(s.objs[14].pins, {})
+		assert_same(s.objs[3].pins, {})
 	end)
 
 	it("pin_path false pins nothing; marks of other sources are kept and joined", function()

@@ -191,7 +191,7 @@ function Hud:build(info, status, rect)
 	self.layer = s:layer(self.parent, "hud")
 	self.info = info
 	self.l = level_hud.layout(s.fit, s.insets, rect)
-	self.rect_sig = rect and (rect.x0 .. ":" .. rect.y0 .. ":" .. rect.x1 .. ":" .. rect.y1) or ""
+	self.rect_ref = rect
 	if status then
 		if not self.moves then self.moves = status.moves_left end
 		self.state = status.state or self.state
@@ -216,9 +216,9 @@ end
 -- Moves the things that depend on the board's rectangle when it changed without a window resize
 -- (the board is laid out after the HUD in the same frame). Returns true when it had to.
 function Hud:follow_board(rect)
-	local sig = rect and (rect.x0 .. ":" .. rect.y0 .. ":" .. rect.x1 .. ":" .. rect.y1) or ""
-	if sig == self.rect_sig or not self.built then return false end
-	self.rect_sig = sig
+	-- link.board_rect() hands out the same table while the board stays (no allocation per frame)
+	if rect == self.rect_ref or not self.built then return false end
+	self.rect_ref = rect
 	self.l = level_hud.layout(self.ui.fit, self.ui.insets, rect)
 	self:_bit()
 	return true
@@ -447,8 +447,7 @@ function Hud:update(dt)
 	if self.bit then self.bit:update(dt) end
 	if self.bit_machine then
 		self.bit_machine:update(dt)
-		local a = self.bit_machine:take()
-		if #a > 0 then self:_apply_bit(a) end
+		if self.bit_machine:pending() then self:_apply_bit(self.bit_machine:take()) end
 	end
 	self.sync_t = self.sync_t + dt
 	if self.bit and self.bit.beat then self:_beat_sync(false) end

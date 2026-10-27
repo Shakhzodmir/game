@@ -68,6 +68,10 @@ local LEVELS = {
 			slots = { { at = { 3, 3 }, type = "concrete", hp = 2 }, { at = { 5, 1 }, type = "concrete", hp = 1 },
 				{ at = { 2, 4 }, type = "disco" }, { at = { 4, 0 }, type = "bird" } },
 			goals = { { type = "break", item = "concrete", count = 2 }, { type = "light" } } } },
+	-- an easy goal: the win, the final concert and the skip of it
+	{ rows = { "#######", "#######", "#######", "#######", "#######", "#######" },
+		extra = { moves = 15, colors = { "red", "green", "blue", "yellow", "purple" },
+			goals = { { type = "collect", color = "red", count = 8 } } } },
 	{ rows = { "#######", "#######", "#######", "#######", "#######", "#######" },
 		extra = { moves = 30, colors = { "red", "green", "blue", "yellow" },
 			slots = { { at = { 1, 1 }, type = "balloon", color = "red" }, { at = { 5, 2 }, type = "balloon", color = "blue" },
@@ -87,6 +91,8 @@ local function play(lvl, seed, timing, rnd)
 			else
 				g:input({ type = "give_up" })
 			end
+		elseif g.s.state == C.G_WON_WAIT or g.s.state == C.G_CONCERT then
+			if rnd(4) == 1 then g:input({ type = "skip" }) end -- the switch to turbo with records in flight
 		elseif rnd(3) == 1 then
 			local mv = g:moves()
 			local r = rnd(10)
@@ -258,5 +264,50 @@ describe("core property: match_at agrees with the group search", function()
 				assert_eq(M.match_at(col, W, Hh, p), ingroup[p] == true, "cell " .. p)
 			end
 		end
+	end)
+end)
+
+describe("core property: classification and the cell of the special (6.1, 6.2)", function()
+	it("agree with the oracle on random boards with wires, settle ticks and finished swaps", function()
+		local rnd = lcg(2024)
+		local groups_seen, specials = 0, { 0, 0, 0, 0 }
+		for _ = 1, 600 do
+			local W, Hh = 5 + rnd(4), 5 + rnd(5)
+			local N = W * Hh
+			local col, wires, objs, slot = {}, {}, {}, {}
+			for i = 1, N do
+				col[i] = rnd(5) == 1 and 0 or rnd(2)
+				wires[i] = (col[i] ~= 0 and rnd(6) == 1) and 1 or 0
+				objs[i] = { settle = rnd(4) - 1 }
+				slot[i] = i
+			end
+			local s = { W = W, H = Hh, N = N, wires = wires, objs = objs, slot = slot }
+			local swaps = {}
+			if rnd(2) == 1 then
+				for a = 1, rnd(3) do
+					local from = rnd(N - 1)
+					swaps[#swaps + 1] = { a = a * 2, from = from, to = from + 1 }
+				end
+			end
+			local snap = { W = W, H = Hh, wires = wires, settle = {}, swaps = swaps }
+			for i = 1, N do snap.settle[i] = objs[i].settle end
+			local mine = M.find_groups(col, W, Hh)
+			local want = O.brute_groups(col, W, Hh)
+			assert_eq(#mine, #want)
+			for gi, g in ipairs(mine) do
+				groups_seen = groups_seen + 1
+				local sp, axis = M.classify(g)
+				local kind, kaxis = O.classify(want[gi])
+				assert_eq(C.SPECIAL_NAME[sp], kind, "kind")
+				assert_eq(axis ~= 0 and C.AXIS_NAME[axis] or nil, kaxis, "axis")
+				if sp ~= 0 then specials[sp] = specials[sp] + 1 end
+				local cell = M.special_cell(s, g, sp, #swaps > 0 and swaps or nil)
+				local wcell = kind and O.special_cell(snap, want[gi], kind) or nil
+				if kind then assert_eq(cell, wcell or 0, "cell of the " .. kind) end
+			end
+		end
+		assert_true(groups_seen > 1000)
+		assert_true(specials[C.SP_RIFF] > 20 and specials[C.SP_SUB] > 20 and specials[C.SP_BIRD] > 20 and specials[C.SP_DISCO] > 20,
+			"every kind of special is met")
 	end)
 end)
