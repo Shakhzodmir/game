@@ -213,6 +213,18 @@ describe("core hint: tier 2, progress and moves of specials (12.3)", function()
 		same_move(g:hint(), prog)
 	end)
 
+	it("among swaps with progress the bigger sum of groups goes first, then the smaller index", function()
+		local goals = { goals = { { type = "collect", color = "blue", count = 5 } } }
+		local rows = blank()
+		STRUCT.plain(rows, 1, 1, "b")
+		local big = STRUCT.plain(rows, 1, 6, "b", true) -- a second group (green) comes with the blue line
+		same_move(scene(rows, goals):hint(), big)
+		local rows2 = blank()
+		local first = STRUCT.plain(rows2, 1, 1, "b")
+		STRUCT.plain(rows2, 1, 6, "b")
+		same_move(scene(rows2, goals):hint(), first)
+	end)
+
 	it("progress: a group cell on an unlit tile with the light goal open", function()
 		local rows = blank()
 		STRUCT.plain(rows, 1, 1, "r")
