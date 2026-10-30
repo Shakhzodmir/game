@@ -11,6 +11,8 @@
 --   assets.music_stems("cafe")        --> {"bass", "beat", ...} sorted | {}
 --   assets.music_id("cafe", "beat")   --> "music_cafe_beat" | nil
 --   assets.music_loop("cafe")         --> 21.333333 (seconds, from the Ogg headers) | nil
+--   assets.song("bossa_breeze")       --> {id = "song_bossa_breeze", loop = 17.142857} | nil (a jukebox
+--                                        song: one looping mix, loop in seconds from the Ogg header)
 --   assets.mixer()                    --> mixer contract of the audio manifest | {}
 --   assets.district_bg_key("cafe", "concert") --> "districts/cafe/bg_concert",
 --                                        falling back to the day bg | nil
@@ -49,6 +51,11 @@ end
 function M.music_loop(district)
 	local loops = M.index.sounds.loops
 	return loops and loops[district] or nil
+end
+
+function M.song(id)
+	local songs = M.index.sounds.songs
+	return songs and songs[id] or nil
 end
 
 function M.mixer()

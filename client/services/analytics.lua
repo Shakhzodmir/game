@@ -47,7 +47,7 @@ M.EVENTS = {
 
 	task_complete = { "district", "task", "cost", "stem" },
 	district_complete = { "district" },
-	jukebox_play = { "district" },
+	jukebox_play = { "district", "song" }, -- one per pick: the genre (district) and the song (a district id = its theme)
 	settings_change = { "key", "value" },
 
 	save_error = { "error" },

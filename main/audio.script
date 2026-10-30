@@ -6,6 +6,12 @@
 -- Messages: see client/audio.lua (music, stop_music, unlock_stem, layer,
 -- duck, combo, note, sfx, volumes, resync).
 --
+-- Tracks: `music` names the layered theme of a district (every stem of its folder starts in one
+-- frame) or a jukebox song (ONE looping mix: the single stem "mix"; the tension / party layers do
+-- nothing for it). Both are sound components of the generated audio object, held in memory like
+-- the stems; only the track that plays has decoders running. A song plays in the key of its genre
+-- (self.semitones): notes and tonal effects follow the song that actually plays.
+--
 -- Music clock: wall time since the stems started. When the engine loop
 -- stalls (a hidden tab, the app in the background, a long frame) the mixer
 -- stops but the clock does not, so the stems restart at the clock position in
@@ -103,9 +109,17 @@ local function flush_notes(self, force)
 	end
 end
 
+-- The track a district id or a song id names (client/audio.lua resolve_track), from the registry.
+local function track_of(id)
+	return audio.resolve_track(id, {
+		district = app.district, song = app.song, stems = assets.music_stems, stem_id = assets.music_id,
+		song_asset = assets.song, loop = assets.music_loop,
+	})
+end
+
 local function stop_stems(self, stems)
 	for _, stem in ipairs(stems) do
-		local id = assets.music_id(self.district, stem)
+		local id = self.track and self.track.ids[stem]
 		if id then sound.stop(comp(self, id)) end
 	end
 end
@@ -113,31 +127,30 @@ end
 local function stop_music(self)
 	flush_notes(self, true)
 	if self.mixer:playing() then stop_stems(self, self.mixer:stop()) end
-	self.district = nil
+	self.track = nil
 	self.sched:reset()
 end
 
--- Starts every stem of the district in this frame; locked stems at gain 0.
-local function start_music(self, district, all)
+-- Starts every stem of the track in this frame; locked stems at gain 0 (a song is one stem at gain 1).
+-- party: false | true | nil, see client/audio.lua music().
+local function start_music(self, id, all, party)
 	stop_music(self)
-	self.district = district
+	local track = track_of(id)
+	if not track then return end
+	self.track = track
 	self.all = all and true or false
-	local data = app.district(district)
-	local stems = assets.music_stems(district)
-	if #stems == 0 or not data then
-		self.district = nil
-		return
-	end
 	local unmuted = {}
-	if not all and app.meta then
-		for _, s in ipairs(app.meta:unmuted_stems(district)) do unmuted[s] = true end
+	if track.single then
+		unmuted.mix = true
+	elseif not all and app.meta then
+		for _, s in ipairs(app.meta:unmuted_stems(track.district)) do unmuted[s] = true end
 	end
-	self.semitones = data.semitones_from_c or 0
-	local starts = self.mixer:start(district, data.bpm, stems, unmuted, now(), {
-		all = all, loop = assets.music_loop(district),
+	self.semitones = track.semitones
+	local starts = self.mixer:start(track.id, track.bpm, track.stems, unmuted, now(), {
+		all = all, party = party, loop = track.loop,
 	})
 	for _, st in ipairs(starts) do
-		sound.play(comp(self, assets.music_id(district, st.stem)), { gain = st.gain })
+		sound.play(comp(self, track.ids[st.stem]), { gain = st.gain })
 	end
 end
 
@@ -147,7 +160,7 @@ local function resync(self, reason)
 	flush_notes(self, true)
 	local t0 = now()
 	for _, r in ipairs(self.mixer:resync(t0)) do
-		local url = comp(self, assets.music_id(self.district, r.stem))
+		local url = comp(self, self.track.ids[r.stem])
 		sound.stop(url)
 		sound.play(url, { gain = r.gain, start_time = r.start_time })
 	end
@@ -200,7 +213,10 @@ end
 
 local function update_status(self, dt)
 	local st = audio.status
-	st.district = self.district
+	st.district = self.track and self.track.district or nil
+	st.song = self.track and self.track.id or nil
+	st.single = self.track and self.track.single or false
+	st.semitones = self.track and self.semitones or 0
 	st.playing = self.mixer:playing()
 	st.clock = self.mixer:clock(now()) or 0
 	st.music_gain = self.music_gain or 0
@@ -240,7 +256,7 @@ function init(self)
 	self.free = audio.new_note_scheduler(contract.notes_same_tick) -- no music: one group per frame
 	self.free_key = 1
 	self.semitones = 0
-	self.district = nil
+	self.track = nil
 	self.html5 = platform.is_html5()
 	self.sub = bus.subscribe({ "settings_changed", "app_focus" }, "audio")
 	self.on_bus = function(topic, p) on_bus(self, topic, p) end
@@ -272,7 +288,7 @@ function update(self, dt)
 	local changed = self.mixer:update(dt)
 	for i = 1, #changed do
 		local ch = changed[i]
-		local id = assets.music_id(self.district, ch.stem)
+		local id = self.track and self.track.ids[ch.stem]
 		if id then sound.set_gain(comp(self, id), ch.gain) end
 	end
 	local mg, sg, ng = self.mixer:music_group_gain(), self.mixer:sfx_group_gain(), self.mixer:notes_group_gain()
@@ -302,15 +318,25 @@ function on_message(self, message_id, message)
 		play_sfx(self, message)
 	elseif message_id == MSG.music then
 		local all = message.all and true or false
-		if message.district and (message.district ~= self.district or all ~= self.all or not self.mixer:playing()) then
-			start_music(self, message.district, all)
+		local id = message.district
+		local playing = self.mixer:playing() and self.track
+		if id and (not playing or id ~= self.track.id or all ~= self.all) then
+			start_music(self, id, all, message.party)
+		elseif id and not self.track.single then
+			-- the same track goes on; only its party layer follows the request (the full song of a finished
+			-- district chosen in the jukebox: with the layer in the town, without it in a level)
+			local want = message.party
+			if want == nil and all then want = true end
+			if want ~= nil and want ~= self.mixer.layers.party then self.mixer:set_layer("party", want) end
 		end
 	elseif message_id == MSG.stop_music then
 		stop_music(self)
 	elseif message_id == MSG.unlock_stem then
-		if message.district == self.district then self.mixer:unlock(message.stem) end
+		-- (a layer of another district, or of a song, is not part of what plays: nothing to do)
+		if self.track and not self.track.single and message.district == self.track.id then self.mixer:unlock(message.stem) end
 	elseif message_id == MSG.layer then
-		self.mixer:set_layer(message.name, message.on)
+		-- a song is one mix: it has no tension / party layer to switch (the calls degrade silently)
+		if not (self.track and self.track.single) then self.mixer:set_layer(message.name, message.on) end
 	elseif message_id == MSG.duck then
 		self.mixer:set_level_duck(message.on)
 	elseif message_id == MSG.combo then

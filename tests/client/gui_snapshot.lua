@@ -16,7 +16,9 @@
 --   lives_full / lives_empty / lives_infinite
 --   shop_boosters / shop_coins / shop_coins_debug (a debug build: test purchases and the video gift)
 --   settings / confirm (the reset question)
---   jukebox         one finished district, one in progress
+--   jukebox         one finished district: the genre tabs, its theme and songs, nothing picked
+--   jukebox_pick    a finished district, a song of the next genre picked (now playing, the way home lit)
+--   jukebox_locked  the tab of a genre that is not open yet: dark silhouettes and what opens it
 --   chest_level / chest_level_open / chest_district / gift / gift_open
 --   concert         the district concert
 --   splash
@@ -136,6 +138,18 @@ end
 function S.jukebox()
 	done_tasks_of_cafe()
 	popup(main, "jukebox")
+end
+function S.jukebox_pick()
+	done_tasks_of_cafe()
+	assert(app.set_song("scat_parade"))
+	popup(main, "jukebox")
+end
+function S.jukebox_locked()
+	done_tasks_of_cafe()
+	popup(main, "jukebox")
+	local tab = app.ui.popup_targets.tab_square
+	E.tap(tab.x, tab.y)
+	E.step(20)
 end
 function S.chest_level() popup(main, "chest", { kind = "level", level_id = 10, chest = { coins = 60, boosters = { "stick" }, infinite_minutes = 15 } }) end
 function S.chest_level_open()

@@ -97,8 +97,13 @@ describe("tools/qa/web_screens.mjs", function()
 				elseif name == "lang" then
 					assert_true(w[1] == "auto" or w[1] == "en" or w[1] == "ru", where)
 				elseif name == "music" then
-					assert_true(assets.index.sounds.music[w[1]] ~= nil, "no music for " .. tostring(w[1]) .. ": " .. where)
+					-- a district (its layered theme) or a song of the jukebox (one mix)
+					assert_true(assets.index.sounds.music[w[1]] ~= nil or assets.song(w[1]) ~= nil, "no music for " .. tostring(w[1]) .. ": " .. where)
 					assert_true(w[2] == nil or w[2] == "all", where)
+				elseif name == "song" then
+					-- the jukebox pick: a song, the theme of a district, or none
+					assert_true(w[1] == "none" or assets.song(w[1]) ~= nil or assets.index.sounds.music[w[1]] ~= nil,
+						"no song " .. tostring(w[1]) .. ": " .. where)
 				elseif name == "layer" then
 					assert_true(w[1] == "tension" or w[1] == "party", where)
 				elseif name == "sfx" then
@@ -158,6 +163,8 @@ describe("tools/qa/web_screens.mjs", function()
 	it("taps only buttons the game reports", function()
 		-- the names of tap targets in the sources: e:target("play", ...) / self:target("level", ...)
 		local screen_targets, popup_targets = {}, {}
+		-- families: e:target("tab_" .. id, ...) reports tab_cafe, tab_jazz, ...
+		local screen_families, popup_families = {}, {}
 		local p = io.popen("find screens gui -name '*.lua' -o -name '*.gui_script' | sort")
 		for path in p:lines() do
 			local toks = refs._lex(read(path))
@@ -165,6 +172,10 @@ describe("tools/qa/web_screens.mjs", function()
 				if toks[i].k == "name" and toks[i].v == "target" and toks[i + 1].v == "(" and toks[i + 2].k == "str" then
 					local into = string.find(path, "^gui/") and popup_targets or screen_targets
 					into[toks[i + 2].v] = true
+					if toks[i + 3].v == ".." then
+						local family = string.find(path, "^gui/") and popup_families or screen_families
+						family[toks[i + 2].v] = true
+					end
 				elseif toks[i].k == "name" and toks[i].v == "target" and toks[i + 1].v == "(" and toks[i + 2].k == "name"
 					and toks[i + 3].v == "," and toks[i + 4].k == "str" then
 					-- town:target(...) / hud:target("name") with a receiver argument
@@ -175,15 +186,22 @@ describe("tools/qa/web_screens.mjs", function()
 		end
 		p:close()
 		local level_targets = { pause = true, stick = true, row_light = true, col_light = true, remix = true }
+		local function reported(targets, families, name)
+			if targets[name] then return true end
+			for prefix in pairs(families) do
+				if string.sub(name, 1, #prefix) == prefix and #name > #prefix then return true end
+			end
+			return false
+		end
 		local n = 0
 		for name, where in string.gmatch(SCRIPT, "tapTarget%([%w_]+,%s*'([%w_]+)'%s*,?%s*'?(%a*)'?%)") do
 			n = n + 1
 			if where == "popup" then
-				assert_true(popup_targets[name], "no window reports a tap target '" .. name .. "'")
+				assert_true(reported(popup_targets, popup_families, name), "no window reports a tap target '" .. name .. "'")
 			elseif where == "level" then
 				assert_true(level_targets[name], "the level screen reports no tap target '" .. name .. "'")
 			else
-				assert_true(screen_targets[name], "the town reports no tap target '" .. name .. "'")
+				assert_true(reported(screen_targets, screen_families, name), "the town reports no tap target '" .. name .. "'")
 			end
 		end
 		assert_true(n >= 8, "the script taps " .. n .. " targets")
