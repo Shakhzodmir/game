@@ -109,8 +109,19 @@ async function tapTarget(page, name, where) {
 async function startLevelFromTown(page) {
 	await tapTarget(page, 'level');
 	await waitFor(page, s => s.app.ui && s.app.ui.popup === 'start', 'the start window', 8000);
-	await sleep(700); // the window pops in
-	await tapTarget(page, 'play', 'popup');
+	// The window pops in (0.32 s of game time, a slow frame stretches it) and a tap that lands on a button that is
+	// still moving is not a click: tap again while the start window is still open and nothing reacted.
+	for (let attempt = 0; attempt < 3; attempt++) {
+		await sleep(attempt === 0 ? 900 : 500);
+		const open = await state(page);
+		if (!open.app.ui || open.app.ui.popup !== 'start') break;
+		await tapTarget(page, 'play', 'popup');
+		try {
+			await waitFor(page, st => st.app.screen === 'level' || st.app.transitioning || !(st.app.ui && st.app.ui.popup === 'start'),
+				'Play to react', 4000);
+			break;
+		} catch (e) { /* the tap missed: again */ }
+	}
 	return onScreen(page, 'level', 20000);
 }
 
