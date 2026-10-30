@@ -23,10 +23,12 @@ local function boot_app()
 	})
 end
 
--- Runs fn(env, script, self, drive) with a board on display; always restores the globals.
+-- Runs fn(env, script, self, drive) with a board on display; always restores the globals. opts.float32: the stub's
+-- vectors keep 32-bit floats like the engine's (what a board at rest sends to the engine is only the same in the stub
+-- and in the engine if it does not trust a comparison with them).
 local function with_board(params, fn, opts)
 	opts = opts or {}
-	local E = stub.install({ window = opts.window })
+	local E = stub.install({ window = opts.window, float32 = opts.float32 })
 	local ok, err = pcall(function()
 		boot_app()
 		app.params = params
@@ -357,7 +359,7 @@ describe("screens/level/board.script session", function()
 			for name, n in pairs(E.counts) do -- order-independent
 				assert_true(false, "an idle frame called the engine: " .. name .. " x" .. n)
 			end
-		end)
+		end, { float32 = true }) -- (as in the real engine: its vectors keep float32, and it cost 162 calls a frame there)
 	end)
 
 	it("builds the list of pieces only when the board can have changed, and it always equals the core's", function()
@@ -864,7 +866,7 @@ describe("screens/level/board.script fixed things", function()
 			for name, n in pairs(E.counts) do -- order-independent
 				assert_true(false, "an idle frame called the engine: " .. name .. " x" .. n)
 			end
-		end)
+		end, { float32 = true })
 	end)
 
 	it("shakes a blocker that is swiped, thuds, and explains once per session", function()
