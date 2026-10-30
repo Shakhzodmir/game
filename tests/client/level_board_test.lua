@@ -175,6 +175,73 @@ describe("screens/level/board.script engine limits", function()
 	end)
 end)
 
+-- The producer's report: a Disco ball swapped with a Subwoofer (every piece of the commonest colour turns into a
+-- Subwoofer and each fires a shock wave), as the move that wins the level: "after the burst such an effect
+-- stays". The same screen, played through the real script, headless: nothing of the show may be left on the
+-- board once the concert is over, whether the player watched it or tapped "tap to skip" on the way.
+describe("screens/level/board.script after the Disco ball + Subwoofers combo", function()
+	local function combo_level(id)
+		local lvl = core_helper.level({
+			"#######", "#######", "#######", "#######", "###SD##", "#######", "#######", "#######",
+		}, { moves = 10, colors = { "yellow", "green", "blue", "purple" },
+			goals = { { type = "collect", color = "yellow", count = 4 } } })
+		lvl.id = id
+		return lvl
+	end
+
+	-- what the effects draw on screen: the fx_ images (pieces, specials and blockers have their own)
+	local function effects_on_screen(E)
+		local list = {}
+		for _, s in ipairs(E.snapshot().sprites) do
+			if string.sub(s.image, 1, 3) == "fx_" then list[#list + 1] = string.format("%s a=%.2f", s.image, s.a) end
+		end
+		return list
+	end
+
+	-- skip_at: the frame (counted from the swap) from which the player taps the hint; nil = watches it all
+	local function play(id, skip_at)
+		with_board({ level = id, level_text = combo_level(id) }, function(E, script, self, d)
+			local link = require("client.level_link")
+			d.frame(3)
+			local game = self.session.game
+			game.s.moves_left = 1 -- the combo is the last move
+			assert_true(game:input({ type = "swap", from = { 4, 5 }, to = { 5, 5 } }))
+			local done_at, states = nil, {}
+			for f = 1, 60 * 30 do
+				d.frame(1)
+				local st = game:status().state
+				if states[#states] ~= st then states[#states + 1] = st end
+				if skip_at and f >= skip_at and (st == "won_wait" or st == "concert") and game.s.timing ~= 2 and f % 4 == 0 then
+					d.tap(1, 1) -- the first tap after the win is swallowed (SKIP_GUARD): the player taps again
+				end
+				if st == "complete" and not done_at then
+					done_at = f
+					link.pause(true) -- the result window opens at once and stops the session (screens/level/level.gui_script)
+				end
+				if done_at and f >= done_at + 60 * 4 then break end
+			end
+			assert_true(done_at ~= nil, "the level ended (" .. table.concat(states, ">") .. ")")
+			assert_true(self.session.paused)
+			local label = "skip " .. tostring(skip_at) .. ": "
+			assert_eq(self.vfx:stats().active, 0, label .. "effects still running: " .. self.vfx:stats().active)
+			assert_eq(self.vfx:stats().pending, 0, label .. "effects still waiting for their tick")
+			local left = effects_on_screen(E)
+			assert_eq(#left, 0, label .. "effect sprites left on the board: " .. table.concat(left, ", "))
+			assert_eq(self.errors or 0, 0)
+		end)
+	end
+
+	it("leaves nothing on the board after the concert", function()
+		play(901, nil)
+	end)
+
+	for _, skip_at in ipairs({ 45, 70, 100, 140 }) do
+		it("leaves nothing on the board when the player taps to skip " .. skip_at .. " frames into it", function()
+			play(902, skip_at)
+		end)
+	end
+end)
+
 describe("screens/level/board.script session", function()
 	it("stands still while the app is in the background and keeps a window pause", function()
 		with_board(first_level(), function(E, script, self, d)

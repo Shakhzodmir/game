@@ -325,6 +325,291 @@ describe("client.level_vfx", function()
 	end)
 end)
 
+-- The effects must never stay on the board: whatever goes wrong inside one of them (the engine refuses a
+-- call, a record is lost, the session stops ticking for good), it ends, its sprites go back to the pool
+-- hidden and the others carry on. The producer's report: after a Disco ball + Subwoofers combo shock rings
+-- stayed on the finished board.
+describe("client.level_vfx never leaves an effect behind", function()
+	-- effect sprites on screen (the pieces of the board are made by client/level_view.lua, not here)
+	local function on_screen(E)
+		local n = 0
+		for _, name in ipairs({ "piece_factory", "glow_factory" }) do
+			for _, o in ipairs(E.by_factory(name)) do
+				if E.visible(o) then n = n + 1 end
+			end
+		end
+		return n
+	end
+
+	-- advances `seconds` of frames: the clock of the board, and the tick clock too unless `tick` is false
+	local function run(vfx, state, seconds, tick, halted)
+		for _ = 1, math.floor(seconds * 60) do
+			state.t = state.t + 1 / 60
+			if tick then state.tick = state.tick + 1 end
+			vfx:update(1 / 60, state.tick, state.t, halted)
+		end
+	end
+
+	local function rings(n, at)
+		local list = {}
+		for i = 1, n do
+			list[i] = { kind = "ring", x = 60 * i, y = 500, size = 200, color = "#FF4FC8", image = "fx_shock", at = at or 0, dur = 0.32 }
+		end
+		return list
+	end
+
+	it("frees an effect whose step fails and keeps the others running", function()
+		with_vfx(function(E, vfx)
+			local logged = {}
+			vfx.log = function(text) logged[#logged + 1] = text end
+			vfx:play(rings(4))
+			local state = { t = 0, tick = 1 }
+			vfx:update(1 / 60, state.tick, state.t)
+			assert_eq(vfx:stats().active, 4)
+			-- the engine refuses to scale the sprite of the second ring, once
+			local victim = E.by_factory("piece_factory")[2]
+			local real, refused = go.set_scale, 0
+			go.set_scale = function(scale, id)
+				if id == victim.id and refused == 0 then
+					refused = 1
+					error("the engine refused the scale")
+				end
+				return real(scale, id)
+			end
+			run(vfx, state, 1 / 60, true)
+			go.set_scale = real
+			assert_eq(refused, 1)
+			assert_eq(vfx:stats().errors, 1)
+			assert_eq(#logged, 1)
+			assert_true(string.find(logged[1], "the engine refused the scale", 1, true) ~= nil, logged[1])
+			assert_eq(vfx:stats().active, 3) -- the failing one is gone, the others were stepped
+			assert_false(E.visible(victim), "the sprite of the failed ring is hidden")
+			-- they run out; nothing stays on the screen
+			run(vfx, state, 1, true)
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(on_screen(E), 0)
+			-- the pool still works: a second wave takes the same four sprites, no sprite is lost or shared
+			vfx:play(rings(4, state.tick))
+			run(vfx, state, 1 / 60, true)
+			assert_eq(vfx:stats().active, 4)
+			assert_eq(vfx:stats().sprites, 4)
+			assert_eq(on_screen(E), 4)
+			run(vfx, state, 1, true)
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(on_screen(E), 0)
+		end)
+	end)
+
+	it("leaves no sprite on the screen after an error, however the later effects overlap (the board's guard around update)", function()
+		-- the producer's rings: one failed step used to cut the compaction of the list of effects short, a finished record
+		-- stayed in it and went back to the pool twice, and a later effect took the record of one that was on the screen
+		with_vfx(function(E, vfx)
+			vfx.log = function() end
+			local state = { t = 0, tick = 1 }
+			local function guarded_frame()
+				state.t = state.t + 1 / 60
+				state.tick = state.tick + 1
+				pcall(vfx.update, vfx, 1 / 60, state.tick, state.t) -- screens/level/board.script: guard(self, "vfx update", ...)
+			end
+			local list = rings(4)
+			list[1].dur = 0.01 -- ends after one frame: a finished record in front of the failing one
+			vfx:play(list)
+			guarded_frame()
+			local victim = E.by_factory("piece_factory")[3]
+			local real, refused = go.set_scale, 0
+			go.set_scale = function(scale, id)
+				if id == victim.id and refused == 0 then
+					refused = 1
+					error("the engine refused the scale")
+				end
+				return real(scale, id)
+			end
+			guarded_frame()
+			go.set_scale = real
+			assert_eq(refused, 1)
+			for _ = 1, 120 do guarded_frame() end
+			assert_eq(vfx:stats().active, 0)
+			-- a second wave, a ring a frame, so that they overlap
+			for i = 1, 8 do
+				vfx:play({ { kind = "ring", x = 60 * i, y = 700, size = 200, color = "#FF4FC8", image = "fx_shock", at = state.tick, dur = 0.32 } })
+				guarded_frame()
+			end
+			for _ = 1, 180 do guarded_frame() end
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(on_screen(E), 0, "a sprite stays on the screen with no effect behind it")
+			local seen = {}
+			for _, r in ipairs(vfx.fx_pool) do
+				assert_true(not seen[r], "a record of an effect is in the pool twice")
+				seen[r] = true
+			end
+		end)
+	end)
+
+	it("loses only the command whose start fails (the engine refuses a new object)", function()
+		with_vfx(function(E, vfx)
+			vfx.log = function() end
+			local real, refused = factory.create, 0
+			factory.create = function(...)
+				if refused == 0 then
+					refused = 1
+					error("max_instances exceeded")
+				end
+				return real(...)
+			end
+			vfx:play(rings(3))
+			local state = { t = 0, tick = 1 }
+			vfx:update(1 / 60, state.tick, state.t)
+			factory.create = real
+			assert_eq(vfx:stats().errors, 1)
+			assert_eq(vfx:stats().active, 2) -- the first ring has no sprite, the other two play
+			run(vfx, state, 1, true)
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(on_screen(E), 0)
+		end)
+	end)
+
+	it("takes back a sprite that was lost and hides a spare one that was left on the screen", function()
+		with_vfx(function(E, vfx)
+			local level = require("client.level_view")
+			local state = { t = 0, tick = 1 }
+			-- an effect lost its sprite (taken from the pool, shown, never given back) ...
+			local lost = vfx:_sprite("glow")
+			level.apply(lost, "fx_flash", 300, 500, 0.4, 1, 1, 0, 0, nil, 0.8)
+			-- ... and a pooled one was left visible (a hide that never reached the engine)
+			local spare = vfx:_sprite("piece")
+			level.apply(spare, "fx_shock", 200, 500, 0.4, 1, 1, 0, 0, nil, 0.8)
+			vfx:_release(spare)
+			spare.hidden = false
+			local engine = E.by_factory("piece_factory")[1]
+			engine.pos.x, engine.pos.y = 200, 500
+			assert_eq(on_screen(E), 2)
+			run(vfx, state, 1, true) -- a second is plenty
+			assert_eq(on_screen(E), 0)
+			assert_eq(#vfx.pool.glow, 1) -- the lost one is back in its pool, once
+			assert_eq(#vfx.pool.piece, 1)
+			assert_true(vfx:stats().repaired >= 2)
+			-- and it is used again
+			vfx:play({ { kind = "flash", x = 10, y = 10, size = 100, color = "#FFFFFF", at = 0, dur = 0.3 } })
+			vfx:update(1 / 60, state.tick, state.t)
+			assert_eq(vfx:stats().sprites, 2)
+		end)
+	end)
+
+	it("never pools a sprite twice", function()
+		with_vfx(function(E, vfx)
+			local o = vfx:_sprite("glow")
+			vfx:_release(o)
+			vfx:_release(o)
+			assert_eq(#vfx.pool.glow, 1)
+			assert_true(vfx:_sprite("glow") == o)
+			assert_true(vfx:_sprite("glow") ~= o)
+		end)
+	end)
+
+	it("hides a sprite for real: a hide the engine refuses is tried again", function()
+		with_vfx(function(E, vfx)
+			local level = require("client.level_view")
+			local o = level.create("#glow_factory")
+			level.apply(o, "fx_flash", 300, 500, 0.4, 1, 1, 0, 0, nil, 0.8)
+			local inst = E.by_factory("glow_factory")[1]
+			assert_true(E.visible(inst))
+			local real, refused = go.set_position, 0
+			go.set_position = function(p, id)
+				if refused == 0 then
+					refused = 1
+					error("the engine refused the move")
+				end
+				return real(p, id)
+			end
+			assert_error(function() level.hide(o) end, "the engine refused")
+			go.set_position = real
+			assert_false(o.hidden, "a hide that did not happen must not be remembered")
+			assert_true(E.visible(inst))
+			level.hide(o)
+			assert_true(o.hidden)
+			assert_false(E.visible(inst))
+		end)
+	end)
+
+	it("lets the tick effects run out on their own once the game is over (the result window stops the ticks)", function()
+		with_vfx(function(E, vfx)
+			vfx:play({
+				{ kind = "beam", x = 100, y = 500, dx = 1, dy = 0, len = 400, speed = 40, at = 0, color = "#1FD1FF", width = 40,
+					core = true, mode = "comet" },
+				{ kind = "charge", x = 300, y = 500, size = 200, color = "#FF4FC8", at = 0, dur = 6 },
+				{ kind = "reticle", x = 500, y = 500, size = 100, color = "#FF4FC8", at = 0, dur = 33 },
+				{ kind = "flash", x = 300, y = 300, size = 100, color = "#FFFFFF", at = 12, dur = 0.3 }, -- due in 8 ticks: the ticks stop first
+			})
+			local state = { t = 0, tick = 1 }
+			vfx:update(1 / 60, state.tick, state.t)
+			run(vfx, state, 3 / 60, true)
+			assert_eq(vfx:stats().active, 3)
+			-- a window pauses the session: the tick stops, the effects wait (that is what a pause is)
+			run(vfx, state, 2, false, true)
+			assert_eq(vfx:stats().active, 3)
+			assert_eq(vfx:stats().pending, 1)
+			assert_true(on_screen(E) > 0)
+			-- the level is complete: nothing will tick again, so they run out on the real clock
+			vfx:finish()
+			run(vfx, state, 3, false, true)
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(vfx:stats().pending, 0)
+			assert_eq(on_screen(E), 0)
+		end)
+	end)
+
+	it("ends an effect whose tick clock never moves, unless the session is held on purpose", function()
+		with_vfx(function(E, vfx)
+			local state = { t = 0, tick = 1 }
+			vfx:play({ { kind = "reticle", x = 500, y = 500, size = 100, color = "#FF4FC8", at = 0, dur = 33 } })
+			vfx:update(1 / 60, state.tick, state.t)
+			-- a window is open (the game is paused on purpose): it waits as long as it takes
+			run(vfx, state, 40, false, true)
+			assert_eq(vfx:stats().active, 1)
+			assert_true(on_screen(E) > 0)
+			-- the tick clock is stuck without a reason: the effect still ends (a few seconds)
+			run(vfx, state, 20, false, false)
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(on_screen(E), 0)
+		end)
+	end)
+
+	it("plays nothing but words after a skip, and clears what was playing", function()
+		with_vfx(function(E, vfx, g, gui, slow)
+			local state = { t = 0, tick = 1 }
+			vfx:play(rings(3))
+			vfx:update(1 / 60, state.tick, state.t)
+			assert_eq(vfx:stats().active, 3)
+			vfx:skip()
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(on_screen(E), 0)
+			local made = E.counts.factory_create
+			vfx:play({
+				{ kind = "ring", x = 100, y = 500, size = 200, color = "#FF4FC8", image = "fx_shock", at = 0, dur = 0.32 },
+				{ kind = "flash", x = 100, y = 500, size = 100, color = "#FFFFFF", at = 0, dur = 0.3 },
+				{ kind = "burst", fx = "pop", x = 5, y = 5, color = "#FF0000", count = 10, at = 0 },
+				{ kind = "beam", x = 100, y = 500, dx = 1, dy = 0, len = 400, speed = 40, at = 0, color = "#1FD1FF", width = 40, mode = "comet" },
+				{ kind = "shake", amp = 10, dur = 0.5, at = 0 },
+				{ kind = "slowmo", dur = 0.4, scale = 0.5, at = 0 },
+				{ kind = "screen_flash", color = "#FFFFFF", alpha = 0.9, dur = 0.5, at = 0 },
+				{ kind = "praise", word = "hit", index = 2, wave = 5, at = 0 },
+				{ kind = "banner", key = "hud.shuffle", at = 0 },
+			})
+			local sx = vfx:update(1 / 60, state.tick + 1, state.t + 1 / 60)
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(vfx:stats().pending, 0)
+			assert_eq(E.counts.factory_create, made, "no new object for a skipped show")
+			assert_eq(sx, 0)
+			assert_eq(#slow, 0)
+			local kinds = {}
+			for _, c in ipairs(gui) do kinds[c.kind] = true end
+			assert_true(kinds.praise and kinds.banner, "the words still come")
+			assert_true(kinds.screen_flash == nil, "no flash of the whole screen")
+			assert_true(vfx:stats().muted >= 6)
+		end)
+	end)
+end)
+
 describe("client.level_view and level_anim in the hot loop", function()
 	it("sprites follow the draw list and a frame at rest calls the engine not at all", function()
 		local E = stub.install({})
