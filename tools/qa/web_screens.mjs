@@ -16,8 +16,9 @@
 // task stems + party, the music resyncs after a stall, a failed save is
 // retried and reported, saves and language survive a reload, window resizes
 // re-layout without errors, the board plays on the real engine (autoplay,
-// hold, the win with its final concert and results window, "Next level" ->
-// start window -> Play, a lost level with the moves and defeat windows), and no
+// hold, the win with its final concert and results window with no effect left on the board, "Next level" ->
+// start window -> Play, a lost level with the moves and defeat windows, record boxes on their plates and a
+// refused swipe on one: the core says not_movable, no move is spent, the toast explains), and no
 // engine or game warning about something lost ("could not be found", "WARNING:
 // tutorials|level") appears in the console.
 // Every command the script sends exists in the bridge and every field it reads
@@ -56,11 +57,12 @@ async function waitFor(page, pred, what, timeout = 20000) {
 	throw new Error('timeout waiting for ' + what + '; last state: ' + JSON.stringify(s && s.app));
 }
 
-async function command(page, cmd) {
+async function command(page, cmd, opts = {}) {
 	const before = (await state(page))?.seq ?? 0;
 	await page.evaluate(c => { window.__glowCmd = c; }, cmd);
 	const s = await waitFor(page, st => st.seq > before, 'command ' + cmd);
-	if (!s.result || !s.result.ok) throw new Error('command failed: ' + cmd + ' -> ' + JSON.stringify(s.result));
+	// opts.refused: the command is meant to be refused by the core ({ok: false, result: <reason>}), anything else is an error
+	if (!s.result || (!s.result.ok && !opts.refused)) throw new Error('command failed: ' + cmd + ' -> ' + JSON.stringify(s.result));
 	return s;
 }
 
@@ -107,8 +109,19 @@ async function tapTarget(page, name, where) {
 async function startLevelFromTown(page) {
 	await tapTarget(page, 'level');
 	await waitFor(page, s => s.app.ui && s.app.ui.popup === 'start', 'the start window', 8000);
-	await sleep(700); // the window pops in
-	await tapTarget(page, 'play', 'popup');
+	// The window pops in (0.32 s of game time, a slow frame stretches it) and a tap that lands on a button that is
+	// still moving is not a click: tap again while the start window is still open and nothing reacted.
+	for (let attempt = 0; attempt < 3; attempt++) {
+		await sleep(attempt === 0 ? 900 : 500);
+		const open = await state(page);
+		if (!open.app.ui || open.app.ui.popup !== 'start') break;
+		await tapTarget(page, 'play', 'popup');
+		try {
+			await waitFor(page, st => st.app.screen === 'level' || st.app.transitioning || !(st.app.ui && st.app.ui.popup === 'start'),
+				'Play to react', 4000);
+			break;
+		} catch (e) { /* the tap missed: again */ }
+	}
 	return onScreen(page, 'level', 20000);
 }
 
@@ -365,6 +378,18 @@ async function debugChecks() {
 	await waitFor(page, s => lvl(s) && lvl(s).state === 'playing' && lvl(s).moves > 0, 'level 14 on display', 20000);
 	await sleep(1300); // the pieces bloom in
 	const moves0 = lvl(await state(page)).moves;
+	// things that cannot be moved (client/level_plates.lua): level 14 has record boxes, each on its plate; a swipe on one is
+	// refused by the core (not_movable), costs no move, and the box shakes its head; the first time in a session a toast says why
+	const stats14 = (await command(page, 'level_stats')).result.board;
+	check(stats14.plates >= 12, 'board: every record box sits on a plate', { plates: stats14.plates });
+	const nope = await command(page, 'swap 4 2 4 3', { refused: true });
+	check(nope.result.ok === false && nope.result.result === 'not_movable', 'board: the core refuses a swipe on a record box', nope.result);
+	await sleep(120);
+	await page.screenshot({ path: `${outDir}/client_board_refused.png` });
+	const hint14 = await waitFor(page, s => s.app.overlay.toast && /moved|двигается/i.test(s.app.overlay.toast), 'the toast of the first refusal', 4000);
+	check(true, 'board: the first refusal explains itself in a toast', hint14.app.overlay.toast);
+	check(lvl(await state(page)).moves === moves0, 'board: a refused swipe costs no move', { before: moves0, after: lvl(await state(page)).moves });
+	await waitFor(page, s => !s.app.overlay.toast, 'the refusal toast gone', 8000);
 	await command(page, 'autoplay 3');
 	const played = await waitFor(page, s => lvl(s) && lvl(s).moves <= moves0 - 3, 'three moves by autoplay', 40000);
 	check(lvl(played).moves <= moves0 - 3, 'board: autoplay plays moves by itself', { before: moves0, after: lvl(played).moves });
@@ -385,12 +410,17 @@ async function debugChecks() {
 	await waitFor(page, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert', 30000);
 	await sleep(1500);
 	await page.screenshot({ path: `${outDir}/client_board_concert.png` });
-	check(lvl(await state(page)).state === 'concert', 'board: the final concert plays', lvl(await state(page)).state);
-	await command(page, 'skip');
+	// a slow or a fast run can have the concert over by now (the state is then "complete" and "skip" has nothing to skip)
+	const concertState = lvl(await state(page)).state;
+	check(['concert', 'complete'].includes(concertState), 'board: the final concert plays', concertState);
+	if (concertState === 'concert') await command(page, 'skip');
 	await waitFor(page, s => s.app.ui.popup === 'result', 'the results window', 60000);
 	await sleep(1200);
 	await page.screenshot({ path: `${outDir}/client_board_result.png` });
 	check(true, 'board: win, final concert, skip and the results window run on the engine');
+	// nothing of the show stays on the finished board: every effect ran out or was dropped, none failed
+	const vfx = (await command(page, 'state')).result.board.vfx;
+	check(vfx.active === 0 && vfx.pending === 0 && vfx.errors === 0, 'board: no effect stays on the board after the concert', vfx);
 	// the other end: a super hard level that the hint moves do not finish in time ends in the moves window and the defeat
 	await command(page, 'goto level 60');
 	await onScreen(page, 'level');

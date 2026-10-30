@@ -94,6 +94,38 @@ describe("client.level_input", function()
 		assert_eq(inp.selected, nil)
 	end)
 
+	it("sends a tap on a blocker or a wired piece to the core, which refuses it (the board shakes it)", function()
+		local q = board({ ["1,1"] = piece(1, "regular", { wired = true }), ["2,2"] = piece(2, "blocker"),
+			["3,3"] = piece(3, "regular", { state = "fall" }), ["4,4"] = piece(4, "regular", { pinned = true }),
+			["5,5"] = piece(5, "regular"), ["6,6"] = piece(6, "blocker", { state = "clear" }),
+			["7,7"] = piece(7, "blocker") })
+		for _, mode in ipairs({ "swipe", "taptap" }) do
+			local inp = level_input.new({ mode = mode, query = q })
+			-- nothing selected: the tap goes out as a plain tap command, whatever the object is
+			assert_same(tap(inp, 2, 2), { type = "tap", at = { 2, 2 } }, mode)
+			assert_same(tap(inp, 1, 1), { type = "tap", at = { 1, 1 } }, mode)
+			assert_eq(inp.selected, nil)
+			-- a selection goes when a fixed thing is tapped far away; next to the selection it is a swap, as always
+			tap(inp, 5, 5)
+			assert_true(inp.selected ~= nil)
+			assert_same(tap(inp, 7, 7), { type = "tap", at = { 7, 7 } }, mode)
+			assert_eq(inp.selected, nil)
+			tap(inp, 5, 5)
+			assert_same(tap(inp, 5, 6), { type = "swap", from = { 5, 5 }, to = { 5, 6 } }, mode) -- a gap: the core decides
+			-- what only waits (falling, pinned, already breaking) is not fixed: no command, no shake
+			for _, c in ipairs({ { 3, 3 }, { 4, 4 }, { 6, 6 } }) do
+				assert_eq(tap(inp, c[1], c[2]), nil, mode)
+			end
+		end
+	end)
+
+	it("swipes from a blocker as any other swipe: the core refuses the swap", function()
+		local inp = level_input.new({ query = board({ ["3,3"] = piece(1, "blocker") }) })
+		inp:press(3.0, 3.0)
+		assert_same(inp:move(3.4, 3.0), { type = "swap", from = { 3, 3 }, to = { 4, 3 } })
+		assert_eq(inp:release(3.4, 3.0), nil)
+	end)
+
 	it("drops a stale selection (rule 1)", function()
 		local inp = level_input.new({ query = board({ ["2,2"] = piece(7, "regular") }) })
 		tap(inp, 2, 2)

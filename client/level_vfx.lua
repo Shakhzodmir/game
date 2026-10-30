@@ -12,9 +12,14 @@
 --                            bursts = {pop = "#pop_factory", ...}, geom = g, reduced = false,
 --                            on_gui = fn(cmd), on_slowmo = fn(dur, scale)})
 --   X:play(commands)                       -- level_effects:drain()
---   local sx, sy = X:update(dt, tick_f, t) -- every frame; returns the shake offset
---   X:stats()                              -- {sprites, bursts, particles, pending, ...}
---   X:clear()                              -- skip: everything gone at once
+--   local sx, sy = X:update(dt, tick_f, t, halted) -- every frame; returns the shake offset (halted: the session is
+--                                          -- paused or held on purpose, the effects wait for it)
+--   X:stats()                              -- {sprites, bursts, particles, pending, errors, repaired, muted, ...}
+--   X:clear()                              -- everything gone at once
+--   X:skip()                               -- the player skipped the concert: clear() and from now on only the words
+--                                          -- (praise, banners) are played, no light, bolts, rings or bursts
+--   X:finish()                             -- the level is over, the session will not tick again: the tick effects
+--                                          -- still on the board run out on the real clock
 --   X:set_lite(true)                       -- a slow device: half the particles, no trail dots
 --
 -- Pools and limits (game.project): sprite objects are created on demand up
@@ -30,8 +35,24 @@
 -- blended in a saturated colour: additive light would vanish on it.
 --
 -- Clocks: "tick" effects follow the display tick of the session (the core's
--- timings: bolts, rings, flights; they slow down with the Grand finale's
--- slow motion), "time" effects run on real seconds (flashes, ghosts, dots).
+-- timings: bolts, flights; they slow down with the Grand finale's slow motion and
+-- wait while a window pauses the session), "time" effects run on real seconds
+-- (flashes, rings, ghosts, dots).
+--
+-- Nothing may stay on the board (the producer's report: shock rings that stayed after a Disco ball +
+-- Subwoofers combo). So an effect cannot outlive its time or its mistakes:
+--   * every step and every start runs in its own pcall: an effect that fails is freed (its sprites hide and
+--     go back to the pool), the error is logged and the others carry on; one bad record must never freeze
+--     the rest of the frame (the compaction of the list of effects used to be cut short by the error, which
+--     left finished records in it and pooled them twice, and so lost their sprites on screen);
+--   * an effect that has been alive for LIFE_FACTOR times its duration (+ LIFE_MARGIN s) of real time is cut off
+--     (the time spent in a deliberate pause does not count);
+--   * the tick effects of a finished level run on the real clock instead of freezing when the result window
+--     stops the session (finish()), and the pending commands of that clock start;
+--   * every SWEEP_EVERY frames the sprites are counted: one that no running effect holds and that is not in the
+--     pool is taken back, a pooled one that is still on the screen is hidden (repaired in stats()).
+-- A skipped concert plays no light at all (skip()): the turbo core compresses what is left of a long combo into
+-- a few ticks, and replaying all of it at once was a storm of up to 140 effects in one frame (a 9x9 board).
 
 local view = require("client.level_view")
 
@@ -40,6 +61,13 @@ local M = {}
 M.MAX_PARTICLES = 300    -- live particles at most (weak devices)
 M.MAX_PARTICLES_LITE = 150
 M.MAX_SPRITES = 160      -- effect sprites at most
+M.TICKS_PER_SECOND = 60  -- the clock of the core
+M.LIFE_FACTOR = 6        -- an effect is cut off after this many times its duration ...
+M.LIFE_MARGIN = 2.0      -- ... plus this many seconds of real time (not counting a pause)
+M.SWEEP_EVERY = 30       -- frames between two counts of the sprites
+M.LOG_MAX = 5            -- errors written to the log (the rest only counted)
+-- what is still played after a skip: words and state, not light
+M.QUIET_KEEP = { praise = true, banner = true, floor = true }
 -- particles of one burst (assets/fx_defold/gen_particles.py)
 M.PARTICLES = { pop = 10, sparkle = 8, debris = 12, dust = 8, confetti = 12, spark = 5 }
 -- seconds a burst object stays busy: the longest particle life of its effect + a margin
@@ -84,11 +112,13 @@ function M.new(opts)
 		lite = false,
 		on_gui = opts.on_gui or function() end,
 		on_slowmo = opts.on_slowmo or function() end,
+		log = opts.log or print,
 		heap = {},       -- commands waiting for their tick: binary heap by (at, seq)
 		seq = 0,
 		active = {},     -- running effects (records with a static step function)
 		fx_pool = {},    -- spare effect records
 		pool = { piece = {}, glow = {} },
+		all = {},        -- every sprite object made here (for the count of the sprites)
 		sprites = 0,
 		bursts = bursts, -- kind -> {{go, url, busy_until, n, pos, tint}}
 		bursts_n = 0,
@@ -96,8 +126,16 @@ function M.new(opts)
 		shakes = {},
 		sx = 0, sy = 0,
 		t = 0,
+		frame = 0,
+		run_tick = 0,    -- the tick clock of the effects after finish(): runs by itself
+		finished = false,
+		quiet = false,   -- after skip(): words only
 		skipped = 0,
 		played = 0,
+		muted = 0,       -- commands dropped because of a skip
+		errors = 0,      -- effects / starts that failed (each was freed, the rest went on)
+		repaired = 0,    -- sprites taken back or hidden by the count of the sprites
+		last_error = nil,
 		toggle = false,
 	}, Vfx)
 end
@@ -114,6 +152,16 @@ function Vfx:set_lite(on)
 	self.lite = on and true or false
 end
 
+-- errors --------------------------------------------------------------------------
+
+-- An effect, a start or a hide failed: it is counted, the first few are written to the log, and the
+-- caller carries on (an error here must never stop the other effects of the frame).
+function Vfx:_fail(what, err)
+	self.errors = self.errors + 1
+	self.last_error = what .. ": " .. tostring(err)
+	if self.errors <= M.LOG_MAX then self.log("ERROR: level vfx (" .. what .. "): " .. tostring(err)) end
+end
+
 -- sprites ----------------------------------------------------------------------
 
 function Vfx:_sprite(kind)
@@ -122,20 +170,31 @@ function Vfx:_sprite(kind)
 	if n > 0 then
 		local o = list[n]
 		list[n] = nil
+		o.pooled = false
 		return o
 	end
 	if self.sprites >= M.MAX_SPRITES then return nil end
 	self.sprites = self.sprites + 1
 	local o = view.create(self.factory[kind])
 	o.kind = kind
+	o.pooled = false
+	local all = self.all
+	all[#all + 1] = o
 	return o
 end
 
+-- Back to the pool, hidden. A sprite is pooled once: a second release of the same one would hand it to two
+-- effects, and whichever ended first would hide the other's.
 function Vfx:_release(o)
-	view.hide(o)
+	if o.pooled then return end
+	o.pooled = true
+	-- a hide the engine refused leaves o.hidden false: the count of the sprites tries again
+	local ok, err = pcall(view.hide, o)
+	if not ok then self:_fail("hide", err) end
 	if o.flipped then
 		o.flipped = false
-		sprite.set_hflip(o.url, false)
+		ok, err = pcall(sprite.set_hflip, o.url, false)
+		if not ok then self:_fail("flip", err) end
 	end
 	local list = self.pool[o.kind]
 	list[#list + 1] = o
@@ -161,6 +220,9 @@ function Vfx:_new_fx(step, c, clock, t0, dur, after)
 	fx.step, fx.c, fx.clock, fx.t0, fx.dur, fx.after = step, c, clock, t0, dur, after
 	fx.after_t0, fx.ended, fx.n = nil, false, 0
 	fx.cr, fx.cg, fx.cb, fx.n_trail = 1, 1, 1, 0
+	-- the longest it may live (real seconds, a deliberate pause not counted): see _run
+	fx.life = 0
+	fx.cap = (clock == "tick" and dur / M.TICKS_PER_SECOND or dur) * M.LIFE_FACTOR + M.LIFE_MARGIN + (after or 0)
 	return fx
 end
 
@@ -174,9 +236,11 @@ function Vfx:_attach(fx, ...)
 end
 
 function Vfx:_free_fx(fx)
+	if not fx.step then return end -- already free: a record is pooled once, or two effects would share it
 	for i = 1, fx.n do
-		self:_release(fx[i])
+		local o = fx[i]
 		fx[i] = nil
+		if o then self:_release(o) end
 	end
 	fx.n, fx.c, fx.step = 0, nil, nil
 	local pool = self.fx_pool
@@ -237,8 +301,12 @@ end
 local START = {}
 
 function Vfx:_start(c)
-	self.played = self.played + 1
 	local kind = c.kind
+	if self.quiet and not M.QUIET_KEEP[kind] then
+		self.muted = self.muted + 1 -- the player skipped the show: no light, bolts, rings, bursts, shakes
+		return
+	end
+	self.played = self.played + 1
 	local fn = START[kind]
 	if fn then fn(self, c) end
 	if M.GUI_KINDS[kind] then self.on_gui(c) end
@@ -624,10 +692,79 @@ function Vfx:_shake_offset()
 	return x, y
 end
 
--- Advances every effect. Returns the board shake offset (logical px).
-function Vfx:update(dt, tick_f, t)
+-- One effect, one frame: true when it is over. Runs inside a pcall of its own (see update).
+function Vfx:_run(fx, tick_f, t, dt, halted)
+	-- nothing stays for good: the real time an effect has been alive (a pause on purpose does not count, a
+	-- finished level's does) is limited, whatever clock the effect follows and whatever happened to it
+	if not halted or self.finished then
+		fx.life = fx.life + dt
+		if fx.life > fx.cap then return true end
+	end
+	local age
+	if fx.clock == "tick" then age = tick_f - fx.t0 else age = t - fx.t0 end
+	local k = age / fx.dur
+	if k < 0 then
+		for j = 1, fx.n do view.hide(fx[j]) end
+	elseif k <= 1 then
+		fx.step(self, fx, k, age)
+	elseif fx.after then
+		fx.after_t0 = fx.after_t0 or t
+		local ak = (t - fx.after_t0) / fx.after
+		if ak >= 1 then return true end
+		fx.step(self, fx, 1, age, ak)
+	else
+		if not fx.ended then
+			fx.ended = true
+			fx.step(self, fx, 1, age)
+		end
+		return true
+	end
+	return false
+end
+
+-- Takes back what the effects lost (see the header): a sprite that no running effect holds and the pool
+-- does not either, and a pooled one that is still on the screen.
+function Vfx:_sweep()
+	local mark = self.frame
+	local act = self.active
+	for i = 1, #act do
+		local fx = act[i]
+		for j = 1, fx.n do
+			local o = fx[j]
+			if o then o.mark = mark end
+		end
+	end
+	local all = self.all
+	for i = 1, #all do
+		local o = all[i]
+		if o.pooled then
+			if not o.hidden then
+				self.repaired = self.repaired + 1
+				local ok, err = pcall(view.hide, o)
+				if not ok then self:_fail("hide", err) end
+			end
+		elseif o.mark ~= mark then
+			self.repaired = self.repaired + 1
+			self:_release(o)
+		end
+	end
+end
+
+-- Advances every effect. Returns the board shake offset (logical px). tick_f is the display tick of the
+-- session, t the time of the board (both only grow), halted = the session is paused or held on purpose.
+function Vfx:update(dt, tick_f, t, halted)
 	self.t = t
+	self.frame = self.frame + 1
 	self.sx, self.sy = self:_shake_offset()
+	-- the tick clock of the effects: the session's, or, once the level is over and the session stands still for good
+	-- (the result window stops it), a clock of their own so that the effects still on the board run out
+	if self.finished then
+		local run = self.run_tick + dt * M.TICKS_PER_SECOND
+		if run < tick_f then run = tick_f end
+		self.run_tick, tick_f = run, run
+	else
+		self.run_tick = tick_f
+	end
 	-- live particles now
 	local live = 0
 	for _, kind in ipairs(M.KINDS) do
@@ -638,33 +775,21 @@ function Vfx:update(dt, tick_f, t)
 		end
 	end
 	self.live = live
-	-- start what is due
+	-- start what is due (a start that fails loses that command, not the frame)
 	local h = self.heap
 	while h[1] and h[1].at <= tick_f + 1e-6 do
-		self:_start(self:_pop())
+		local ok, err = pcall(self._start, self, self:_pop())
+		if not ok then self:_fail("start", err) end
 	end
-	-- run effects
+	-- run effects, each in a pcall of its own: one that fails is freed and the others go on (an error that
+	-- escaped this loop used to cut the compaction below short and leave finished records in the list)
 	local act = self.active
 	local n, w = #act, 0
 	for i = 1, n do
 		local fx = act[i]
-		local age, k
-		if fx.clock == "tick" then age = tick_f - fx.t0 else age = t - fx.t0 end
-		k = age / fx.dur
-		local done = false
-		if k < 0 then
-			for j = 1, fx.n do view.hide(fx[j]) end
-		elseif k <= 1 then
-			fx.step(self, fx, k, age)
-		elseif fx.after then
-			fx.after_t0 = fx.after_t0 or t
-			local ak = (t - fx.after_t0) / fx.after
-			if ak >= 1 then done = true else fx.step(self, fx, 1, age, ak) end
-		else
-			if not fx.ended then
-				fx.ended = true
-				fx.step(self, fx, 1, age)
-			end
+		local ok, done = pcall(self._run, self, fx, tick_f, t, dt, halted)
+		if not ok then
+			self:_fail("step", done)
 			done = true
 		end
 		if done then
@@ -681,10 +806,24 @@ function Vfx:update(dt, tick_f, t)
 		act[w] = act[i]
 	end
 	for i = m, w + 1, -1 do act[i] = nil end
+	if self.frame % M.SWEEP_EVERY == 0 then self:_sweep() end
 	return self.sx, self.sy
 end
 
--- Skip / leaving: every running effect and pending command is dropped.
+-- The level is over and the session will not tick again: what is still on the board runs out on the real clock
+-- (and the commands waiting for a tick that never comes start).
+function Vfx:finish()
+	self.finished = true
+end
+
+-- The player skipped the final concert: what plays now is dropped and, since the core is in turbo and squeezes
+-- what is left into a few ticks, the show is not replayed at once: only words (praise, banners) are still played.
+function Vfx:skip()
+	self:clear()
+	self.quiet = true
+end
+
+-- Leaving / a QA command: every running effect and pending command is dropped.
 function Vfx:clear()
 	local act = self.active
 	for i = #act, 1, -1 do
@@ -708,7 +847,8 @@ end
 
 function Vfx:stats()
 	return { sprites = self.sprites, active = #self.active, pending = #self.heap, bursts = self.bursts_n,
-		particles = self.live, skipped = self.skipped, played = self.played, lite = self.lite }
+		particles = self.live, skipped = self.skipped, played = self.played, lite = self.lite,
+		errors = self.errors, repaired = self.repaired, muted = self.muted }
 end
 
 -- Quality controller (pure): feed it the frame time, it says when the device is

@@ -9,6 +9,7 @@
     "board/board_frame.png": "nine-slice 44px on a 128px texture: soft blue shadow + lavender ring (6..10px), 4px white frame (10..14px, corner radius 30), white 60% backing inside (from 14px). Size = cell grid + 20px per side (14px frame + 6px backing padding)",
     "board/edge_*.png": "boards with gaps: one cell-sized tile per grid vertex (the corner shared by 4 cells), centred on the vertex, drawn under the cells. Pick by which of the 4 cells around the vertex exist: 1 cell = outer (base: bottom-right cell), 2 side by side = side (base: the 2 lower cells), 2 diagonal = diag (base: top-left + bottom-right), 3 = inner (base: all but top-left), 4 = full, 0 = nothing. Rotate the base in 90 degree steps to match; tiles join seamlessly",
     "board/cell_*.png": "96x96 flat tiles (white / #EFE8FF, 95% alpha), scale to the cell size",
+    "board/plate.png": "160x160 sunken bolted plate (violet slate, outline, 4 corner rivets, 5 px margin): drawn under everything that cannot be swapped (blockers, wired pieces) at cell size, 2x for the 2x2 column",
     "blockers/mic_stand.png": "exit marker drawn under the bottom cell of an exit column",
     "blockers/column_*.png": "2x2 cells",
     "blockers/wires_*.png": "overlay drawn above the piece; the centre stays transparent",
@@ -273,6 +274,12 @@
       "h": 96,
       "alpha": true,
       "bytes": 278
+    },
+    "board/plate.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 6963
     },
     "districts/cafe/bg.png": {
       "w": 720,

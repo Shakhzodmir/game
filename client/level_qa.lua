@@ -2,7 +2,8 @@
 -- while a board is on display (screens/level/board.script):
 --
 --   hint_move                   plays the hint move (swap or tap)
---   swap x1 y1 x2 y2            a swap command (core cells, 1-based)
+--   swap x1 y1 x2 y2            a swap command (core cells, 1-based); on a blocker or a wired piece the core answers
+--                               {ok = false, result = "not_movable"} and the thing shakes its head, as for a touch
 --   tap x y                     a tap on a special
 --   skip                        skips the final concert (turbo)
 --   booster <id> [x y | row | col], continue [n] [riff], give_up
@@ -11,7 +12,7 @@
 --                               handed to the HUD (poll "state": level.state won_wait / concert / complete)
 --   hold [0|1]                  the app loses (1) / regains (0) the focus: the game stands still while held
 --   state                       the app state + {level = board snapshot}
---   level_stats                 sprites, particles, effects, frame counters of the board
+--   level_stats                 sprites, particles, effects, plates (under blockers and wired pieces), frame counters of the board
 --
 -- Commands go through the same session as touches, so the meta hooks
 -- (first move, boosters), sounds and effects all run.
