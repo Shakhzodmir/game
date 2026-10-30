@@ -614,6 +614,18 @@ async function debugChecks() {
 		await sleep(1800);
 		await tapTarget(p, 'town', 'popup'); // leaves without opening the chest
 		await onScreen(p, 'town', 20000);
+		// the win of level 20 also opens the Crossfader (level 21): the town hands over its gift first, then the chest
+		for (let i = 0; i < 4; i++) {
+			const shown = await waitFor(p, s => s.app.ui && (s.app.ui.popup === 'chest' || s.app.ui.popup === 'gift'),
+				'the town offers the waiting chest', 15000);
+			if (shown.app.ui.popup === 'chest') break;
+			await sleep(900);
+			await tapTarget(p, 'gift', 'popup');
+			await waitFor(p, s => s.app.ui.popup_targets && s.app.ui.popup_targets.collect, 'the open gift', 8000);
+			await sleep(1200);
+			await tapTarget(p, 'collect', 'popup');
+			await waitFor(p, s => !s.app.ui.popup || s.app.ui.popup === 'chest', 'the gift to be taken', 10000);
+		}
 		await waitFor(p, s => s.app.ui.popup === 'chest', 'the town offers the waiting chest', 15000);
 		await sleep(900);
 		const before20 = await state(p);
