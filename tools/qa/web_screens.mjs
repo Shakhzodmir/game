@@ -477,6 +477,71 @@ async function debugChecks() {
 	check(reloaded.app.language === 'ru', 'save: language survives a reload', reloaded.app.language);
 	await page.context().close();
 
+	// 1b. the level chest (a fresh save): it waits for the player, the unlimited lives start at "Collect" -------
+	{
+		const p = await openPage(browser, { width: 540, height: 960 });
+		await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (chest)', 30000);
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await command(p, 'advance 10');
+		await command(p, 'goto town');
+		await sleep(1200);
+		await startLevelFromTown(p);
+		await sleep(1300);
+		await command(p, 'win');
+		await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert of level 10', 150000);
+		await command(p, 'skip');
+		const r10 = await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 10', 60000);
+		await sleep(2200);
+		await p.screenshot({ path: `${outDir}/client_chest_result.png` });
+		check(!!(r10.app.ui.popup_targets && r10.app.ui.popup_targets.chest) && r10.app.infinite_seconds === 0,
+			'chest: the results of level 10 offer the chest with "Open"; the win started no unlimited lives', { infinite: r10.app.infinite_seconds });
+		await tapTarget(p, 'chest', 'popup');
+		await waitFor(p, s => s.app.ui.popup === 'chest', 'the chest window', 8000);
+		await sleep(1000);
+		await tapTarget(p, 'chest', 'popup');
+		await waitFor(p, s => s.app.ui.popup_targets && s.app.ui.popup_targets.collect, 'the open chest', 8000);
+		await sleep(1800);
+		const open10 = await state(p);
+		check(open10.app.infinite_seconds === 0, 'chest: nothing is paid while the chest is open', { infinite: open10.app.infinite_seconds });
+		await tapTarget(p, 'collect', 'popup');
+		await waitFor(p, s => s.app.ui.popup === 'result', 'back to the results', 8000);
+		await sleep(1800);
+		await p.screenshot({ path: `${outDir}/client_chest_taken.png` });
+		const took = await state(p);
+		check(took.app.infinite_seconds > 880 && took.app.infinite_seconds <= 900,
+			'chest: "Collect" pays it and the 15 minutes of unlimited lives start then', { infinite: took.app.infinite_seconds });
+		// a chest left unopened in the results is offered by the town, and its time starts at "Collect" there
+		await tapTarget(p, 'town', 'popup');
+		await onScreen(p, 'town', 20000);
+		await command(p, 'advance 20');
+		await command(p, 'goto town');
+		await sleep(1200);
+		await startLevelFromTown(p);
+		await sleep(1300);
+		await command(p, 'win');
+		await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert of level 20', 150000);
+		await command(p, 'skip');
+		await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 20', 60000);
+		await sleep(1800);
+		await tapTarget(p, 'town', 'popup'); // leaves without opening the chest
+		await onScreen(p, 'town', 20000);
+		await waitFor(p, s => s.app.ui.popup === 'chest', 'the town offers the waiting chest', 15000);
+		await sleep(900);
+		const before20 = await state(p);
+		await tapTarget(p, 'chest', 'popup');
+		await waitFor(p, s => s.app.ui.popup_targets && s.app.ui.popup_targets.collect, 'the open chest (level 20)', 8000);
+		await sleep(1800);
+		await tapTarget(p, 'collect', 'popup');
+		await waitFor(p, s => !s.app.ui.busy && !s.app.ui.popup, 'the flights of the chest', 20000);
+		const after20 = await state(p);
+		check(after20.app.infinite_seconds - before20.app.infinite_seconds > 1700,
+			'chest: an unopened chest is offered in the town, its 30 minutes start at "Collect"',
+			{ before: before20.app.infinite_seconds, after: after20.app.infinite_seconds });
+		if (after20.errors && after20.errors.length) errors.push(...after20.errors.map(e => 'bridge: ' + e));
+		await p.context().close();
+	}
+
 	// 2. landscape and tablet windows: the scene continues past the design area ------------
 	for (const [vp, name] of [[{ width: 1280, height: 720 }, 'client_town_wide'], [{ width: 768, height: 1024 }, 'client_town_tablet']]) {
 		const p = await openPage(browser, vp);
