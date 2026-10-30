@@ -91,4 +91,11 @@ for k, v in pairs(kinds) do ks[#ks + 1] = k .. "=" .. v end -- order-independent
 table.sort(ks)
 print(string.format("seeds %d..%d: %d leaking of %d, longest tail %.2f s, janitor looked %d times, %s (%.1f s)", first, first + count - 1,
 	bad, count, max_tail, passes, #ks > 0 and table.concat(ks, " ") or "clean", os.clock() - started))
+-- with the vectors of the engine the board has to become calm for the janitor to look at all (a write to the engine in
+-- every frame, like the 162 a frame of a board at rest that the float32 mode found, never lets it): if it never did,
+-- the net was not tried, and that is a failure too
+if opts.float32 == 1 and count >= 20 and passes == 0 then
+	print("FAIL: float32=1 and the janitor never looked: the board was never calm")
+	os.exit(1)
+end
 if bad > 0 then os.exit(1) end
