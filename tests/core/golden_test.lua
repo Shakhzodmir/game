@@ -65,3 +65,34 @@ describe("core golden scenario", function()
 		end)
 	end
 end)
+
+-- The stored replays of 17.1 (tests/golden/, made by tests/golden/regen.lua):
+-- each one is played back from its header and commands; the final hash, the
+-- summary and the digest of the whole event stream must come out the same on
+-- both VMs.
+describe("core golden replays (17.1)", function()
+	local digest = require("tests.golden.digest")
+	local index = require("tests.golden.index")
+
+	it("holds the whole set: wins, losses, turbo, input_lock, shuffles with noise, nine of the ten combos, a skipped concert", function()
+		assert_true(#index >= 8)
+	end)
+
+	for _, name in ipairs(index) do
+		it("plays " .. name .. " back to the stored hash, summary and events", function()
+			local gold = require("tests.golden." .. name)
+			local lvl, errs = core.load_level(gold.level)
+			assert_true(lvl ~= nil, errs and table.concat(errs, "; "))
+			assert_eq(gold.replay.level.hash, lvl.hash)
+			local g, ok, why = core.playback(lvl, gold.replay)
+			assert_true(ok, tostring(why) .. " (after a deliberate rule change: lua5.1 tests/golden/regen.lua)")
+			g:run_to_rest()
+			local st = g:status()
+			local events = g:drain_events()
+			local n, d = digest.events(events)
+			assert_same({ state = st.state, tick = st.tick, score = st.score, moves_left = st.moves_left,
+				commands = #g:replay().commands, events = n, event_digest = d }, gold.summary,
+				"the game differs from the stored one; if the rules changed on purpose run lua5.1 tests/golden/regen.lua")
+		end)
+	end
+end)

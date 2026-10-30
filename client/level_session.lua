@@ -13,7 +13,13 @@
 --   s:display_tick()          -- tick + fraction of the next one (for animations)
 --   s:command(cmd)            -- game:input with the move / booster hooks
 --   s:slowmo(0.4, 0.5)        -- visual slow motion: logic runs at half speed for 0.4 s
+--   s:set_paused(on)          -- a window is open (client/level_link.lua pause)
+--   s:set_hold(on)            -- the app lost the focus: no ticks until it is back
+--   s:halted()                -- paused or held: nothing runs
+--   s:autoplay(n, opts)       -- QA: play hint moves by itself (n moves, opts.free_moves: buy "+5 moves")
 --   s.game                    -- the core game (queries: pieces, cells, status, hint, ...)
+--   s.rev                     -- grows with every tick that had events and every accepted command: a board that
+--                             -- is at rest and has the same rev as before looks the same (screens/level/board.script)
 --   s.data                    -- the level JSON as plain data (goals, colours, difficulty)
 --
 -- Params contract (the start window, client/flow.lua): params.level_id, params.run
@@ -108,10 +114,13 @@ function M.new(opts)
 		hooks = opts.hooks or {},
 		acc = 0,
 		tick = 0,
-		paused = false,
+		paused = false,   -- a window of the level is open (the HUD)
+		hold = false,     -- the app is in the background (focus lost)
+		auto = nil,       -- QA autoplay: {left, free_moves, played}
 		slow_left = 0,
 		slow_scale = 1,
 		moved = false,
+		rev = 0,          -- grows with every tick that had events and every accepted command (see the header)
 		frames = 0,
 		ticks_run = 0,
 		dropped = 0,
@@ -136,7 +145,7 @@ end
 -- Returns the number of ticks run.
 function Session:advance(dt, on_tick)
 	self.frames = self.frames + 1
-	if self.paused then return 0 end
+	if self.paused or self.hold then return 0 end
 	dt = tonumber(dt) or 0
 	if dt ~= dt or dt < 0 then dt = 0 end
 	if dt > M.MAX_FRAME then dt = M.MAX_FRAME end
@@ -154,7 +163,10 @@ function Session:advance(dt, on_tick)
 		self.tick = self.tick + 1
 		n = n + 1
 		local events = self.game:drain_events()
-		if #events > 0 then self.status = self.game:status() end
+		if #events > 0 then
+			self.status = self.game:status()
+			self.rev = self.rev + 1
+		end
 		if on_tick then on_tick(events, self.tick) end
 	end
 	if self.acc >= M.DT then
@@ -182,6 +194,72 @@ function Session:set_paused(on)
 	self.paused = on and true or false
 end
 
+-- The app lost the focus (tab hidden, phone locked): the game stands still
+-- and the time it was away is not played back; independent of the pause of
+-- the level windows, so a window left open stays paused after the focus
+-- comes back.
+function Session:set_hold(on)
+	on = on and true or false
+	if self.hold and not on then self.acc = 0 end
+	self.hold = on
+end
+
+function Session:halted()
+	return self.paused or self.hold
+end
+
+-- QA autoplay (tools/qa/web_screens.mjs "win"): plays the hint move whenever
+-- the board is at rest and the game is "playing"; with opts.free_moves it
+-- also takes "+5 moves" for nothing when the moves run out (up to 20 times),
+-- so a level can always be taken to its final concert. n = number of moves
+-- to play (nil = until the level ends).
+function Session:autoplay(n, opts)
+	opts = opts or {}
+	if n == false or n == 0 then
+		self.auto = nil
+		return
+	end
+	self.auto = { left = n or 1e9, free_moves = opts.free_moves and 20 or 0, played = 0 }
+end
+
+-- One step of the autoplay, called by the board every frame before the ticks:
+-- returns the command it sent (or nil).
+function Session:autoplay_step()
+	local a = self.auto
+	if not a or self.hold then return nil end
+	local st = self.game:status()
+	if st.state == "won_wait" or st.state == "concert" or st.state == "complete" or st.state == "lost" then
+		self.auto = nil
+		return nil
+	end
+	if a.left <= 0 then
+		self.auto = nil
+		return nil
+	end
+	if st.state == "out_of_moves" then
+		-- By now the HUD has opened the moves window and paused the session. A player would answer the window with a
+		-- button; the autoplay takes the free moves and lets the session run again, so that the state change reaches
+		-- the HUD, which closes the window (and pauses again for whatever opens next).
+		if a.free_moves > 0 and not st.stuck then
+			a.free_moves = a.free_moves - 1
+			local ok = self:command({ type = "continue", moves = 5, riff = true })
+			if ok then self.paused = false end
+			return ok and { type = "continue" } or nil
+		end
+		self.auto = nil
+		return nil
+	end
+	if self.paused then return nil end -- a window of the level is open
+	if st.state ~= "playing" or not self.game:is_stable() then return nil end
+	local cmd = self:hint_command()
+	if not cmd then return nil end
+	local ok = self:command(cmd)
+	if not ok then return nil end
+	a.left = a.left - 1
+	a.played = a.played + 1
+	return cmd
+end
+
 -- game:input(cmd) plus the hooks: first_move() at the first accepted swap or
 -- tap (meta:note_move), booster_used(id) when the core accepts a booster.
 function Session:command(cmd)
@@ -198,6 +276,7 @@ function Session:command(cmd)
 			if self.hooks.booster_used then self.hooks.booster_used(cmd.booster) end
 		end
 		self.status = self.game:status()
+		self.rev = self.rev + 1
 	end
 	return ok, res
 end
@@ -216,7 +295,8 @@ function Session:snapshot()
 	return {
 		level = self.info.level_id, state = st.state, stuck = st.stuck, tick = st.tick,
 		moves = st.moves_left, score = st.score, goals = st.goals,
-		stable = self.game:is_stable(), paused = self.paused, seed = self.seed,
+		stable = self.game:is_stable(), paused = self.paused, hold = self.hold, seed = self.seed,
+		auto = self.auto and self.auto.played or nil,
 		attempt = self.info.attempt, standalone = self.info.standalone,
 		result = self.game:result(),
 	}
@@ -224,7 +304,10 @@ end
 
 -- QA bridge commands on this session (client/qa_bridge.lua):
 --   hint_move | swap x1 y1 x2 y2 | tap x y | skip | state |
---   booster <stick|row_light|col_light|remix> [x y | row | col] | continue [n] [riff] | give_up
+--   booster <stick|row_light|col_light|remix> [x y | row | col] | continue [n] [riff] | give_up |
+--   autoplay [n] [free] | win | hold [0|1]
+--   (autoplay plays n hint moves by itself, "free" takes "+5 moves" for nothing; win = autoplay
+--   to the end of the level with free moves; hold 1 / 0 = the app loses / regains the focus)
 -- Returns a result table {ok, ...}.
 function Session:qa(name, args)
 	args = args or {}
@@ -257,10 +340,19 @@ function Session:qa(name, args)
 		return run({ type = "continue", moves = num(1) or 5, riff = args[2] == "riff" })
 	elseif name == "give_up" then
 		return run({ type = "give_up" })
+	elseif name == "autoplay" then
+		self:autoplay(num(1), { free_moves = args[1] == "free" or args[2] == "free" })
+		return { ok = true, state = self:snapshot() }
+	elseif name == "win" then
+		self:autoplay(nil, { free_moves = true })
+		return { ok = true, state = self:snapshot() }
+	elseif name == "hold" then
+		self:set_hold(args[1] ~= "0")
+		return { ok = true, state = self:snapshot() }
 	end
 	return { ok = false, error = "unknown level command '" .. tostring(name) .. "'" }
 end
 
-M.QA_COMMANDS = { "hint_move", "swap", "tap", "skip", "state", "booster", "continue", "give_up" }
+M.QA_COMMANDS = { "hint_move", "swap", "tap", "skip", "state", "booster", "continue", "give_up", "autoplay", "win", "hold" }
 
 return M

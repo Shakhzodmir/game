@@ -21,8 +21,26 @@ end
 function M.write_file(path, text)
 	local f, err = io.open(path, "wb")
 	if not f then return nil, err end
-	f:write(text)
+	local ok, werr = f:write(text)
 	f:close()
+	if not ok then return nil, werr end
+	return true
+end
+
+-- Writes next to the target and renames over it, so an interrupted run never
+-- leaves a half-written file behind.
+function M.write_file_atomic(path, text)
+	local tmp = path .. ".tmp"
+	local ok, err = M.write_file(tmp, text)
+	if not ok then
+		os.remove(tmp)
+		return nil, err
+	end
+	local moved, rerr = os.rename(tmp, path)
+	if not moved then
+		os.remove(tmp)
+		return nil, rerr
+	end
 	return true
 end
 
@@ -32,17 +50,54 @@ function M.file_exists(path)
 	return false
 end
 
--- Sorted list of level files `level_NNNN.json` in a directory.
-function M.level_files(dir)
+-- A string quoted for /bin/sh.
+function M.shell_quote(s)
+	return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
+end
+
+-- Sorted names (not paths) of the entries of `dir` that match a Lua pattern.
+function M.list_dir(dir, pattern)
 	local out = {}
-	local p = io.popen('ls "' .. dir .. '" 2>/dev/null')
+	local p = io.popen("ls " .. M.shell_quote(dir) .. " 2>/dev/null")
 	if not p then return out end
 	for name in p:lines() do
-		if name:match("^level_%d+%.json$") then out[#out + 1] = dir .. "/" .. name end
+		if not pattern or name:match(pattern) then out[#out + 1] = name end
 	end
 	p:close()
 	table.sort(out)
 	return out
+end
+
+-- Sorted list of level files `level_NNNN.json` in a directory.
+function M.level_files(dir)
+	local out = {}
+	for _, name in ipairs(M.list_dir(dir, "^level_%d+%.json$")) do out[#out + 1] = dir .. "/" .. name end
+	return out
+end
+
+-- Portable checksum of a string as 16 hex digits: two polynomial rolling
+-- hashes over the bytes (exact in doubles, no bit operations, so Lua 5.1 and
+-- LuaJIT agree). It tells whether a text changed; it is not a secure hash.
+function M.checksum(text)
+	local h1, h2 = 5381, 52711
+	local byte = string.byte
+	for i = 1, #text do
+		local b = byte(text, i)
+		h1 = (h1 * 33 + b) % 2147483629
+		h2 = (h2 * 65599 + b + 1) % 2147483587
+	end
+	return string.format("%08x%08x", h1, h2)
+end
+
+-- Checksum of several files (names and contents), or nil when one is unreadable.
+function M.checksum_files(paths)
+	local parts = {}
+	for i = 1, #paths do
+		local text = M.read_file(paths[i])
+		if not text then return nil, paths[i] end
+		parts[#parts + 1] = paths[i] .. "\0" .. text
+	end
+	return M.checksum(table.concat(parts, "\0"))
 end
 
 -- `5`, `level_0005`, `level_0005.json` or a path -> a path.
@@ -157,12 +212,20 @@ function M.set_moves(text, moves)
 	return text:sub(1, a - 1) .. string.format("%d", moves) .. text:sub(b + 1)
 end
 
+-- Checksum of a level's text without the digits of "moves": two texts with
+-- the same signature differ at most in the move limit.
+function M.level_sig(text)
+	local v, a, b = M.find_moves(text)
+	if v then text = text:sub(1, a - 1) .. text:sub(b + 1) end
+	return M.checksum(text)
+end
+
 -- A level entry from JSON text: {path, text, raw, id, difficulty, moves,
 -- goals, level} or nil, errors (array of strings).
 function M.entry_from_text(text, path, core)
 	core = core or require("core.game")
 	local raw, jerr = M.decode(text)
-	if not raw then return nil, { "json: " .. jerr } end
+	if type(raw) ~= "table" then return nil, { "json: " .. (jerr or "the level is not a JSON object") } end
 	local level, errs = core.load_level(text)
 	if not level then return nil, errs end
 	return {
@@ -250,21 +313,35 @@ end
 
 -- Command line ---------------------------------------------------------------
 
--- Parses `--key value`, `--flag` and positional arguments. `flags` lists
--- the options that take no value.
-function M.parse_args(argv, flags)
+-- Parses `--key value`, `--key=value`, `--flag` and positional arguments.
+-- `flags` is the set of options that take no value. With `values` (the set
+-- of options that take one) any other `--option` is an error, so a typo such
+-- as `--level 5` cannot silently select every level. Returns opts, pos and,
+-- on a bad command line, an error text as the third value.
+function M.parse_args(argv, flags, values)
 	flags = flags or {}
 	local opts, pos = {}, {}
 	local i = 1
 	while i <= #argv do
 		local a = argv[i]
-		local key = a:match("^%-%-([%w%-_]+)$")
+		local key, inline = a:match("^%-%-([%w%-_]+)=(.*)$")
+		if not key then key = a:match("^%-%-([%w%-_]+)$") end
 		if key then
 			if flags[key] then
+				if inline ~= nil then return opts, pos, "option --" .. key .. " takes no value" end
 				opts[key] = true
 				i = i + 1
+			elseif values and not values[key] then
+				return opts, pos, "unknown option --" .. key
+			elseif inline ~= nil then
+				opts[key] = inline
+				i = i + 1
 			else
-				opts[key] = argv[i + 1]
+				local v = argv[i + 1]
+				if values and (v == nil or v:match("^%-%-[%a]")) then
+					return opts, pos, "option --" .. key .. " needs a value"
+				end
+				opts[key] = v
 				i = i + 2
 			end
 		else
@@ -275,15 +352,37 @@ function M.parse_args(argv, flags)
 	return opts, pos
 end
 
--- "1-5,8,10" -> {1,2,3,4,5,8,10}
+-- Integer option: value in [lo, hi] or the default when the option is absent.
+-- Returns nil and a message for a bad value (not a number, fraction, range).
+function M.int_option(opts, key, default, lo, hi)
+	local raw = opts[key]
+	if raw == nil then return default end
+	local v = tonumber(raw)
+	if not v or v ~= v or v == math.huge or v == -math.huge or v ~= math.floor(v) then
+		return nil, string.format("--%s: an integer is expected, got '%s'", key, tostring(raw))
+	end
+	if (lo and v < lo) or (hi and v > hi) then
+		return nil, string.format("--%s: %s..%s expected, got %d", key, tostring(lo or "-inf"), tostring(hi or "inf"), v)
+	end
+	return v
+end
+
+-- "1-5,8,10" -> {1,2,3,4,5,8,10}. A malformed part or a backwards range
+-- gives nil and a message instead of being skipped silently.
 function M.parse_ids(spec)
 	local out = {}
+	if type(spec) ~= "string" or spec == "" then return nil, "an empty list of levels" end
 	for part in spec:gmatch("[^,]+") do
 		local a, b = part:match("^(%d+)%-(%d+)$")
 		if a then
-			for k = tonumber(a), tonumber(b) do out[#out + 1] = k end
+			a, b = tonumber(a), tonumber(b)
+			if b < a then return nil, "backwards range '" .. part .. "'" end
+			if b - a > 100000 then return nil, "range too long '" .. part .. "'" end
+			for k = a, b do out[#out + 1] = k end
 		elseif part:match("^%d+$") then
 			out[#out + 1] = tonumber(part)
+		else
+			return nil, "cannot read '" .. part .. "' (expected N, A-B or a comma list)"
 		end
 	end
 	return out

@@ -67,7 +67,8 @@ local function err(ctx, rule, msg, i)
 end
 
 local function err_at(ctx, rule, msg, at)
-	ctx.errs[#ctx.errs + 1] = rule .. " " .. msg .. " at " .. at[1] .. "," .. at[2]
+	-- %.0f: a coordinate from the file may be huge (0.7, rule 6)
+	ctx.errs[#ctx.errs + 1] = rule .. " " .. msg .. " at " .. string.format("%.0f,%.0f", at[1], at[2])
 end
 
 -- Cell index of a zero-based [x, y], or nil if it is not an existing cell.
@@ -353,6 +354,11 @@ local function settle(lvl, slot_at, keep_fixed)
 	s.colorless = true
 	s.timing = C.TIMING_TURBO
 	for i = 1, s.N do s.exit[i] = false end
+	-- B1 keeps only the voids: the pieces under wires are gone, and wires exist
+	-- only over a regular piece (1.1), so the overlay is gone with them.
+	if not keep_fixed then
+		for i = 1, s.N do s.wires[i] = 0 end
+	end
 	if keep_fixed then
 		for i = 1, lvl.N do
 			local p = slot_at[i]

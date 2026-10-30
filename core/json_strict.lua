@@ -16,6 +16,11 @@ end
 local ESC = { ['"'] = '"', ["\\"] = "\\", ["/"] = "/", b = "\b", f = "\f", n = "\n", r = "\r", t = "\t" }
 local NULL = {}
 
+-- A level nests at most four deep (level, list, element, [x, y]); anything
+-- deeper is hostile text and must come back as an error, not as a Lua stack
+-- overflow.
+local MAX_DEPTH = 32
+
 local function skip(str, pos)
 	local _, e = string.find(str, "^[ \t\r\n]*", pos)
 	return e + 1
@@ -63,17 +68,21 @@ local function parse_number(str, pos)
 	if string.find(text, "^-?0%d") then err(pos, "leading zero") end
 	local digits = #text - (string.sub(text, 1, 1) == "-" and 1 or 0)
 	if digits > 15 then err(pos, "integer too large") end
-	return tonumber(text), e + 1
+	local v = tonumber(text)
+	if v == 0 then v = 0 end -- "-0" is the plain zero: the canonical form prints it as "0"
+	return v, e + 1
 end
 
-local function parse_array(str, pos)
+local function parse_array(str, pos, depth)
+	if depth > MAX_DEPTH then err(pos, "nesting too deep") end
 	local arr = {}
 	local i = skip(str, pos + 1)
 	if string.sub(str, i, i) == "]" then return arr, i + 1 end
 	while true do
 		local v
-		v, i = parse_value(str, i)
-		if v == NULL then err(i, "null inside an array") end
+		local at = i -- the byte where the value starts: the place to show for a bad one
+		v, i = parse_value(str, i, depth)
+		if v == NULL then err(at, "null inside an array") end
 		arr[#arr + 1] = v
 		i = skip(str, i)
 		local c = string.sub(str, i, i)
@@ -83,20 +92,22 @@ local function parse_array(str, pos)
 	end
 end
 
-local function parse_object(str, pos)
+local function parse_object(str, pos, depth)
+	if depth > MAX_DEPTH then err(pos, "nesting too deep") end
 	local obj, seen = {}, {}
 	local i = skip(str, pos + 1)
 	if string.sub(str, i, i) == "}" then return obj, i + 1 end
 	while true do
 		if string.sub(str, i, i) ~= '"' then err(i, "expected a key") end
 		local key
+		local at = i
 		key, i = parse_string(str, i)
-		if seen[key] then err(i, "repeated key '" .. key .. "'") end
+		if seen[key] then err(at, "repeated key '" .. key .. "'") end
 		seen[key] = true
 		i = skip(str, i)
 		if string.sub(str, i, i) ~= ":" then err(i, "expected ':'") end
 		local v
-		v, i = parse_value(str, skip(str, i + 1))
+		v, i = parse_value(str, skip(str, i + 1), depth)
 		if v ~= NULL then obj[key] = v end
 		i = skip(str, i)
 		local c = string.sub(str, i, i)
@@ -106,10 +117,11 @@ local function parse_object(str, pos)
 	end
 end
 
-parse_value = function(str, pos)
+-- `depth` is the number of containers already open around the value.
+parse_value = function(str, pos, depth)
 	local c = string.sub(str, pos, pos)
-	if c == "{" then return parse_object(str, pos) end
-	if c == "[" then return parse_array(str, pos) end
+	if c == "{" then return parse_object(str, pos, depth + 1) end
+	if c == "[" then return parse_array(str, pos, depth + 1) end
 	if c == '"' then return parse_string(str, pos) end
 	if c == "-" or string.find(c, "^%d") then return parse_number(str, pos) end
 	if string.sub(str, pos, pos + 3) == "true" then return true, pos + 4 end
@@ -122,7 +134,7 @@ end
 function J.decode(str)
 	if type(str) ~= "string" then return nil, "2.2 json: not a string" end
 	local ok, res = pcall(function()
-		local v, i = parse_value(str, skip(str, 1))
+		local v, i = parse_value(str, skip(str, 1), 0)
 		i = skip(str, i)
 		if i <= #str then err(i, "trailing characters") end
 		if v == NULL then err(1, "null document") end

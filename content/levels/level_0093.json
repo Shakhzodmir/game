@@ -1,0 +1,47 @@
+{
+  "id": 93, "version": 1,
+  "size": [9, 11],
+  "moves": 23,
+  "difficulty": "easy",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [{"type": "collect", "color": "yellow", "count": 45}],
+  "cells": [
+    "...###...",
+    "..#####..",
+    "..#####..",
+    "...###...",
+    "...###...",
+    "...###...",
+    "...###...",
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########"
+  ],
+  "overlay": [
+    {"at": [2, 1], "type": "wires", "hp": 1},
+    {"at": [6, 1], "type": "wires", "hp": 1},
+    {"at": [3, 2], "type": "wires", "hp": 1},
+    {"at": [5, 2], "type": "wires", "hp": 1},
+    {"at": [2, 8], "type": "wires", "hp": 1},
+    {"at": [6, 8], "type": "wires", "hp": 1},
+    {"at": [1, 9], "type": "wires", "hp": 1},
+    {"at": [7, 9], "type": "wires", "hp": 1}
+  ],
+  "slots": [
+    {"at": [2, 1], "type": "piece", "color": "yellow"},
+    {"at": [4, 1], "type": "piece", "color": "yellow"},
+    {"at": [6, 1], "type": "piece", "color": "yellow"},
+    {"at": [2, 2], "type": "piece", "color": "yellow"},
+    {"at": [3, 2], "type": "piece", "color": "yellow"},
+    {"at": [4, 2], "type": "piece", "color": "orange"},
+    {"at": [5, 2], "type": "piece", "color": "yellow"},
+    {"at": [4, 7], "type": "piece", "color": "yellow"},
+    {"at": [2, 8], "type": "piece", "color": "yellow"},
+    {"at": [4, 8], "type": "piece", "color": "orange"},
+    {"at": [5, 8], "type": "piece", "color": "yellow"},
+    {"at": [6, 8], "type": "piece", "color": "yellow"},
+    {"at": [1, 9], "type": "piece", "color": "yellow"},
+    {"at": [7, 9], "type": "piece", "color": "yellow"}
+  ]
+}

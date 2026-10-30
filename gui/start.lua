@@ -13,6 +13,7 @@ local i18n = require("client.i18n")
 local views = require("client.views")
 local levels = require("client.levels")
 local flow = require("client.flow")
+local analytics = require("client.services.analytics")
 local kit = require("gui.kit")
 local config = require("meta.config")
 
@@ -70,7 +71,8 @@ local function booster_slot(e, body, slot, x, y, view)
 	gui.set_color(b.node, vmath.vector4(1, 1, 1, 0))
 	e:target("booster_" .. slot.id, x, y)
 	if st.just == slot.id and not kit.reduced() then
-		e.fx:burst(kit.abs(x, y), { count = 10, radius = 110, size = 30 })
+		local ax, ay = kit.abs(x, y)
+		e.fx:burst(ax, ay, { count = 10, radius = 110, size = 30 })
 	end
 	return face
 end
@@ -105,16 +107,20 @@ end
 local function play(e, v)
 	if e.busy then return end
 	local picked = views.picked(v.boosters, e.state.selected)
-	local ok, why = flow.start(v.level, picked, "town")
+	-- where the player comes from (client/flow.lua): the town, or the level screen that hosts this window
+	-- after a win or a defeat (Next level, Retry)
+	local ok, why = flow.start(v.level, picked, app.screen == "level" and "level" or "town")
 	if ok then
 		e.busy = true
 		kit.sfx("win")
 		if e.bit then e.bit:cheer(2, 2) end
 		if e.play_btn then e.fx:pop(e.play_btn.node, 0.12) end
-		e.fx:burst(kit.abs(0, -400), { count = 14, radius = 180 })
+		local ax, ay = kit.abs(0, -400)
+		e.fx:burst(ax, ay, { count = 14, radius = 180 })
 		return
 	end
 	if why == "no_lives" then
+		analytics.log("lives_out", { level = v.level })
 		kit.sfx("swap_fail")
 		if e.bit then e.bit:worry() end
 		e:open("lives", { from = "start" })
@@ -192,10 +198,10 @@ function M.build(e)
 	else
 		hint = i18n.t("start.pick_hint")
 	end
-	kit.caption(e, body, hint, 0, by - 132, { size = 24, color = any_free and "green" or "text_soft", max_width = W - 80 })
+	kit.caption(e, body, hint, 0, by - 148, { size = 24, color = any_free and "green" or "text_soft", max_width = W - 80 })
 
 	-- hit streak
-	local sy = by - 212
+	local sy = by - 222
 	local strip = s:round(body, 0, sy, W - 70, 96, "#F4EEFF", { radius = 30 })
 	s:image(strip, "ui/icons/streak", -(W - 70) / 2 + 52, 2, { w = 70, h = 70 })
 	if v.streak.active then
@@ -212,9 +218,17 @@ function M.build(e)
 		})
 	end
 
-	-- what a loss costs
-	local ly = sy - 84
-	if v.life_cost then
+	-- what a loss costs; without a life: why Play opens the lives window instead
+	local ly = sy - 80
+	e.life_timer, e.life_timer_info = nil, nil
+	if not v.can_start and v.why == "no_lives" then
+		local heart = kit.icon(e, body, "ui/icons/heart", -150, ly, 44, "pink")
+		gui.set_color(heart, vmath.vector4(0.62, 0.56, 0.78, 0.55))
+		s:text(body, i18n.t("start.no_lives"), -120, ly + 14, { font = "button", size = 24, color = "pink", pivot = gui.PIVOT_W, max_width = 340 })
+		e.life_timer, e.life_timer_info = s:text(body, i18n.t("lives.next_in", { time = i18n.duration(v.next_life_in) }), -120, ly - 14, {
+			font = "small", size = 21, color = "text_soft", pivot = gui.PIVOT_W, max_width = 340,
+		})
+	elseif v.life_cost then
 		local heart = kit.icon(e, body, "ui/icons/heart", -150, ly, 40, "pink")
 		s:text(body, i18n.t("start.life_cost"), -122, ly, { font = "button", size = 24, color = "pink", pivot = gui.PIVOT_W, max_width = 330 })
 		if not kit.reduced() then require("client.ui").pulse(heart, 0.1, 0.6) end
@@ -237,7 +251,12 @@ end
 
 function M.on_event(e, topic)
 	if topic == "lives_tick" and e.view and not e.view.can_start and e.view.why == "no_lives" then
-		if app.meta:can_start(e.view.level, app.now()) then e:rebuild() end
+		if app.meta:can_start(e.view.level, app.now()) then
+			e:rebuild()
+		elseif e.life_timer then
+			local l = app.meta:lives(app.now())
+			e.ui:set_text(e.life_timer, i18n.t("lives.next_in", { time = i18n.duration(l.next_in_seconds or 0) }), e.life_timer_info)
+		end
 	end
 end
 

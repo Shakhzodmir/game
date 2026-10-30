@@ -74,6 +74,18 @@ describe("client.qa_bridge", function()
 		assert_eq(window.__glowState.errors[1], "main/app.script:1: oops")
 	end)
 
+	it("answers every command of the level board with 'needs the board' while no board is on display", function()
+		local level_qa = require("client.level_qa")
+		local names = { "level_stats" }
+		for _, name in ipairs(level_qa.COMMANDS) do names[#names + 1] = name end
+		for _, name in ipairs(names) do
+			local res = qa.execute(name)
+			assert_false(res.ok, name)
+			assert_true(string.find(res.error, "not_implemented", 1, true) ~= nil, name .. ": " .. tostring(res.error))
+		end
+		assert_true(string.find(qa.execute("fly").error, "unknown command", 1, true) ~= nil)
+	end)
+
 	it("runs only on pages served from this machine or opened with ?glowqa", function()
 		assert_true(qa.host_allowed("localhost", ""))
 		assert_true(qa.host_allowed("127.0.0.1", ""))

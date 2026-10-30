@@ -2,7 +2,10 @@
 
 Яркая музыкальная игра «три в ряд» на Defold 1.13.1 (портрет, логический экран 720×1280). Каждое совпадение звучит нотой в тональности района, а звёзды за уровни восстанавливают город и включают новые слои трека. Кодовое имя — GLOW, рабочее название релиза — Encore Town / «Город на бис».
 
-Документы: `docs/design/` — журнал решений, правила ядра, мета и экономика, архитектура клиента, арт-дирекшн.
+Документы:
+- `docs/design/README.md` — индекс; `docs/design/decisions.md` — журнал решений (главный), правила ядра, мета и экономика, архитектура клиента, арт-дирекшн;
+- `docs/plan-v2.md` — план: производство, сервисы, платформы, софт-лонч, дорожная карта, риски (в разделе 1 — честный срез, что проверено и чем);
+- `docs/levels/README.md` — таблица 100 уровней; `docs/STATUS.md` — где стоит сборка; `docs/handoff/` — записки исполнителей по частям.
 
 ## Тесты
 
@@ -11,7 +14,29 @@
 ./tools/test.sh --filter bus
 ```
 
-Тесты на чистом Lua лежат в `tests/` (`tests/meta` — мета и экономика, `tests/client` — модули клиента). Нужны `lua5.1` и `luajit`.
+Тесты на чистом Lua лежат в `tests/`: `tests/core` (правила, оракулы по тексту спецификации, золотые реплеи в `tests/golden`), `tests/meta` (мета и экономика), `tests/client` (модули клиента и строгие заглушки Defold, на которых исполняются настоящие `.script` и `.gui_script`; сессионные тесты прогоняют весь путь игрока), `tests/tools` (уровни, обучение, боты). Нужны `lua5.1` и `luajit`.
+
+Быстрые проверки без движка:
+
+```sh
+./tools/check_syntax.sh                   # синтаксис всех Lua-файлов, скрипты Defold тоже, на двух ВМ
+luajit tools/check_refs.lua               # ссылки: require, картинки, звуки, ключи i18n, темы шины, сообщения, пути Defold
+luajit tools/levels.lua validate --strict # все 100 уровней по правилам ядра и плану
+python3 tools/gen_defold.py --check       # сгенерированные ресурсы свежие
+```
+
+CI на каждый пуш запускает тесты и собирает HTML5 настоящим `bob` 1.13.1 (около 2 минут).
+
+## Уровни и боты
+
+```sh
+luajit tools/levels.lua stats                          # сложности, 126 звёзд, первое появление элементов
+luajit tools/levels.lua preview 50                     # поле уровня в ASCII
+luajit tools/bot/run.lua 50 --games 8                  # партии бота
+luajit tools/bot/tune.lua --n 300 --jobs 3 --work /tmp/glow_tune   # подбор ходов, отчёт docs/levels/tuning.md
+```
+
+Подробно — `tools/README.md`; таблица уровней и обучение — `docs/levels/README.md`.
 
 ## Веб-сборка
 
@@ -23,6 +48,8 @@ python3 -m http.server 8791 -d dist/GLOW     # открыть http://localhost:8
 ```
 
 `VARIANT=release` — сборка для публикации (по умолчанию). Скрипт сначала запускает `tools/gen_defold.py` (без python3 он останавливается; `SKIP_GEN=1` — собрать без генератора, если сгенерированное точно свежее), затем bob; результат — `dist/GLOW/index.html`. В debug-сборке лежит файл `DEBUG_BUILD_DO_NOT_PUBLISH`: её нельзя выкладывать на порталы.
+
+Локально `bob` не обязателен: сборку проверяет CI, а артефакт (`glow-web`) можно скачать со страницы запуска. Экран уровня, HUD и окна меты ни разу не запускались в живом Defold: первый запуск в браузере со `tools/qa/web_screens.mjs` — следующий шаг (`docs/plan-v2.md`, веха M1).
 
 **Отладочная сборка** (`VARIANT=debug`):
 - клавиши: F1 — город, F2 — уровень, F3 — заставка, F5 — +1000 монет, F6 — сменить язык, F9 — сбросить сохранение;
@@ -49,16 +76,20 @@ render/                 fit-рендер: логический экран цел
 input/                  привязки ввода (touch, multi_touch, отладочные клавиши)
 main/                   main.collection: app.script (экраны, переходы), overlay (затемнение,
                         тосты, окна), audio.script (музыка по стемам, ноты, эффекты)
-screens/                экраны-коллекции: splash, town, level (пока заглушки)
+screens/                экраны-коллекции: splash, town (город), level (поле, HUD, окна, обучение)
+gui/                    общий набор кнопок и окна: старт, магазин, жизни, настройки, автомат, сундук,
+                        подарок, концерт района; пауза, «+5 ходов», поражение, итоги, покупка бустера
 client/                 модули клиента: app, bus, hooks, i18n, save_io, layout, audio, platform,
-                        ui, gfx, assets, qa_bridge, services/ (analytics, iap, ads)
+                        ui, gfx, assets, views, popups, flow, rewards, tutorial, level_* (сессия, ввод,
+                        анимации, эффекты, звук, HUD, окна), qa_bridge, services/ (analytics, iap, ads)
 core/                   правила игры (чистый Lua)
 meta/                   мета и экономика (чистый Lua)
-content/                districts.json, district_layouts.json, уровни (custom resources)
-assets/                 сгенерированные картинки, звук, шрифты; assets/gen — ресурсы Defold
-tools/                  тесты, сборка, генераторы арта, звука и ресурсов Defold, QA-скрипты
-tests/                  тесты на чистом Lua
-docs/                   дизайн-документы и скриншоты (docs/media)
+content/                districts.json, district_layouts.json, tutorials.json, 100 уровней (custom resources:
+                        вся папка входит в сборку, поэтому документов в ней нет)
+assets/                 сгенерированные картинки, звук, шрифты, частицы; assets/gen — ресурсы Defold
+tools/                  тесты, сборка, генераторы арта, звука и ресурсов Defold, уровни и боты, QA-скрипты
+tests/                  тесты на чистом Lua (около 1500 на каждой ВМ)
+docs/                   дизайн-документы, план v2, таблица уровней, записки (handoff), скриншоты (media)
 web/glow.css            стиль HTML-страницы: холст на всё окно, без полос прокрутки
 web/engine_template.html  шаблон страницы Defold 1.13.1 с ограничением DPR (не больше 2×)
 ```

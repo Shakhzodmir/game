@@ -16,7 +16,11 @@
 -- screens/town/steps.lua): a task being built, the rewards brought back from
 -- a level (client/rewards.lua, app.push_reward), the district concert, a
 -- chest, the next district. The counters show town.disp = meta - queued
--- rewards - town.hold (paid but not landed yet), so nothing is counted twice.
+-- rewards - town.hold (paid but not landed yet), so nothing is counted twice; the lives pill likewise
+-- leaves out the unlimited lives of a chest that has not opened yet (hud.lua lives_view).
+-- The district on display (town.district) can differ from the one being built (town.focus): the
+-- player pages through the open districts with the ribbon arrows or a swipe on the scene; the
+-- card then offers the way back, and the track of the district on display plays.
 -- Bus in: meta_changed, lives_tick, language_changed, settings_changed,
 -- save_reset, screen_leaving, popup_request (app.open_popup), reward_pushed,
 -- meta_qa (client/meta_qa.lua).
@@ -55,6 +59,8 @@ local REGISTRY = {
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
+local SWIPE_MIN = 90   -- logical px of a horizontal swipe that pages the districts
+local TAP_SLOP = 26    -- a press and release further apart than this is a drag, not a tap
 
 local Town = {}
 Town.__index = Town
@@ -67,18 +73,27 @@ function Town:sync_disp()
 	self.disp.stars = app.meta:stars() - held.stars - self.hold.stars
 	self.hud:set_coins(self.disp.coins)
 	self.hud:set_stars(self.disp.stars)
+	-- the status for QA follows at once (publish() writes the rest)
+	app.ui.disp = { coins = self.disp.coins, stars = self.disp.stars }
+	app.ui.hold = { coins = self.hold.coins, stars = self.hold.stars, infinite = self.hold.infinite }
 end
 
 function Town:publish()
 	local u = app.ui
 	u.screen = "town"
 	u.district = self.district
+	u.focus = self.focus
+	u.sliding = self.sliding
+	local nav = self.hud and self.hud.paging
+	u.nav = nav and { count = nav.count, index = nav.index, prev = nav.prev, next = nav.next } or nil
+	u.hint = self.hud and self.hud.hint and self.hud.hint.id or nil
+	u.card = self.hud and self.hud.card_kind or nil
 	u.view = self.scene and self.scene.view or nil
 	u.busy = self.show:busy()
 	u.step = self.show:name()
 	u.steps_started = self.show.started
 	u.disp = { coins = self.disp.coins, stars = self.disp.stars }
-	u.hold = { coins = self.hold.coins, stars = self.hold.stars }
+	u.hold = { coins = self.hold.coins, stars = self.hold.stars, infinite = self.hold.infinite }
 	u.targets = self.hud.targets
 	u.bit = self.bit and self.bit.mood or nil
 end
@@ -97,6 +112,7 @@ end
 
 function Town:open_popup(name, params)
 	params = params or {}
+	if self.sliding then return nil end
 	if name == "start" then
 		params.level = params.level or app.meta:level_to_play()
 		if not params.level then
@@ -118,7 +134,7 @@ end
 -- actions -----------------------------------------------------------------------------------------
 
 function Town:toggle_view()
-	if self.show:busy() then return end
+	if self.show:busy() or self.sliding then return end
 	local view = app.meta:view(self.district)
 	local ok = app.meta:set_view(self.district, view == "day" and "concert" or "day")
 	app.commit("view")
@@ -130,9 +146,62 @@ function Town:toggle_view()
 	self:publish()
 end
 
+-- district switching -------------------------------------------------------------------------------
+
+function Town:can_browse()
+	return not self.show:busy() and self.popups:count() == 0 and not self.sliding and not self.leaving
+end
+
+-- Pages to the previous (dir = -1) or the next (dir = 1) open district.
+function Town:browse(dir)
+	if not self:can_browse() then return false end
+	local nav = views.browse(app.meta, self.district)
+	local target = dir < 0 and nav.prev or nav.next
+	if not target then
+		audio.sfx("swap_fail") -- the end of the street
+		return false
+	end
+	return self:browse_to(target, dir)
+end
+
+-- Shows the open district `id`: it slides in (from the side it lies on), its track plays, the
+-- ribbon and the card follow. dir: 1 = it lies to the right of the one on display.
+function Town:browse_to(id, dir)
+	if not self:can_browse() or id == self.district then return false end
+	local nav = views.browse(app.meta, self.district)
+	local from, to
+	for i, did in ipairs(nav.ids) do
+		if did == self.district then from = i end
+		if did == id then to = i end
+	end
+	if not to then return false end -- not open (yet)
+	dir = dir or ((to > (from or 1)) and 1 or -1)
+	self.sliding = true
+	self.district = id
+	audio.sfx("button")
+	audio.music(id)
+	self.hud:build()
+	self.scene:slide_to(id, function()
+		self.sliding = false
+		self:publish()
+	end, dir)
+	self.bit:cheer(1.2, 1)
+	self:publish()
+	return true
+end
+
+-- True while a button is pressed (and the press is not stale: a lost release must not freeze the bars).
+function Town:finger_down()
+	if not self.ui.pressed then
+		self.press_age = 0
+		return false
+	end
+	return (self.press_age or 0) < 1
+end
+
 -- A tap on the task card (or the QA command / a tap on the item of the task).
 function Town:on_task(shown)
-	if self.show:busy() then return end
+	if self.show:busy() or self.sliding then return end
 	local task = views.task(app.meta)
 	if not task or (shown and task.id ~= shown.id) then
 		self.hud:build()
@@ -149,6 +218,7 @@ function Town:on_task(shown)
 		return
 	end
 	local res, why = app.meta:complete_task(task.district, task.id)
+	if res then app.meta:mark_tutorial_seen(views.HINT_TASK) end -- the hint did its job
 	app.commit("task")
 	if not res then
 		app.toast_key(why == "not_enough_stars" and "common.not_enough_stars" or "common.error", nil, { color = "pink" })
@@ -188,6 +258,7 @@ end
 -- A tap on the scene: a restored item plays a note, a waiting one says so.
 function Town:tap_scene(action)
 	local lx, ly = self.ui:logical(action)
+	if self.sliding then return false end
 	local id, e = self.scene:item_at(lx, ly)
 	if not id then return false end
 	local task = views.task(app.meta)
@@ -196,7 +267,7 @@ function Town:tap_scene(action)
 		self.fx:burst(lx, ly, { count = 6, radius = 60, size = 24 })
 		self.note_i = (self.note_i or 0) % 6 + 1
 		audio.play_note(NOTE_COLORS[self.note_i], ((self.note_i * 3) % 7) + 1, { quantize = true })
-	elseif task and task.id == id and task.affordable then
+	elseif task and task.id == id and task.district == self.district and task.affordable then
 		self:on_task(task)
 	else
 		self.fx:shake(e.node, 8, 0.35)
@@ -222,14 +293,6 @@ end
 
 -- lifecycle ------------------------------------------------------------------------------------------
 
-function Town:rebuild_all()
-	self.district = app.focus_district()
-	self.scene:build(self.district)
-	self.hud:build()
-	self:sync_disp()
-	self:publish()
-end
-
 local function on_bus(self, topic, p)
 	if self.popups then self.popups:on_event(topic, p) end
 	if topic == "language_changed" then
@@ -244,7 +307,7 @@ local function on_bus(self, topic, p)
 		self.popups:close_all()
 		self.show:clear()
 		self.fx:clear()
-		self.hold.coins, self.hold.stars = 0, 0
+		self.hold.coins, self.hold.stars, self.hold.infinite = 0, 0, 0
 		self.dirty_scene, self.dirty_ui = true, true
 	elseif topic == "screen_leaving" then
 		self.leaving = true
@@ -263,6 +326,10 @@ local function on_bus(self, topic, p)
 			self:on_task(nil)
 		elseif p.action == "skip" then
 			self.show:skip()
+		elseif p.action == "browse" then
+			if p.id then self:browse_to(p.id) else self:browse(p.dir or 1) end
+		elseif p.action == "view" then
+			if p.view and p.view ~= app.meta:view(self.district) then self:toggle_view() end
 		end
 	end
 end
@@ -276,7 +343,7 @@ local function new_town()
 	t.on_bus = function(topic, p) on_bus(t, topic, p) end
 	t.ui = ui.scene({ gui = GUI })
 	t.disp = { coins = 0, stars = 0 }
-	t.hold = { coins = 0, stars = 0 }
+	t.hold = { coins = 0, stars = 0, infinite = 0 } -- paid, not landed yet (infinite: seconds of unlimited lives)
 	app.ui = { screen = "town" }
 
 	-- an attempt a level left open is settled first (its loss is shown)
@@ -290,7 +357,9 @@ local function new_town()
 	t.c_popups = t.ui:layer(t.ui.root, "popups_root")
 	t.fx = fx.new(t.ui, t.ui.root)
 
-	t.district = app.focus_district()
+	t.focus = app.focus_district()
+	t.district = t.focus
+	t.sliding = false
 	t.scene = scene_mod.new(t)
 	t.hud = hud_mod.new(t)
 	t.show = show_mod.new(t)
@@ -312,6 +381,9 @@ local function new_town()
 
 	t.enter_t = 0
 	t.twinkle_t = 0
+	-- a window asked for with the screen (QA: client/meta_qa.lua "open" from another screen)
+	local want = app.params and app.params.open
+	if type(want) == "string" then t.pending_open = { name = want, params = app.params.open_params } end
 	t:publish()
 	return t
 end
@@ -324,22 +396,31 @@ function Town:update(dt)
 		self.rewards_started = true
 		if rewards.count() > 0 then self:queue_rewards() end
 	end
+	if self.pending_open and self.enter_t > 0.5 and not self.show:busy() then
+		local want = self.pending_open
+		self.pending_open = nil
+		self:open_popup(want.name, want.params)
+	end
 	if not self.show:busy() then
-		if self.hold.coins ~= 0 or self.hold.stars ~= 0 then
-			self.hold.coins, self.hold.stars = 0, 0
+		if self.hold.coins ~= 0 or self.hold.stars ~= 0 or self.hold.infinite ~= 0 then
+			if self.hold.infinite ~= 0 then self.dirty_ui = true end -- the lives pill shows them from now on
+			self.hold.coins, self.hold.stars, self.hold.infinite = 0, 0, 0
 			self:sync_disp()
 		end
-		local district = app.focus_district()
-		if district ~= self.district then
-			self.district = district
+		-- the district being built changed (a reset, the next district opened elsewhere)
+		local focus = app.focus_district()
+		if focus ~= self.focus then
+			self.focus = focus
+			self.district = focus
 			self.dirty_scene, self.dirty_ui = true, true
-			audio.music(district)
+			audio.music(focus)
 		end
 		if self.dirty_scene then
 			self.dirty_scene = false
 			self.scene:build(self.district)
 		end
-		if self.dirty_ui then
+		-- (not while a finger is down on a button: a rebuild would delete it and lose the tap)
+		if self.dirty_ui and not self:finger_down() then
 			self.dirty_ui = false
 			self.hud:build()
 			self:sync_disp()
@@ -347,6 +428,7 @@ function Town:update(dt)
 		end
 	end
 	self.show:update()
+	if self.ui.pressed then self.press_age = (self.press_age or 0) + dt end
 	self.popups:update(dt)
 	self.fx:update(dt)
 	self.bit:update(dt)
@@ -382,7 +464,22 @@ function Town:on_input(action_id, action)
 		return true
 	end
 	if self.ui:on_input(action_id, action) then return true end
-	if action_id == TOUCH and action.released then return self:tap_scene(action) end
+	if action_id == TOUCH and action.pressed then
+		self.press_x, self.press_y = self.ui:logical(action)
+	elseif action_id == TOUCH and action.released then
+		local px, py = self.press_x, self.press_y
+		self.press_x, self.press_y = nil, nil
+		if px then
+			local lx, ly = self.ui:logical(action)
+			local dx, dy = lx - px, ly - py
+			if math.abs(dx) >= SWIPE_MIN and math.abs(dx) > 1.6 * math.abs(dy) then
+				self:browse(dx < 0 and 1 or -1) -- a swipe left shows the next district
+				return true
+			end
+			if dx * dx + dy * dy > TAP_SLOP * TAP_SLOP then return false end -- a drag, not a tap
+		end
+		return self:tap_scene(action)
+	end
 	return false
 end
 

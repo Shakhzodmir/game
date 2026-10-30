@@ -16,8 +16,9 @@ local M = {}
 
 local W, H = 660, 1120
 
+-- the town track of the district on display (the town may be paging through the districts)
 local function restore_music()
-	audio.music(app.focus_district())
+	audio.music(app.ui.district or app.focus_district())
 end
 
 local function play(e, row)
@@ -76,7 +77,12 @@ local function song_row(e, body, row, y)
 	else
 		line, color = i18n.t("jukebox.locked", { name = row.prev_name and i18n.name(row.prev_name) or "" }), "text_soft"
 	end
-	s:text(inner, line, -150, -18, { font = "small", size = 22, color = color, pivot = gui.PIVOT_W, max_width = 280, width = 280 })
+	if locked then
+		-- "Build <district> to unlock": two lines, left aligned, never shrunk to a smudge
+		s:text(inner, line, -150, -22, { font = "small", size = 21, color = color, pivot = gui.PIVOT_W, width = 290, height = 56 })
+	else
+		s:text(inner, line, -150, -18, { font = "small", size = 22, color = color, pivot = gui.PIVOT_W, max_width = 280 })
+	end
 	if row.state == "current" then
 		-- the layers built so far as little bars
 		local n = math.max(1, row.total)

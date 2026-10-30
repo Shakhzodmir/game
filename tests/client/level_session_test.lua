@@ -150,3 +150,87 @@ describe("client.level_session", function()
 		assert_false(r.ok)
 	end)
 end)
+
+describe("client.level_session focus and autoplay", function()
+	it("stands still while the app is in the background and does not rush on its return", function()
+		local s = assert(level_session.new({ params = { level_text = LEVEL, level = 3 } }))
+		s:set_hold(true)
+		assert_true(s:halted())
+		assert_eq(s:advance(0.1), 0)
+		assert_eq(s.tick, 0)
+		s:set_paused(true) -- a window opened meanwhile
+		s:set_hold(false)
+		assert_true(s:halted()) -- still paused by the window
+		assert_eq(s:advance(0.1), 0)
+		s:set_paused(false)
+		assert_false(s:halted())
+		-- the time spent away is not played back: the accumulator starts again
+		s:set_hold(true)
+		s:advance(0.2)
+		s:set_hold(false)
+		assert_eq(s:advance(1 / 60), 1)
+		assert_true(s:snapshot().hold == false)
+	end)
+
+	it("plays hint moves by itself for the QA win command and stops at the end", function()
+		local s = assert(level_session.new({ params = { level_text = LEVEL, level = 3 } }))
+		assert_eq(s:autoplay_step(), nil) -- not started
+		local r = s:qa("autoplay", { "2" })
+		assert_true(r.ok)
+		local played = 0
+		for _ = 1, 3000 do
+			s:advance(1 / 60)
+			if s:autoplay_step() then played = played + 1 end
+			if not s.auto then break end
+		end
+		assert_eq(played, 2)
+		assert_eq(s.auto, nil)
+		-- win: free "+5 moves" when out of moves, until the level is won
+		s:qa("win")
+		for _ = 1, 20000 do
+			s:advance(1 / 60)
+			s:autoplay_step()
+			local st = s.game:status().state
+			if st == "complete" or st == "lost" then break end
+		end
+		assert_eq(s.game:status().state, "complete")
+		assert_eq(s:qa("hold", { "1" }).state.hold, true)
+		assert_eq(s:qa("hold", { "0" }).state.hold, false)
+	end)
+
+	it("takes the free moves of the win command even while the moves window has paused the session", function()
+		-- a level the hint moves cannot finish in its five moves: the HUD opens the moves window (pauses the session)
+		-- when the moves are out and closes it when the state is back, as screens/level/level.gui_script does
+		local hard = string.gsub(LEVEL, '"moves": 12', '"moves": 5')
+		hard = string.gsub(hard, '"count": 10', '"count": 40')
+		local s = assert(level_session.new({ params = { level_text = hard, level = 3 } }))
+		s:qa("win")
+		local windows = 0
+		for _ = 1, 30000 do
+			s:advance(1 / 60)
+			local state = s.game:status().state
+			-- (the HUD runs after the board in the same frame, the autoplay step comes first in the next one)
+			if state == "out_of_moves" and not s.paused then
+				s:set_paused(true)
+				windows = windows + 1
+			elseif state ~= "out_of_moves" and s.paused then
+				s:set_paused(false)
+			end
+			s:autoplay_step()
+			if state == "complete" or state == "lost" then break end
+		end
+		assert_true(windows >= 1, "the moves ran out under the autoplay")
+		assert_eq(s.game:status().state, "complete")
+		-- a plain autoplay stops at the moves window: it does not play on behind the player's back
+		local t = assert(level_session.new({ params = { level_text = hard, level = 3 } }))
+		t:qa("autoplay", { "100" })
+		for _ = 1, 6000 do
+			t:advance(1 / 60)
+			if t.game:status().state == "out_of_moves" then t:set_paused(true) end
+			t:autoplay_step()
+			if t.game:status().state == "out_of_moves" and not t.auto then break end
+		end
+		assert_eq(t.game:status().state, "out_of_moves")
+		assert_eq(t.auto, nil, "the autoplay ended at the out-of-moves state")
+	end)
+end)

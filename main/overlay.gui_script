@@ -251,8 +251,14 @@ local function on_bus(self, topic, p)
 		refresh_toast(self)
 		refresh_modal(self)
 	elseif topic == "save_failed" then
-		if p.streak == 1 then queue_toast(self, { key = "toast.saved_failed", color = "pink", duration = 3 }) end
+		-- once per failure series. Not "streak == 1": a series can begin before this overlay subscribed (the
+		-- first write is app.init's), and its later failures (streak 2, 3, ...) must still announce it
+		if not self.save_failing then
+			self.save_failing = true
+			queue_toast(self, { key = "toast.saved_failed", color = "pink", duration = 3 })
+		end
 	elseif topic == "save_recovered" then
+		self.save_failing = false
 		queue_toast(self, { key = "toast.saved_again", color = "green" })
 	end
 end
@@ -266,6 +272,7 @@ function init(self)
 	self.toast_queue = {}
 	self.fade_queue = {}
 	self.fading = false
+	self.save_failing = false -- a save failure series was announced and has not recovered yet
 	app.overlay = app.overlay or {}
 	self.sub = bus.subscribe({ "screen_leaving", "language_changed", "save_failed", "save_recovered" }, "overlay")
 	self.on_bus = function(topic, p) on_bus(self, topic, p) end

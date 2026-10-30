@@ -69,8 +69,27 @@ describe("client.level_audio", function()
 			{ type = "shuffle", moves = {} },
 			{ type = "swap_fail" },
 		})
-		assert_same(names(calls, "sfx"), { "sub", "combo_drop", "finale", "box_hit", "concrete_break",
+		assert_same(names(calls, "sfx"), { "sub", "riff", "riff", "finale", "box_hit", "concrete_break",
 			"floor_light", "wires_snap", "mic_collect", "praise_3", "goal_done", "shuffle", "swap_fail" })
+	end)
+
+	it("gives each of the ten combos its own sound, in time with its picture", function()
+		local level_effects = require("client.level_effects")
+		local seen = {}
+		for _, name in ipairs(level_effects.COMBOS) do
+			local a, calls = fake_audio()
+			local t = 0
+			local la = level_audio.new({ audio = a, now = function() t = t + 1; return t end })
+			la:event({ type = "activate", special = "riff", combo = name, color = "red" })
+			local parts = {}
+			for _, c in ipairs(calls) do
+				if c[1] == "sfx" then parts[#parts + 1] = c[2] .. "@" .. tostring(c[3] and c[3].delay or 0) end
+			end
+			assert_true(#parts >= 1, name .. " is silent")
+			local key = table.concat(parts, ",")
+			assert_eq(seen[key], nil, name .. " sounds like " .. tostring(seen[key]))
+			seen[key] = name
+		end
 	end)
 
 	it("plays the Disco arpeggio in its colour", function()
@@ -107,6 +126,30 @@ describe("client.level_audio", function()
 		layers = {}
 		for _, c in ipairs(calls) do if c[1] == "layer" then layers[#layers + 1] = c[2] .. "=" .. tostring(c[3]) end end
 		assert_same(layers, { "tension=true", "tension=false", "party=true", "party=false" })
+	end)
+
+	it("turns the tension layer on after '+5 moves' although `moves` comes before `state`", function()
+		local a, calls = fake_audio()
+		local t = 0
+		local la = level_audio.new({ audio = a, now = function() t = t + 1; return t end })
+		la:event({ type = "moves", left = 1 })
+		la:event({ type = "moves", left = 0 })
+		la:event({ type = "state", state = "out_of_moves" })
+		-- the core (do_continue) adds the moves and tells it, and only then moves the game back to playing
+		la:event({ type = "moves", left = 5 })
+		la:event({ type = "state", state = "playing" })
+		local layers = {}
+		for _, c in ipairs(calls) do if c[1] == "layer" then layers[#layers + 1] = c[2] .. "=" .. tostring(c[3]) end end
+		assert_same(layers, { "tension=true", "tension=false", "tension=true" })
+		assert_same(names(calls, "sfx"), { "moves_low" }) -- the warning is not repeated for the same stretch
+		-- and +3 from the video the same way, and more than five moves leave the layer off
+		la:event({ type = "moves", left = 0 })
+		la:event({ type = "state", state = "out_of_moves" })
+		la:event({ type = "moves", left = 8 })
+		la:event({ type = "state", state = "playing" })
+		layers = {}
+		for _, c in ipairs(calls) do if c[1] == "layer" then layers[#layers + 1] = c[2] .. "=" .. tostring(c[3]) end end
+		assert_same(layers, { "tension=true", "tension=false", "tension=true", "tension=false" })
 	end)
 
 	it("clicks and buzzes on touch", function()

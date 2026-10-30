@@ -6,7 +6,7 @@
 --
 --   local scene = require("screens.town.scene").new(town)  -- town.ui, town.c_scene
 --   scene:build(district)            -- at once (screen entry, view toggle)
---   scene:slide_to(district, done)   -- the next district slides in from the right
+--   scene:slide_to(district, done, dir) -- another district slides in (from the right, dir = -1: left)
 --   scene:light_up(task_id, fx)      -- a task was just done: the item lights up
 --   scene:item_pos(task_id)          --> x, y (logical)
 --   scene:item_at(x, y)              --> task id and its entry under a point | nil
@@ -221,10 +221,12 @@ function Scene:light_up(task_id)
 	return e
 end
 
--- The next district slides in from the right while this one leaves to the
--- left; done() when it is in place. Under reduced motion: at once.
-function Scene:slide_to(did, done)
+-- The next district slides in from the right (dir = 1, the default) while this one leaves to the
+-- left; dir = -1 the other way round (back to an earlier district). done() when it is in place.
+-- Under reduced motion: at once.
+function Scene:slide_to(did, done, dir)
 	local s = self.ui
+	dir = dir == -1 and -1 or 1
 	if fx.reduced() or not self.layer then
 		self:build(did)
 		if done then done() end
@@ -235,9 +237,9 @@ function Scene:slide_to(did, done)
 	self.district = did
 	local layer, items_layer, items, view = build_layer(self, did)
 	self.layer, self.items_layer, self.items, self.view = layer, items_layer, items, view
-	gui.set_position(layer, vmath.vector3(760, 0, 0))
+	gui.set_position(layer, vmath.vector3(760 * dir, 0, 0))
 	gui.animate(layer, "position.x", 0, gui.EASING_OUTCUBIC, 0.7)
-	gui.animate(old, "position.x", -760, gui.EASING_INOUTCUBIC, 0.7, 0, function()
+	gui.animate(old, "position.x", -760 * dir, gui.EASING_INOUTCUBIC, 0.7, 0, function()
 		s:clear(old)
 		self.old_district = nil
 		s:release_images(self.town:keep_images())

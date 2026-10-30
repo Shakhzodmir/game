@@ -20,7 +20,11 @@
 
 local M = {}
 
-M.MAX = 16 -- a runaway producer cannot grow the queue without bound
+-- The result window chains levels (Next level -> Play) without visiting the town, so a session can queue
+-- every win it makes; each carries a ceremony the meta has already paid for (a chest, a new booster) that a
+-- dropped result would lose. A level is won once and the game ships 100, so no real session gets near this
+-- cap: it only stops a runaway producer from growing the queue without bound (the oldest is dropped).
+M.MAX = 128
 
 local queue = {}
 
@@ -85,20 +89,21 @@ function M.clear()
 	queue = {}
 end
 
--- Coins and stars of one result that land in the top bar.
+-- What one result puts into the top bar when it lands: coins, stars and the seconds of unlimited lives
+-- (a level chest's infinite_minutes).
 function M.amounts(r)
 	local coins = r.coins + (r.chest and r.chest.coins or 0)
-	return { coins = coins, stars = r.stars }
+	return { coins = coins, stars = r.stars, infinite = (r.chest and r.chest.infinite_minutes or 0) * 60 }
 end
 
 -- Totals of everything still queued.
 function M.held()
-	local c, s = 0, 0
+	local c, s, inf = 0, 0, 0
 	for _, r in ipairs(queue) do
 		local a = M.amounts(r)
-		c, s = c + a.coins, s + a.stars
+		c, s, inf = c + a.coins, s + a.stars, inf + a.infinite
 	end
-	return { coins = c, stars = s }
+	return { coins = c, stars = s, infinite = inf }
 end
 
 -- What the town animates for a result, in order:

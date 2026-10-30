@@ -78,6 +78,29 @@ describe("client.level_anim", function()
 		assert_eq(find(list, 3).clip, nil) -- well inside the board
 	end)
 
+	it("does not cut a piece that slides in diagonally from a column that reaches higher than its target's", function()
+		-- 6x6; columns 3 and 4 start at row 3 and row 2 (the cells above are gaps), the others at row 1
+		local cells = {}
+		for i = 1, 36 do cells[i] = { exists = true } end
+		for y = 1, 2 do cells[(y - 1) * 6 + 3] = { exists = false } end
+		cells[4] = { exists = false } -- (4, 1)
+		local g = geom.new(6, 6, cells, { x0 = 0, y0 = 0, x1 = 636, y1 = 624 })
+		local A = level_anim.new({ geom = g })
+		local list = A:frame({
+			-- from (2, 2) on the left into (3, 3), the top of its run: the donor's column reaches up to row 1
+			piece(1, 3, 3, { state = "fall", offx = 3240, offy = 3240 }),
+			-- the same from the right, still half a cell above its donor (4, 2), the top of its run: the target's
+			-- run starts a row lower
+			piece(2, 3, 3, { state = "fall", offx = -3600, offy = 5400 }),
+			-- a straight fall into the top of the run still comes from beyond it: cut there
+			piece(3, 3, 3, { state = "fall", offy = 3240 }),
+		}, 5, 0)
+		assert_eq(find(list, 1).clip, nil, "a piece from a cell inside the board is seen whole")
+		assert_near(find(list, 2).clip, g:clip_top(4, 2), 1e-9) -- cut at the line of its donor's run, not the lower one
+		assert_true(find(list, 2).clip > g:clip_top(3, 3))
+		assert_near(find(list, 3).clip, g:clip_top(3, 3), 1e-9)
+	end)
+
 	it("moves swapped pieces over T.swap, the dragged one on top, and a failed swap comes back", function()
 		local g = G()
 		local A = level_anim.new({ geom = g })
@@ -140,7 +163,9 @@ describe("client.level_anim", function()
 		assert_near(level_anim.appear_scale(0), 0, 1e-9)
 		assert_near(level_anim.appear_scale(level_anim.APPEAR_TIME * 0.55), level_anim.APPEAR_PEAK, 1e-9)
 		assert_near(level_anim.appear_scale(level_anim.APPEAR_TIME), 1, 1e-9)
-		local s = find(A:frame(ps, 31, 1.05), 9)
+		-- it blooms when the pieces arrive (APPEAR_DELAY after the event), not before
+		assert_eq(find(A:frame(ps, 30, 1.0 + level_anim.APPEAR_DELAY / 2), 9).sx, 0)
+		local s = find(A:frame(ps, 31, 1.0 + level_anim.APPEAR_DELAY + 0.05), 9)
 		assert_true(s.sx > 0 and s.sx < 1.2)
 		assert_true(s.flash > 0.5)
 		assert_near(find(A:frame(ps, 60, 2.0), 9).sx, 1, 1e-9)
@@ -248,5 +273,94 @@ describe("client.level_anim", function()
 			end
 		end
 		assert_true(drawn > 0)
+	end)
+end)
+
+describe("client.level_anim (finish)", function()
+	it("fails a swap the whole way with an 8 % overshoot and comes back in 7 + 7 ticks", function()
+		local peak, at_peak = 0, 0
+		for i = 0, 100 do
+			local v = level_anim.fail_offset(i / 100)
+			if v > peak then peak, at_peak = v, i / 100 end
+		end
+		assert_near(peak, 1.08, 0.005)
+		assert_true(at_peak < 0.5) -- it overshoots on the way out, not on the way back
+		assert_near(level_anim.fail_offset(0), 0, 1e-9)
+		assert_near(level_anim.fail_offset(0.5), 1, 1e-9) -- at the other cell after 7 of 14 ticks
+		assert_near(level_anim.fail_offset(1), 0, 1e-9)
+		-- continuous at the turn
+		assert_near(level_anim.fail_offset(0.4999), level_anim.fail_offset(0.5001), 0.01)
+	end)
+
+	it("makes a piece an effect has pinned glow and breathe until it is hit", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		local ps = { piece(1, 2, 2, { pinned = true }), piece(2, 3, 2) }
+		local lo, hi = 1, 0
+		local small, big = 2, 0
+		for k = 0, 30 do
+			local e = find(A:frame(ps, 1, k / 60), 1)
+			lo, hi = math.min(lo, e.flash), math.max(hi, e.flash)
+			small, big = math.min(small, e.sx), math.max(big, e.sx)
+		end
+		assert_true(lo > 0, "always glowing")
+		assert_true(hi > lo, "pulsing")
+		assert_true(big > 1 and big < 1.06)
+		local calm = find(A:frame(ps, 1, 0), 2)
+		assert_eq(calm.flash, 0)
+		assert_eq(calm.sx, 1)
+		-- reduced motion: a steady glow, no breathing
+		local R = level_anim.new({ geom = g, reduced = true })
+		local e = find(R:frame(ps, 1, 0.3), 1)
+		assert_true(e.flash > 0)
+		assert_eq(e.sx, 1)
+	end)
+
+	it("keeps a destroyed column lit instead of shrinking it, and lets the noise creep in first", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		A:event({ type = "destroy", t = 10, id = 8, x = 2, y = 2, item = "column" }, 0)
+		local col = piece(8, 2, 2, { kind = "blocker", item = "column", hp = 0, state = "clear", color = nil })
+		for u = 0, 8 do
+			local e = find(A:frame({ col }, 10 + u, u / 60), 8)
+			assert_eq(e.image, "blockers_column_on")
+			assert_eq(e.alpha, 1)
+			assert_true(e.sx >= 1, "no shrink at tick " .. u)
+		end
+		-- a piece turns into noise: the old look stays for NOISE_HOLD, then the grey noise
+		local B = level_anim.new({ geom = g })
+		local before = piece(5, 4, 4)
+		B:frame({ before }, 1, 1.0)
+		B:event({ type = "noise_spread", t = 20, fx = 4, fy = 3, x = 4, y = 4, id = 5 }, 1.0)
+		local now = piece(5, 4, 4, { kind = "blocker", item = "noise", hp = 1, color = nil })
+		assert_eq(find(B:frame({ now }, 20, 1.05), 5).image, "pieces_red")
+		assert_eq(find(B:frame({ now }, 30, 1.0 + level_anim.NOISE_HOLD + 0.05), 5).image, "blockers_noise")
+	end)
+
+	it("lets a new special bloom after its group has flown in, so it is born hidden", function()
+		local A = level_anim.new({ geom = G() })
+		A:event({ type = "special_new", t = 40, id = 12, x = 3, y = 3, special = "sub" }, 5.0)
+		local ps = { piece(12, 3, 3, { kind = "special", special = "sub", color = nil }) }
+		assert_eq(find(A:frame(ps, 40, 5.0), 12).sx, 0)
+		assert_true(find(A:frame(ps, 46, 5.0 + level_anim.APPEAR_DELAY + 0.1), 12).sx > 0.5)
+	end)
+
+	it("blooms the board in a wave from the bottom left at the start of a level", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		local ps = { piece(1, 1, 6), piece(2, 6, 1) } -- bottom left, top right
+		A:intro(ps, 2.0)
+		assert_eq(find(A:frame(ps, 1, 2.0), 1).sx, 0) -- nothing yet
+		assert_eq(find(A:frame(ps, 1, 2.0), 2).sx, 0)
+		local early = find(A:frame(ps, 1, 2.0 + level_anim.INTRO_DELAY + 0.1), 1)
+		assert_true(early.sx > 0.3)
+		assert_eq(find(A:frame(ps, 1, 2.0 + level_anim.INTRO_DELAY + 0.1), 2).sx < early.sx, true) -- the far corner is later
+		local done = find(A:frame(ps, 1, 3.5), 2)
+		assert_eq(done.sx, 1)
+		assert_eq(done.sy, 1)
+		-- reduced motion: no intro at all
+		local R = level_anim.new({ geom = g, reduced = true })
+		R:intro(ps, 2.0)
+		assert_eq(find(R:frame(ps, 1, 2.0), 1).sx, 1)
 	end)
 end)

@@ -1,0 +1,36 @@
+{
+  "id": 74, "version": 1,
+  "size": [9, 10],
+  "moves": 26,
+  "difficulty": "hard",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "concrete", "count": 10},
+    {"type": "collect", "color": "blue", "count": 42}
+  ],
+  "cells": [
+    "####.####",
+    "####.####",
+    "####.####",
+    "####.####",
+    "####.####",
+    "#########",
+    "#########",
+    "####.####",
+    "####.####",
+    "####.####"
+  ],
+  "slots": [
+    {"at": [3, 2], "type": "concrete", "hp": 1},
+    {"at": [5, 2], "type": "concrete", "hp": 1},
+    {"at": [2, 5], "type": "concrete", "hp": 2},
+    {"at": [4, 5], "type": "concrete", "hp": 1},
+    {"at": [6, 5], "type": "concrete", "hp": 2},
+    {"at": [1, 6], "type": "concrete", "hp": 2},
+    {"at": [3, 6], "type": "riff", "axis": "h"},
+    {"at": [4, 6], "type": "concrete", "hp": 1},
+    {"at": [7, 6], "type": "concrete", "hp": 2},
+    {"at": [3, 8], "type": "concrete", "hp": 1},
+    {"at": [5, 8], "type": "concrete", "hp": 1}
+  ]
+}

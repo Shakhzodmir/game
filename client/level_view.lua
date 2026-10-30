@@ -41,9 +41,10 @@ M.anim_hash = ah
 -- "#RRGGBB" -> r, g, b (0..1)
 local hex_cache = {}
 function M.rgb(hex)
+	hex = hex or "#FFFFFF"
 	local c = hex_cache[hex]
 	if not c then
-		local s = string.gsub(hex or "#FFFFFF", "#", "")
+		local s = string.gsub(hex, "#", "")
 		c = {
 			(tonumber(string.sub(s, 1, 2), 16) or 255) / 255,
 			(tonumber(string.sub(s, 3, 4), 16) or 255) / 255,
@@ -65,7 +66,7 @@ function M.new(opts)
 		free = {},       -- pooled piece sprites
 		count = 0,       -- piece sprites created
 		wires = {},      -- sprite objects of the wires overlay
-		mark_objs = {},  -- sprite objects of marks, by kind
+		mark_objs = { glow = {}, piece = {} }, -- sprite objects of marks, by kind
 		frame = 0,
 		overflow = 0,
 	}, View)
@@ -218,27 +219,33 @@ end
 
 -- Marks under / over the pieces: list of {image, x, y, w, h (logical px),
 -- color = "#hex", alpha, glow = true (additive), z, rot}. Drawn until the next call.
+-- Nothing is allocated here: the sprites are pooled by kind and the list is read only.
 function View:marks(list)
 	local objs = self.mark_objs
-	local used = { glow = 0, piece = 0 }
+	local n_glow, n_piece = 0, 0
 	for i = 1, #list do
 		local m = list[i]
-		local kind = m.glow and "glow" or "piece"
-		used[kind] = used[kind] + 1
-		objs[kind] = objs[kind] or {}
-		local o = objs[kind][used[kind]]
+		local arr, idx
+		if m.glow then
+			n_glow = n_glow + 1
+			arr, idx = objs.glow, n_glow
+		else
+			n_piece = n_piece + 1
+			arr, idx = objs.piece, n_piece
+		end
+		local o = arr[idx]
 		if not o then
-			o = M.create(self.factory[kind])
-			objs[kind][used[kind]] = o
+			o = M.create(self.factory[m.glow and "glow" or "piece"])
+			arr[idx] = o
 		end
 		local iw, ih = m.iw or 64, m.ih or 64
 		local r, g, b = M.rgb(m.color or "#FFFFFF")
 		M.apply(o, m.image or "fx_glow_dot", m.x, m.y, m.z or M.Z_MARK, m.w / iw, m.h / ih, m.rot or 0, 0, nil,
 			m.alpha or 1, r, g, b)
 	end
-	for kind, arr in pairs(objs) do -- order-independent
-		for i = used[kind] + 1, #arr do M.hide(arr[i]) end
-	end
+	local glow, piece = objs.glow, objs.piece
+	for i = n_glow + 1, #glow do M.hide(glow[i]) end
+	for i = n_piece + 1, #piece do M.hide(piece[i]) end
 end
 
 function View:stats()
@@ -249,7 +256,7 @@ end
 
 function View:final()
 	-- the collection is being unloaded: its objects go with it
-	self.by_id, self.free, self.wires, self.mark_objs = {}, {}, {}, {}
+	self.by_id, self.free, self.wires, self.mark_objs = {}, {}, {}, { glow = {}, piece = {} }
 end
 
 return M

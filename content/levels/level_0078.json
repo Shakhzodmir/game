@@ -1,0 +1,47 @@
+{
+  "id": 78, "version": 1,
+  "size": [9, 11],
+  "moves": 28,
+  "difficulty": "hard",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 6},
+    {"type": "break", "item": "concrete", "count": 6}
+  ],
+  "cells": [
+    "...###...",
+    "...###...",
+    "...###...",
+    ".#######.",
+    ".#######.",
+    "..#####..",
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    ".#######."
+  ],
+  "spawners": [[3, 0], [4, 0], [5, 0], [1, 3], [2, 3], [6, 3], [7, 3], [1, 7], [7, 7], [0, 8], [8, 8]],
+  "slots": [
+    {"at": [2, 7], "type": "concrete", "hp": 1},
+    {"at": [6, 7], "type": "concrete", "hp": 1},
+    {"at": [0, 8], "type": "concrete", "hp": 1},
+    {"at": [1, 8], "type": "piece", "color": "green"},
+    {"at": [2, 8], "type": "piece", "color": "yellow"},
+    {"at": [3, 8], "type": "piece", "color": "yellow"},
+    {"at": [4, 8], "type": "piece", "color": "orange"},
+    {"at": [5, 8], "type": "piece", "color": "yellow"},
+    {"at": [6, 8], "type": "piece", "color": "blue"},
+    {"at": [8, 8], "type": "concrete", "hp": 1},
+    {"at": [1, 9], "type": "concrete", "hp": 1},
+    {"at": [3, 9], "type": "piece", "color": "purple"},
+    {"at": [4, 9], "type": "piece", "color": "yellow"},
+    {"at": [5, 9], "type": "mic"},
+    {"at": [7, 9], "type": "concrete", "hp": 1},
+    {"at": [3, 10], "type": "piece", "color": "orange"},
+    {"at": [4, 10], "type": "piece", "color": "orange"},
+    {"at": [5, 10], "type": "piece", "color": "yellow"},
+    {"at": [6, 10], "type": "piece", "color": "orange"}
+  ],
+  "mic": {"total": 6, "on_board_max": 2, "gap_moves": 4}
+}

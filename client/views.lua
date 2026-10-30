@@ -7,6 +7,9 @@
 --   views.booster_icon("riff")               --> "specials/riff"
 --   views.lives(meta:lives(now))             --> {state, count, max, seconds, icon}
 --   views.task(meta)                         --> the next-task card | nil
+--   views.card(meta, viewing)                --> what the card above the level button shows
+--   views.browse(meta, viewing)              --> the open districts the player can page through
+--   views.town_hint(meta, task)              --> the hint to show over the town | nil
 --   views.level_button(meta, levels)         --> {level, tag, notes, all_done}
 --   views.start(meta, n, info, now, levels, free_up_to) --> the start window of level n
 --   views.start_boosters(meta, level)        --> the three pre-level slots
@@ -18,9 +21,16 @@
 --   views.gift(id, config)                   --> an unlock gift
 --   views.settings(meta)                     --> the settings window
 
+local config = require("meta.config") -- the catalogue and the choices of the settings (read for display only)
+
 local M = {}
 
-M.PRE = { "riff", "sub", "disco" } -- pre-level boosters, start window order
+-- The pre-level boosters in catalogue order (config kind "pre"): the slots of the start window, which
+-- lays out three (tests/client/meta_views_test.lua keeps the two in step).
+M.PRE = {}
+for _, def in ipairs(config.boosters) do
+	if def.kind == "pre" then M.PRE[#M.PRE + 1] = def.id end
+end
 
 -- Booster art: in-level boosters have UI icons, pre-level ones are the
 -- special pieces they put on the board.
@@ -71,6 +81,12 @@ function M.lives(l)
 	return out
 end
 
+-- Minutes to the next life, for the rule shown in the lives window. config =
+-- meta/config.lua (read for display only).
+function M.regen_minutes(config)
+	return math.max(1, math.floor(((config and config.lives and config.lives.regen_seconds) or 1200) / 60 + 0.5))
+end
+
 -- The next task card: {district, id, name, cost, stem, affordable, need,
 -- image} or nil when the town is complete.
 function M.task(meta)
@@ -82,6 +98,47 @@ function M.task(meta)
 		affordable = t.affordable, need = need,
 		image = "districts/" .. t.district .. "/" .. t.id,
 	}
+end
+
+-- What the card above the "Level N" button shows while district `viewing` is on display:
+--   {kind = "task", task}         the next task of the district being built
+--   {kind = "back", district, name}  another district is on display: a way back to the one being built
+--   {kind = "done"}               the whole town is complete
+function M.card(meta, viewing)
+	local task = M.task(meta)
+	if not task then return { kind = "done" } end
+	if viewing and task.district ~= viewing then
+		local d = meta:district(task.district)
+		return { kind = "back", district = task.district, name = d.name }
+	end
+	return { kind = "task", task = task }
+end
+
+-- The open districts (finished ones and the one being built, in town order) and where `viewing`
+-- stands among them: {count, index, ids, prev = id | nil, next = id | nil}.
+function M.browse(meta, viewing)
+	local ids = {}
+	for _, d in ipairs(meta:districts()) do
+		if d.available then ids[#ids + 1] = d.id end
+	end
+	local index = 1
+	for i, id in ipairs(ids) do
+		if id == viewing then index = i end
+	end
+	return { count = #ids, index = index, ids = ids, prev = ids[index - 1], next = ids[index + 1] }
+end
+
+-- The hint to show over the town now: {id, target, text = {key}} or nil. The first task of the
+-- town (a star is in the purse, nothing was built yet) gets a pointing hand; the hint is
+-- remembered in the save (meta:mark_tutorial_seen) once the player builds.
+-- task = M.task(meta) (nil when the town is complete).
+M.HINT_TASK = "town_first_task"
+function M.town_hint(meta, task)
+	if not task or not task.affordable or meta:tutorial_seen(M.HINT_TASK) then return nil end
+	for _, d in ipairs(meta:districts()) do
+		if d.done > 0 then return nil end
+	end
+	return { id = M.HINT_TASK, target = "task", text = { key = "tutorial.town" } }
 end
 
 -- The green "Level N" button: {level, difficulty, tag (i18n key or nil),
@@ -147,7 +204,7 @@ end
 -- The start window of level n. info = client/levels.lua load(n) (nil when
 -- the file is missing); free_up_to = app.free_levels(). {level, difficulty,
 -- tag, goals, moves, boosters, streak = {count, active, notes}, infinite,
--- lives, life_cost (a loss would cost a life), can_start, why (the meta's
+-- lives, next_life_in (seconds), life_cost (a loss would cost a life), can_start, why (the meta's
 -- refusal: "no_lives", "run_active", ...)}.
 function M.start(meta, n, info, now, levels, free_up_to)
 	local ok, why = meta:can_start(n, now)
@@ -168,6 +225,7 @@ function M.start(meta, n, info, now, levels, free_up_to)
 		streak = { count = streak.count, active = streak.active, notes = notes },
 		infinite = (l.infinite_seconds or 0) > 0,
 		lives = l.count,
+		next_life_in = l.next_in_seconds or 0,
 		life_cost = (free_up_to == nil or n > free_up_to) and (l.infinite_seconds or 0) <= 0,
 		can_start = ok and true or false,
 		why = why,
@@ -202,9 +260,9 @@ function M.shop_products(products, available)
 		if p then
 			local r = p.reward or {}
 			local boosters = {}
-			for _, id in ipairs({ "stick", "row_light", "col_light", "remix", "riff", "sub", "disco" }) do
-				local c = r.boosters and r.boosters[id]
-				if c and c > 0 then boosters[#boosters + 1] = { id = id, count = c, icon = M.booster_icon(id) } end
+			for _, def in ipairs(config.boosters) do -- the catalogue's order
+				local c = r.boosters and r.boosters[def.id]
+				if c and c > 0 then boosters[#boosters + 1] = { id = def.id, count = c, icon = M.booster_icon(def.id) } end
 			end
 			out[#out + 1] = {
 				id = p.id, name = d.name, price = p.price, coins = r.coins or 0, boosters = boosters,
@@ -292,14 +350,20 @@ function M.gift(id, config)
 	return { id = id, icon = M.booster_icon(id), count = count, kind = kind }
 end
 
--- The settings window: the meta settings plus the choices to show.
+local function copy(list)
+	local out = {}
+	for i, v in ipairs(list) do out[i] = v end
+	return out
+end
+
+-- The settings window: the meta settings plus the choices to show (the meta's own lists).
 function M.settings(meta)
 	local s = meta:settings()
 	return {
 		music = s.music, sfx = s.sfx, haptics = s.haptics and true or false,
 		reduced_motion = s.reduced_motion and true or false,
 		input_mode = s.input_mode, language = s.language,
-		input_modes = { "swipe", "taptap" }, languages = { "auto", "en", "ru" },
+		input_modes = copy(config.input_modes), languages = copy(config.languages),
 	}
 end
 

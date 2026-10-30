@@ -4,20 +4,24 @@
 -- change (core-rules.md 16, 17.3); this module only adds the visual extras
 -- on top (client-architecture.md, 4.1):
 --
---   touch x1.08 in 0.08 s; swap / failed swap (there with an 8 % overshoot and
---   back) / swap back, the dragged piece on top; landing squash 0.88 / 1.08 with
---   a spring; clear: pop x1.15 in 3 ticks, then shrink to 0 by the end of
---   T.clear (9 ticks); pieces of a group that makes a special fly into its
---   cell; a new special grows 0 -> 1.2 -> 1.0 with a white flash; transforms
---   flash and pop; armed specials pulse (the Sabwoofer swells); blockers
---   wobble when hit; shuffled pieces fly to their new cells; the selected
---   piece stays big; the hint pair wobbles towards each other.
+--   touch x1.08 in 0.08 s; swap / failed swap (the whole way, 8 % past the other
+--   cell and back, 7 + 7 ticks) / swap back, the dragged piece on top; landing
+--   squash 0.88 / 1.08 with a spring; clear: pop x1.15 in 3 ticks, then shrink
+--   to 0 by the end of T.clear (9 ticks); pieces of a group that makes a special
+--   fly into its cell; a new special blooms 0 -> 1.2 -> 1.0 with a flash once they
+--   have arrived; transforms flash and pop; armed specials pulse (the Sabwoofer
+--   swells); pieces an effect has pinned glow and breathe until they are hit (the
+--   colour of a Disco ball, the path of a bolt); blockers wobble when hit; a
+--   destroyed column stays lit; the noise creeps over a piece before it turns
+--   grey; shuffled pieces fly to their new cells; the selected piece stays big;
+--   the hint pair wobbles towards each other; the board blooms in at the start.
 --
 --   local level_anim = require("client.level_anim")
 --   local A = level_anim.new({geom = g, reduced = false})
 --   A:event(e, t)                 -- every core event (t = real seconds)
 --   A:touch(id, t)                -- a finger went down on a piece
 --   A:select(id)                  -- the selection (nil = none)
+--   A:intro(game:pieces(), t)     -- the first frame of a level: the pieces bloom in as a wave
 --   A:hint(a, b, phase)           -- hint cells {x, y} and wobble phase 0..1 (nil = none)
 --   local list = A:frame(game:pieces(), tick_f, t)
 --   -- list[k] = {id, image, x, y, z, sx, sy, rot, scale, flash, alpha, clip}
@@ -47,10 +51,16 @@ M.APPEAR_TIME = 0.30    -- new special: 0 -> 1.2 -> 1.0
 M.APPEAR_PEAK = 1.2
 M.FLASH_TIME = 0.28     -- white flash fading out
 M.HIT_TIME = 0.24       -- blocker wobble
-M.FAIL_REACH = 0.35     -- share of a cell a failed swap travels
-M.FAIL_OVERSHOOT = 0.08
+M.FAIL_REACH = 1.0      -- a failed swap goes the whole way (7 ticks) ...
+M.FAIL_OVERSHOOT = 0.08 -- ... 8 % past the other cell, and comes back (7 ticks)
+M.FAIL_BACK = 1.5       -- ease-out-back strength that gives exactly that 8 % overshoot
 M.SWELL_TICKS = 6       -- T.sub_swell
 M.SWELL_SCALE = 1.35
+M.APPEAR_DELAY = 5 / 60 -- a new special blooms 5 ticks after the group started flying in
+M.PIN_FLASH = 0.16      -- white pulse of a piece an effect has pinned (about to be hit)
+M.PIN_SCALE = 0.035
+M.NOISE_HOLD = 0.2      -- seconds a piece keeps its look while the noise creeps over to it
+M.INTRO_DELAY = 0.15    -- the board pops in after the screen fades in: delay, then a wave from the bottom left
 
 M.Z = {
 	blocker = 0.08, piece = 0.10, special = 0.11, mic = 0.10,
@@ -133,12 +143,12 @@ function M.clear_scale(u, pop_ticks, clear_ticks)
 	return math.max(0, M.POP_SCALE * (1 - (u - pop_ticks) / rest))
 end
 
--- Share of the way a failed swap has travelled at progress u (0..1):
--- out with a small overshoot, then back.
+-- Share of the way a failed swap has travelled at progress u (0..1): out to
+-- the other cell, rushing 8 % past it on the way (7 ticks), then back (7 ticks).
 function M.fail_offset(u)
 	u = clamp01(u)
 	if u < 0.5 then
-		return M.FAIL_REACH * ease_out_back(u / 0.5, M.FAIL_OVERSHOOT * 20)
+		return M.FAIL_REACH * ease_out_back(u / 0.5, M.FAIL_BACK)
 	end
 	return M.FAIL_REACH * (1 - ease_in_out((u - 0.5) / 0.5))
 end
@@ -176,6 +186,18 @@ local function rec(self, id)
 		self.vis[id] = v
 	end
 	return v
+end
+
+-- The first frame of a level: every piece blooms in a wave from the bottom left
+-- corner (the whole intro lasts about half a second; input is not held back).
+-- pieces = game:pieces(); t = real seconds now. Nothing under reduced motion.
+function Anim:intro(pieces, t)
+	if self.reduced or not self.geom then return end
+	local h = self.geom.H
+	for i = 1, #pieces do
+		local p = pieces[i]
+		rec(self, p.id).appear = t + M.INTRO_DELAY + 0.02 * (p.x - 1) + 0.03 * (h - p.y)
+	end
 end
 
 function Anim:touch(id, t)
@@ -226,7 +248,8 @@ function Anim:event(e, t)
 		end
 	elseif ty == "special_new" then
 		local v = rec(self, e.id)
-		v.appear, v.flash = t, t
+		-- the pieces of the group fly in first; the special blooms as they arrive
+		v.appear, v.flash = t + M.APPEAR_DELAY, t + M.APPEAR_DELAY
 		local g = self.group
 		if g and g.special and g.t == e.t then
 			for _, id in ipairs(g.ids) do
@@ -249,7 +272,10 @@ function Anim:event(e, t)
 		end
 	elseif ty == "noise_spread" then
 		local v = rec(self, e.id)
-		v.pop, v.flash = t, t
+		-- the noise creeps over first (level_effects), then the piece turns grey
+		local before = v.out and v.out.image
+		if before then v.hold_image, v.hold_until = before, t + M.NOISE_HOLD end
+		v.pop, v.flash = t + M.NOISE_HOLD, t + M.NOISE_HOLD
 		v.flash_dark = true
 	elseif ty == "freed" then
 		rec(self, e.id).pop = t
@@ -299,6 +325,9 @@ function Anim:frame(pieces, tick_f, t)
 		local kind, state = p.kind, p.state
 		if p.item == "column" and not self.max_hp[p.id] then self.max_hp[p.id] = p.hp or 1 end
 		e.image = M.image(p, self.max_hp[p.id])
+		if v.hold_image then
+			if t < v.hold_until then e.image = v.hold_image else v.hold_image = nil end
+		end
 		local x, y = g:pos(p.x, p.y, p.offx, p.offy)
 		if p.item == "column" then x, y = x + cell / 2, y - cell / 2 end
 		local sx, sy, rot, flash, alpha = 1, 1, 0, 0, 1
@@ -366,6 +395,13 @@ function Anim:frame(pieces, tick_f, t)
 				sx, sy = s, s
 				alpha = 1 - k
 				flash = 1 - k
+			elseif p.item == "column" then
+				-- the speaker powers on and stays lit; level_effects hands it to a ghost sprite that
+				-- fades out when the object leaves (T.clear)
+				local k = clamp01(u / M.CLEAR_TICKS)
+				local s = 1 + 0.06 * math.sin(k * math.pi)
+				sx, sy = s, s
+				flash = 0.35 * (1 - k)
 			elseif kind == "mic" then
 				local k = clamp01(u / M.CLEAR_TICKS)
 				y = y - cell * 0.6 * k
@@ -391,6 +427,15 @@ function Anim:frame(pieces, tick_f, t)
 			if p.special == "disco" and not reduced then rot = u * 12 end
 			flash = 0.3 + 0.25 * math.sin(u * 0.8)
 			z = M.Z.swap_top
+			if v.pop then
+				local dt = t - v.pop
+				if dt >= 0.3 then
+					v.pop = nil
+				else
+					local s = 1 + 0.25 * math.sin(clamp01(dt / 0.3) * math.pi)
+					sx, sy = sx * s, sy * s
+				end
+			end
 		else
 			-- idle / fall
 			if v.touch then
@@ -454,6 +499,16 @@ function Anim:frame(pieces, tick_f, t)
 					end
 				end
 			end
+			if p.pinned then
+				-- an effect has picked this piece (a Disco list, the path of a bolt, the Bird's
+				-- target): it glows until it is hit, so the colour of the Disco reads at a glance
+				local pulse = reduced and 0.5 or (0.5 + 0.5 * math.sin(t * 14 + (p.id % 7) * 0.9))
+				flash = math.max(flash, M.PIN_FLASH * (0.4 + 0.6 * pulse))
+				if not reduced then
+					local s = 1 + M.PIN_SCALE * pulse
+					sx, sy = sx * s, sy * s
+				end
+			end
 			if hints and state == "idle" then
 				local other = hints[cell_key(p.x, p.y)]
 				if other then
@@ -465,8 +520,16 @@ function Anim:frame(pieces, tick_f, t)
 				end
 			end
 			if state == "fall" then
-				-- entering at a spawner: cut the sprite at the top of its column run
+				-- entering at a spawner: cut the sprite at the top of its column run. A piece that slides in
+				-- diagonally starts in the cell up the side it comes from (its donor), and that column's run may
+				-- reach higher than the run of the target: the higher line counts, or the piece would pop in
+				-- through a cut that has nothing to do with it
 				local top = g:clip_top(p.x, p.y)
+				local ox = p.offx or 0
+				if ox ~= 0 then
+					local donor = g:clip_top(p.x + (ox < 0 and 1 or -1), p.y - 1)
+					if donor and (not top or donor > top) then top = donor end
+				end
 				if top and y + cell * 0.6 > top then e.clip = top end
 			end
 		end
@@ -475,7 +538,7 @@ function Anim:frame(pieces, tick_f, t)
 			if dt >= M.FLASH_TIME then
 				v.flash, v.flash_dark = nil, nil
 			elseif not v.flash_dark then
-				flash = math.max(flash, 1 - dt / M.FLASH_TIME)
+				flash = math.max(flash, math.min(1, 1 - dt / M.FLASH_TIME))
 			end
 		end
 		e.x, e.y, e.z = x, y, z

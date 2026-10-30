@@ -1,0 +1,41 @@
+{
+  "id": 55, "version": 1,
+  "size": [8, 10],
+  "moves": 24,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "break", "item": "noise", "count": 6}
+  ],
+  "cells": [
+    ".######.",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########"
+  ],
+  "slots": [
+    {"at": [3, 2], "type": "mic"},
+    {"at": [6, 5], "type": "noise"},
+    {"at": [2, 6], "type": "noise"},
+    {"at": [2, 7], "type": "piece", "color": "blue"},
+    {"at": [5, 7], "type": "noise"},
+    {"at": [7, 7], "type": "piece", "color": "orange"},
+    {"at": [0, 8], "type": "piece", "color": "blue"},
+    {"at": [1, 8], "type": "piece", "color": "blue"},
+    {"at": [2, 8], "type": "piece", "color": "red"},
+    {"at": [5, 8], "type": "piece", "color": "orange"},
+    {"at": [6, 8], "type": "piece", "color": "orange"},
+    {"at": [7, 8], "type": "piece", "color": "yellow"},
+    {"at": [1, 9], "type": "noise"},
+    {"at": [4, 9], "type": "noise"},
+    {"at": [6, 9], "type": "noise"}
+  ],
+  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 4}
+}
