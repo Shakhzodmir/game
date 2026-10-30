@@ -464,9 +464,15 @@ function M.install(opts)
 	function go.set_scale(scale, id)
 		E.count("go_set_scale")
 		local o = instance(id, 2)
+		-- the engine refuses (logs an error, keeps the old scale) a scale with a component <= 0; this
+		-- showed up only in the first live browser run, so the stub is strict about it too
 		if type(scale) == "number" then
+			if not (scale > 0) then error("go.set_scale: Vector passed to go.set_scale contains components that are below or equal to zero", 2) end
 			o.scale = vector3(scale, scale, scale)
 		elseif is_v3(scale) then
+			if not (scale.x > 0 and scale.y > 0 and scale.z > 0) then
+				error("go.set_scale: Vector passed to go.set_scale contains components that are below or equal to zero", 2)
+			end
 			o.scale = vector3(scale)
 		else
 			error("go.set_scale: number or vector3 expected", 2)
