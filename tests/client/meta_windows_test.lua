@@ -629,6 +629,57 @@ describe("meta windows: chests and gifts", function()
 		end)
 	end)
 
+	it("offers a level chest that was won and not opened when the town shows, and pays it only at Collect", function()
+		G.with_town({ setup = function(app)
+			G.win(app, 9)
+			assert(flow.debug_win(3, true)) -- level 10: the chest stays in the meta, as after a win on the board
+		end }, function(c)
+			local meta = c.app.meta
+			assert_eq(#meta:pending_chests(), 1)
+			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0, "the win started no unlimited lives")
+			wait_for(c, function() return c.app.ui.popup == "chest" end, 8, "the waiting chest")
+			assert_true(has(c, "Level 10 chest!"), texts(c))
+			-- a long look at the closed chest: its time must not run
+			c.E.clock = c.E.clock + 10 * 60
+			local coins = meta:coins()
+			c.run(0.5)
+			wtap(c, "chest")
+			wait_for(c, function() return c.app.ui.popup_targets and c.app.ui.popup_targets.collect ~= nil end, 3, "the open chest")
+			c.run(1.5)
+			assert_eq(meta:coins(), coins, "nothing is paid while the chest is open")
+			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0)
+			wtap(c, "collect")
+			c.run(0.2) -- the coins and the heart are in the air
+			assert_eq(#meta:pending_chests(), 0, "paid at the tap on Collect")
+			assert_eq(meta:coins(), coins + 60)
+			assert_eq(c.app.ui.hold.infinite, 900, "the pill keeps its look until the heart lands")
+			assert_true(has(c, "Full"))
+			wait_for(c, function() return not c.app.ui.busy end, 12, "the flights")
+			assert_eq(c.app.ui.hold.infinite, 0)
+			assert_eq(c.app.ui.disp.coins, meta:coins())
+			-- the ten minutes spent looking at the closed chest are not gone from it: 15:00, or a heartbeat less
+			assert_true(c.town:find("^15:00$", true) ~= nil or c.town:find("^14:5%d$", true) ~= nil,
+				"the full 15 minutes landed (the clock started at Collect): " .. texts(c))
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("leaves a chest in the meta when its window is closed without Collect", function()
+		G.with_town({ setup = function(app)
+			G.win(app, 9)
+			assert(flow.debug_win(3, true))
+		end }, function(c)
+			local meta = c.app.meta
+			wait_for(c, function() return c.app.ui.popup == "chest" end, 8, "the waiting chest")
+			c.app.close_popup() -- the screen goes away / the window is dismissed: nobody took the chest
+			wait_for(c, function() return not c.app.ui.busy end, 8, "the show to end")
+			assert_eq(#meta:pending_chests(), 1, "still waiting")
+			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0)
+			assert_eq(c.app.ui.hold.infinite, 0)
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
 	it("keeps the lives pill as it was until the chest's unlimited lives have flown into it", function()
 		G.with_town({ setup = function(app) G.win(app, 9) end }, function(c)
 			local res = G.win(c.app, 1) -- level 10: the chest holds 15 minutes of unlimited lives

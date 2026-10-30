@@ -106,7 +106,7 @@ function M.checksum(t)
 end
 
 -- Top-level fields of the state, i.e. of a save of this version.
-M.fields = { "salt", "wallet", "stats", "lives", "progress", "unlock_gifts", "town", "prefs" }
+M.fields = { "salt", "wallet", "stats", "lives", "progress", "unlock_gifts", "town", "prefs", "chests" }
 
 local function is_known(k)
 	return k == "version" or k == "checksum" or util.index_of(M.fields, k) ~= nil
@@ -169,6 +169,7 @@ function M.restore(raw, districts)
 		unlock_gifts = inventory.restore_gifts(raw.unlock_gifts, progress.reached(p)),
 		town = town.restore(raw.town, districts),
 		prefs = prefs.restore(raw.prefs),
+		chests = economy.restore_chests(raw.chests),
 		extra = extra,
 	}
 end

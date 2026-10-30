@@ -10,7 +10,8 @@ local M = {}
 
 -- A line of what a window says: a lavender rounded row with an icon and a text.
 -- spec = {text = string | i18n spec, icon = image key, fallback = disc colour, color = text colour,
---         fill = row colour, h = 56, size = 26}. Returns the row node and the text node.
+--         fill = row colour, h = 56, size = 26, wrap = false}. Returns the row node and the text node.
+-- A long text is wrapped into the row (wrap = true, give it a taller h) instead of being shrunk to a line.
 function M.note(e, parent, x, y, w, spec)
 	local s = e.ui
 	local h = spec.h or 56
@@ -18,9 +19,15 @@ function M.note(e, parent, x, y, w, spec)
 	local label, info
 	if spec.icon then
 		kit.icon(e, row, spec.icon, -w / 2 + h / 2 + 6, 0, h - 14, spec.fallback or "lavender")
-		label, info = s:text(row, i18n.tr(spec.text), h / 2 - 2, 1, {
-			font = "button", size = spec.size or 26, color = spec.color or "text", max_width = w - h - 36,
-		})
+		if spec.wrap then
+			label, info = s:text(row, i18n.tr(spec.text), h / 2 - 2, 1, {
+				font = "button", size = spec.size or 26, color = spec.color or "text", width = w - h - 36, height = h - 12,
+			})
+		else
+			label, info = s:text(row, i18n.tr(spec.text), h / 2 - 2, 1, {
+				font = "button", size = spec.size or 26, color = spec.color or "text", max_width = w - h - 36,
+			})
+		end
 	else
 		label, info = s:text(row, i18n.tr(spec.text), 0, 1, {
 			font = "button", size = spec.size or 26, color = spec.color or "text", max_width = w - 40,

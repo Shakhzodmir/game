@@ -710,8 +710,51 @@ describe("level screen: the results", function()
 		G.with_level({ level = 10 }, function(c)
 			win(c)
 			assert_true(c.has("Chest!"))
-			assert_true(c.has("It opens in the town"))
+			assert_true(c.has("Open"), "the chest is opened right here")
+			assert_false(c.has("It opens in the town"))
 			clean(c)
+		end)
+	end)
+
+	it("pays the level chest when the player takes it, and only then starts its unlimited lives", function()
+		G.with_level({ level = 10 }, function(c)
+			win(c)
+			local meta = c.app.meta
+			assert_eq(#meta:pending_chests(), 1, "the chest waits in the meta")
+			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0, "the win started no unlimited lives")
+			assert_false(c.has("Unlimited lives are on!"))
+			-- time passes in the window: the time of the chest must not run
+			c.E.clock = c.E.clock + 10 * 60
+			local coins = meta:coins()
+			c.tap_target("chest") -- "Open" of the results window
+			c.step(30)
+			assert_eq(top(c), "chest", "the chest window shows the chest")
+			assert_eq(meta:coins(), coins, "nothing is paid while the chest is closed")
+			c.tap_target("chest")  -- the closed chest
+			c.step(120)
+			assert_eq(meta:coins(), coins, "nothing is paid while the player has not taken it")
+			c.tap_target("collect")
+			c.step(60)
+			assert_eq(top(c), "result", "back to the results window")
+			assert_eq(#meta:pending_chests(), 0)
+			assert_eq(meta:coins(), coins + 60)
+			local left = meta:lives(c.app.now()).infinite_seconds
+			assert_true(left > 15 * 60 - 5 and left <= 15 * 60, "the full 15 minutes start at the claim, got " .. left)
+			assert_true(c.has("Chest collected!"))
+			assert_true(c.has("Unlimited lives are on!"))
+			assert_false(c.has("Open"))
+			clean(c)
+		end)
+	end)
+
+	it("keeps a chest that was not opened: the next results offer it again", function()
+		G.with_level({ level = 10 }, function(c)
+			win(c)
+			local meta = c.app.meta
+			c.tap_target("town")
+			c.step(10)
+			assert_eq(#meta:pending_chests(), 1, "leaving the results does not pay or drop the chest")
+			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0)
 		end)
 	end)
 
