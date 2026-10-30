@@ -189,9 +189,10 @@ function M.reduced_motion()
 end
 
 -- A level result for the town to show when the player is back (stars and
--- coins fly into the top bar, chests open, gifts appear). The meta has
+-- coins fly into the top bar, the streak lights up, gifts appear). The meta has
 -- already paid it (meta:finish_level); the town shows the balances without
--- what is still queued. Bus: "reward_pushed" {count}. Returns the queue length.
+-- what is still queued. The level chest is not part of it: it waits in the meta
+-- until claim_level_chest (below). Bus: "reward_pushed" {count}. Returns the queue length.
 function M.push_reward(result)
 	local n = rewards.push(result)
 	if n then bus.publish("reward_pushed", { count = n }) end

@@ -19,7 +19,11 @@
 // re-layout without errors, the board plays on the real engine (autoplay,
 // hold, the win with its final concert and results window with no effect left on the board, "Next level" ->
 // start window -> Play, a lost level with the moves and defeat windows, record boxes on their plates and a
-// refused swipe on one: the core says not_movable, no move is spent, the toast explains), and no
+// refused swipe on one: the core says not_movable, no move is spent, the toast explains), the level chest
+// (section 1b: a won chest waits in the meta; the results window offers it with "Open", the chest window pays it at
+// "Collect" and only then do its unlimited lives start; a chest left unopened is offered again by the town, after
+// the unlock gift of the level, and its time starts at "Collect" there; section 1c: in a crowded results window, where
+// "Collect" lies over "Next level", a double tap on it does not press the button below), and no
 // engine or game warning about something lost ("could not be found", "WARNING:
 // tutorials|level") appears in the console.
 // Every command the script sends exists in the bridge and every field it reads
@@ -614,6 +618,18 @@ async function debugChecks() {
 		await sleep(1800);
 		await tapTarget(p, 'town', 'popup'); // leaves without opening the chest
 		await onScreen(p, 'town', 20000);
+		// the win of level 20 also opens the Crossfader (level 21): the town hands over its gift first, then the chest
+		for (let i = 0; i < 4; i++) {
+			const shown = await waitFor(p, s => s.app.ui && (s.app.ui.popup === 'chest' || s.app.ui.popup === 'gift'),
+				'the town offers the waiting chest', 15000);
+			if (shown.app.ui.popup === 'chest') break;
+			await sleep(900);
+			await tapTarget(p, 'gift', 'popup');
+			await waitFor(p, s => s.app.ui.popup_targets && s.app.ui.popup_targets.collect, 'the open gift', 8000);
+			await sleep(1200);
+			await tapTarget(p, 'collect', 'popup');
+			await waitFor(p, s => !s.app.ui.popup || s.app.ui.popup === 'chest', 'the gift to be taken', 10000);
+		}
 		await waitFor(p, s => s.app.ui.popup === 'chest', 'the town offers the waiting chest', 15000);
 		await sleep(900);
 		const before20 = await state(p);
@@ -627,6 +643,67 @@ async function debugChecks() {
 			'chest: an unopened chest is offered in the town, its 30 minutes start at "Collect"',
 			{ before: before20.app.infinite_seconds, after: after20.app.infinite_seconds });
 		if (after20.errors && after20.errors.length) errors.push(...after20.errors.map(e => 'bridge: ' + e));
+		await p.context().close();
+	}
+
+	// 1c. a crowded results window: the chest of level 10 left unopened, then the results of level 11 (the older chest and
+	// a new booster). There "Collect" of the chest window lies over "Next level": a double tap on it must not press it ---
+	{
+		const p = await openPage(browser, { width: 540, height: 960 });
+		await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (crowded results)', 30000);
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await command(p, 'advance 10');
+		await command(p, 'goto town');
+		await sleep(1200);
+		await startLevelFromTown(p);
+		await sleep(1300);
+		await command(p, 'win');
+		await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert of level 10 (crowded)', 150000);
+		await command(p, 'skip');
+		await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 10 (crowded)', 60000);
+		await sleep(1800);
+		await tapTarget(p, 'next', 'popup'); // Next level without opening the chest
+		await waitFor(p, s => s.app.ui.popup === 'start', 'the start window of level 11', 8000);
+		await sleep(900);
+		await tapTarget(p, 'play', 'popup');
+		await onScreen(p, 'level', 20000);
+		await sleep(1300);
+		await command(p, 'win');
+		await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert of level 11', 150000);
+		await command(p, 'skip');
+		const r11 = await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 11', 60000);
+		await sleep(2200);
+		await p.screenshot({ path: `${outDir}/client_result_crowded.png` });
+		const t = r11.app.ui.popup_targets || {};
+		check(['chest', 'next', 'town'].every(n => t[n] && t[n].x > 0 && t[n].x < 720 && t[n].y > 0 && t[n].y < 1280),
+			'results: the older chest, a streak-free win and a new booster: every button of the window is on the screen', t);
+		await tapTarget(p, 'chest', 'popup');
+		await waitFor(p, s => s.app.ui.popup === 'chest', 'the chest window (level 10)', 8000);
+		await sleep(1000);
+		await tapTarget(p, 'chest', 'popup');
+		await waitFor(p, s => s.app.ui.popup_targets && s.app.ui.popup_targets.collect, 'the open chest (level 10)', 8000);
+		await sleep(1800);
+		const beforeTap = await state(p);
+		const collect = await targetOf(p, 'collect', 'popup');
+		check(Math.abs(collect.x - t.next.x) < 230 && Math.abs(collect.y - t.next.y) < 62,
+			'results: Collect lies over Next level in this window (the case a double tap used to fall through)', { collect, next: t.next });
+		const at = await logicalToPage(p, collect.x, collect.y);
+		await p.mouse.move(at.x, at.y);
+		await sleep(100);
+		await p.mouse.down(); await sleep(60); await p.mouse.up();
+		await sleep(90);
+		await p.mouse.down(); await sleep(60); await p.mouse.up(); // the second tap of the double tap
+		await sleep(2000);
+		const afterTap = await state(p);
+		check(JSON.stringify(afterTap.app.ui.popups) === '["result"]',
+			'chest: the second tap of a double tap on Collect does not press "Next level"', afterTap.app.ui.popups);
+		check(afterTap.app.coins - beforeTap.app.coins === 60, 'chest: the chest of level 10 was paid once',
+			{ before: beforeTap.app.coins, after: afterTap.app.coins });
+		await sleep(1500);
+		await tapTarget(p, 'next', 'popup'); // a deliberate tap a moment later still works
+		await waitFor(p, s => s.app.ui.popup === 'start', 'the start window after a later tap on Next level', 8000);
+		check(true, 'results: Next level answers a tap that comes later');
 		await p.context().close();
 	}
 

@@ -343,7 +343,8 @@ end
 
 -- What a chest holds, in reveal order: {{kind = "coins"|"booster"|"infinite",
 -- image, amount, id?}}. chest = {coins, boosters = {ids}, infinite_minutes}
--- (a level chest from finish_level, a district chest from complete_task).
+-- (a level chest from meta:pending_chests / finish_level: it waits for its claim; a district chest from
+-- complete_task).
 -- Boosters of the same id are counted together.
 function M.chest_items(chest)
 	local out = {}
