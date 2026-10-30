@@ -289,6 +289,38 @@ function Session:hint_command()
 	return { type = "swap", from = { h.from[1], h.from[2] }, to = { h.to[1], h.to[2] } }
 end
 
+-- The board as rows of letters for the QA bridge (one char per cell, y from the top): r o y g b p = the pieces by
+-- colour, R V = a Riff h / v, S B D = Sabwoofer / Bird / Disco ball, M = microphone, X K N A L = record box / concrete /
+-- noise / balloon / column (all four cells), `.` = nothing (a gap or an empty slot).
+local PICTURE = { red = "r", orange = "o", yellow = "y", green = "g", blue = "b", purple = "p" }
+local BLOCKER_LETTER = { record_box = "X", concrete = "K", noise = "N", balloon = "A", column = "L" }
+function Session:picture()
+	local rows = {}
+	for y = 1, self.H do rows[y] = {} end
+	for x = 1, self.W do
+		for y = 1, self.H do rows[y][x] = "." end
+	end
+	for _, p in ipairs(self.game:pieces()) do
+		local ch = "?"
+		if p.kind == "regular" then
+			ch = PICTURE[p.color] or "?"
+		elseif p.kind == "special" then
+			ch = p.special == "riff" and (p.axis == "v" and "V" or "R") or (p.special == "sub" and "S" or (p.special == "bird" and "B" or "D"))
+		elseif p.kind == "mic" then
+			ch = "M"
+		elseif p.kind == "blocker" then
+			ch = BLOCKER_LETTER[p.item] or "?"
+		end
+		rows[p.y][p.x] = ch
+		if p.item == "column" then
+			rows[p.y][p.x + 1], rows[p.y + 1][p.x], rows[p.y + 1][p.x + 1] = ch, ch, ch
+		end
+	end
+	local out = {}
+	for y = 1, self.H do out[y] = table.concat(rows[y]) end
+	return out
+end
+
 -- Plain state for the QA bridge and debug overlays.
 function Session:snapshot()
 	local st = self.game:status()
@@ -298,13 +330,13 @@ function Session:snapshot()
 		stable = self.game:is_stable(), paused = self.paused, hold = self.hold, seed = self.seed,
 		auto = self.auto and self.auto.played or nil,
 		attempt = self.info.attempt, standalone = self.info.standalone,
-		result = self.game:result(),
+		result = self.game:result(), picture = self:picture(),
 	}
 end
 
 -- QA bridge commands on this session (client/qa_bridge.lua):
 --   hint_move | swap x1 y1 x2 y2 | tap x y | skip | state |
---   booster <stick|row_light|col_light|remix> [x y | row | col] | continue [n] [riff] | give_up |
+--   booster <stick|row_light|col_light|remix|swap> [x y | row | col | x1 y1 x2 y2] | continue [n] [riff] | give_up |
 --   autoplay [n] [free] | win | hold [0|1]
 --   (autoplay plays n hint moves by itself, "free" takes "+5 moves" for nothing; win = autoplay
 --   to the end of the level with free moves; hold 1 / 0 = the app loses / regains the focus)
@@ -335,6 +367,9 @@ function Session:qa(name, args)
 		if b == "stick" then return run({ type = "booster", booster = b, at = { num(2) or 1, num(3) or 1 } }) end
 		if b == "row_light" then return run({ type = "booster", booster = b, row = num(2) or 1 }) end
 		if b == "col_light" then return run({ type = "booster", booster = b, col = num(2) or 1 }) end
+		if b == "swap" then
+			return run({ type = "booster", booster = b, at = { num(2) or 1, num(3) or 1 }, to = { num(4) or 1, num(5) or 1 } })
+		end
 		return run({ type = "booster", booster = b or "remix" })
 	elseif name == "continue" then
 		return run({ type = "continue", moves = num(1) or 5, riff = args[2] == "riff" })

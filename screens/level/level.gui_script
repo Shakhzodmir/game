@@ -14,7 +14,7 @@
 --   level_moves / level_goal / level_score / level_special / level_noise / level_praise   the HUD, Bit
 --   level_state   out_of_moves -> the offer window; the booster bar follows the state
 --   level_result  complete -> finish the attempt (meta) and show the results; lost -> the defeat
---   level_booster target mode on / off, the booster used
+--   level_booster target mode on / off, the booster used, the Crossfader's first piece picked
 --
 -- Flow of the end: win -> results -> "Next level" opens the start window of the next level -> Play (three taps
 -- from the win with the skip of the concert); defeat -> "Try again" opens the start window of the same level ->
@@ -98,6 +98,9 @@ local PAUSABLE = { playing = true, out_of_moves = true }
 
 function Level:open_pause()
 	if self.ended or not self.ctx or self.popups:count() > 0 or not PAUSABLE[self.state] then return end
+	-- a two-tap pick (the Crossfader) does not survive the pause: nothing was charged, the mode just ends
+	local armed = link.targeting()
+	if armed and level_hud.PROMPT2[armed] then link.cancel_booster() end
 	self:open("pause", {
 		view = level_windows.pause(app.meta, app.now()), level_id = self.ctx.level_id,
 		on_close = function(result) if result == "leave" then self:leave() end end,
@@ -265,6 +268,8 @@ function Level:on_booster_event(p)
 		self.hud:set_target(nil)
 		-- aimed at nothing while the moves are out: the offer is back
 		if p.phase == "cancel" and self.state == "out_of_moves" and not self.ended then self:open_moves() end
+	elseif p.phase == "pick" then
+		self.hud:set_pick(p.step)
 	elseif p.phase == "rejected" then
 		app.toast_key(level_hud.refusal_key(p.reason), nil, { color = "blue" })
 	elseif p.phase == "done" then
@@ -431,7 +436,7 @@ function Level:publish()
 	else
 		l.tutorial = nil
 	end
-	-- where to tap (logical coordinates, for the QA bridge): the pause button and the four boosters; rebuilt only
+	-- where to tap (logical coordinates, for the QA bridge): the pause button and the five boosters; rebuilt only
 	-- when the HUD was laid out again
 	local layout = self.hud.l
 	if layout and layout ~= self.pub_layout then

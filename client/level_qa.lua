@@ -5,7 +5,7 @@
 --   swap x1 y1 x2 y2            a swap command (core cells, 1-based)
 --   tap x y                     a tap on a special
 --   skip                        skips the final concert (turbo)
---   booster <id> [x y | row | col], continue [n] [riff], give_up
+--   booster <id> [x y | row | col | x1 y1 x2 y2], continue [n] [riff], give_up   (swap = the Crossfader: two cells)
 --   autoplay [n] [free]         plays n hint moves by itself ("free": "+5 moves" for nothing when out of moves)
 --   win                         autoplay to the end: the level is won, the final concert plays, the result is
 --                               handed to the HUD (poll "state": level.state won_wait / concert / complete)

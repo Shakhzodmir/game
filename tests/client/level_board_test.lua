@@ -470,6 +470,164 @@ describe("screens/level/board.script input", function()
 		end)
 	end)
 
+	-- the pieces of the board by cell: {x, y, id, color, kind}
+	local function cells_of(self)
+		local out = {}
+		for _, p in ipairs(self.session.game:pieces()) do out[#out + 1] = p end
+		return out
+	end
+
+	local function booster_events(d, phase)
+		local out = {}
+		for _, e in ipairs(d.events) do
+			if e.topic == "level_booster" and e.payload.phase == phase then out[#out + 1] = e.payload end
+		end
+		return out
+	end
+
+	it("exchanges two pieces of the Crossfader with two real taps anywhere on the board", function()
+		with_board(first_level(), function(E, script, self, d)
+			local link = require("client.level_link")
+			d.frame(3)
+			-- two far pieces of different colours whose exchange makes no match (tried on a clone), so that
+			-- the pieces can be found in each other's cells afterwards
+			local list = cells_of(self)
+			local a, b
+			for _, p in ipairs(list) do
+				for _, q in ipairs(list) do
+					if not b and p.kind == "regular" and q.kind == "regular" and p.color ~= q.color
+						and (math.abs(p.x - q.x) + math.abs(p.y - q.y)) >= 4 then
+						local c = self.session.game:clone()
+						c:input({ type = "booster", booster = "swap", at = { p.x, p.y }, to = { q.x, q.y } })
+						for _ = 1, 25 do c:step() end
+						local quiet = true
+						for _, e in ipairs(c:drain_events()) do
+							if e.type == "match" then quiet = false end
+						end
+						if quiet then a, b = p, q end
+					end
+				end
+			end
+			assert_true(a and b, "two far pieces of different colours that make no match")
+			assert_true(link.booster("swap"))
+			d.frame(1)
+			assert_eq(link.targeting(), "swap")
+			assert_eq(self.input.pair, nil)
+			d.tap(a.x, a.y)
+			d.frame(1)
+			assert_same(self.input.pair, { id = a.id, x = a.x, y = a.y }, "the first piece is picked")
+			local picks = booster_events(d, "pick")
+			assert_eq(picks[#picks].step, 1, "the HUD is told to ask for the second piece")
+			assert_eq(link.targeting(), "swap", "the target mode goes on")
+			assert_eq(self.session.game:status().moves_left, 20)
+			d.tap(b.x, b.y)
+			d.frame(2)
+			assert_eq(link.targeting(), nil, "the core took it")
+			assert_eq(#booster_events(d, "used"), 1)
+			assert_eq(#booster_events(d, "rejected"), 0)
+			assert_eq(self.session.game:status().moves_left, 20, "no move is spent")
+			assert_eq(self.session.game.s.act, 1)
+			local picks2 = booster_events(d, "pick")
+			assert_eq(picks2[#picks2].step, 0, "and the prompt goes back")
+			-- the exchange runs on the board: the two pieces fly, then trade cells
+			d.frame(5)
+			local fa = self.session.game.s.objs[a.id]
+			assert_eq(fa.state, 3, "on the swap, flying")
+			assert_true(d.settle(900))
+			local at = {}
+			for _, p in ipairs(cells_of(self)) do at[p.id] = p end
+			assert_same({ at[a.id].x, at[a.id].y }, { b.x, b.y }, "a took the cell of b")
+			assert_same({ at[b.id].x, at[b.id].y }, { a.x, a.y }, "and b the cell of a")
+			assert_eq(self.session.game:status().moves_left, 20)
+		end)
+	end)
+
+	it("makes next to no garbage per frame while the Crossfader waits for its second piece", function()
+		with_board(first_level(), function(E, script, self, d)
+			local link = require("client.level_link")
+			d.frame(60)
+			local a
+			for _, p in ipairs(cells_of(self)) do
+				if p.kind == "regular" and not a then a = p end
+			end
+			assert_true(link.booster("swap"))
+			d.frame(1)
+			d.tap(a.x, a.y)
+			d.frame(2)
+			assert_true(self.input.pair ~= nil, "the first piece is picked")
+			collectgarbage()
+			collectgarbage()
+			-- the collector is stopped and the LuaJIT compiler off while measuring (its trace recorder allocates)
+			local jit_was_on = jit and jit.status and jit.status()
+			if jit_was_on then jit.off() end
+			collectgarbage("stop")
+			local before = collectgarbage("count")
+			d.frame(240) -- 4 s: the glow of the picked piece pulses, the board stands still
+			local grown = collectgarbage("count") - before
+			collectgarbage("restart")
+			if jit_was_on then jit.on() end
+			assert_true(self.input.pair ~= nil, "still picked")
+			assert_true(grown < 1500, "a picked piece allocates " .. math.floor(grown) .. " KB in 240 frames")
+		end)
+	end)
+
+	it("lets the first piece go when it is tapped twice, and shakes and names a piece that cannot be moved", function()
+		with_board({ level = 10 }, function(E, script, self, d)
+			local link = require("client.level_link")
+			d.frame(3)
+			local blocker, piece
+			for _, p in ipairs(cells_of(self)) do
+				if p.kind == "blocker" and not blocker then blocker = p end
+				if p.kind == "regular" and not piece then piece = p end
+			end
+			assert_true(blocker and piece, "level 10 has record boxes")
+			assert_true(link.booster("swap"))
+			d.frame(1)
+			-- a blocker first: refused, nothing picked, the target mode stays
+			d.tap(blocker.x, blocker.y)
+			d.frame(1)
+			assert_eq(self.input.pair, nil)
+			assert_eq(link.targeting(), "swap")
+			local rej = booster_events(d, "rejected")
+			assert_eq(#rej, 1)
+			assert_eq(rej[1].reason, "not_movable")
+			assert_true(self.anim:record(blocker.id).shake ~= nil, "the box shakes")
+			-- a piece, then the same piece again: let go
+			d.tap(piece.x, piece.y)
+			d.frame(1)
+			assert_true(self.input.pair ~= nil)
+			d.tap(piece.x, piece.y)
+			d.frame(1)
+			assert_eq(self.input.pair, nil)
+			assert_eq(link.targeting(), "swap")
+			assert_eq(self.session.game.s.act, 0, "nothing was sent to the core")
+			-- a piece, then a blocker: refused, the first stays picked
+			d.tap(piece.x, piece.y)
+			d.frame(1)
+			d.tap(blocker.x, blocker.y)
+			d.frame(1)
+			assert_true(self.input.pair ~= nil)
+			assert_eq(#booster_events(d, "rejected"), 2)
+			assert_eq(self.session.game.s.act, 0)
+			-- a piece of the same colour as the first: the core refuses it (same_piece), the first stays picked
+			local twin
+			for _, p in ipairs(cells_of(self)) do
+				if p.kind == "regular" and p.color == piece.color and p.id ~= piece.id and not twin then twin = p end
+			end
+			d.tap(twin.x, twin.y)
+			d.frame(1)
+			local rej2 = booster_events(d, "rejected")
+			assert_eq(rej2[#rej2].reason, "same_piece")
+			assert_true(self.input.pair ~= nil)
+			assert_eq(self.session.game.s.act, 0)
+			-- the cancel path: the booster again lets everything go
+			assert_true(link.cancel_booster())
+			d.frame(2)
+			assert_eq(self.input.pair, nil)
+			assert_eq(link.targeting(), nil)
+		end)
+	end)
+
 	it("nudges a piece it cannot swap and still lets the core decide failed swaps", function()
 		with_board(first_level(), function(E, script, self, d)
 			d.frame(3)

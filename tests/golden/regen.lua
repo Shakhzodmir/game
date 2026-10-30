@@ -137,6 +137,22 @@ local SCENARIOS = {
 		opts = { seed = 777, help = 0, boosters = { "riff", "riff" }, timing = "normal" },
 		policy = { seed = 21, rate = 2, boosters = 0, continues = 0, give_up = true, skip_after = 40 },
 	},
+	{
+		-- the Crossfader (5.3): exchanges anywhere at rest, some refused (blockers, wires, pieces alike), specials
+		-- moved and never launched, matches made by the exchange
+		name = "exchange",
+		level = {
+			id = 9108, version = 1, size = { 7, 7 }, moves = 22, difficulty = "medium",
+			colors = { "red", "orange", "yellow", "green", "blue" },
+			goals = { { type = "collect", color = "orange", count = 20 }, { type = "break", item = "record_box", count = 2 } },
+			cells = { "#######", "#######", "#######", "#######", "#######", "#######", "#######" },
+			overlay = { { at = { 1, 1 }, type = "wires", hp = 1 }, { at = { 5, 4 }, type = "wires", hp = 1 } },
+			slots = { { at = { 3, 3 }, type = "record_box", hp = 2 }, { at = { 5, 2 }, type = "record_box", hp = 1 },
+				{ at = { 0, 5 }, type = "riff", axis = "h" }, { at = { 6, 5 }, type = "sub" }, { at = { 3, 0 }, type = "bird" } },
+		},
+		opts = { seed = 61, attempt = 1, salt = 3, help = 0, timing = "normal" },
+		policy = { seed = 8, rate = 2, exchanges = 2, boosters = 0, continues = 1, give_up = true },
+	},
 }
 
 -- Player ---------------------------------------------------------------------------
@@ -179,7 +195,12 @@ local function play(game, p, events)
 					game:input({ type = "tap", at = h.at })
 				end
 			end
-		elseif rnd(p.rate) == 1 then
+		elseif p.exchanges and game:is_stable() and rnd(p.exchanges) == 1 then
+			-- the Crossfader on two random cells (refused ones are not recorded)
+			local ax, ay = rnd(W), rnd(H)
+			local bx, by = rnd(W), rnd(H)
+			game:input({ type = "booster", booster = "swap", at = { ax, ay }, to = { bx, by } })
+		elseif rnd(p.rate) == 1 and (not p.exchanges or game:is_stable()) then -- with exchanges, one thing at a time
 			local r = rnd(20)
 			if r <= 9 then
 				local h = game:hint()

@@ -39,6 +39,7 @@ M.BOOSTER_ICON = {
 	row_light = "ui/icons/row_light",
 	col_light = "ui/icons/col_light",
 	remix = "ui/icons/remix",
+	swap = "ui/icons/swap",
 	riff = "specials/riff",
 	sub = "specials/sub",
 	disco = "specials/disco",

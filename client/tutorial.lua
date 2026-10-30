@@ -7,7 +7,9 @@
 --       {"kind": "swap", "from": [x, y], "to": [x, y], "text": "<i18n key>"},
 --       {"kind": "tap", "at": [x, y], "text": "..."},                  -- tap a special piece
 --       {"kind": "booster", "booster": "stick", "at": [x, y], "text": "..."},
---       {"kind": "tip", "at": [x, y] (optional), "text": "..."}]}}     -- a note, dismissed by a tap
+--       {"kind": "tip", "at": [x, y] (optional), "booster": "swap" (optional), "text": "..."}]}}
+--                                                                      -- a note, dismissed by a tap; "booster" lights
+--                                                                      -- that button of the bar (a tap on it reads the tip)
 -- Coordinates are as in the level file (0-based, y down); the runtime works
 -- with core cells (1-based).
 --
@@ -50,7 +52,8 @@ local M = {}
 
 M.PATH = "/content/tutorials.json"
 M.KINDS = { swap = true, tap = true, booster = true, tip = true }
-M.TARGET = { stick = "at", row_light = "row", col_light = "col" } -- boosters that need a target
+M.TARGET = { stick = "at", row_light = "row", col_light = "col" } -- boosters that need a target (one tap on the board)
+M.POINTABLE = { stick = true, row_light = true, col_light = true, remix = true, swap = true } -- buttons a tip may light
 M.START_DELAY = 0.8  -- seconds from the first frame to the first step (the board blooms in)
 M.STEP_DELAY = 0.35  -- seconds between two steps
 M.TIP_GUARD = 0.45   -- a tip takes a tap only after this long (the tap that made a move must not dismiss it)
@@ -146,6 +149,10 @@ function M.parse_step(raw)
 		if M.TARGET[b] and not step.at then return nil, "a " .. b .. " step needs at" end
 	else -- tip
 		step.at = cell(raw.at)
+		if raw.booster ~= nil then
+			if not M.POINTABLE[raw.booster] then return nil, "a tip can only light a booster button of the bar" end
+			step.booster = raw.booster
+		end
 	end
 	return step
 end
@@ -435,6 +442,12 @@ function T:allow_booster(id)
 	if self.phase == "active" then
 		local st = self.steps[self.index]
 		if st.kind == "booster" and st.booster == id then return true end
+		if st.kind == "tip" and st.booster == id then
+			-- the button the tip lights: the player did what it says, the tip is read
+			self:_done_step()
+			self:_advance_now()
+			return true
+		end
 	end
 	self.blocked = self.blocked + 1
 	return false
@@ -530,6 +543,8 @@ function T:view()
 		else
 			v.button = st.booster
 		end
+	elseif st.booster then
+		v.button = st.booster -- a tip that lights a button of the bar
 	elseif st.at then
 		v.cells = { st.at }
 		v.hand = { mode = "point", points = { st.at } }
