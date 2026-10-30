@@ -385,8 +385,10 @@ async function debugChecks() {
 	await waitFor(page, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert', 30000);
 	await sleep(1500);
 	await page.screenshot({ path: `${outDir}/client_board_concert.png` });
-	check(lvl(await state(page)).state === 'concert', 'board: the final concert plays', lvl(await state(page)).state);
-	await command(page, 'skip');
+	// a slow or a fast run can have the concert over by now (the state is then "complete" and "skip" has nothing to skip)
+	const concertState = lvl(await state(page)).state;
+	check(['concert', 'complete'].includes(concertState), 'board: the final concert plays', concertState);
+	if (concertState === 'concert') await command(page, 'skip');
 	await waitFor(page, s => s.app.ui.popup === 'result', 'the results window', 60000);
 	await sleep(1200);
 	await page.screenshot({ path: `${outDir}/client_board_result.png` });
