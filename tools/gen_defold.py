@@ -12,6 +12,8 @@ scanned as the source of truth, manifests only add metadata):
                                 key of each effect, the mixer contract)
   assets/music/<district>/<stem>.ogg   (Ogg headers: every stem of a district
                                 must have the same length -> error otherwise)
+  assets/music/songs/<song>.ogg  (the jukebox songs: one looping mix each, its own
+                                length; the catalogue is songs[] of content/districts.json)
   assets/fonts/*.ttf            (a missing TTF falls back to another one, so
                                 every font name always exists)
   content/districts.json        (district ids)
@@ -23,7 +25,9 @@ Writes (never edit these by hand, re-run the generator instead):
   assets/gen/fonts/*.font       title, button, number, body, small
   assets/gen/audio.go           audio game object: main/audio.script + one sound
                                 component per note (group "notes"), sfx (group
-                                "sfx") and music stem (group "music")
+                                "sfx"), music stem and jukebox song (group "music"; the
+                                songs are components of the same object, so they are loaded
+                                and held exactly like the stems)
   main/overlay.gui, screens/*/*.gui   minimal GUI scenes (script, fonts,
                                 textures, materials); their nodes are built in Lua
   client/assets_index.lua       registry of everything above for the scripts
@@ -59,6 +63,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 IMAGES = "assets/images"
 SOUNDS = "assets/sounds"
 MUSIC = "assets/music"
+SONGS_DIR = "songs"  # assets/music/songs/: the jukebox songs (a folder of tracks, not a district)
 FONTS = "assets/fonts"
 GEN = "assets/gen"
 INDEX = "client/assets_index.lua"
@@ -495,8 +500,19 @@ def sounds_manifest(warnings):
     return keys, mixer
 
 
+def song_catalogue():
+    """Ids of the jukebox songs named by content/districts.json (songs[] of every district)."""
+    data = load_json(rel("content", "districts.json")) or {}
+    out = []
+    for d in data.get("districts", []):
+        for s in (d.get("songs") or []) if isinstance(d, dict) else []:
+            if isinstance(s, dict) and isinstance(s.get("id"), str):
+                out.append(s["id"])
+    return out
+
+
 def plan_sounds(warnings, errors):
-    notes, sfx, music, loops = {}, {}, {}, {}
+    notes, sfx, music, loops, songs = {}, {}, {}, {}, {}
     comps = []  # (id, path, looping, group)
     for p in list_files(SOUNDS + "/notes", ".ogg"):
         name = os.path.basename(p)[:-4]
@@ -523,11 +539,16 @@ def plan_sounds(warnings, errors):
         if len(parts) != 2:
             continue
         did, stem = parts
-        cid = "music_" + ident(did) + "_" + ident(stem)
         info = ogg_duration(rel(p))
         if info is None:
             warnings.append("skip (not an Ogg Vorbis file): " + p)
             continue
+        if did == SONGS_DIR:  # a jukebox song: one looping file, its own loop length
+            cid = "song_" + ident(stem)
+            songs[stem] = {"id": cid, "loop": round(info[0], 6)}
+            comps.append((cid, p, 1, "music"))
+            continue
+        cid = "music_" + ident(did) + "_" + ident(stem)
         music.setdefault(did, {})[stem] = cid
         lengths.setdefault(did, {})[stem] = info[0]
         comps.append((cid, p, 1, "music"))
@@ -541,7 +562,14 @@ def plan_sounds(warnings, errors):
     comps.sort()
     sfx_keys, mixer = sounds_manifest(warnings)
     sfx_keys = {k: v for k, v in sfx_keys.items() if k in sfx}
-    return {"notes": notes, "sfx": sfx, "music": music, "loops": loops, "sfx_keys": sfx_keys, "mixer": mixer}, comps
+    for sid in song_catalogue():
+        if sid not in songs:
+            warnings.append("song %s of content/districts.json has no %s/%s/%s.ogg" % (sid, MUSIC, SONGS_DIR, sid))
+    for sid in sorted(songs):
+        if sid not in song_catalogue():
+            warnings.append("%s/%s/%s.ogg is not a song of content/districts.json" % (MUSIC, SONGS_DIR, sid))
+    return {"notes": notes, "sfx": sfx, "music": music, "loops": loops, "songs": songs, "sfx_keys": sfx_keys,
+            "mixer": mixer}, comps
 
 
 def audio_go_text(comps):
@@ -670,6 +698,8 @@ def index_text(images, atlases, anims, fonts, sounds, guis):
     L.append("\t\t},")
     L.append("\t\t-- loop length of each district track in seconds (from the Ogg headers)")
     L.append("\t\tloops = %s," % lua_value(sounds["loops"]))
+    L.append("\t\t-- jukebox songs: one looping mix each {component id, loop length in seconds (from the Ogg header)}")
+    L.append("\t\tsongs = %s," % lua_value(sounds["songs"]))
     L.append("\t\t-- mixer contract of the audio agent (assets/sounds/manifest.json -> mixer)")
     L.append("\t\tmixer = %s," % lua_value(sounds["mixer"]))
     L.append("\t},")

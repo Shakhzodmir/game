@@ -1,7 +1,13 @@
--- Player settings and the set of tutorials already shown.
+-- Player settings, the set of tutorials already shown and the song chosen in the jukebox.
 --
 -- State: {settings = {music, sfx, haptics, reduced_motion, input_mode, language},
---         tutorial = sorted array of seen tutorial ids}
+--         tutorial = sorted array of seen tutorial ids,
+--         song = id of the song the player picked in the jukebox | nil (the town plays the track of
+--                the district on display)}
+-- `song` was added to an existing field of the save: a save without it restores to nil and a save with it
+-- loads in an older build, which drops it (no version bump, see meta/save.lua).
+-- Only the shape of the id is checked here; whether the song exists and is open is the meta's business
+-- (meta.lua song()), because that depends on the districts and on the player's progress.
 
 local C = require("meta.config")
 local util = require("meta.util")
@@ -36,6 +42,15 @@ local CHECK = {
 }
 local KEYS = { "music", "sfx", "haptics", "reduced_motion", "input_mode", "language" }
 
+local SONG_ID = "^[a-z][a-z0-9_]*$"
+M.SONG_ID_MAX = 40
+
+-- The song id to store, or nil if v is not the id of a song (a lower-case word with digits and _).
+function M.song(v)
+	if type(v) == "string" and #v <= M.SONG_ID_MAX and string.match(v, SONG_ID) then return v end
+	return nil
+end
+
 function M.restore(t)
 	t = type(t) == "table" and t or {}
 	local saved = type(t.settings) == "table" and t.settings or {}
@@ -56,7 +71,7 @@ function M.restore(t)
 	for _, id in ipairs(tutorial) do
 		if unique[#unique] ~= id then unique[#unique + 1] = id end
 	end
-	return { settings = settings, tutorial = unique }
+	return { settings = settings, tutorial = unique, song = M.song(t.song) }
 end
 
 -- Changes one setting. Volumes are clamped to 0..1. Returns true, or false,

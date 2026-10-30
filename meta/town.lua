@@ -13,6 +13,12 @@
 --     claimed and the next district stays open.
 --   * A district is available when it is the first one, when the chest of the
 --     previous one is claimed, or when the player already has progress in it.
+--
+-- The jukebox catalogue lives here too: every district is a genre. Its theme (the layered
+-- track of the district; its song id is the district id) opens with the district's first stem,
+-- the extra songs of the genre (songs[] of the district in districts.json, single mixes) open
+-- with the district itself: a genre is open while its district is available (being built or
+-- finished), whatever the progress inside it.
 
 local C = require("meta.config")
 local inventory = require("meta.inventory")
@@ -48,8 +54,34 @@ local function validate_chest(id, chest)
 	return { coins = coins, boosters = boosters }
 end
 
+local SONG_ID = "^[a-z][a-z0-9_]*$"
+
+-- The catalogue of the jukebox: data.songs.by_id[id] = {id, district, theme}, and district.songs = the ids
+-- of the extra songs of the genre in file order. A song id is unique across the whole catalogue and is never
+-- a district id (the audio engine tells a theme from a song by its id).
+local function validate_songs(src, data)
+	data.songs = { by_id = {} }
+	for _, d in ipairs(data.list) do
+		data.songs.by_id[d.id] = { id = d.id, district = d.id, theme = true }
+	end
+	for i, sd in ipairs(src.districts) do
+		local d = data.list[i]
+		d.songs = {}
+		if sd.songs ~= nil and type(sd.songs) ~= "table" then fail(d.id .. " songs must be a list") end
+		for j, s in ipairs(sd.songs or {}) do
+			local where = d.id .. " song " .. j
+			if type(s) ~= "table" or type(s.id) ~= "string" or #s.id > 40 or not string.match(s.id, SONG_ID) then
+				fail(where .. " needs an id of lower-case letters, digits and _ (like bossa_breeze)")
+			end
+			if data.songs.by_id[s.id] then fail(where .. " repeats the id '" .. s.id .. "' (song ids are unique and never a district id)") end
+			data.songs.by_id[s.id] = { id = s.id, district = d.id, theme = false }
+			d.songs[#d.songs + 1] = s.id
+		end
+	end
+end
+
 -- Checks the decoded districts.json and returns the data the meta works with:
--- {list = {district...}, by_id = {[id] = district}}; district.index is its position.
+-- {list = {district...}, by_id = {[id] = district}, songs = {by_id}}; district.index is its position.
 function M.validate(src)
 	if type(src) ~= "table" or type(src.districts) ~= "table" or #src.districts == 0 then
 		fail("expected a table with a non-empty 'districts' array")
@@ -80,6 +112,7 @@ function M.validate(src)
 		data.list[i] = district
 		data.by_id[d.id] = district
 	end
+	validate_songs(src, data)
 	return data
 end
 
@@ -181,6 +214,25 @@ function M.claim_chest(town, d)
 	if t.chest_claimed or not M.is_complete(town, d) then return nil end
 	t.chest_claimed = true
 	return util.copy(d.chest)
+end
+
+-- jukebox -------------------------------------------------------------------
+
+-- {id, district, theme} of a song of the catalogue (a theme is the id of its district), or nil. A copy.
+function M.song_info(data, id)
+	local info = type(id) == "string" and data.songs.by_id[id] or nil
+	return info and util.copy(info) or nil
+end
+
+-- Can the song be played now? "open"; "locked" (its genre is not open yet); "no_layers" (the theme of the
+-- district being built, before its first task: there is nothing to hear yet); nil (not in the catalogue).
+function M.song_status(town, data, id)
+	local info = type(id) == "string" and data.songs.by_id[id] or nil
+	if not info then return nil end
+	local d = data.by_id[info.district]
+	if not M.is_available(town, data, d) then return "locked" end
+	if info.theme and not M.is_complete(town, d) and #M.unmuted(town, d) == 0 then return "no_layers" end
+	return "open"
 end
 
 -- views ---------------------------------------------------------------------

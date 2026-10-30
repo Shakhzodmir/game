@@ -12,6 +12,8 @@
 --   open <popup> [json]    a meta popup of the town: start, lives, shop, settings,
 --                          jukebox, concert, chest, gift, confirm (json = params); from
 --                          another screen the town opens first and shows it
+--   song <id|none>         picks a song of the jukebox like a tap on its row (a district id picks its theme):
+--                          it is saved and plays at once; none follows the town again. {ok, error, song}
 --   browse <prev|next|id>  pages the town to another open district
 --   view <day|concert>     the look of the district on display
 --   close                  closes the top popup
@@ -25,6 +27,7 @@
 local app = require("client.app")
 local bus = require("client.bus")
 local flow = require("client.flow")
+local songs = require("client.songs")
 local qa_bridge = require("client.qa_bridge")
 
 local M = {}
@@ -109,6 +112,16 @@ function M.handlers()
 		close = function()
 			app.close_popup()
 			return { ok = true }
+		end,
+		song = function(args)
+			local id = args[1]
+			local ok, why
+			if id == nil or id == "none" then
+				ok, why = songs.clear()
+			else
+				ok, why = songs.pick(id)
+			end
+			return { ok = ok ~= false, error = why, song = app.meta:song() }
 		end,
 		browse = function(args)
 			if not town_on_display() then return { ok = false, error = "the town is not on display" } end

@@ -7,6 +7,11 @@
 --                                       gain 0, unlocked at 1 (from the meta)
 --   audio.music(district_id, {all = true})  jukebox / finale: every task stem
 --                                       + the party layer (never tension)
+--   audio.music(district_id, {all = true, party = false})  the same without the party layer (a level:
+--                                       the layer belongs to the final concert)
+--   audio.music(song_id)                a jukebox song: ONE mix, no layers (tension / party do nothing);
+--                                       it plays in the key of its genre, so notes and effects follow it
+--                                       (a district id and a song id never clash: meta/town.lua checks)
 --   audio.stop_music(fade_seconds)
 --   audio.unlock_stem(district_id, stem)  0 -> 1 crossfade over 0.5 s
 --   audio.layer("tension" | "party", on) the extra stems of every track; the
@@ -33,7 +38,7 @@
 -- Pure helpers (tested in tests/client/audio_test.lua):
 --   note_step, note_id, transpose_speed, grid_step, quantize_delay, tick_of,
 --   db_to_gain, gain_to_db, key_semitones, sfx_semitones, contract,
---   voices, new_note_scheduler, new_mixer
+--   voices, new_note_scheduler, new_mixer, resolve_track
 
 local M = {}
 
@@ -65,6 +70,9 @@ M.status = {
 	music_gain = 0, sfx_gain = 0, notes = 0, sfx = 0, last_delay = 0, music_rms = 0,
 	note_groups = 0, voices = 0, max_group_voices = 0, deduped = 0, capped = 0,
 	last_sfx_speed = 1, resyncs = 0, stalls = 0, layers = {},
+	-- what plays: the song (a district id for a layered theme), the district whose key it is in, whether it is a
+	-- single mix, and the semitones from C that notes and tonal effects are transposed by
+	song = nil, single = false, semitones = 0,
 }
 
 -- pure maths ---------------------------------------------------------------------------
@@ -282,14 +290,17 @@ end
 -- Starts a track. stems: names of the stem files of the district (task stems
 -- and the tension/party layers); unmuted: set {[stem] = true} of task stems
 -- at full gain. opts = {all = true (jukebox / finale: every task stem and
--- party), loop = seconds}. The layers restart off (party on with all).
+-- party), party = false | true (overrides the party layer that `all` turns on),
+-- loop = seconds}. The layers restart off (party on with all).
 -- Returns the list {stem, gain} to start, in order, all in one frame.
 function Mixer:start(district, bpm, stems, unmuted, now, opts)
 	opts = opts or {}
 	self.district, self.bpm, self.started_at = district, bpm, now
 	self.loop = (type(opts.loop) == "number" and opts.loop > 0) and opts.loop or nil
 	self.stems, self.order = {}, {}
-	self.layers = { tension = false, party = opts.all and true or false }
+	local party = opts.party
+	if party == nil then party = opts.all end
+	self.layers = { tension = false, party = party and true or false }
 	local out = {}
 	for _, name in ipairs(stems) do
 		local on
@@ -493,14 +504,46 @@ function Mixer:gain(stem)
 	return s and s.gain or nil
 end
 
+-- tracks: what a district id or a song id names ---------------------------------------------------
+
+-- The track an id names: the layered theme of a district (every stem of the registry) or a jukebox song (one
+-- mix). deps = {district = fn(id) -> districts.json entry | nil, song = fn(id) -> catalogue song | nil,
+-- stems = fn(district) -> stem names, stem_id = fn(district, stem) -> component id,
+-- song_asset = fn(id) -> {id = component id, loop = seconds} | nil, loop = fn(district) -> seconds | nil}.
+-- Returns {id, district (the genre: the key and the layers come from it), single (true for a song), bpm,
+-- semitones, stems = {names}, ids = {stem -> component id}, loop} or nil when there is nothing to play.
+-- A song has the single stem "mix".
+function M.resolve_track(id, deps)
+	if type(id) ~= "string" then return nil end
+	local song = deps.song(id)
+	if song then
+		local asset = deps.song_asset(id)
+		local genre = deps.district(song.district)
+		if not asset or not genre then return nil end
+		return {
+			id = id, district = song.district, single = true, bpm = song.bpm or genre.bpm,
+			semitones = genre.semitones_from_c or 0, stems = { "mix" }, ids = { mix = asset.id }, loop = asset.loop,
+		}
+	end
+	local data = deps.district(id)
+	local stems = deps.stems(id)
+	if not data or #stems == 0 then return nil end
+	local ids = {}
+	for _, stem in ipairs(stems) do ids[stem] = deps.stem_id(id, stem) end
+	return {
+		id = id, district = id, single = false, bpm = data.bpm, semitones = data.semitones_from_c or 0,
+		stems = stems, ids = ids, loop = deps.loop(id),
+	}
+end
+
 -- front end: messages to main/audio.script -------------------------------------------------
 
 local function post(id, message)
 	if msg and msg.post then msg.post(M.URL, id, message or {}) end
 end
 
-function M.music(district, opts)
-	post("music", { district = district, all = opts and opts.all or nil })
+function M.music(id, opts)
+	post("music", { district = id, all = opts and opts.all or nil, party = opts and opts.party })
 end
 
 function M.stop_music(fade)

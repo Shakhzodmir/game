@@ -238,9 +238,13 @@ local function qa_handlers(self)
 			msg.post("main:/audio#audio", "qa_fade", { kind = args[1] == "out" and "fade_out" or "fade_in" })
 			return { ok = true }
 		end,
+		-- plays a track now: a district id (its layered theme; "all" = the full song) or a song id (one mix).
+		-- It does not touch the jukebox pick: the "song" command (client/meta_qa.lua) picks.
 		music = function(args)
-			audio.music(args[1] or app.focus_district(), { all = args[2] == "all" })
-			return { ok = true }
+			local id = args[1] or app.focus_district()
+			if not (app.song(id) or app.district(id)) then return { ok = false, error = "unknown_track" } end
+			audio.music(id, { all = args[2] == "all" })
+			return { ok = true, track = id }
 		end,
 		-- a won attempt of the next level through the meta's own start/finish
 		-- (no board yet): stars and coins for testing the town

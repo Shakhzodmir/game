@@ -5,7 +5,7 @@
 --   M.concert(town, res)           the District Concert (gui/concert.lua)
 --   M.chest(town, params)          a chest reveal (gui/chest.lua), then its coins,
 --                                  boosters and unlimited lives fly to the HUD
---   M.next_district(town, id)      the next district slides in with its music
+--   M.next_district(town, id)      the next district slides in with its music (or the song the player picked)
 --   M.rewards(town, result)        the steps of one level result (rewards.steps)
 -- Amounts already paid by the meta but not landed yet are held back from the
 -- counters: town.hold (coins, stars, and the seconds of a chest's unlimited
@@ -15,6 +15,7 @@
 local app = require("client.app")
 local i18n = require("client.i18n")
 local audio = require("client.audio")
+local songs = require("client.songs")
 local rewards = require("client.rewards")
 local analytics = require("client.services.analytics")
 local fx = require("client.fx")
@@ -279,7 +280,7 @@ function M.next_district(town, next_id)
 		name = "next_district",
 		run = function(done)
 			if not next_id then
-				audio.music(town.district)
+				songs.play("town", town.district)
 				app.toast_key("town.town_done", nil, { color = "gold", duration = 3 })
 				town.bit:cheer(2, 3)
 				town.hud:build()
@@ -288,7 +289,7 @@ function M.next_district(town, next_id)
 			end
 			local d = app.district(next_id)
 			town.district, town.focus = next_id, next_id
-			audio.music(next_id)
+			songs.play("town", next_id)
 			town.fx:sfx("win")
 			town.scene:slide_to(next_id, function()
 				town.hud:build()
