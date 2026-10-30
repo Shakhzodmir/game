@@ -16,8 +16,9 @@
 // task stems + party, the music resyncs after a stall, a failed save is
 // retried and reported, saves and language survive a reload, window resizes
 // re-layout without errors, the board plays on the real engine (autoplay,
-// hold, the win with its final concert and results window, "Next level" ->
-// start window -> Play, a lost level with the moves and defeat windows), and no
+// hold, the win with its final concert and results window with no effect left
+// on the board, "Next level" -> start window -> Play, a lost level with the
+// moves and defeat windows), and no
 // engine or game warning about something lost ("could not be found", "WARNING:
 // tutorials|level") appears in the console.
 // Every command the script sends exists in the bridge and every field it reads
@@ -393,6 +394,9 @@ async function debugChecks() {
 	await sleep(1200);
 	await page.screenshot({ path: `${outDir}/client_board_result.png` });
 	check(true, 'board: win, final concert, skip and the results window run on the engine');
+	// nothing of the show stays on the finished board: every effect ran out or was dropped, none failed
+	const vfx = (await command(page, 'state')).result.board.vfx;
+	check(vfx.active === 0 && vfx.pending === 0 && vfx.errors === 0, 'board: no effect stays on the board after the concert', vfx);
 	// the other end: a super hard level that the hint moves do not finish in time ends in the moves window and the defeat
 	await command(page, 'goto level 60');
 	await onScreen(page, 'level');
