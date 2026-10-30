@@ -128,7 +128,11 @@ local function new_context(E, script, self, sub, opts)
 				h.ended, h.moves, h.pause = true, false, false
 			elseif topic == "level_booster" then
 				if payload.phase == "target" then h.target = payload.booster
-				elseif payload.phase == "cancel" or payload.phase == "used" then h.target = nil end
+				elseif payload.phase == "cancel" or payload.phase == "used" then
+					h.target = nil
+					-- aimed at nothing while the moves are out: the offer is back (level.gui_script on_booster_event)
+					if payload.phase == "cancel" and h.state == "out_of_moves" and not h.ended then h.moves = true end
+				end
 			end
 		end)
 		-- the HUD's queue holds 256 events at most (client/bus.lua): how many came in one frame?
@@ -811,20 +815,22 @@ function OPS.autoplay(S, op)
 	S.B.self.session:qa("autoplay", { op.n or 1 })
 end
 
--- the booster bar: target mode through the link (what the HUD does), then a real tap on the board or a cancel
+-- the booster bar: target mode through the link (what the HUD does), then a real tap on the board or a cancel.
+-- Returns whether the booster is going on (level.gui_script on_booster).
 function OPS.target(S, op)
 	local B = S.B
 	local ok = B.link.booster(op.id)
-	if not ok then return end
-	if op.id == "remix" then return end
+	if not ok then return false end
+	if op.id == "remix" then return true end
 	if op.cancel then
 		S.run_time(0.1)
 		B.link.cancel_booster()
-		return
+		return false
 	end
 	local x, y = op.x, op.y
 	OPS.touch_tap(S, { x = x, y = y })
 	if op.id == "swap" then OPS.touch_tap(S, { x = op.x2 or x, y = op.y2 or y }) end
+	return true
 end
 
 -- the moves window's answers (level.gui_script on_moves_close): the window closes, the session runs again, then the
@@ -840,7 +846,12 @@ function OPS.answer(S, op)
 	elseif op.action == "give_up" then
 		B.link.give_up()
 	elseif op.action == "booster" then
-		OPS.target(S, { id = op.id, x = op.x, y = op.y, x2 = op.x2, y2 = op.y2, cancel = op.cancel })
+		-- the window is gone: a booster that could not start brings the offer back (level.gui_script on_moves_close)
+		local going = OPS.target(S, { id = op.id, x = op.x, y = op.y, x2 = op.x2, y2 = op.y2, cancel = op.cancel })
+		if not going and not h.target and B.state() == "out_of_moves" and not h.ended then
+			h.moves = true
+			B.apply_pause()
+		end
 	end
 end
 
@@ -1169,9 +1180,10 @@ function M.play(sc, opts)
 			if em == "give_up" then
 				if B.hud.moves then OPS.answer(S, { action = "give_up" }) else B.self.session:qa("give_up", {}) end
 			end
-			local continues = 0
+			local continues, spins = 0, 0
 			local tick0, frame0 = B.self.session.tick, B.frames
-			while B.self.session.tick - tick0 < 7200 and B.frames - frame0 < 4000 do
+			while B.self.session.tick - tick0 < 7200 and B.frames - frame0 < 4000 and spins < 400 do
+				spins = spins + 1 -- (a round that moves nothing must not go on for ever)
 				S.settle(40)
 				local st = B.state()
 				if st == "complete" or st == "lost" then break end
@@ -1179,6 +1191,15 @@ function M.play(sc, opts)
 					S.play_on(1.0) -- the concert plays out (the board is "stable" between its rounds)
 				elseif st == "out_of_moves" then
 					if em == "settle" then break end -- the moves window stays open: a legitimate place to rest
+					if not B.hud.moves then
+						-- no window: a booster is still aimed. The player cancels it and the offer is back (level.gui_script)
+						B.link.cancel_booster()
+						S.step()
+						if not B.hud.moves and B.state() == "out_of_moves" then
+							B.hud.moves = true
+							B.apply_pause()
+						end
+					end
 					if em == "continue" and continues < 2 then
 						continues = continues + 1
 						OPS.answer(S, { action = "continue", riff = true })

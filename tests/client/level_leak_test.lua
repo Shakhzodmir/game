@@ -456,6 +456,9 @@ describe("the leak fuzzer, bounded", function()
 		list[#list + 1] = { seed = 300 + i, source = "level", level = level, end_mode = "win", dt_mode = i == 4 and "spike" or "30",
 			gui = i == 3 }
 	end
+	-- a moves window answered with a Crossfader whose picks the core rejects: the offer comes back (level.gui_script); the
+	-- runner once waited for ever for a window that was not there
+	list[#list + 1] = { seed = 14173, gui = false }
 	bounded(list)
 end)
 
