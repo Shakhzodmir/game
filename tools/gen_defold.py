@@ -103,7 +103,7 @@ META_ATLAS = (
     "pieces/*",
     "specials/riff", "specials/sub", "specials/disco",
     "blockers/record_box_1", "blockers/concrete_1", "blockers/noise", "blockers/balloon_red",
-    "blockers/column_1", "blockers/floor_lit", "blockers/mic",
+    "blockers/column_1", "blockers/mic",
     "fx/spark", "fx/star_particle", "fx/confetti", "fx/glow_dot", "fx/ring", "fx/note",
 )
 

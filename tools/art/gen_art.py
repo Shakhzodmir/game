@@ -24,6 +24,8 @@ Checks (the run exits with status 1 if any fails)
   * every district item stays inside SAFE and its shape never touches a town-screen UI area (UI_ZONES)
   * no two items of a district overlap (shape masks, not boxes)
   * all PNGs together stay under BUDGET_MB
+  * the dance floor stays readable (check_floor): unlit tiles clearly darker and more saturated than the
+    cells, lit tiles gold, the half stage a violet frame around a gold core, the goal icon violet on gold
 
 Drawing code lives next to this file: artkit (SDF painter + candy shading), palette, pieces,
 blockers, ui (board/fx/ui/icons), bit (mascot), logo, items + districts (level bg and scenes).
@@ -82,6 +84,7 @@ def load_districts():
 def build_jobs():
     """Each job: (group, relpath, module, attr, key_or_args, opts)."""
     import palette
+    import blockers
     import ui
     import bit
     import items
@@ -105,9 +108,8 @@ def build_jobs():
         J.append(("blockers", f"blockers/wires_{hp}.png", "blockers", "draw_wires", (hp,), {}))
     J.append(("blockers", "blockers/mic.png", "blockers", "draw_mic_cargo", (), {}))
     J.append(("blockers", "blockers/mic_stand.png", "blockers", "draw_mic_stand", (), {}))
-    for k in (2, 1):
+    for k in blockers.FLOOR_KINDS:
         J.append(("blockers", f"blockers/floor_{k}.png", "blockers", "draw_floor", (k,), {"opaque": True}))
-    J.append(("blockers", "blockers/floor_lit.png", "blockers", "draw_floor", ("lit",), {"opaque": True}))
     J.append(("board", "board/cell_a.png", "ui", "draw_cell", (palette.CELL_A,), {}))
     J.append(("board", "board/cell_b.png", "ui", "draw_cell", (palette.CELL_B,), {}))
     J.append(("board", "board/board_frame.png", "ui", "draw_board_frame", (), {}))
@@ -274,6 +276,14 @@ def check_edges(files):
     return problems
 
 
+def check_floor():
+    """The dance floor has to stay readable (the producer's report: unlit tiles were barely darker than the
+    ordinary cells, lit ones looked like a yellow background). The pixel facts live in tools/art/floor_check.py
+    (standard library only: tests/client/floor_art_test.lua runs it in the test suite too)."""
+    import floor_check
+    return floor_check.check(OUT)
+
+
 # ==========================================================================
 # manifest + contact sheets
 # ==========================================================================
@@ -304,8 +314,10 @@ NOTES = {
     "blockers/mic_stand.png": "exit marker drawn under the bottom cell of an exit column",
     "blockers/column_*.png": "2x2 cells",
     "blockers/wires_*.png": "overlay drawn above the piece; the centre stays transparent",
-    "blockers/floor_*.png": "opaque dance-floor tiles drawn instead of the cell tile (lit tiles are gold edge to "
-                            "edge so neighbours join)",
+    "blockers/floor_*.png": "opaque dance-floor tiles drawn instead of the cell tile, edge to edge so neighbours join. "
+                            "VIOLET = still to light (floor_2 two layers: double outline; floor_1 one layer), "
+                            "floor_half = a two-layer tile after its first hit (violet frame, gold core), "
+                            "floor_lit = lit (gold)",
     "ui/button_*.png": "nine-slice [left, top, right, bottom]; the bottom border holds the darker shelf",
     "ui/button_small_*.png": "64px nine-slice [16, 16, 16, 22] for small buttons (smallest size 32x38), e.g. the "
                              "46px '+' button",
@@ -314,7 +326,8 @@ NOTES = {
     "ui/bunting.png": "720px festive garland for the top edge of the level screen",
     "fx/*.png": "white / near-white, tint in the engine",
     "ui/icons/*.png": "96x96 glossy icons with a white sticker edge, all inside the central 88px",
-    "ui/icons/goal_floor.png": "goal icon for 'light the dance floor'",
+    "ui/icons/goal_floor.png": "goal icon for 'light the dance floor': the unlit (violet) tile as the board shows it, on "
+                               "the gold tile it turns into",
     "ui/icons/streak.png": "hit streak (Seriya hitov)",
     "backgrounds/level_bg.png": "720x1280, draw 1:1 behind the board",
     "districts/*/bg*.png": "720x1280, draw 1:1 under the items; bg_concert is the final-concert re-light "
@@ -607,6 +620,7 @@ def level_preview():
             "o": "blockers/balloon_blue.png", "m": "blockers/mic.png", "k": "blockers/concrete_2.png",
             "K": "blockers/concrete_1.png"}
     lit = {(2, 7), (3, 7), (4, 7), (3, 6), (2, 6)}
+    half = {(4, 6), (5, 7)}     # a two-layer tile after its first hit: violet frame, gold core
     floor = {(x, y) for y in range(5, 8) for x in range(1, 7)}
     wires = {(0, 4), (7, 5)}
     exits = {5}                 # the mic leaves the board at the bottom of column 5
@@ -626,6 +640,8 @@ def level_preview():
             px, py = bx + x * cell, by + y * cell
             if (x, y) in lit:
                 t = T("blockers/floor_lit.png", cell)
+            elif (x, y) in half:
+                t = T("blockers/floor_half.png", cell)
             elif (x, y) in floor:
                 t = T("blockers/floor_2.png" if (x + y) % 3 else "blockers/floor_1.png", cell)
             else:
@@ -739,6 +755,7 @@ def main():
     problems = write_layouts(districts) if touches_districts else []
     MANIFEST.update(write_manifest())
     problems += check_edges(MANIFEST)
+    problems += check_floor()
     if full:
         contact_sheets(districts)
     elif touches_districts:
