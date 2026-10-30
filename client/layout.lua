@@ -65,6 +65,25 @@ function M.safe_rect(f, insets)
 	return r
 end
 
+-- Puts a window on the design area (a popup panel of height h centred on the screen centre, with `up` px of
+-- something (a ribbon, a mascot) sticking out above it and `down` px (a shadow) below it) so that all of it stays
+-- `margin` px inside the 720x1280 area, whatever the window shape: the design area is inside every visible rect.
+-- Returns k (the scale of the content around the panel centre, 1 when the window fits) and dy (how far the panel
+-- centre moves, <= 0 = down). A window that fits does not move; a taller one first slides down, then shrinks.
+function M.fit_window(h, up, down, margin)
+	local half = M.H / 2 - (margin or 0)          -- room above and below the screen centre
+	local above, below = h / 2 + up, h / 2 + down -- how far the window reaches from its own centre
+	local k = math.min(1, 2 * half / (above + below))
+	local dy = math.min(0, half - k * above)       -- down, just enough for the top edge
+	dy = math.max(dy, k * below - half)            -- never past the bottom edge (k made them meet)
+	return k, dy
+end
+
+-- The tallest panel fit_window leaves alone (k = 1) for the same arguments.
+function M.window_room(up, down, margin)
+	return 2 * (M.H / 2 - (margin or 0)) - up - down
+end
+
 -- Area for the board: from the booster bar (anchored to the safe bottom) to
 -- the HUD (anchored to the safe top), across the design width.
 -- opts: {hud_top = M.HUD_TOP, booster_bar = M.BOOSTER_BAR, insets = {...}}

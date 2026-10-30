@@ -27,19 +27,24 @@
 -- The entry e: {name, params, state (kept across rebuilds), ui, fx, host,
 -- first, targets}; e:close(result), e:open(name, params), e:rebuild(),
 -- e:target(name, x, y) (a tap target for QA, centre coordinates); e:later(delay, fn) (a delayed call that
--- is dropped when the window closed or was rebuilt meanwhile).
+-- is dropped when the window closed or was rebuilt meanwhile); e:fit(h, up) (a tall panel slides down and shrinks
+-- until it fits the screen; e:target and e:abs follow it); e:deafen(seconds) (the window takes no input for a
+-- moment: the second tap of a double tap that closed the window above it).
 -- Bus out: "popup_opened" {name}, "popup_closed" {name, result}.
 -- Status for QA: app.ui.popup (top name), app.ui.popups (stack),
 -- app.ui.popup_targets (logical tap targets of the top window).
 
 local bus = require("client.bus")
 local app = require("client.app")
+local layout = require("client.layout")
 
 local M = {}
 
 M.DIM = "#3A2470"
 M.DIM_ALPHA = 0.55
 M.CX, M.CY = 360, 640
+M.MARGIN = 16 -- px a fitted window keeps from the edges of the design area
+M.DEAF = 0.45 -- seconds a window that woke up under a closed one takes no input (Entry:deafen)
 
 local BACK = hash("back")
 
@@ -72,7 +77,40 @@ end
 
 -- A tap target for QA (logical coordinates), from centre coordinates.
 function Entry:target(name, x, y)
-	self.targets[name] = { x = M.CX + x, y = M.CY + y }
+	local k = self.fit_k or 1
+	self.targets[name] = { x = M.CX + x * k, y = M.CY + (self.fit_dy or 0) + y * k }
+end
+
+-- Logical (absolute) position of a point given in window-centre coordinates (effects that fly over the screen).
+function Entry:abs(x, y)
+	local k = self.fit_k or 1
+	return M.CX + x * k, M.CY + (self.fit_dy or 0) + y * k
+end
+
+-- Puts a panel of height h on the screen: `up` px of the window stick out above it (a ribbon, a mascot). A window
+-- that fits stays where it is; a taller one slides down and, when that is not enough, shrinks (the content layer is
+-- scaled around the panel centre), so the title and the mascot never run off the top of any window shape. Call it
+-- first in M.build (gui/kit.lua panel does, with opts.fit); positions given to e:target and e:abs follow.
+-- Returns the scale.
+function Entry:fit(h, up, down)
+	local k, dy = layout.fit_window(h, up or 50, down or 20, M.MARGIN)
+	self.fit_k, self.fit_dy = k, dy
+	if k ~= 1 or dy ~= 0 then
+		gui.set_scale(self.content, vmath.vector3(k, k, 1))
+		gui.set_position(self.content, vmath.vector3(0, dy, 0))
+	end
+	return k
+end
+
+-- The tallest panel that fits the screen unscaled when `up` px stick out above it.
+function Entry:room(up, down)
+	return layout.window_room(up or 50, down or 20, M.MARGIN)
+end
+
+-- The window takes no input for `seconds` (M.DEAF by default): a double tap on a button of the window above it
+-- must not go on to press a button below it that lies at the same place, the moment this one wakes up.
+function Entry:deafen(seconds)
+	self.deaf = seconds or M.DEAF
 end
 
 function Entry:is_top()
@@ -119,6 +157,7 @@ function Host:_build(e)
 	if e.back then s:clear(e.back) end
 	if e.content then s:clear(e.content) end
 	e.targets = {}
+	e.fit_k, e.fit_dy = nil, nil -- the build fits the panel again (Entry:fit)
 	e.build_n = (e.build_n or 0) + 1
 	e.sliders, e.dragging = nil, nil -- per-build state: the nodes it points at are gone
 	e.back = s:layer(e.base)
@@ -223,6 +262,10 @@ function Host:update(dt)
 	if self.ui.pressed then self.press_age = (self.press_age or 0) + dt else self.press_age = 0 end
 	for i = 1, #self.stack do
 		local e = self.stack[i]
+		if e and e.deaf then
+			e.deaf = e.deaf - dt
+			if e.deaf <= 0 then e.deaf = nil end
+		end
 		if e and e.rebuild_later and not e.closing then self:rebuild(e) end
 		if e and e.mod.update and not e.closing then e.mod.update(e, dt) end
 	end
@@ -232,6 +275,7 @@ end
 function Host:on_input(action_id, action)
 	local e = self.stack[#self.stack]
 	if not e then return false end
+	if e.deaf then return true end -- Entry:deafen: nothing reaches the window or the buttons
 	if e.mod.on_input and e.mod.on_input(e, action_id, action) then return true end
 	if self.ui:on_input(action_id, action) then return true end
 	if action_id == BACK and action.released and not e.mod.no_back then self:close(e, "back") end

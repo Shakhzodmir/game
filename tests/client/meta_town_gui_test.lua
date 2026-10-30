@@ -558,7 +558,7 @@ describe("screens/town/town.gui_script", function()
 		end)
 	end)
 
-	it("plays the task, the rewards, the chest and the gift under reduced motion too", function()
+	it("plays the task, the rewards, a queued paid chest (QA reward) and the gift under reduced motion too", function()
 		G.with_town({ setup = function(app)
 			app.set_setting("reduced_motion", true)
 			G.win(app, 9)

@@ -337,7 +337,8 @@ end
 -- A loss needs a move: call note_move() at the first move, or cancel_level()
 -- to leave before it. quit_after_first_move = true counts as that move.
 -- Win:  {won = true, level_id, coins, stars, chest|nil, unlocked = {ids},
---        streak, next_level|nil}
+--        streak, next_level|nil}. `chest` is the chest that now WAITS for the player, NOT paid: it is
+--        in pending_chests() and claim_level_chest pays it (and starts its unlimited lives).
 -- Loss: {won = false, level_id, reason = "out_of_moves"|"quit", life_lost,
 --        streak_lost = streak before the loss, fails}
 -- or false, "no_run".

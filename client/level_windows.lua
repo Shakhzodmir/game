@@ -185,8 +185,9 @@ function M.chest(meta)
 		infinite_minutes = c.infinite_minutes or 0 }
 end
 
--- The results window. res = the meta's finish_level win result {coins, stars, chest, unlocked, streak,
--- next_level}; core_result = the core's game:result() {score, moves_at_win, stars}.
+-- The results window. res = the meta's finish_level win result {coins, stars, unlocked, streak, next_level}
+-- (its `chest` is not read: the chest on offer is the oldest one waiting in the meta, M.chest above);
+-- core_result = the core's game:result() {score, moves_at_win, stars}.
 function M.result(meta, res, core_result, now)
 	core_result = core_result or {}
 	local sv = meta:streak()

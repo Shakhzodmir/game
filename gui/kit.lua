@@ -41,16 +41,19 @@ end
 
 -- The standard window: white rounded panel with a pastel outline and a
 -- soft shadow, a purple ribbon with the title, a close button.
--- opts = {y = 0, title = text, close = true, border, ribbon_w}. Returns the
+-- opts = {y = 0, title = text, close = true, border, ribbon_w, fit = false, up = 50}. Returns the
 -- body node (children relative to its centre) and its half height.
+-- fit: the panel is put on the screen (e:fit): a tall window slides down and shrinks until its ribbon and
+-- whatever else sticks out `up` px above the panel (a mascot: more than the ribbon's 50) stay inside the design
+-- area; the content is drawn in the usual coordinates and e:target / e:abs follow the scale.
 function M.panel(e, w, h, opts)
 	opts = opts or {}
 	local s = e.ui
 	local y = opts.y or 0
+	if opts.fit then e:fit(h, opts.up) end
 	s:round(e.content, 0, y - 16, w + 8, h + 8, "#5A3FA0", { alpha = 0.22 })
 	local border = s:round(e.content, 0, y, w, h, opts.border or "#E3D9FF")
 	local body = s:round(border, 0, 0, w - 12, h - 12, "white")
-	e.panel_w, e.panel_h = w, h
 	if opts.title then
 		local rw = math.min(w + 40, opts.ribbon_w or 480)
 		local ribbon = s:image(body, "ui/ribbon", 0, h / 2 - 2, { w = rw, h = 104, slice9 = true })
