@@ -173,6 +173,17 @@ function M.chest_progress(level_id)
 	return { done = done, total = every, left = every - done, opened = false }
 end
 
+-- The level chest the player can take now, or nil: {level_id, k, coins, boosters = {ids}, infinite_minutes}.
+-- A won level's chest waits in the meta until it is claimed (meta:claim_level_chest), so the oldest waiting
+-- one is offered: the one this win brought, or an older one that was left unclaimed.
+function M.chest(meta)
+	local waiting = meta:pending_chests()[1]
+	if not waiting then return nil end
+	local c = waiting.chest
+	return { level_id = waiting.level_id, k = c.k, coins = c.coins, boosters = c.boosters or {},
+		infinite_minutes = c.infinite_minutes or 0 }
+end
+
 -- The results window. res = the meta's finish_level win result {coins, stars, chest, unlocked, streak,
 -- next_level}; core_result = the core's game:result() {score, moves_at_win, stars}.
 function M.result(meta, res, core_result, now)
@@ -182,11 +193,7 @@ function M.result(meta, res, core_result, now)
 	for i, slot in ipairs(sv.slots or {}) do
 		notes[i] = { lit = slot.lit and true or false, booster = slot.booster, unlocked = slot.unlocked and true or false }
 	end
-	local chest = nil
-	if res.chest then
-		chest = { k = res.chest.k, coins = res.chest.coins, boosters = res.chest.boosters or {},
-			infinite_minutes = res.chest.infinite_minutes or 0 }
-	end
+	local chest = (not res.standalone) and M.chest(meta) or nil
 	return {
 		level_id = res.level_id,
 		stars = res.stars or core_result.stars or 0,

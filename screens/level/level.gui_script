@@ -57,6 +57,7 @@ local REGISTRY = {
 	shop = require("gui.shop"),
 	settings = require("gui.settings"),
 	confirm = require("gui.confirm"),
+	chest = require("gui.chest"), -- the results window opens the level chest
 }
 
 local Level = {}

@@ -185,6 +185,17 @@ function Meta:_give_chest(chest, reason)
 	if chest.infinite_minutes then self:_add_infinite(chest.infinite_minutes, reason) end
 end
 
+-- A level chest waits for the player in the save until claim_level_chest pays it. Its unlimited lives are
+-- time: they must start when the player takes the chest, not when the level was won (the player may play
+-- on for a long while before the chest is opened).
+function Meta:_hold_chest(level_id)
+	local list = self.s.chests
+	if util.index_of(list, level_id) then return end
+	list[#list + 1] = level_id
+	table.sort(list)
+	self:_touch()
+end
+
 -- Pays the chest of every complete district that has not paid it. Returns
 -- the district ids.
 function Meta:_claim_district_chests()
@@ -374,8 +385,9 @@ function Meta:_win(moves_at_win)
 	self:_touch()
 	self:_change("level_win", { { "coins", coins }, { "stars", stars } })
 	local unlocked = self:_give_unlock_gifts()
+	-- a level chest is not paid here: it waits until the player claims it (claim_level_chest)
 	local chest = economy.level_chest(run.level_id)
-	if chest then self:_give_chest(chest, "level_chest") end
+	if chest then self:_hold_chest(run.level_id) end
 	return {
 		won = true,
 		level_id = run.level_id,
@@ -581,6 +593,36 @@ function Meta:grant(reward, reason, now)
 	self:_change(reason, changes)
 	self:_add_infinite(minutes, reason)
 	return true
+end
+
+-- level chests -----------------------------------------------------------------------
+
+-- The level chests won and not claimed yet, oldest first: {{level_id, chest = {k, coins, boosters = {ids},
+-- infinite_minutes}}}. Nothing in them is paid before claim_level_chest.
+function Meta:pending_chests()
+	local out = {}
+	for i, id in ipairs(self.s.chests) do
+		out[i] = { level_id = id, chest = economy.level_chest(id) }
+	end
+	return out
+end
+
+-- Claims a waiting level chest: its coins, boosters and unlimited lives are paid now, so the unlimited
+-- time runs from this call. Returns the chest ({k, coins, boosters, infinite_minutes}), or false and
+-- "no_chest" when that level has no chest waiting (claimed already, or never won).
+function Meta:claim_level_chest(level_id, now)
+	check_level_id(level_id)
+	local at = util.index_of(self.s.chests, level_id)
+	if not at then
+		self:_tick(now)
+		return false, "no_chest"
+	end
+	self:_tick(now)
+	table.remove(self.s.chests, at)
+	self:_touch()
+	local chest = economy.level_chest(level_id)
+	self:_give_chest(chest, "level_chest")
+	return chest
 end
 
 -- town ----------------------------------------------------------------------------

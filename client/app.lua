@@ -17,6 +17,7 @@
 --   app.load_notices()           -- what the splash tells the player after a load
 --   app.free_levels()            -- levels 1..n cost no life (meta config)
 --   app.push_reward(result)      -- a level result for the town to show (client/rewards.lua)
+--   app.claim_level_chest(level_id) -- the player takes a level chest: the meta pays it now (unlimited lives start now)
 --   app.open_popup(name, params) -- asks the screen on display for a meta popup
 --   app.close_popup()            -- closes its top popup
 --   app.reduced_motion()         -- the "reduced motion" setting
@@ -188,6 +189,23 @@ function M.push_reward(result)
 	local n = rewards.push(result)
 	if n then bus.publish("reward_pushed", { count = n }) end
 	return n
+end
+
+-- The player takes a level chest (a won level's chest waits in the meta until then): the meta pays it at
+-- this moment, so its unlimited lives run from here and not from the win. Returns the chest
+-- ({k, coins, boosters, infinite_minutes}) or nil and why ("no_chest": claimed already). Never raises.
+-- The save and the "meta_changed" event follow through commit().
+function M.claim_level_chest(level_id)
+	if not M.meta then return nil, "no_meta" end
+	local ok, chest, why = pcall(M.meta.claim_level_chest, M.meta, level_id, M.now())
+	if not ok then
+		print("WARNING: app: claim_level_chest failed: " .. tostring(chest))
+		return nil, "error"
+	end
+	if not chest then return nil, why end
+	analytics.log("chest_open", { kind = "level", level = level_id, coins = chest.coins or 0 })
+	M.commit("level_chest")
+	return chest
 end
 
 -- Asks the screen on display to open one of its meta popups (the town:

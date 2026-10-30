@@ -402,7 +402,7 @@ local function load_repo(opts)
 		end
 	else
 		repo.read = read_file
-		local prune = "\\( -path ./.git -o -path ./dist -o -path ./build -o -path ./.internal -o -path ./node_modules \\) -prune -o"
+		local prune = "\\( -path ./.git -o -path ./.claude -o -path ./dist -o -path ./build -o -path ./.internal -o -path ./node_modules \\) -prune -o"
 		for _, p in ipairs(shell_lines("find . " .. prune .. " -type f -print")) do
 			repo.files[(string.gsub(p, "^%./", ""))] = true
 		end

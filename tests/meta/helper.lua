@@ -42,6 +42,11 @@ function H.advance_to(m, level, now)
 	while m:level_to_play() < level do H.win(m, now) end
 end
 
+-- Claims every level chest waiting in the meta (a won level's chest is paid only when it is claimed).
+function H.claim_chests(m, now)
+	for _, w in ipairs(m:pending_chests()) do assert(m:claim_level_chest(w.level_id, now or H.T0)) end
+end
+
 -- Puts resources into the wallet directly (test setup only).
 function H.give(m, item, n)
 	assert(economy.apply(m.s, m.ledger, "test", { { item, n } }))

@@ -19,6 +19,7 @@ describe("meta playthrough", function()
 			m:note_move()
 			local r = m:finish_level({ won = true, level_id = level, difficulty = d, moves_at_win = 3 }, now)
 			assert(r.won)
+			H.claim_chests(m, now) -- a level chest is paid when the player claims it
 			while true do
 				local t = m:next_task()
 				if not t or not t.affordable then break end

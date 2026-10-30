@@ -99,7 +99,12 @@ function M.win(core_result, ctx)
 	local back = refund(meta, core_result.unplaced, run)
 	if back then res.refund = back end
 	app.commit("level_win")
-	app.push_reward(res)
+	-- the town gets the result without the level chest: it is not paid (it waits in the meta until the player
+	-- claims it in the results window or in the town), and its unlimited lives must not run before that
+	local queued = {}
+	for k, v in pairs(res) do queued[k] = v end -- order-free: a shallow copy
+	queued.chest = nil
+	app.push_reward(queued)
 	log("level_win", {
 		level = res.level_id, attempt = run.attempt, moves_left = core_result.moves_at_win or 0,
 		stars = res.stars, coins = res.coins, streak = res.streak, seconds = seconds(ctx),
