@@ -34,6 +34,8 @@ M.Z_WIRES = 0.2
 M.Z_MARK = 0.05
 M.OFF_LIMIT = -9000   -- an object whose x is below this is out of sight (hidden at M.OFF)
 M.EPS_POS = 0.5       -- logical px the position the engine reports may differ from the one put there (it keeps floats)
+M.EPS_Z = 0.001       -- the same for the depth (z), and
+M.EPS_SCALE = 0.005   -- for the scale of a sprite (the engine keeps float32)
 M.writes = 0          -- engine writes made by apply / hide so far: a screen that is still has the same number as a frame ago
 
 local H_VFX = hash("vfx")
@@ -175,10 +177,12 @@ function M.forget(o)
 	o.scl.x, o.scl.y = 0, 0
 end
 
--- The janitor's look at one sprite object: asks the ENGINE where it is and compares that with what this side
--- believes. A sprite that should be out of sight (want_hidden, or hidden here) but is drawn is hidden for real; one
--- that should be drawn but is not where it was put is forgotten, so that the next apply sends it again. Returns 1
--- when it had to repair something, else 0. Allocates nothing in Lua (the engine hands out one vector).
+-- The janitor's look at one sprite object: asks the ENGINE where it is and how big, and compares that with what this
+-- side believes. A sprite that should be out of sight (want_hidden, or hidden here) but is drawn is hidden for real;
+-- one that should be drawn but is not where it was put (x, y, z), not as big as it was made, or has a number that is no
+-- number, is forgotten, so that the next apply sends it again. Returns 1 when it had to repair something, else 0.
+-- Allocates nothing in Lua (the engine hands out one vector a read). (The colour and the alpha are not looked at: the
+-- engine answers a read of a material attribute that was never set with something else than a vector4.)
 function M.audit_sprite(o, want_hidden)
 	local ok, p = pcall(go.get_position, o.go)
 	if not ok or not p then return 0 end -- (the object is gone: nothing to put right)
@@ -194,9 +198,21 @@ function M.audit_sprite(o, want_hidden)
 			o.pos.x, o.pos.y = M.OFF.x, M.OFF.y
 			return 1
 		end
-	elseif off or math.abs(p.x - o.x) > M.EPS_POS or math.abs(p.y - o.y) > M.EPS_POS then
+		return 0
+	end
+	local x, y, z = p.x, p.y, p.z
+	if off or x ~= x or y ~= y or z ~= z or math.abs(x - o.x) > M.EPS_POS or math.abs(y - o.y) > M.EPS_POS
+		or math.abs(z - o.z) > M.EPS_Z then
 		M.forget(o)
 		return 1
+	end
+	local oks, s = pcall(go.get_scale, o.go)
+	if oks and s then
+		local sx, sy = s.x, s.y
+		if sx ~= sx or sy ~= sy or math.abs(sx - o.sx) > M.EPS_SCALE or math.abs(sy - o.sy) > M.EPS_SCALE then
+			M.forget(o)
+			return 1
+		end
 	end
 	return 0
 end
@@ -225,8 +241,8 @@ function View:sync(list, shake_x, shake_y)
 	for id, o in pairs(by_id) do -- order-independent
 		if o.used ~= fr then
 			by_id[id] = nil
-			M.hide(o)
 			self.free[#self.free + 1] = o
+			M.hide(o) -- (a hide the engine refuses leaves the sprite in the pool and drawn: the janitor hides it again)
 		end
 	end
 	for i = 1, #list do
@@ -250,9 +266,17 @@ function View:sync(list, shake_x, shake_y)
 	-- the wires follow the shake too
 	if self.wire_shake_x ~= shake_x or self.wire_shake_y ~= shake_y then
 		self.wire_shake_x, self.wire_shake_y = shake_x, shake_y
-		for _, w in ipairs(self.wires) do
-			M.apply(w.o, w.image, w.x + shake_x, w.y + shake_y, M.Z_WIRES, w.k, w.k, 0, w.flash or 0, nil, 1)
-		end
+		self:redraw_wires()
+	end
+end
+
+-- Every wire sprite is applied again, with the shake of the board (apply sends only what differs from what the sprite
+-- remembers). The wires are sent by set_wires, by a shake and by this: nothing else sends them, so a wire that the
+-- janitor has made forget what it knew needs it.
+function View:redraw_wires()
+	local sx, sy = self.wire_shake_x or 0, self.wire_shake_y or 0
+	for _, w in ipairs(self.wires) do
+		M.apply(w.o, w.image, w.x + sx, w.y + sy, M.Z_WIRES, w.k, w.k, 0, w.flash or 0, nil, 1)
 	end
 end
 
@@ -358,8 +382,10 @@ end
 -- are not looked at). Puts right and counts (also in stats().repaired) what differs, and returns the number of repairs:
 --   * the sprite of a piece the core no longer has is hidden and taken back;
 --   * a sprite the engine draws although it was hidden here (a pooled one, the marks past the last call, ...), or that
---     is not where it was put, is repaired (audit_sprite); when it is a piece's, every piece is sent again;
---   * a wires overlay that is not the core's is laid out again.
+--     is not where (x, y, z) or as big as it was put, is repaired (audit_sprite); when it is a piece's, every piece is
+--     sent again;
+--   * a wires overlay that is not the core's is laid out again, and a wire sprite that is not where it was put is
+--     sent again (redraw_wires).
 function View:audit(ids, cells, g)
 	local fixed = 0
 	local by_id = self.by_id
@@ -384,10 +410,14 @@ function View:audit(ids, cells, g)
 	for i = 1, #objs.glow do fixed = fixed + M.audit_sprite(objs.glow[i], i > mn.glow) end
 	for i = 1, #objs.piece do fixed = fixed + M.audit_sprite(objs.piece[i], i > mn.piece) end
 	local wires = self.wires
-	for i = 1, #wires do fixed = fixed + M.audit_sprite(wires[i].o, false) end
+	local moved = 0
+	for i = 1, #wires do moved = moved + M.audit_sprite(wires[i].o, false) end
+	fixed = fixed + moved
 	if cells and g and self:wires_differ(cells, g) then
 		self:set_wires(cells, g)
 		fixed = fixed + 1
+	elseif moved > 0 then
+		self:redraw_wires() -- (a wire the audit made forget is sent again here: no sync does it)
 	end
 	self.repaired = self.repaired + fixed
 	return fixed

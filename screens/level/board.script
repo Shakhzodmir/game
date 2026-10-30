@@ -70,6 +70,7 @@ local SKIP_GUARD = 0.45   -- seconds after the win in which a tap does not skip 
 local PIECES_REFRESH = 60 -- frames at most between two builds of the list of pieces of a board at rest
 local REST_FRAMES = 20    -- frames of calm (nothing plays, the screen does not change) before the janitor looks
 local REST_AGAIN = 600    -- frames at most between two looks of the janitor, when nothing has happened in between
+local REST_SECONDS = 10   -- ... or seconds of board time (a slow phone makes 600 frames a minute or more)
 local JANITOR_LOG = 5     -- passes with repairs that are written to the log (all are counted)
 
 local function read_level(n)
@@ -325,6 +326,8 @@ function init(self)
 	msg.post(".", "acquire_input_focus")
 	self.t = 0
 	self.janitor_frame = 0 -- (the frame of the janitor's last look)
+	self.janitor_t = 0     -- (and its time)
+	self.pick_rev, self.janitor_pick = 0, 0 -- (a count of the changes of what is picked, and the count at the last look)
 	self.pairing = false -- the Crossfader's first piece is picked
 	self.shake_x, self.shake_y = 0, 0
 	self.vfx_errors = 0 -- effects that failed so far (the vfx frees them and goes on; see run_vfx)
@@ -687,6 +690,13 @@ function update(self, dt)
 	end
 	local picked = self.input.selected or self.input.pair
 	self.anim:select(picked and picked.id or nil)
+	-- a pick (a selected piece, the Crossfader's first piece, an armed booster) writes to the engine every frame, so
+	-- the board is not calm until it is over: that it changed is a reason for the janitor to look when it is
+	local pick_id = picked and picked.id or 0
+	if pick_id ~= self.pick_id or self.input.targeting ~= self.pick_tg then
+		self.pick_id, self.pick_tg = pick_id, self.input.targeting
+		self.pick_rev = self.pick_rev + 1
+	end
 
 	local tick_f = s:display_tick()
 	guard(self, "vfx update", run_vfx, self, dt, tick_f)
@@ -697,13 +707,16 @@ function update(self, dt)
 	-- Calm: the core is at rest, the session runs, no skip waits, no effect plays or waits, and not a single call went
 	-- to the engine since the last frame (a touch, the hint, a pulse, a shake all write every frame). A few comparisons
 	-- a frame, nothing allocated. The janitor looks once the calm has lasted REST_FRAMES, if anything has happened since
-	-- its last look (a core event or command, an effect), and anyway every REST_AGAIN frames.
+	-- its last look (a core event or command, an effect, a pick that began or ended), and anyway every REST_AGAIN frames
+	-- or REST_SECONDS seconds.
 	if stable and not s:halted() and not self.clear_vfx and self.vfx:idle() and level_view.writes == self.rest_writes then
 		local n = (self.rest_frames or 0) + 1
 		self.rest_frames = n
 		if n >= REST_FRAMES and (s.rev ~= self.janitor_rev or self.vfx.played ~= self.janitor_played
-			or self.frames - self.janitor_frame >= REST_AGAIN) then
-			self.janitor_rev, self.janitor_played, self.janitor_frame = s.rev, self.vfx.played, self.frames
+			or self.pick_rev ~= self.janitor_pick or self.frames - self.janitor_frame >= REST_AGAIN
+			or self.t - self.janitor_t >= REST_SECONDS) then
+			self.janitor_rev, self.janitor_played, self.janitor_pick = s.rev, self.vfx.played, self.pick_rev
+			self.janitor_frame, self.janitor_t = self.frames, self.t
 			guard(self, "janitor", janitor, self)
 		end
 	else

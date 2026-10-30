@@ -1168,6 +1168,10 @@ function M.play(sc, opts)
 				while B.self.t - t_stable < M.QUIET and n < 4000 do
 					S.step()
 					n = n + 1
+					-- the last move may be the one that wins: the concert that follows is not a rest, and its effects
+					-- are not the tail of this one
+					local st = B.state()
+					if st == "won_wait" or st == "concert" then return nil end
 					if busy() then tail = B.self.t - t_stable end
 				end
 				local R = M.leak_report(B, { rest = true })
