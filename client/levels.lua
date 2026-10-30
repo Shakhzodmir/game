@@ -12,6 +12,8 @@
 -- The raw text travels to the level screen with the start result
 -- (client/flow.lua), so the level does not read the file again.
 
+local level_floor = require("client.level_floor")
+
 local M = {}
 
 M.PATH = "/content/levels/level_%04d.json"
@@ -45,7 +47,7 @@ local function decode(text)
 end
 
 -- Goal icon by goal type / blocker item (images of the meta atlas; the
--- level GUI has them in the game atlas).
+-- level GUI has them in the game atlas). The dance floor's is a UI icon.
 M.ITEM_IMAGE = {
 	record_box = "blockers/record_box_1",
 	concrete = "blockers/concrete_1",
@@ -79,7 +81,8 @@ function M.goals(data)
 					item = g.item, label = { key = "blocker." .. g.item } }
 			elseif t == "light" then
 				local n = count_floor(data)
-				out[#out + 1] = { kind = t, image = "blockers/floor_lit", count = n > 0 and n or nil,
+				-- the unlit tile (what the board shows at the start) on the gold one it turns into (client/level_floor.lua)
+				out[#out + 1] = { kind = t, image = level_floor.GOAL_ICON, count = n > 0 and n or nil,
 					label = { key = "blocker.dancefloor" } }
 			elseif t == "deliver" then
 				out[#out + 1] = { kind = t, image = "blockers/mic", count = g.count, label = { key = "blocker.mic" } }

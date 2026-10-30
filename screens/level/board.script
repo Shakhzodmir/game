@@ -413,6 +413,11 @@ local function marks(self)
 		local x, y = g:center(sel.x, sel.y)
 		n = n + 1
 		list[n] = set_mark(mark(self, n), "fx_glow_dot", x + sx, y + sy, cell * 1.5, cell * 1.5, "#FFD84D", 0.85, nil)
+		-- the gold glow vanishes on a lit (gold) dance-floor tile: a white ring keeps the selection visible there
+		n = n + 1
+		local ring = set_mark(mark(self, n), "fx_ring", x + sx, y + sy, cell * 1.08, cell * 1.08, "#FFFFFF", 0.95, nil)
+		ring.iw, ring.ih = 128, 128 -- native size of fx_ring (client/level_vfx.lua M.IMG)
+		list[n] = ring
 	end
 	local h = self.hint_cmd
 	local phase = self.hint:phase()
