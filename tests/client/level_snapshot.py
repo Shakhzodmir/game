@@ -107,7 +107,7 @@ def background(data):
             px, py = x0 + (xx - 1) * cell, (1280 - y1) + (yy - 1) * cell
             col = (255, 255, 255, 240) if (xx + yy) % 2 == 0 else (239, 232, 255, 240)
             if (c.get('floor') or 0) > 0:
-                col = (216, 204, 255, 255)
+                col = (192, 169, 255, 255)
             d.rectangle([px, py, px + cell, py + cell], fill=col)
     return np.asarray(img).astype(np.float32) / 255.0
 

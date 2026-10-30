@@ -11,6 +11,7 @@ from artkit import (C, Canvas, F32, WHITE, bbox_px, bez, candy, edge_fade, fit, 
 from palette import (PIECES, ORDER, BUTTONS, CELL_A, CELL_B, FRAME_GLOW, FRAME_SHADOW, PANEL_LINE, PINK_BADGE,
                      PIECE_SHADOW)
 from pieces import note_sdf
+from blockers import floor_tile
 
 # ==========================================================================
 # board
@@ -981,20 +982,13 @@ def icon_gift():
 
 
 def icon_goal_floor():
-    """Goal icon for 'light the dance floor': a lit floor tile with rounded, transparent corners."""
+    """Goal icon for 'light the dance floor': the tile as the board shows it at the start (violet: the very same
+    drawing as blockers/floor_1) lying on the gold tile it will turn into (blockers/floor_lit), a spark on the gold
+    corner. Violet on top, gold underneath: the two layers of the board's colour language."""
     cv = Canvas(96, 96)
-    X, Y = cv.X, cv.Y
-    tile = sd_rect(X, Y, 12, 12, 84, 84, 16)
-    cv.fill_grad(tile, [(0, "#FFF6B8"), (0.55, "#FFE680"), (1, "#FFD23F")], axis=(1, 1))
-    edge = sd_rect(X, Y, 16, 16, 80, 80, 12)
-    ring = smoothstep(-8, -2.5, edge) * (edge < -1)
-    w = cv.win(tile < 1)
-    cv.paint(ring[w] * np.clip(0.5 - tile[w] * cv.ss, 0, 1), C("#FF7EB6"), 0.3, win=w)
-    cv.stroke(edge, 2.6, "#FFFFFF", 1.0)
-    cv.stroke(tile + 1.2, 2.4, "#E0A000", 1.0)
-    cv.fill(np.maximum(sd_rect(X, Y, 30, 30, 66, 66, 14), tile + 6), "#FFFFFF", 0.45, soft=10)
-    for (sx, sy, sz) in ((34, 32, 8), (62, 62, 6), (62, 34, 4)):
-        sparkle4(cv, sx, sy, sz, WHITE, 0.95)
+    floor_tile(cv, "lit", ox=19, oy=9, size=66, r_out=21)
+    floor_tile(cv, 1, ox=9, oy=21, size=66, r_out=21)
+    sparkle4(cv, 78, 17, 11, WHITE, 1.0, thin=0.30, glow=4, glow_color="#FFC21A")
     return finish(cv)
 
 

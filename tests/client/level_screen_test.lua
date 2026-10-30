@@ -85,6 +85,15 @@ local function node_with(c, text)
 	return nil
 end
 
+-- how many live nodes of the level scene show this flipbook picture
+local function showing(c, anim)
+	local n = 0
+	for _, node in ipairs(c.E.alive_nodes(c.E.scene("/screens/level/level.gui"))) do
+		if node.anim == anim then n = n + 1 end
+	end
+	return n
+end
+
 local function empty_stock(app)
 	for _, id in ipairs(level_hud.BOOSTERS) do
 		local n = app.meta:booster_count(id)
@@ -123,6 +132,15 @@ describe("level screen: the HUD", function()
 		G.with_level({ level = 60 }, function(c)
 			assert_true(c.has("Super Hard"))
 			assert_eq(#ui(c).goals, 3)
+			clean(c)
+		end)
+	end)
+
+	it("shows the dance-floor goal as the tile the board starts with (violet, on the gold it turns into), not as a lit one", function()
+		G.with_level({ level = 16 }, function(c)
+			assert_true(c.has("35"), "the 35 tiles to light")
+			assert_eq(showing(c, "ui_icons_goal_floor"), 1, "the goal icon of the unlit tile")
+			assert_eq(showing(c, "blockers_floor_lit"), 0, "the lit tile is what the goal turns into, not what it shows")
 			clean(c)
 		end)
 	end)
