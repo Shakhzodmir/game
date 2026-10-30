@@ -203,20 +203,42 @@ function M.concert(town, res)
 	}
 end
 
--- params = {kind, chest, level_id?, district_name?}; the chest's coins are
--- held (town.hold.coins, and acct.coins) by whoever queued the step.
+-- params = {kind, chest, level_id?, district_name?, claim?}; a chest the meta has paid already has its coins
+-- held (town.hold.coins, and acct.coins) by whoever queued the step. A level chest still waiting in the meta
+-- has `claim` (returns the paid chest, or nil): it is called when the player takes the chest, so the unlimited
+-- lives start then, and what it paid is held from that moment until the icons land.
 function M.chest(town, params, acct)
 	local step = { name = "chest" }
 	local tracks = {}
 	step.run = function(done)
 		local p = {}
 		for k, v in pairs(params) do p[k] = v end -- order-free: a shallow copy
-		analytics.log("chest_open", {
-			kind = params.kind, level = params.level_id, district = params.district,
-			coins = params.chest and params.chest.coins or 0,
-		})
+		-- a claimed chest logs its own event (app.claim_level_chest)
+		if not params.claim then
+			analytics.log("chest_open", {
+				kind = params.kind, level = params.level_id, district = params.district,
+				coins = params.chest and params.chest.coins or 0,
+			})
+		end
 		p.district_name = params.district and app.district(params.district) and app.district(params.district).name or nil
 		p.on_close = function(result)
+			if params.claim then
+				local took = type(result) == "table" and result.action == "collect"
+				local paid = took and params.claim() or nil
+				if not paid then
+					-- closed without taking it (the screen went away) or already gone: nothing was paid, nothing lands
+					town:publish()
+					done()
+					return
+				end
+				local secs = (paid.infinite_minutes or 0) * 60
+				acct = acct or { coins = 0, stars = 0, infinite = 0 }
+				acct.coins = (acct.coins or 0) + (paid.coins or 0)
+				acct.infinite = (acct.infinite or 0) + secs
+				town.hold.coins = town.hold.coins + (paid.coins or 0)
+				town.hold.infinite = town.hold.infinite + secs
+				town:sync_disp()
+			end
 			local items = type(result) == "table" and result.items or {}
 			local pending = 0
 			local function one_done()

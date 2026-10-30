@@ -245,7 +245,14 @@ local S = {
 		en = { one = "Chest in {n} level", other = "Chest in {n} levels" },
 		ru = { one = "Сундук через {n} уровень", few = "Сундук через {n} уровня", many = "Сундук через {n} уровней" },
 	},
-	["win.chest_waits"] = { en = "It opens in the town", ru = "Откроется в городе" },
+	-- the level chest of the results window: the player opens it here, the unlimited lives run from that moment
+	["win.chest_open"] = { en = "Open", ru = "Открыть" },
+	["win.chest_got"] = { en = "Chest collected!", ru = "Сундук получен!" },
+	["win.chest_lives_on"] = { en = "Unlimited lives are on!", ru = "Бесконечные жизни включены!" },
+	["win.stars_note"] = {
+		en = "Stars depend on the level: easy and medium give 1, hard 2, super hard 3. Moves left give coins.",
+		ru = "Звёзды зависят от сложности: лёгкий и средний уровень даёт 1, сложный 2, самый сложный 3. Ходы в запасе дают монеты.",
+	},
 	["win.free_next"] = { en = "Free next start:", ru = "Бесплатно на старте:" },
 	["win.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
 	["win.refund"] = { en = "Returned to you: {names}", ru = "Возвращено тебе: {names}" },

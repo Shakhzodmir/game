@@ -148,6 +148,21 @@ function M.level_chest(level_id)
 	}
 end
 
+-- The level chests won but not claimed yet, from a save: the level ids that have a chest, once each, in
+-- ascending order. Anything else in the list is dropped.
+function M.restore_chests(t)
+	local out, seen = {}, {}
+	if type(t) ~= "table" then return out end
+	for _, id in ipairs(t) do
+		if util.is_int(id) and id >= 1 and not seen[id] and M.level_chest(id) then
+			seen[id] = true
+			out[#out + 1] = id
+		end
+	end
+	table.sort(out)
+	return out
+end
+
 -- Price of the k-th "+5 moves" in an attempt, or nil past the limit.
 function M.continue_price(k)
 	return C.continues.prices[k]
