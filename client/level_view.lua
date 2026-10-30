@@ -87,9 +87,11 @@ end
 
 function M.hide(o)
 	if o.hidden then return end
-	o.hidden = true
 	o.pos.x, o.pos.y = M.OFF.x, M.OFF.y
 	go.set_position(o.pos, o.go)
+	-- remembered only once the engine has moved it away: a hide it refused (an error) is tried again, and a sprite
+	-- that is on the screen is never taken for a hidden one
+	o.hidden = true
 end
 
 -- Applies a look: image (anim id string), x, y, z, sx, sy (final scale), rot

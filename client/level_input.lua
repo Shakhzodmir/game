@@ -2,8 +2,9 @@
 -- core-rules.md 5.5 (decisions.md, 6) and the booster targeting mode.
 --
 -- The module never changes the game: it turns touches into core commands
--- that the board checks (game:can_swap for swaps) and sends. It knows
--- nothing about rules beyond "what is in that cell", given by a query.
+-- that the board sends; the core judges them and says why it refuses one
+-- (client/level_session.lua hooks.rejected). It knows nothing about rules
+-- beyond "what is in that cell", given by a query.
 --
 --   local level_input = require("client.level_input")
 --   local inp = level_input.new({mode = "swipe" | "taptap", query = fn(x, y)})
@@ -31,7 +32,9 @@
 --      selection.
 -- A swipe from a cell swaps it with its neighbour along the major axis
 -- (swiping a special into a gap or a blocker is a tap: the core decides).
--- A tap off the board, on a gap or on a blocker clears the selection.
+-- A tap off the board or on a gap clears the selection. A tap on something that never moves (a blocker, a
+-- wired piece) clears it too and goes to the core as a plain tap command: the core refuses it (not_movable),
+-- and that refusal is what makes the board shake the thing (screens/level/board.script, client/level_plates.lua).
 
 local M = {}
 
@@ -80,6 +83,11 @@ end
 
 local function launchable(p)
 	return p and p.kind == "special" and p.state == "idle" and not p.pinned
+end
+
+-- Something that never moves, whatever the finger does (a blocker, a piece under wires).
+local function fixed(p)
+	return p and p.state == "idle" and (p.kind == "blocker" or p.wired == true)
 end
 
 -- Drops the selection when its piece is gone (rule 1). find(id) -> the
@@ -163,6 +171,10 @@ function Input:tap_cell(x, y)
 	if s and adjacent(s.x, s.y, x, y) then
 		self.selected = nil
 		return { type = "swap", from = { s.x, s.y }, to = { x, y } }
+	end
+	if fixed(p) then
+		self.selected = nil
+		return { type = "tap", at = { x, y } } -- the core says not_movable; the board answers with a shake
 	end
 	if self.mode == "swipe" then
 		if launchable(p) then

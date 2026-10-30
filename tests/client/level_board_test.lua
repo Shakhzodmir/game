@@ -175,6 +175,73 @@ describe("screens/level/board.script engine limits", function()
 	end)
 end)
 
+-- The producer's report: a Disco ball swapped with a Subwoofer (every piece of the commonest colour turns into a
+-- Subwoofer and each fires a shock wave), as the move that wins the level: "after the burst such an effect
+-- stays". The same screen, played through the real script, headless: nothing of the show may be left on the
+-- board once the concert is over, whether the player watched it or tapped "tap to skip" on the way.
+describe("screens/level/board.script after the Disco ball + Subwoofers combo", function()
+	local function combo_level(id)
+		local lvl = core_helper.level({
+			"#######", "#######", "#######", "#######", "###SD##", "#######", "#######", "#######",
+		}, { moves = 10, colors = { "yellow", "green", "blue", "purple" },
+			goals = { { type = "collect", color = "yellow", count = 4 } } })
+		lvl.id = id
+		return lvl
+	end
+
+	-- what the effects draw on screen: the fx_ images (pieces, specials and blockers have their own)
+	local function effects_on_screen(E)
+		local list = {}
+		for _, s in ipairs(E.snapshot().sprites) do
+			if string.sub(s.image, 1, 3) == "fx_" then list[#list + 1] = string.format("%s a=%.2f", s.image, s.a) end
+		end
+		return list
+	end
+
+	-- skip_at: the frame (counted from the swap) from which the player taps the hint; nil = watches it all
+	local function play(id, skip_at)
+		with_board({ level = id, level_text = combo_level(id) }, function(E, script, self, d)
+			local link = require("client.level_link")
+			d.frame(3)
+			local game = self.session.game
+			game.s.moves_left = 1 -- the combo is the last move
+			assert_true(game:input({ type = "swap", from = { 4, 5 }, to = { 5, 5 } }))
+			local done_at, states = nil, {}
+			for f = 1, 60 * 30 do
+				d.frame(1)
+				local st = game:status().state
+				if states[#states] ~= st then states[#states + 1] = st end
+				if skip_at and f >= skip_at and (st == "won_wait" or st == "concert") and game.s.timing ~= 2 and f % 4 == 0 then
+					d.tap(1, 1) -- the first tap after the win is swallowed (SKIP_GUARD): the player taps again
+				end
+				if st == "complete" and not done_at then
+					done_at = f
+					link.pause(true) -- the result window opens at once and stops the session (screens/level/level.gui_script)
+				end
+				if done_at and f >= done_at + 60 * 4 then break end
+			end
+			assert_true(done_at ~= nil, "the level ended (" .. table.concat(states, ">") .. ")")
+			assert_true(self.session.paused)
+			local label = "skip " .. tostring(skip_at) .. ": "
+			assert_eq(self.vfx:stats().active, 0, label .. "effects still running: " .. self.vfx:stats().active)
+			assert_eq(self.vfx:stats().pending, 0, label .. "effects still waiting for their tick")
+			local left = effects_on_screen(E)
+			assert_eq(#left, 0, label .. "effect sprites left on the board: " .. table.concat(left, ", "))
+			assert_eq(self.errors or 0, 0)
+		end)
+	end
+
+	it("leaves nothing on the board after the concert", function()
+		play(901, nil)
+	end)
+
+	for _, skip_at in ipairs({ 45, 70, 100, 140 }) do
+		it("leaves nothing on the board when the player taps to skip " .. skip_at .. " frames into it", function()
+			play(902, skip_at)
+		end)
+	end
+end)
+
 describe("screens/level/board.script session", function()
 	it("stands still while the app is in the background and keeps a window pause", function()
 		with_board(first_level(), function(E, script, self, d)
@@ -508,6 +575,340 @@ describe("screens/level/board.script input", function()
 			end
 			d.frame(2)
 			assert_eq(self.input.selected, nil)
+		end)
+	end)
+end)
+
+-- A 6x6 board with things that cannot be moved: two record boxes (2, 2) and (3, 2), a piece under wires (1, 6)
+-- and a dusty column over (5..6, 5..6); everything else is ordinary random pieces (a level may have three elements).
+local function fixed_level()
+	return core_helper.level({
+		"######", "#XX###", "######", "######", "######", "######",
+	}, { moves = 20, goals = { { type = "break", item = "record_box", count = 1 } },
+		slots = { { at = { 4, 4 }, type = "column", hp = 6 } },
+		overlay = { { at = { 0, 5 }, type = "wires", hp = 1 } } })
+end
+
+describe("screens/level/board.script fixed things", function()
+	local level_plates = require("client.level_plates")
+	before_each(function() level_plates.reset() end)
+
+	local function plates(E)
+		local out = {}
+		for _, sp in ipairs(E.snapshot().sprites) do
+			if sp.image == "board_plate" then out[#out + 1] = sp end
+		end
+		return out
+	end
+
+	-- the horizontal position of the sprite that shows piece `id`
+	local function sprite_x(E, self, id)
+		local o = self.view.by_id[id]
+		assert_true(o ~= nil, "a sprite for piece " .. id)
+		for _, obj in pairs(E.objects) do -- order-independent
+			if obj.id == o.go then return obj.pos.x end
+		end
+		error("no stub object for piece " .. id)
+	end
+
+	local function piece_at(self, x, y)
+		return self.cellmap[(y - 1) * self.W + x]
+	end
+
+	-- sfx / toast messages the board has sent so far
+	local function sent(E, id, pred)
+		local n, last = 0, nil
+		for _, m in ipairs(E.msgs) do
+			if m.id == id and (not pred or pred(m.message)) then
+				n = n + 1
+				last = m.message
+			end
+		end
+		return n, last
+	end
+	local function thuds(E)
+		return (sent(E, "sfx", function(m) return m.name == "land" and m.gain == 0.9 end))
+	end
+	local claimed = {} -- a ticket can be claimed once: remember what it held
+	local function toasts(E)
+		local list = {}
+		for _, m in ipairs(E.msgs) do
+			if m.id == "toast" then
+				local key = claimed[m.message]
+				if not key then
+					local t = app.claim(m.message.ticket)
+					key = t and t.key or "?"
+					claimed[m.message] = key
+				end
+				list[#list + 1] = key
+			end
+		end
+		return list
+	end
+
+	-- shake: the extreme offsets from its resting place (the centre of its cell, `rest_x`) of the sprite of piece
+	-- `id` over `frames` frames, and where it ends
+	local function watch(E, self, d, id, frames, rest_x)
+		local lo, hi, last = 0, 0, 0
+		for _ = 1, frames do
+			d.frame(1)
+			local dx = sprite_x(E, self, id) - rest_x
+			lo, hi, last = math.min(lo, dx), math.max(hi, dx), dx
+		end
+		return lo, hi, last
+	end
+	local function rest_of(self, x, y, size)
+		local cx = self.geom:center(x, y)
+		if size and size > 1 then cx = cx + self.geom.cell / 2 end
+		return cx
+	end
+	local function plate_at(E, self, x, y) -- (the whole screen shakes a little when something breaks)
+		local cx, cy = self.geom:center(x, y)
+		local tol = self.geom.cell * 0.4
+		for _, sp in ipairs(plates(E)) do
+			if math.abs(sp.x - cx) < tol and math.abs(sp.y - cy) < tol then return true end
+		end
+		return false
+	end
+
+	it("puts a plate under every fixed thing and under nothing else, the column's one at twice the size", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90) -- the board blooms in and the plates fade in
+			local list = plates(E)
+			assert_eq(#list, 4) -- two boxes, the wired piece, the column
+			local cell = self.geom.cell
+			local function expect(x, y, size)
+				local cx, cy = self.geom:center(x, y)
+				if size > 1 then cx, cy = cx + cell / 2, cy - cell / 2 end
+				for _, sp in ipairs(list) do
+					if math.abs(sp.x - cx) < 0.5 and math.abs(sp.y - cy) < 0.5 then
+						assert_near(sp.sx, cell * size / 160, 1e-6, "plate size at " .. x .. "," .. y)
+						assert_true(sp.z < 0.05, "under the blockers")
+						assert_near(sp.a, 1, 1e-6)
+						return
+					end
+				end
+				error("no plate at " .. x .. "," .. y)
+			end
+			expect(2, 2, 1)
+			expect(3, 2, 1)
+			expect(1, 6, 1)
+			expect(5, 5, 2)
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("costs the engine nothing while the board with its plates is at rest", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90)
+			E.reset_counts()
+			d.frame(120)
+			for name, n in pairs(E.counts) do -- order-independent
+				assert_true(false, "an idle frame called the engine: " .. name .. " x" .. n)
+			end
+		end)
+	end)
+
+	it("shakes a blocker that is swiped, thuds, and explains once per session", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90)
+			local box = piece_at(self, 2, 2)
+			assert_eq(box.item, "record_box")
+			local moves = self.session.game:status().moves_left
+			d.swipe(2, 2, 2, 3) -- the core answers not_movable
+			local lo, hi, last = watch(E, self, d, box.id, 40, rest_of(self, 2, 2))
+			assert_true(lo < -1 and hi > 1, "it swings both ways: " .. lo .. " .. " .. hi)
+			assert_true(math.max(-lo, hi) <= self.geom.cell * 0.09, "by a small share of a cell")
+			assert_near(last, 0, 1e-6, "and stands still again")
+			assert_eq(self.session.game:status().moves_left, moves) -- no move spent
+			assert_eq(thuds(E), 1)
+			assert_same(toasts(E), { "level.fixed_blocker" })
+			-- the same again: it shakes and thuds, but the hint is not repeated
+			d.frame(20)
+			d.swipe(2, 2, 1, 2)
+			local lo2, hi2 = watch(E, self, d, box.id, 40, rest_of(self, 2, 2))
+			assert_true(lo2 < -1 and hi2 > 1)
+			assert_eq(thuds(E), 2)
+			assert_eq(#toasts(E), 1)
+			-- the second box: the same kind, the hint was given already
+			d.swipe(3, 2, 3, 3)
+			d.frame(40)
+			assert_eq(thuds(E), 3)
+			assert_eq(#toasts(E), 1)
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("shakes a blocker that a piece is swiped into, and the one that is only tapped", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90)
+			local box = piece_at(self, 2, 2)
+			d.swipe(1, 2, 2, 2) -- a piece swiped into the box
+			local lo, hi = watch(E, self, d, box.id, 40, rest_of(self, 2, 2))
+			assert_true(lo < -1 and hi > 1, "the box shakes its head")
+			assert_eq(thuds(E), 1)
+			d.frame(20)
+			d.tap(2, 2) -- just a tap on it: it does not swell like a piece would, it shakes
+			local lo2, hi2 = watch(E, self, d, box.id, 40, rest_of(self, 2, 2))
+			assert_true(lo2 < -1 and hi2 > 1)
+			assert_eq(thuds(E), 2)
+			assert_eq(self.input.selected, nil)
+		end)
+	end)
+
+	it("lets a finger rest on a blocker without a swell or a click", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90)
+			local box = piece_at(self, 2, 2)
+			local plain = piece_at(self, 4, 4)
+			local function clicks()
+				return (sent(E, "sfx", function(m) return m.name == "tap" end))
+			end
+			local before = clicks()
+			local lx, ly = self.geom:center(2, 2)
+			d.touch("down", lx, ly)
+			d.frame(3)
+			assert_eq(self.anim:record(box.id).touch, nil, "no swell")
+			assert_eq(clicks(), before, "no click")
+			d.touch("up", lx, ly)
+			-- an ordinary piece does swell and click
+			lx, ly = self.geom:center(4, 4)
+			d.touch("down", lx, ly)
+			d.frame(1)
+			assert_true(self.anim:record(plain.id).touch ~= nil, "a piece swells under the finger")
+			assert_eq(clicks(), before + 1)
+			d.touch("up", lx, ly)
+		end)
+	end)
+
+	it("makes no garbage for its plates while the board is at rest", function()
+		-- the plates are pooled mark tables: a board full of fixed things allocates no more than a plain one
+		local function idle_growth(params, with_plates)
+			local grown
+			with_board(params, function(E, script, self, d)
+				d.frame(90)
+				collectgarbage()
+				collectgarbage()
+				local jit_was_on = jit and jit.status and jit.status()
+				if jit_was_on then jit.off() end
+				collectgarbage("stop")
+				local before = collectgarbage("count")
+				d.frame(240)
+				grown = collectgarbage("count") - before
+				collectgarbage("restart")
+				if jit_was_on then jit.on() end
+				assert_eq(#plates(E) > 0, with_plates)
+			end)
+			return grown
+		end
+		local plain = idle_growth({ level = 1 }, false)
+		local fixed = idle_growth({ level = 1, level_text = fixed_level() }, true)
+		assert_true(fixed < plain + 200, "plates allocate " .. math.floor(fixed - plain) .. " KB more in 240 frames")
+	end)
+
+	it("answers on every cell of the 2x2 column", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90)
+			local col = piece_at(self, 5, 5)
+			assert_eq(col.item, "column")
+			for i, c in ipairs({ { 6, 6 }, { 5, 6 }, { 6, 5 }, { 5, 5 } }) do
+				local there = piece_at(self, c[1], c[2])
+				assert_true(there ~= nil and there.id == col.id, "the column answers on " .. c[1] .. "," .. c[2])
+				d.frame(10)
+				d.tap(c[1], c[2])
+				local lo, hi = watch(E, self, d, col.id, 40, rest_of(self, 5, 5, 2))
+				assert_true(lo < -1 and hi > 1, "the column shakes when " .. c[1] .. "," .. c[2] .. " is tapped")
+				assert_eq(thuds(E), i)
+			end
+		end)
+	end)
+
+	it("treats a piece under wires as fixed, with a hint of its own", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90)
+			local wired = piece_at(self, 1, 6)
+			assert_eq(wired.kind, "regular")
+			d.swipe(1, 6, 2, 6)
+			local lo, hi = watch(E, self, d, wired.id, 40, rest_of(self, 1, 6))
+			assert_true(lo < -1 and hi > 1, "the wired piece shakes")
+			assert_eq(thuds(E), 1)
+			assert_same(toasts(E), { "level.fixed_wired" })
+			-- the box is a different kind: its hint still comes
+			d.frame(20)
+			d.swipe(2, 2, 2, 3)
+			d.frame(5)
+			assert_same(toasts(E), { "level.fixed_wired", "level.fixed_blocker" })
+		end)
+	end)
+
+	it("does not shake or thud for a normal swap or a swipe off the board", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			d.frame(90)
+			local g = self.session.game
+			local moves = g:status().moves_left
+			local cmd = self.session:hint_command()
+			assert_eq(cmd.type, "swap")
+			d.swipe(cmd.from[1], cmd.from[2], cmd.to[1], cmd.to[2])
+			d.frame(2)
+			assert_eq(g:status().moves_left, moves - 1) -- the move was spent: the core took it
+			assert_true(d.settle(900))
+			d.swipe(1, 1, 0, 1) -- off the board: the small nudge, no thud
+			d.frame(10)
+			assert_eq(thuds(E), 0)
+			assert_same(toasts(E), {})
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("does the same for a swap sent through the QA bridge", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			local qa = require("client.qa_bridge")
+			d.frame(90)
+			local box = piece_at(self, 2, 2)
+			local r = qa.execute("swap 2 2 2 3")
+			assert_false(r.ok)
+			assert_eq(r.result, "not_movable")
+			local lo, hi = watch(E, self, d, box.id, 40, rest_of(self, 2, 2))
+			assert_true(lo < -1 and hi > 1, "the box shakes its head for the bridge too")
+			assert_eq(thuds(E), 1)
+			assert_same(toasts(E), { "level.fixed_blocker" })
+			assert_eq(self.session.game:status().moves_left, 20)
+		end)
+	end)
+
+	it("takes the plate away with the blocker and does not put it back", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			local qa = require("client.qa_bridge")
+			d.frame(90)
+			assert_eq(#plates(E), 4)
+			assert_true(plate_at(E, self, 2, 2))
+			local r = qa.execute("booster stick 2 2") -- breaks the record box (hp 1)
+			assert_true(r.ok, tostring(r.error))
+			local gone_at, back = nil, false
+			for i = 1, 150 do
+				d.frame(1)
+				if not plate_at(E, self, 2, 2) then
+					gone_at = gone_at or i
+				elseif gone_at then
+					back = true
+				end
+			end
+			assert_true(gone_at ~= nil and gone_at < 40, "the plate goes with the box (frame " .. tostring(gone_at) .. ")")
+			assert_false(back, "and does not come back")
+			assert_true(#plates(E) >= 1, "the plates of the others stay (the column cannot break from one cascade)")
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("takes the plate of a wired piece away when the wires are cut", function()
+		with_board({ level = 1, level_text = fixed_level() }, function(E, script, self, d)
+			local qa = require("client.qa_bridge")
+			d.frame(90)
+			assert_true(plate_at(E, self, 1, 6))
+			assert_true(qa.execute("booster stick 1 6").ok) -- one hit cuts hp 1 wires
+			for _ = 1, 150 do d.frame(1) end
+			assert_false(plate_at(E, self, 1, 6), "the wires are gone, so is the plate")
+			assert_eq(self.errors or 0, 0)
 		end)
 	end)
 end)

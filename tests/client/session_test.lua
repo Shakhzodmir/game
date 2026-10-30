@@ -147,6 +147,35 @@ describe("a session: the first launch", function()
 	end)
 end)
 
+describe("a session: the final concert", function()
+	-- through the real HUD: the results window opens at "complete" and pauses the session, which used to freeze the
+	-- effects that follow the ticks of the core on the board for good
+	for _, tap_after in ipairs({ 0.6, 1.2 }) do
+		it("leaves nothing of the show on the board when a tap skips the concert " .. tap_after .. " s into it", function()
+			S.run({ audio = true }, function(s)
+				on_level(s, 1)
+				assert_true(link.board.session:qa("win").ok)
+				s:step_until(function()
+					local st = link.status()
+					return st and (st.state == "won_wait" or st.state == "concert")
+				end, 400, "the win")
+				s:run(tap_after)
+				local lx, ly = link.cell_center(3, 3)
+				s:tap(lx, ly) -- (the first tap after the win is swallowed: the player taps again)
+				s:run(0.3)
+				s:tap(lx, ly)
+				s:step_until(function() return s.app.ui.popup == "result" end, 400, "the results window")
+				s:run(3)
+				assert_true(link.board.session.paused, "the results window stopped the session")
+				local vfx = s:qa("state").board.vfx
+				assert_eq(vfx.active, 0, "effects still running behind the results window")
+				assert_eq(vfx.pending, 0, "effects still waiting for a tick behind the results window")
+				assert_eq(vfx.errors, 0)
+			end)
+		end)
+	end
+end)
+
 describe("a session: the town", function()
 	it("builds the first task (the stem joins the track) and starts the next level through the start window", function()
 		S.run({ audio = true }, function(s)
