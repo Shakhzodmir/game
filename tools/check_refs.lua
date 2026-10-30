@@ -17,7 +17,8 @@
 --      images drawn by shared windows can be shown in every GUI that hosts them
 --   c  every sound effect, note colour, layer and music stem used exists in the
 --      registry, the registry's components exist in assets/gen/audio.go, every
---      district has all its stems
+--      district has all its stems; every jukebox song of content/districts.json
+--      has its mix in the registry (and the other way round)
 --   d  every i18n key used (i18n.t, key = "...", toast_key, tutorials.json, ...)
 --      exists with both en and ru; key families built with .. are complete
 --   e  every bus topic published has a subscriber (or an allow-list reason below)
@@ -780,6 +781,8 @@ local function check_sounds(repo, data)
 	for district, stems in pairs(snd.music) do
 		for stem, id in pairs(stems) do component("music", district .. "/" .. stem, id) end
 	end
+	local song_assets = snd.songs or {}
+	for song, entry in pairs(song_assets) do component("song", song, entry.id) end
 	-- usage in the code
 	local function check_sfx_name(src, line, name)
 		if not snd.sfx[name] then
@@ -835,7 +838,9 @@ local function check_sounds(repo, data)
 						end
 					else
 						local a = args[1]
-						if a and a[1] == a[2] and toks[a[1]].k == "str" and not snd.music[toks[a[1]].v] then
+						-- a district (its layered theme) or, for `music`, a jukebox song (one mix)
+						if a and a[1] == a[2] and toks[a[1]].k == "str" and not snd.music[toks[a[1]].v]
+							and not (t.v == "music" and song_assets[toks[a[1]].v]) then
 							problem(repo, "c", src.path, t.line, "audio." .. t.v .. " district \"" .. toks[a[1]].v .. "\" has no music")
 						end
 					end
@@ -894,6 +899,31 @@ local function check_sounds(repo, data)
 		end
 		if not snd.loops[d.id] then
 			problem(repo, "c", "client/assets_index.lua", 0, "district " .. d.id .. " has no loop length (the music clock needs it)")
+		end
+	end
+	-- the jukebox catalogue: every song listed in content/districts.json has its mix and loop length, and a mix
+	-- nobody lists would sit in the memory of the page for nothing
+	local listed = {}
+	for _, d in ipairs((data.districts and data.districts.districts) or {}) do
+		if type(d.genre) ~= "table" or not (d.genre.en and d.genre.ru) then
+			problem(repo, "c", "content/districts.json", 0, "district " .. d.id .. " has no genre name (en and ru) for the jukebox")
+		end
+		for _, song in ipairs(d.songs or {}) do
+			listed[song.id] = true
+			local entry = song_assets[song.id]
+			if not entry then
+				problem(repo, "c", "content/districts.json", 0, "song " .. tostring(song.id) .. " (" .. d.id .. ") has no mix in the sound registry (assets/music/songs/" .. tostring(song.id) .. ".ogg)")
+			elseif not (type(entry.loop) == "number" and entry.loop > 0) then
+				problem(repo, "c", "client/assets_index.lua", 0, "song " .. tostring(song.id) .. " has no loop length (the music clock needs it)")
+			end
+			if type(song.name) ~= "table" or not (song.name.en and song.name.ru) then
+				problem(repo, "c", "content/districts.json", 0, "song " .. tostring(song.id) .. " has no name (en and ru)")
+			end
+		end
+	end
+	for song in pairs(song_assets) do
+		if not listed[song] then
+			problem(repo, "c", "client/assets_index.lua", 0, "song " .. song .. " is in the sound registry but in no genre of content/districts.json")
 		end
 	end
 	-- the mixer contract

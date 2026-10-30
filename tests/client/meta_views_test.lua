@@ -131,21 +131,100 @@ describe("client.views (meta screens)", function()
 		assert_eq(views.gift("nope", config).count, 0)
 	end)
 
-	it("lists the jukebox songs: current with its layers, the rest locked", function()
+	it("lists the jukebox by genre: a tab per district, its theme first, then its songs", function()
 		local m = H.new()
 		local by_id = {}
 		for _, d in ipairs(H.districts().districts) do by_id[d.id] = d end
-		local rows = views.jukebox(m, by_id)
-		assert_eq(rows[1].state, "current")
-		assert_false(rows[1].playable) -- nothing built yet
-		assert_eq(rows[2].state, "locked")
+		local vm = views.jukebox(m, by_id)
+		assert_eq(#vm.tabs, 5)
+		assert_eq(vm.chosen, nil)
+		local ids = {}
+		for i, tab in ipairs(vm.tabs) do ids[i] = tab.id end
+		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage" })
+		-- the district being built: its genre is open, the rest are dark
+		assert_eq(vm.tabs[1].state, "current")
+		assert_eq(vm.tabs[2].state, "locked")
+		assert_eq(vm.tabs[5].state, "locked")
+		assert_same(vm.tabs[1].genre, { en = "Lo-fi", ru = "Лоу-фай" })
+		assert_eq(vm.tabs[1].color, views.district_color(1))
+		assert_eq(vm.tabs[2].prev_name.en, "Lo-fi Café", "what opens the jazz genre")
+		assert_eq(vm.tabs[1].count, 5, "the theme and four songs")
+		assert_false(vm.tabs[1].playing)
+		-- the theme of the district is the first row, with its layers
+		local rows = vm.songs.cafe
+		assert_eq(#rows, 5)
+		assert_true(rows[1].theme)
+		assert_eq(rows[1].id, "cafe")
+		assert_eq(rows[1].name.en, "Lo-fi Café")
 		assert_eq(rows[1].bpm, 90)
+		assert_false(rows[1].playable, "nothing built yet: no layer to hear")
+		assert_eq(rows[1].total, 6)
+		-- the songs of an open genre are playable at once, in the file order, with their own tempo
+		assert_false(rows[2].theme)
+		assert_eq(rows[2].id, "rainy_window")
+		assert_eq(rows[2].index, 2)
+		assert_eq(rows[2].bpm, 72)
+		assert_true(rows[2].playable)
+		assert_eq(rows[2].state, "current")
+		-- a locked genre keeps its rows as dark silhouettes: nothing plays
+		for _, r in ipairs(vm.songs.jazz) do
+			assert_eq(r.state, "locked")
+			assert_false(r.playable, r.id)
+			assert_eq(r.prev_name.en, "Lo-fi Café")
+		end
+		assert_eq(#vm.songs.jazz, 5)
+		-- the first task builds the first layer: the theme can be played
 		H.win(m, T)
-		local t = m:next_task()
-		assert_true(m:complete_task(t.district, t.id))
-		rows = views.jukebox(m, by_id)
-		assert_true(rows[1].playable)
-		assert_eq(rows[1].stems, 1)
+		local task = m:next_task()
+		assert_true(m:complete_task(task.district, task.id))
+		vm = views.jukebox(m, by_id)
+		assert_true(vm.songs.cafe[1].playable)
+		assert_eq(vm.songs.cafe[1].stems, 1)
+	end)
+
+	it("opens a genre with its district and marks the row and the tab of the pick", function()
+		local m = H.new()
+		local by_id = {}
+		for _, d in ipairs(H.districts().districts) do by_id[d.id] = d end
+		for _, d in ipairs(m:districts()) do
+			if d.id == "cafe" then
+				for _, task in ipairs(d.tasks) do
+					H.give(m, "stars", task.cost)
+					assert_true(m:complete_task("cafe", task.id))
+				end
+			end
+		end
+		local vm = views.jukebox(m, by_id)
+		assert_eq(vm.tabs[1].state, "complete")
+		assert_eq(vm.tabs[2].state, "current")
+		assert_eq(vm.songs.cafe[1].state, "complete")
+		assert_true(vm.songs.cafe[1].playable, "a finished district plays its full song")
+		assert_true(vm.songs.jazz[2].playable, "every song of the genre being built plays at once")
+		assert_false(vm.songs.jazz[1].playable, "its theme has no layer yet")
+		assert_eq(vm.songs.jazz[2].stems, 0)
+		assert_eq(vm.songs.square[1].state, "locked")
+		-- the pick
+		assert_true(m:set_song("scat_parade"))
+		vm = views.jukebox(m, by_id)
+		assert_eq(vm.chosen, "scat_parade")
+		assert_true(vm.tabs[2].playing)
+		assert_false(vm.tabs[1].playing)
+		local playing = {}
+		for _, tab in ipairs(vm.tabs) do
+			for _, r in ipairs(vm.songs[tab.id]) do
+				if r.playing then playing[#playing + 1] = r.id end
+			end
+		end
+		assert_same(playing, { "scat_parade" })
+		-- the theme of a district can be the pick too
+		assert_true(m:set_song("cafe"))
+		vm = views.jukebox(m, by_id)
+		assert_true(vm.songs.cafe[1].playing)
+		assert_true(vm.tabs[1].playing)
+		-- without the catalogue of the content the genre is the district (a content without songs still shows its themes)
+		local bare = views.jukebox(H.new(), nil)
+		assert_eq(#bare.songs.cafe, 1)
+		assert_eq(bare.tabs[1].genre.en, "Lo-fi Café")
 	end)
 
 	it("says what the card above the level button shows for the district on display", function()

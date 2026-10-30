@@ -695,6 +695,38 @@ function Meta:seen_tutorials()
 	return util.copy(self.s.prefs.tutorial)
 end
 
+-- jukebox ---------------------------------------------------------------------------------
+
+-- The song the player picked in the jukebox, or nil (follow the town: the track of the district on display).
+-- A saved choice that is not valid any more (the song left the content, its genre is not open) reads as nil.
+function Meta:song()
+	local id = self.s.prefs.song
+	if id and town.song_status(self.s.town, self.data, id) == "open" then return id end
+	return nil
+end
+
+-- Picks a song of the catalogue (a district id picks its theme), or nil to follow the town again. true, or
+-- false and "unknown_song" | "locked" (the genre is not open yet) | "no_layers" (the theme of a district with no task
+-- done: nothing to hear). Not a purchase: no ledger entry. A wrong type is a client bug.
+function Meta:set_song(id)
+	if id ~= nil and type(id) ~= "string" then error("meta: set_song needs a song id or nil, got " .. type(id), 2) end
+	if id ~= nil then
+		local status = town.song_status(self.s.town, self.data, id)
+		if status == nil then return false, "unknown_song" end
+		if status ~= "open" then return false, status end
+	end
+	if self.s.prefs.song ~= id then
+		self.s.prefs.song = id
+		self:_touch()
+	end
+	return true
+end
+
+-- {id, district, theme} of any song of the catalogue (the theme of a district has the district's id), or nil.
+function Meta:song_info(id)
+	return town.song_info(self.data, id)
+end
+
 -- {wins, losses, coins_earned, coins_spent}; coins = earned - spent.
 function Meta:stats()
 	return util.copy(self.s.stats)

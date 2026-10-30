@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Single source of truth for the meta layer. Each task costs stars, lights up one scene item and unmutes one music stem of the district track. Stars: sum(cost) per district. Art generator writes item positions to content/district_layouts.json; audio generator writes assets/music/<district>/<stem>.ogg.",
+  "note": "Single source of truth for the meta layer. Each task costs stars, lights up one scene item and unmutes one music stem of the district track. Stars: sum(cost) per district. Each district is also a jukebox genre: `genre` is the tab name and `songs` are the extra songs of that genre (single full mixes in the key of the district; the first song of a genre is the layered district theme itself). Art generator writes item positions to content/district_layouts.json; audio generator (tools/audio) writes assets/music/<district>/<stem>.ogg and assets/music/songs/<song>.ogg.",
   "districts": [
     {
       "id": "cafe",
@@ -8,11 +8,57 @@
         "ru": "Lo-fi-кафе",
         "en": "Lo-fi Café"
       },
+      "genre": {
+        "ru": "Лоу-фай",
+        "en": "Lo-fi"
+      },
       "bpm": 90,
       "key": "F",
       "semitones_from_c": 5,
       "bars": 8,
       "mood": "warm lo-fi hip-hop, dusty, cozy evening",
+      "songs": [
+        {
+          "id": "rainy_window",
+          "name": {
+            "ru": "Дождь за окном",
+            "en": "Rainy Window"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "slow rainy-day lo-fi: warm e-piano, tape wow, rain hiss, sparse celesta"
+        },
+        {
+          "id": "pancake_sunday",
+          "name": {
+            "ru": "Блинчики в воскресенье",
+            "en": "Pancake Sunday"
+          },
+          "bpm": 84,
+          "bars": 8,
+          "mood": "upbeat boom-bap brunch: nylon guitar, vibraphone tune, bouncy swing"
+        },
+        {
+          "id": "pixel_cafe",
+          "name": {
+            "ru": "Пиксельное кафе",
+            "en": "Pixel Café"
+          },
+          "bpm": 98,
+          "bars": 8,
+          "mood": "chiptune meets lo-fi: pulse-wave arpeggios, 8-bit drums, bright and playful"
+        },
+        {
+          "id": "sleepy_cat",
+          "name": {
+            "ru": "Сонный кот",
+            "en": "Sleepy Cat"
+          },
+          "bpm": 68,
+          "bars": 8,
+          "mood": "lullaby: music box, soft strings, a slow heartbeat of brushes"
+        }
+      ],
       "chest": {
         "coins": 300,
         "boosters": [
@@ -89,11 +135,57 @@
         "ru": "Джаз-бар",
         "en": "Jazz Bar"
       },
+      "genre": {
+        "ru": "Джаз",
+        "en": "Jazz"
+      },
       "bpm": 96,
       "key": "Bb",
       "semitones_from_c": -2,
       "bars": 8,
       "mood": "late-night swing, smoky, elegant",
+      "songs": [
+        {
+          "id": "bossa_breeze",
+          "name": {
+            "ru": "Босса-бриз",
+            "en": "Bossa Breeze"
+          },
+          "bpm": 112,
+          "bars": 8,
+          "mood": "bossa nova: nylon guitar clave, cross-stick, flute and vibes"
+        },
+        {
+          "id": "moonlight_ballad",
+          "name": {
+            "ru": "Лунная баллада",
+            "en": "Moonlight Ballad"
+          },
+          "bpm": 66,
+          "bars": 8,
+          "mood": "slow jazz ballad: brushes, piano arpeggios, a singing sax"
+        },
+        {
+          "id": "scat_parade",
+          "name": {
+            "ru": "Скэт-парад",
+            "en": "Scat Parade"
+          },
+          "bpm": 152,
+          "bars": 12,
+          "mood": "fast swing with a scat singer: walking bass, ride, trumpet shouts"
+        },
+        {
+          "id": "boogie_mouse",
+          "name": {
+            "ru": "Мышонок-буги",
+            "en": "Boogie Mouse"
+          },
+          "bpm": 132,
+          "bars": 12,
+          "mood": "twelve-bar boogie-woogie shuffle: rolling piano, shuffle drums, sax stabs"
+        }
+      ],
       "chest": {
         "coins": 450,
         "boosters": [
@@ -180,11 +272,57 @@
         "ru": "Площадь уличного оркестра",
         "en": "Street Band Square"
       },
+      "genre": {
+        "ru": "Парад",
+        "en": "Parade"
+      },
       "bpm": 104,
       "key": "G",
       "semitones_from_c": -5,
       "bars": 8,
       "mood": "sunny brass-band funk, festive street",
+      "songs": [
+        {
+          "id": "carnival_samba",
+          "name": {
+            "ru": "Карнавальная самба",
+            "en": "Carnival Samba"
+          },
+          "bpm": 100,
+          "bars": 8,
+          "mood": "samba batucada: surdo, tamborim, shaker, cavaquinho, whistle and brass hits"
+        },
+        {
+          "id": "oompah_polka",
+          "name": {
+            "ru": "Полька Умпа-Па",
+            "en": "Oom-Pah Polka"
+          },
+          "bpm": 124,
+          "bars": 12,
+          "mood": "bouncy polka: tuba oom-pah, strummed offbeats, a musette tune"
+        },
+        {
+          "id": "marching_ducks",
+          "name": {
+            "ru": "Марш утят",
+            "en": "Marching Ducks"
+          },
+          "bpm": 112,
+          "bars": 12,
+          "mood": "toy marching band: snare cadence, piccolo tune, tuba, a duck quack or two"
+        },
+        {
+          "id": "calypso_sun",
+          "name": {
+            "ru": "Калипсо-солнце",
+            "en": "Calypso Sun"
+          },
+          "bpm": 108,
+          "bars": 8,
+          "mood": "island calypso: steel drum tune, ukulele offbeats, bongos and shakers"
+        }
+      ],
       "chest": {
         "coins": 600,
         "boosters": [
@@ -281,11 +419,57 @@
         "ru": "K-pop-стадион",
         "en": "K-pop Stadium"
       },
+      "genre": {
+        "ru": "К-поп",
+        "en": "K-pop"
+      },
       "bpm": 110,
       "key": "A",
       "semitones_from_c": -3,
       "bars": 8,
       "mood": "bright dance-pop, stadium energy, sparkling",
+      "songs": [
+        {
+          "id": "neon_heartbeat",
+          "name": {
+            "ru": "Неоновое сердце",
+            "en": "Neon Heartbeat"
+          },
+          "bpm": 124,
+          "bars": 12,
+          "mood": "four-on-the-floor electro-pop: pumping bass, supersaw stabs, glittering arps"
+        },
+        {
+          "id": "idol_ballad",
+          "name": {
+            "ru": "Баллада кумира",
+            "en": "Idol Ballad"
+          },
+          "bpm": 70,
+          "bars": 8,
+          "mood": "tearful pop ballad: piano, strings, a choir 'ah' and a bell-like lead"
+        },
+        {
+          "id": "candy_rush",
+          "name": {
+            "ru": "Конфетный бум",
+            "en": "Candy Rush"
+          },
+          "bpm": 140,
+          "bars": 12,
+          "mood": "kawaii future bass: chopped supersaws, bell lead, half-time snare, sugar rush"
+        },
+        {
+          "id": "lightstick_wave",
+          "name": {
+            "ru": "Волна лайтстиков",
+            "en": "Lightstick Wave"
+          },
+          "bpm": 96,
+          "bars": 8,
+          "mood": "smooth R&B-pop: finger snaps, sub bass, e-piano and vocal chops"
+        }
+      ],
       "chest": {
         "coins": 800,
         "boosters": [
@@ -383,11 +567,57 @@
         "ru": "Рок-гараж",
         "en": "Rock Garage"
       },
+      "genre": {
+        "ru": "Рок",
+        "en": "Rock"
+      },
       "bpm": 100,
       "key": "E",
       "semitones_from_c": 4,
       "bars": 8,
       "mood": "garage rock, raw and fun, amp hum",
+      "songs": [
+        {
+          "id": "surf_splash",
+          "name": {
+            "ru": "Сёрф-всплеск",
+            "en": "Surf Splash"
+          },
+          "bpm": 148,
+          "bars": 12,
+          "mood": "surf rock: twangy tremolo-picked lead, spring reverb, galloping drums"
+        },
+        {
+          "id": "skate_sprint",
+          "name": {
+            "ru": "Скейт-спринт",
+            "en": "Skate Sprint"
+          },
+          "bpm": 168,
+          "bars": 16,
+          "mood": "pop-punk sprint: palm-muted power chords, shouted hooks, crash on every phrase"
+        },
+        {
+          "id": "sunrise_ballad",
+          "name": {
+            "ru": "Рассвет рок-баллады",
+            "en": "Sunrise Ballad"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "power ballad: clean arpeggios grow into a big band with a singing lead guitar"
+        },
+        {
+          "id": "stomp_clap",
+          "name": {
+            "ru": "Топ-топ-хлоп",
+            "en": "Stomp & Clap"
+          },
+          "bpm": 92,
+          "bars": 8,
+          "mood": "glam stadium stomp: boom-boom-clap, fat riff, gang shouts and tambourine"
+        }
+      ],
       "chest": {
         "coins": 1000,
         "boosters": [
