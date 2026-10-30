@@ -169,7 +169,7 @@ function M.restore(raw, districts)
 		unlock_gifts = inventory.restore_gifts(raw.unlock_gifts, progress.reached(p)),
 		town = town.restore(raw.town, districts),
 		prefs = prefs.restore(raw.prefs),
-		chests = economy.restore_chests(raw.chests),
+		chests = economy.restore_chests(raw.chests, p.beaten),
 		extra = extra,
 	}
 end

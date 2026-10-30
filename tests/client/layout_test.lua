@@ -101,6 +101,55 @@ describe("client.layout", function()
 		assert_error(function() layout.board(0, 5) end, "positive")
 	end)
 
+	it("puts a window with a ribbon and a mascot on the design area: it slides down, then shrinks", function()
+		local up, down, margin = 100, 20, 16
+		local function edges(h, k, dy) -- top and bottom of the whole window, logical px
+			return layout.H / 2 + dy + k * (h / 2 + up), layout.H / 2 + dy - k * (h / 2 + down)
+		end
+		local room = layout.window_room(up, down, margin)
+		assert_eq(room, 1248 - 120)
+		-- a window that fits is left alone
+		for _, h in ipairs({ 300, 900, 1040 }) do
+			local k, dy = layout.fit_window(h, up, down, margin)
+			assert_eq(k, 1, "h " .. h)
+			assert_eq(dy, 0, "no move for h " .. h)
+		end
+		-- the tallest window that fits unscaled has the screen to itself
+		local k, dy = layout.fit_window(room, up, down, margin)
+		assert_near(k, 1, 1e-9)
+		local top, bottom = edges(room, k, dy)
+		assert_near(top, layout.H - margin, 1e-6)
+		assert_near(bottom, margin, 1e-6)
+		-- a little taller: it slides down first (the mascot is above, the shadow below is small), then it shrinks
+		k, dy = layout.fit_window(1080, up, down, margin)
+		assert_eq(k, 1)
+		assert_true(dy < 0, "slid down: " .. dy)
+		k = layout.fit_window(room + 100, up, down, margin)
+		assert_true(k < 1, "and shrank")
+		-- nothing leaves the margin at any height, and the bigger the window the smaller its content
+		local last = 1
+		for h = 400, 2400, 8 do
+			k, dy = layout.fit_window(h, up, down, margin)
+			top, bottom = edges(h, k, dy)
+			assert_true(top <= layout.H - margin + 1e-6, "top at h " .. h .. ": " .. top)
+			assert_true(bottom >= margin - 1e-6, "bottom at h " .. h .. ": " .. bottom)
+			assert_true(k <= last + 1e-12 and k > 0, "k never grows with h")
+			last = k
+		end
+		-- more below the panel than above it (nothing in the game, but the contract holds): it slides up, the bottom
+		-- edge is clamped inside the margin as well
+		for h = 400, 2400, 8 do
+			k, dy = layout.fit_window(h, 0, 100, margin)
+			local t, b = layout.H / 2 + dy + k * (h / 2), layout.H / 2 + dy - k * (h / 2 + 100)
+			assert_true(t <= layout.H - margin + 1e-6, "top at h " .. h .. " (down > up): " .. t)
+			assert_true(b >= margin - 1e-6, "bottom at h " .. h .. " (down > up): " .. b)
+		end
+		-- no margin given: the design area itself
+		k, dy = layout.fit_window(layout.H, 0, 0)
+		assert_eq(k, 1)
+		assert_eq(dy, 0)
+	end)
+
 	it("keeps the play area clear of notches (safe-area insets)", function()
 		local f = layout.fit(1170, 2532)
 		local plain = layout.play_area(f)

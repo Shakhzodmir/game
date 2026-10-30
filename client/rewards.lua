@@ -1,10 +1,12 @@
 -- Queue of level results the town still has to show (pure Lua).
 --
--- The meta pays a result at once (meta:finish_level); the town shows it
--- later, when the player is back: stars and coins fly into the top bar,
--- chests open, unlock gifts appear. Until then the top bar shows the
--- balances without what is still queued (held()), so nothing is counted
--- twice and nothing jumps.
+-- The meta pays the stars and coins of a result at once (meta:finish_level); the town shows them
+-- later, when the player is back: they fly into the top bar, the streak lights up, unlock gifts appear.
+-- Until then the top bar shows the balances without what is still queued (held()), so nothing is counted
+-- twice and nothing jumps. The level chest is NOT in a queued result: a won chest waits in the meta until the
+-- player takes it (the results window, or the town at its entry: meta:claim_level_chest), and the town offers
+-- it itself. Only a chest the meta has paid already can be queued (the QA `reward` command, old queues): the
+-- town just shows that one.
 --
 --   local rewards = require("client.rewards")
 --   rewards.push(result)   -- a finish_level result (app.push_reward does this + a bus event)
@@ -12,8 +14,8 @@
 --   rewards.pop()          --> the oldest normalized result, or nil
 --   rewards.steps(r)       --> what to animate, in order (see below)
 --
--- A result: {won, stars, coins, chest = {coins, boosters = {ids},
--- infinite_minutes}, unlocked = {booster ids}, streak, level_id} for a win;
+-- A result: {won, stars, coins, chest = {coins, boosters = {ids}, infinite_minutes} (paid already: QA and old
+-- queues only), unlocked = {booster ids}, streak, level_id} for a win;
 -- {won = false, life_lost, streak_lost, level_id} for a loss. Missing fields
 -- count as none; wrong types are dropped (a bad QA payload cannot break the
 -- town).
@@ -21,9 +23,10 @@
 local M = {}
 
 -- The result window chains levels (Next level -> Play) without visiting the town, so a session can queue
--- every win it makes; each carries a ceremony the meta has already paid for (a chest, a new booster) that a
+-- every win it makes; each carries a ceremony the meta has already paid for (a new booster, the stars) that a
 -- dropped result would lose. A level is won once and the game ships 100, so no real session gets near this
--- cap: it only stops a runaway producer from growing the queue without bound (the oldest is dropped).
+-- cap: it only stops a runaway producer from growing the queue without bound (the oldest is dropped). The
+-- level chests do not depend on it: they wait in the meta.
 M.MAX = 128
 
 local queue = {}
@@ -109,7 +112,8 @@ end
 -- What the town animates for a result, in order:
 --   {kind = "win", stars, coins}      stars and coins fly into the top bar
 --   {kind = "streak", count}          the hit streak notes light up
---   {kind = "chest", chest}           the level chest opens (its coins fly after it)
+--   {kind = "chest", chest}           a chest the meta paid already opens (its coins fly after it); a waiting
+--                                     level chest is offered by the town itself (Town:queue_pending_chests)
 --   {kind = "unlock", ids}            new boosters are handed over
 --   {kind = "loss", life_lost, streak_lost}
 function M.steps(r)

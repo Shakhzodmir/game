@@ -5,6 +5,8 @@
 -- decides a rule: the rules are in the meta and the core, which these tests only watch being called.
 
 local G = require("tests.client.level_gui_helper")
+local flow = require("client.flow")
+local i18n = require("client.i18n")
 local layout = require("client.layout")
 local level_hud = require("client.level_hud")
 local link = require("client.level_link")
@@ -67,6 +69,16 @@ end
 
 local function top(c) return c.popup() end
 local function ui(c) return c.app.ui.level end
+
+-- the levels before `n` are won on the meta; `keep` leaves their chests waiting, as wins on the board do
+local function win_until(n, keep)
+	return function(app)
+		while app.meta:level_to_play() < n do assert(flow.debug_win(3, keep)) end
+	end
+end
+
+-- the window host of the level screen
+local function popups(c) return c.hud.self.l.popups end
 
 -- every test ends with these: the script did not trip over itself, and the scene is legal
 local function clean(c)
@@ -901,7 +913,7 @@ describe("level screen: the results", function()
 			win(c)
 			assert_true(c.has("Chest!"))
 			assert_true(c.has("Open"), "the chest is opened right here")
-			assert_false(c.has("It opens in the town"))
+			assert_false(c.has("Chest collected!"), "and it is not taken yet")
 			clean(c)
 		end)
 	end)
@@ -937,7 +949,7 @@ describe("level screen: the results", function()
 		end)
 	end)
 
-	it("keeps a chest that was not opened: the next results offer it again", function()
+	it("keeps a chest that was not opened when the player leaves the results", function()
 		G.with_level({ level = 10 }, function(c)
 			win(c)
 			local meta = c.app.meta
@@ -945,6 +957,202 @@ describe("level screen: the results", function()
 			c.step(10)
 			assert_eq(#meta:pending_chests(), 1, "leaving the results does not pay or drop the chest")
 			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0)
+		end)
+	end)
+
+	-- Open, the closed chest, Collect: back on the results window
+	local function take_chest(c)
+		c.tap_target("chest") -- "Open" of the results window
+		c.step(30)
+		assert_eq(top(c), "chest", "the chest window shows the chest")
+		c.tap_target("chest") -- the closed chest
+		c.step(120)
+		c.tap_target("collect")
+		c.step(20)
+	end
+
+	it("offers an older chest in the next results, names its level and pays that very chest", function()
+		-- the chest of level 10 was left unopened: the results of level 11 offer it (a claim for the level of the
+		-- results themselves would find no chest and pay nothing, for ever)
+		G.with_level({ level = 11, setup = win_until(11, true) }, function(c)
+			local meta = c.app.meta
+			assert_eq(#meta:pending_chests(), 1, "the chest of level 10 waits")
+			win(c)
+			assert_eq(top(c), "result")
+			assert_true(c.has(i18n.t("reward.chest_level", { n = 10 })), "the older chest says which level it is from")
+			assert_false(c.has("Chest!"))
+			local coins = meta:coins()
+			take_chest(c)
+			assert_eq(top(c), "result")
+			assert_eq(#meta:pending_chests(), 0, "the chest of level 10 was taken")
+			assert_eq(meta:coins(), coins + 60)
+			assert_true(c.has("Chest collected!"))
+			clean(c)
+		end)
+	end)
+
+	it("pays nothing when the chest window is closed without Collect, and offers the chest again", function()
+		G.with_level({ level = 10 }, function(c)
+			win(c)
+			local meta = c.app.meta
+			c.tap_target("chest") -- "Open"
+			c.step(30)
+			assert_eq(top(c), "chest")
+			local coins = meta:coins()
+			c.app.close_popup() -- dismissed without Collect
+			c.step(40)
+			assert_eq(top(c), "result", "back to the results")
+			assert_eq(#meta:pending_chests(), 1, "the chest is still waiting")
+			assert_eq(meta:coins(), coins)
+			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0)
+			assert_true(c.has("Open"), "and the strip still offers it")
+			assert_false(c.has("Chest collected!"))
+			clean(c)
+		end)
+	end)
+
+	it("pays nothing when the screen goes away while the chest window is open", function()
+		G.with_level({ level = 10 }, function(c)
+			win(c)
+			local meta = c.app.meta
+			c.tap_target("chest")
+			c.step(30)
+			assert_eq(top(c), "chest")
+			require("client.bus").publish("screen_leaving", {})
+			c.step(10)
+			assert_eq(#meta:pending_chests(), 1)
+			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0)
+		end)
+	end)
+
+	it("offers two waiting chests one after the other, oldest first, and stacks their minutes", function()
+		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
+			local meta = c.app.meta
+			win(c)
+			assert_eq(#meta:pending_chests(), 2)
+			assert_true(c.has(i18n.t("reward.chest_level", { n = 10 })), "the oldest first")
+			take_chest(c)
+			assert_eq(#meta:pending_chests(), 1)
+			c.run(1.5) -- the chest just taken stays on show for a moment (the next test), then the next is offered
+			assert_true(c.has("Open"), "the next chest takes its place")
+			assert_true(c.has("Chest!"), "the chest of this level")
+			take_chest(c)
+			assert_eq(#meta:pending_chests(), 0)
+			local left = meta:lives(c.app.now()).infinite_seconds
+			assert_true(left > 45 * 60 - 10 and left <= 45 * 60, "15 + 30 minutes: " .. left)
+			clean(c)
+		end)
+	end)
+
+	it("shows the chest just taken for a moment before it offers the next one", function()
+		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
+			win(c)
+			take_chest(c)
+			assert_eq(#c.app.meta:pending_chests(), 1)
+			assert_true(c.has("Chest collected!"), "the player sees that Collect worked")
+			assert_true(c.has("Unlimited lives are on!"))
+			assert_false(c.has("Open"), "the next chest is not offered yet")
+			c.run(0.6)
+			assert_true(c.has("Chest collected!"), "still on show")
+			c.run(0.6)
+			assert_false(c.has("Chest collected!"))
+			assert_true(c.has("Open"), "the next chest follows")
+			clean(c)
+		end)
+	end)
+
+	it("brings the next chest at a tap while the chest just taken is on show", function()
+		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
+			win(c)
+			take_chest(c)
+			assert_true(c.has("Chest collected!"))
+			c.tap_target("taken") -- the tail of the tap on Collect: the window is still deaf
+			c.step(5)
+			assert_true(c.has("Chest collected!"), "no tap skips it in the first moment")
+			c.run(0.3)
+			c.tap_target("taken")
+			c.step(10)
+			assert_false(c.has("Chest collected!"), "a tap brings the next chest")
+			assert_true(c.has("Open"))
+			assert_eq(top(c), "result")
+			clean(c)
+		end)
+	end)
+
+	it("does not let the second tap of a double tap on Collect fall through to Next level", function()
+		-- Collect of the chest window lies at the same place as "Next level" of this tall results window
+		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
+			win(c)
+			local meta = c.app.meta
+			local next_at = c.app.ui.popup_targets.next
+			c.tap_target("chest")
+			c.step(30)
+			c.tap_target("chest")
+			c.step(120)
+			local collect = c.app.ui.popup_targets.collect
+			assert_true(math.abs(collect.x - next_at.x) < 230 and math.abs(collect.y - next_at.y) < 62,
+				"Collect lies over Next level in this window (" .. collect.x .. "," .. collect.y .. " vs " .. next_at.x .. "," .. next_at.y .. ")")
+			local coins = meta:coins()
+			c.tap(collect.x, collect.y) -- Collect
+			c.tap(collect.x, collect.y) -- the second tap of the double tap, a few frames later
+			c.step(30)
+			assert_eq(top(c), "result", "the second tap did not press Next level")
+			assert_eq(meta:coins(), coins + 60, "the chest was paid once")
+			assert_eq(#meta:pending_chests(), 1)
+			-- the window listens again after the moment
+			c.step(20)
+			c.tap_target("next")
+			c.step(30)
+			assert_eq(top(c), "start", "Next level answers a tap that comes later")
+			clean(c)
+		end)
+	end)
+
+	it("opens the chest from its whole strip: the picture, the title and the row, and Open is an 88 px target", function()
+		G.with_level({ level = 10 }, function(c)
+			win(c)
+			-- Open: a touch target of at least 88 px (gui/kit.lua), hit off centre too
+			local label = c.hud:find("Open")
+			assert_true(label ~= nil)
+			local x0, y0, x1, y1 = c.E.rect(label.parent)
+			local lx0, ly0 = c.E.to_logical(x0, y0)
+			local lx1, ly1 = c.E.to_logical(x1, y1)
+			assert_true(math.abs(ly1 - ly0) >= 88 - 0.5, "the Open button is " .. math.abs(ly1 - ly0) .. " px high")
+			local open = c.app.ui.popup_targets.chest
+			local function opens(what, x, y)
+				c.tap(x, y)
+				c.step(30)
+				assert_eq(top(c), "chest", what .. " opens the chest")
+				c.app.close_popup()
+				c.step(40)
+				assert_eq(top(c), "result")
+			end
+			opens("the Open button", open.x, open.y)
+			opens("the top of the Open button", open.x, open.y + 40)
+			opens("the bottom of the Open button", open.x, open.y - 40)
+			opens("the side of the Open button", open.x + 120, open.y)
+			for _, find in ipairs({
+				function() return c.hud:find("Chest!") end, -- the title
+				function() return c.hud:find("×60") end,    -- the row
+			}) do
+				local n = find()
+				assert_true(n ~= nil)
+				local x, y = c.E.centre(n)
+				opens("a tap on '" .. n.text .. "'", x, y)
+			end
+			for _, node in ipairs(c.E.alive_nodes(c.E.scene("/screens/level/level.gui"))) do
+				if node.anim == "ui_icons_chest_closed" and c.E.visible(node) then
+					local x, y = c.E.centre(node)
+					opens("the picture of the chest", x, y)
+					break
+				end
+			end
+			-- a tap beside the strip opens nothing
+			c.tap(open.x, open.y + 150)
+			c.step(30)
+			assert_eq(top(c), "result")
+			assert_eq(#c.app.meta:pending_chests(), 1, "nothing was paid by any of it")
+			clean(c)
 		end)
 	end)
 
@@ -960,6 +1168,260 @@ describe("level screen: the results", function()
 			assert_eq(posts[1].message.name, "level")
 			assert_eq(c.app.claim(posts[1].message.ticket).level, 6)
 			clean(c)
+		end)
+	end)
+
+	it("offers no chest in the stand-in results of a debug level, even when one waits in the meta", function()
+		G.with_level({ level = 5, attempt = false, setup = win_until(11, true) }, function(c)
+			assert_eq(#c.app.meta:pending_chests(), 1)
+			win(c)
+			assert_eq(top(c), "result")
+			assert_true(c.has("Test level: no reward"))
+			assert_false(c.has("Open"), "the chest of the real game is not for a debug level")
+			assert_eq(#c.app.meta:pending_chests(), 1)
+		end)
+	end)
+
+	it("wraps the stars note into its row at a readable size, in English and in Russian", function()
+		for _, lang in ipairs({ "en", "ru" }) do
+			G.with_level({ level = 3, language = lang }, function(c)
+				win(c)
+				assert_eq(top(c), "result")
+				local note = c.hud:find(i18n.t("win.stars_note"))
+				assert_true(note ~= nil, lang .. ": the note is on the results of a one-star win")
+				local px = c.E.text_px(note)
+				assert_true(px >= 15, lang .. ": the note shrank to " .. string.format("%.1f", px) .. " px instead of wrapping")
+				clean(c)
+			end)
+		end
+	end)
+
+	it("draws only the stars the win earned: no empty slot", function()
+		G.with_level({ level = 3 }, function(c)
+			win(c)
+			assert_eq(top(c), "result")
+			assert_eq(showing(c, "ui_icons_star_empty"), 0, "an empty star slot is drawn")
+			assert_true(showing(c, "ui_icons_star") >= 1)
+		end)
+	end)
+end)
+
+-- The results window is the tallest window of the game: the stars, the coins, the streak, a chest, new boosters,
+-- the refund and the buttons add up to more than the screen when they come together, and the title ribbon and Bit
+-- (which sit on the top edge of the panel) ran off the top of every window that is not taller than 9:16.
+describe("level screen: the results window fits the screen", function()
+	-- the shapes the game runs in: the design shape, a short phone, a tall phone (390x844 at 2x), a tablet, the
+	-- desktop in landscape, a small phone
+	local SIZES = { { 720, 1280 }, { 540, 960 }, { 780, 1688 }, { 768, 1024 }, { 1280, 720 }, { 360, 640 } }
+	local MARGIN = 12 -- px of the design area the window keeps free at the top and the bottom
+
+	-- logical rect (y up) of a node under the stub's current window
+	local function lrect(c, n)
+		local x0, y0, x1, y1 = c.E.rect(n)
+		local ax, ay = c.E.to_logical(x0, y0)
+		local bx, by = c.E.to_logical(x1, y1)
+		return math.min(ax, bx), math.min(ay, by), math.max(ax, bx), math.max(ay, by)
+	end
+
+	-- the top of the title ribbon and of Bit, and the box of the panel (with its shadow), in logical px
+	local function edges(c)
+		local ed = {}
+		for _, n in ipairs(c.E.alive_nodes(c.E.scene("/screens/level/level.gui"))) do
+			local x0, y0, x1, y1 = lrect(c, n)
+			if n.anim == "ui_ribbon" then ed.ribbon = math.max(ed.ribbon or -1e9, y1) end
+			if n.texture and n.texture:sub(1, 8) == "img:bit/" then ed.bit = math.max(ed.bit or -1e9, y1) end
+			if n.texture == "px_round" and math.abs(n.size.x - (640 + 8)) < 1 and (not ed.height or y1 - y0 > ed.height) then
+				ed.bottom, ed.left, ed.right, ed.height = y0, x0, x1, y1 - y0
+			end
+		end
+		return ed
+	end
+
+	-- the whole window inside the design area, so inside the visible area of every window shape, and its taps with it
+	local function check_fits(c, what)
+		for _, size in ipairs(SIZES) do
+			c.E.set_window(size[1], size[2])
+			c.step(3)
+			local f = layout.fit(size[1], size[2])
+			local at = what .. " in a " .. size[1] .. "x" .. size[2] .. " window"
+			local ed = edges(c)
+			assert_true(ed.ribbon and ed.bit and ed.bottom, at .. ": the window is drawn")
+			assert_true(ed.ribbon <= layout.H - MARGIN and ed.ribbon <= f.y1, at .. ": the title ribbon runs off the top (" .. ed.ribbon .. ")")
+			assert_true(ed.bit <= layout.H - MARGIN and ed.bit <= f.y1, at .. ": Bit runs off the top (" .. ed.bit .. ")")
+			assert_true(ed.bottom >= MARGIN and ed.bottom >= f.y0, at .. ": the panel runs off the bottom (" .. ed.bottom .. ")")
+			assert_true(ed.left >= f.x0 and ed.right <= f.x1 and ed.left >= 0 and ed.right <= layout.W, at .. ": the panel is wider than the screen")
+			for name, t in pairs(c.app.ui.popup_targets) do
+				assert_true(t.y >= ed.bottom and t.y <= ed.ribbon and t.x >= ed.left and t.x <= ed.right,
+					at .. ": the target '" .. name .. "' is outside the window")
+			end
+		end
+	end
+
+	-- level, keep (the earlier chests stay unopened), the strips that make the window as tall as it gets
+	local CASES = {
+		{ level = 13, keep = true, older = 10, unlock = "row_light" },
+		{ level = 20, keep = true, older = 10, unlock = "swap", ru = true },
+		{ level = 20, keep = false, unlock = "swap" },
+		{ level = 21, keep = true, older = 10, unlock = "disco" },
+		{ level = 24, keep = true, older = 10, unlock = "remix" },
+		{ level = 30, keep = false, ru = true },
+		{ level = 30, keep = true, older = 10 },
+	}
+	for _, lang in ipairs({ "en", "ru" }) do
+		for _, case in ipairs(CASES) do
+			if lang == "en" or case.ru then
+				local name = "keeps the title and Bit on the screen at level " .. case.level
+					.. (case.keep and " with the chest of level 10 unopened" or "") .. " (" .. lang .. ")"
+				it(name, function()
+					G.with_level({ level = case.level, language = lang, setup = win_until(case.level, case.keep) }, function(c)
+						win(c)
+						assert_eq(top(c), "result")
+						-- the case is the crowded window it claims to be
+						assert_true(c.hud:find(i18n.t("win.streak", { n = "" }), true) ~= nil, "the hit streak strip")
+						assert_true(c.has("Open") or c.has(i18n.t("win.chest_open")), "the chest strip")
+						if case.older then assert_true(c.has(i18n.t("reward.chest_level", { n = case.older })), "the older chest") end
+						if case.unlock then
+							assert_true(c.has(i18n.t("win.unlocked", { name = i18n.t("booster." .. case.unlock) })), "the new booster strip")
+						end
+						check_fits(c, "level " .. case.level)
+						clean(c)
+					end)
+				end)
+			end
+		end
+	end
+
+	it("shows the stars note while there is room for it, and leaves it out of a crowded window", function()
+		G.with_level({ level = 3 }, function(c)
+			win(c)
+			assert_true(c.has(i18n.t("win.stars_note")), "an early win explains the stars")
+			local e = popups(c):find("result")
+			assert_eq(e.fit_k, 1)
+			assert_eq(e.fit_dy, 0)
+		end)
+		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
+			win(c)
+			assert_false(c.has(i18n.t("win.stars_note")), "the streak, an older chest and a new booster crowd the window")
+			assert_eq(popups(c):find("result").fit_k, 1, "and without the note it needs no shrinking")
+		end)
+	end)
+
+	it("shrinks a window that is still too tall without the note, and its buttons still answer", function()
+		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
+			win(c)
+			local e = popups(c):find("result")
+			e.params.refund = { riff = 1, sub = 1 } -- boosters the core could not place come back: one more strip
+			c.hud:ctx(function() e:rebuild() end)
+			c.step(5)
+			assert_true(c.hud:find("^Returned to you:", true) ~= nil, "the refund strip")
+			assert_true(e.fit_k < 1 and e.fit_k > 0.9, "shrunk by a little: " .. tostring(e.fit_k))
+			check_fits(c, "level 20 with the refund strip")
+			-- the taps QA and the tests make are where the buttons are drawn
+			for target, label in pairs({ next = "Next level", town = "To town", chest = "Open" }) do
+				local node = c.hud:find(label)
+				assert_true(node ~= nil, label)
+				local x, y = c.E.centre(node.parent)
+				local t = c.app.ui.popup_targets[target]
+				assert_true(math.abs(x - t.x) < 2 and math.abs(y - t.y) < 2,
+					"the target '" .. target .. "' (" .. t.x .. "," .. t.y .. ") is not on its button (" .. x .. "," .. y .. ")")
+			end
+			c.tap_target("chest")
+			c.step(30)
+			assert_eq(top(c), "chest", "Open answers at its place in the shrunk window")
+			c.app.close_popup()
+			c.step(40)
+			c.tap_target("next")
+			c.step(30)
+			assert_eq(top(c), "start", "Next level answers too")
+			clean(c)
+		end)
+	end)
+end)
+
+-- The window host (client/popups.lua) itself, on windows made up for the test.
+describe("level screen: the window host fits tall windows and deafens a window that wakes up", function()
+	-- opens a window module of the test in the host of the level screen
+	local function open_probe(c, name, mod, params)
+		local host = popups(c)
+		host.registry[name] = mod
+		c.hud:ctx(function() host:open(name, params or {}) end)
+		c.run(0.5) -- the window pops in (0.32 s)
+		return host:find(name)
+	end
+
+	it("puts a tall panel on the screen and keeps its targets and absolute points in step with it", function()
+		G.with_level({ level = 3 }, function(c)
+			local e = open_probe(c, "tall", { build = function(w)
+				w:fit(1500, 100) -- 1500 px of panel and 124 around it do not fit 1280
+				w:target("mid", 0, 300)
+			end })
+			local k, dy = layout.fit_window(1500, 100, 20, 16)
+			assert_true(k < 1, "the case needs a window that shrinks")
+			assert_near(e.fit_k, k, 1e-9)
+			assert_near(e.fit_dy, dy, 1e-9)
+			local t = c.app.ui.popup_targets.mid
+			assert_near(t.x, 360, 1e-9)
+			assert_near(t.y, 640 + dy + k * 300, 1e-9)
+			local ax, ay = e:abs(0, 300)
+			assert_near(ax, t.x, 1e-9)
+			assert_near(ay, t.y, 1e-9)
+			-- the content layer is drawn the same way (the stub's window is the design area: no further scale)
+			local wx, wy, sx = c.E.world(e.content)
+			assert_near(sx, k, 1e-9)
+			assert_near(wy, 640 + dy, 1e-9)
+			assert_near(e:room(100), layout.window_room(100, 20, 16), 1e-9)
+			-- a rebuild fits again from nothing
+			c.hud:ctx(function() popups(c):rebuild(e) end)
+			assert_near(e.fit_k, k, 1e-9)
+			-- a window that never asks to be fitted stays as it is
+			local plain = open_probe(c, "plain", { build = function(w) w:target("mid", 0, 300) end })
+			assert_eq(plain.fit_k, nil)
+			assert_near(c.app.ui.popup_targets.mid.y, 940, 1e-9)
+			assert_near(select(2, plain:abs(0, 300)), 940, 1e-9)
+		end)
+	end)
+
+	it("takes no input for a moment after e:deafen, and listens again afterwards", function()
+		G.with_level({ level = 3 }, function(c)
+			local hits = 0
+			local e = open_probe(c, "deaf", { build = function(w)
+				w.ui:button({ parent = w.content, x = 0, y = 0, w = 300, h = 120, on_click = function() hits = hits + 1 end })
+				w:target("b", 0, 0)
+			end })
+			c.tap_target("b")
+			assert_eq(hits, 1, "a window that is not deaf answers")
+			e:deafen(0.3)
+			c.tap_target("b")
+			c.step(5)
+			assert_eq(hits, 1, "a deaf window ignores the tap")
+			c.run(0.4)
+			assert_eq(e.deaf, nil)
+			c.tap_target("b")
+			assert_eq(hits, 2, "and answers again when the moment is over")
+			e:deafen()
+			assert_near(e.deaf, 0.45, 1e-9, "the default is the host's DEAF")
+		end)
+	end)
+
+	it("stays deaf while a finger keeps hammering: every swallowed press extends the moment", function()
+		G.with_level({ level = 3 }, function(c)
+			local hits = 0
+			local e = open_probe(c, "hammer", { build = function(w)
+				w.ui:button({ parent = w.content, x = 0, y = 0, w = 300, h = 120, on_click = function() hits = hits + 1 end })
+				w:target("b", 0, 0)
+			end })
+			e:deafen(0.3)
+			-- a press every 0.2 s for 1.4 s: each one lands before the moment of the previous one is over
+			for _ = 1, 7 do
+				c.run(0.2)
+				c.tap_target("b")
+			end
+			assert_eq(hits, 0, "the hammering never gets through")
+			assert_true(e.deaf ~= nil, "and the window is still deaf")
+			c.run(0.3)
+			assert_eq(e.deaf, nil, "a quiet moment ends it")
+			c.tap_target("b")
+			assert_eq(hits, 1, "and the window answers again")
 		end)
 	end)
 end)

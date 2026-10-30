@@ -851,10 +851,22 @@ describe("meta windows: jukebox", function()
 	end)
 end)
 
+-- Opens the waiting chest of the town and takes it: a tap on the closed chest, then on Collect.
+local function open_and_collect(c)
+	c.run(0.5)
+	wtap(c, "chest")
+	wait_for(c, function() return c.app.ui.popup_targets and c.app.ui.popup_targets.collect ~= nil end, 3, "the open chest")
+	c.run(1.5)
+	wtap(c, "collect")
+end
+
 describe("meta windows: chests and gifts", function()
-	it("opens a level chest on a tap and flies what it holds into the town", function()
+	-- A level chest of a real win waits in the meta (flow.debug_win(3, true)) and the town offers it at its entry;
+	-- the tests that push a result with `chest` by hand are the QA "reward" path and old queues: a chest the meta
+	-- has paid already, which the town only shows.
+	it("opens a queued paid chest (QA reward) on a tap and flies what it holds into the town", function()
 		G.with_town({ setup = function(app) G.win(app, 9) end }, function(c)
-			local res = G.win(c.app, 1) -- level 10: the chest
+			local res = G.win(c.app, 1) -- level 10: the chest (taken at once by the debug win)
 			assert_true(res.chest ~= nil)
 			c.app.push_reward(res)
 			wait_for(c, function() return c.app.ui.popup == "chest" end, 8, "the level chest")
@@ -872,8 +884,10 @@ describe("meta windows: chests and gifts", function()
 		end)
 	end)
 
-	it("offers a level chest that was won and not opened when the town shows, and pays it only at Collect", function()
+	-- the real path of a level chest: it waits in the meta, the town offers it, Collect pays it
+	local function offers_waiting_chest(reduced_motion)
 		G.with_town({ setup = function(app)
+			if reduced_motion then app.set_setting("reduced_motion", true) end
 			G.win(app, 9)
 			assert(flow.debug_win(3, true)) -- level 10: the chest stays in the meta, as after a win on the board
 		end }, function(c)
@@ -892,11 +906,11 @@ describe("meta windows: chests and gifts", function()
 			assert_eq(meta:coins(), coins, "nothing is paid while the chest is open")
 			assert_eq(meta:lives(c.app.now()).infinite_seconds, 0)
 			wtap(c, "collect")
-			c.run(0.2) -- the coins and the heart are in the air
+			c.run(reduced_motion and 0.02 or 0.2) -- the coins and the heart are in the air (they fly for a blink when motion is reduced)
 			assert_eq(#meta:pending_chests(), 0, "paid at the tap on Collect")
 			assert_eq(meta:coins(), coins + 60)
 			assert_eq(c.app.ui.hold.infinite, 900, "the pill keeps its look until the heart lands")
-			assert_true(has(c, "Full"))
+			assert_true(has(c, "Full"), texts(c))
 			wait_for(c, function() return not c.app.ui.busy end, 12, "the flights")
 			assert_eq(c.app.ui.hold.infinite, 0)
 			assert_eq(c.app.ui.disp.coins, meta:coins())
@@ -904,6 +918,104 @@ describe("meta windows: chests and gifts", function()
 			assert_true(c.town:find("^15:00$", true) ~= nil or c.town:find("^14:5%d$", true) ~= nil,
 				"the full 15 minutes landed (the clock started at Collect): " .. texts(c))
 			assert_same(c.E.audit(), {})
+		end)
+	end
+
+	it("offers a level chest that was won and not opened when the town shows, and pays it only at Collect", function()
+		offers_waiting_chest(false)
+	end)
+
+	it("offers a waiting level chest and pays it at Collect under reduced motion too", function()
+		offers_waiting_chest(true)
+	end)
+
+	it("flies nothing and holds nothing when Collect finds the chest already taken", function()
+		G.with_town({ setup = function(app)
+			G.win(app, 9)
+			assert(flow.debug_win(3, true)) -- level 10: the chest waits in the meta
+		end }, function(c)
+			local app, meta = c.app, c.app.meta
+			wait_for(c, function() return app.ui.popup == "chest" end, 8, "the waiting chest")
+			-- another screen takes it while the window is open (the QA "advance", a second results window)
+			assert_true(meta:claim_level_chest(10, app.now()))
+			app.commit("elsewhere")
+			local coins = meta:coins()
+			open_and_collect(c)
+			for _ = 1, 20 * 60 do -- until the show is over, with an eye on the held amounts in every frame: nothing flies
+				c.step(1)
+				assert_eq(app.ui.hold.coins, 0, "coins held while nothing was paid")
+				assert_eq(app.ui.hold.infinite, 0, "seconds held while nothing was paid")
+				if not app.ui.busy then break end
+			end
+			assert_false(app.ui.busy)
+			assert_eq(meta:coins(), coins, "nothing more was paid")
+			assert_eq(app.ui.hold.coins, 0)
+			assert_eq(app.ui.hold.infinite, 0)
+			assert_eq(app.ui.disp.coins, meta:coins(), "the counter shows the balance")
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("logs one chest_open for a chest claimed in the town", function()
+		G.with_town({ setup = function(app)
+			G.win(app, 9)
+			assert(flow.debug_win(3, true))
+			analytics.drain() -- from here on: everything the town and the claim log
+		end }, function(c)
+			local app = c.app
+			wait_for(c, function() return app.ui.popup == "chest" end, 8, "the waiting chest")
+			open_and_collect(c)
+			wait_for(c, function() return not app.ui.busy end, 12, "the flights")
+			local opened = 0
+			for _, e in ipairs(analytics.drain()) do
+				if e.name == "chest_open" then
+					opened = opened + 1
+					assert_eq(e.params.kind, "level")
+					assert_eq(e.params.level, 10)
+					assert_eq(e.params.coins, 60)
+				end
+			end
+			assert_eq(opened, 1)
+		end)
+	end)
+
+	it("offers two waiting chests one after the other and pays each exactly once", function()
+		G.with_town({ setup = function(app)
+			while app.meta:level_to_play() < 21 do assert(flow.debug_win(3, true)) end -- the chests of 10 and 20 wait
+		end }, function(c)
+			local app, meta = c.app, c.app.meta
+			assert_eq(#meta:pending_chests(), 2)
+			local coins = meta:coins()
+			wait_for(c, function() return app.ui.popup == "chest" end, 8, "the first chest")
+			assert_true(has(c, "Level 10 chest!"), texts(c))
+			open_and_collect(c)
+			wait_for(c, function() return #meta:pending_chests() == 1 end, 3, "the first claim")
+			wait_for(c, function() return app.ui.popup == "chest" end, 20, "the second chest")
+			assert_true(has(c, "Level 20 chest!"), texts(c))
+			open_and_collect(c)
+			wait_for(c, function() return not app.ui.busy end, 20, "the flights")
+			assert_eq(#meta:pending_chests(), 0, "both are taken")
+			assert_eq(meta:coins(), coins + 60 + 70, "each paid once")
+			local left = meta:lives(app.now()).infinite_seconds
+			assert_true(left > 45 * 60 - 20 and left <= 45 * 60, "15 + 30 minutes of unlimited lives: " .. left)
+		end)
+	end)
+
+	it("shows the win of the level first and its waiting chest after it", function()
+		G.with_town({ setup = function(app)
+			G.win(app, 9)
+			local res = assert(flow.debug_win(3, true)) -- level 10: its chest waits in the meta
+			res.chest = nil                              -- the queue of the town does not carry it (level_end.win)
+			app.push_reward(res)
+		end }, function(c)
+			local seen = {}
+			wait_for(c, function()
+				local s = c.app.ui.step
+				if s and seen[#seen] ~= s then seen[#seen + 1] = s end
+				return c.app.ui.popup == "chest"
+			end, 20, "the waiting chest")
+			assert_eq(seen[1], "reward_win", table.concat(seen, ","))
+			assert_eq(seen[#seen], "chest", table.concat(seen, ","))
 		end)
 	end)
 
@@ -923,12 +1035,14 @@ describe("meta windows: chests and gifts", function()
 		end)
 	end)
 
-	it("keeps the lives pill as it was until the chest's unlimited lives have flown into it", function()
+	it("keeps the lives pill as it was until the unlimited lives of a queued paid chest (QA reward) have flown into it", function()
 		G.with_town({ setup = function(app) G.win(app, 9) end }, function(c)
 			local res = G.win(c.app, 1) -- level 10: the chest holds 15 minutes of unlimited lives
 			assert_eq(res.chest.infinite_minutes, 15)
 			c.app.push_reward(res)
-			assert_true(c.app.meta:lives(c.app.now()).infinite_seconds > 0, "the meta has them from the win on")
+			-- the debug win took the chest at once, so the meta has the minutes already: the queue only shows them
+			-- (a real win leaves the chest waiting and the minutes start at Collect: the tests above)
+			assert_true(c.app.meta:lives(c.app.now()).infinite_seconds > 0, "the meta has them already: the chest was taken")
 			c.run(0.8)
 			assert_true(has(c, "Full"), "the pill still shows the lives as they were: " .. texts(c))
 			assert_false(has(c, "15:00"))

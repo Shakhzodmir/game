@@ -3,7 +3,9 @@
 -- then it shakes, bursts open in a flash with rays behind it, and what it
 -- holds pops out one by one (coins, boosters, unlimited lives). "Collect"
 -- closes it; the town flies the coins into the top bar from where they lie.
--- The meta has already paid the chest; this window only shows it.
+-- A district chest is already paid by the meta when this window shows it. A level chest is paid by whoever
+-- opened the window, on "Collect" (the results window, the town: app.claim_level_chest in their on_close);
+-- the window itself only shows the chest and reports the items that lie on the floor.
 -- params = {kind = "level" | "district", chest = {coins, boosters, infinite_minutes},
 --           level_id, district_name = {en, ru}}
 -- Result: {action = "collect", items = {{kind, id, amount, x, y}}} (x, y logical).

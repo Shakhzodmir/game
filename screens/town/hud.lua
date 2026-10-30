@@ -74,9 +74,9 @@ local function lives_label(v)
 end
 
 -- The lives as the top bar shows them: like the coin and star counters, without what is paid but has not
--- landed yet. A level chest's unlimited lives belong to the meta from the win on, but the pill must not
--- change before the chest has opened and its heart has flown in (the queued results hold them, then
--- town.hold.infinite does).
+-- landed yet. The unlimited lives of a level chest belong to the meta from the moment the player takes it
+-- ("Collect"), but the pill must not change before its heart has flown in (town.hold.infinite holds them; a
+-- queued paid chest of the QA `reward` command is held by the queue first).
 function Hud:lives_view()
 	local l = app.meta:lives(app.now())
 	local held = (self.town.hold.infinite or 0) + rewards.held().infinite
