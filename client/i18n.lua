@@ -583,7 +583,13 @@ local S = {
 	["jukebox.now_playing"] = { en = "Now playing: {name}", ru = "Сейчас играет: {name}" },
 	["jukebox.pick"] = { en = "Pick a song", ru = "Выбери песню" },
 	["jukebox.no_layers"] = { en = "Build a task to hear it", ru = "Выполни задачу, чтобы услышать" },
-	["jukebox.back_home"] = { en = "Back to the town track", ru = "Вернуть музыку города" },
+	["jukebox.back_home"] = { en = "Return the town music", ru = "Вернуть музыку города" },
+
+	-- jukebox songs: genre tabs, several songs each, the pick that stays --------------------------------------------------
+	-- (the genre names and the song names come from content/districts.json: genre / songs[].name)
+	["jukebox.bpm"] = { en = "{bpm} BPM", ru = "{bpm} уд/мин" },
+	["jukebox.page"] = { en = "{page} / {pages}", ru = "{page} / {pages}" },
+	["jukebox.already_home"] = { en = "The town music is playing", ru = "Сейчас играет музыка города" },
 
 	-- toasts (overlay, debug keys) -------------------------------------------------------------------------------------
 	["toast.coming_soon"] = { en = "Coming soon!", ru = "Скоро!" },

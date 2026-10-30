@@ -16,7 +16,8 @@
 --   state | goto <splash|town|level> [n] | level <n> | set_coins <n> |
 --   lang <auto|en|ru> | volume <music> [sfx] | reset_save | meta_win [moves] |
 --   toast <text...> | toast_key <key> | modal [id] | save_fail <0|1> |
---   stall <ms> | stray_fade <in|out> | music <district> [all] | music_stop |
+--   stall <ms> | stray_fade <in|out> | music <district|song> [all] | music_stop |
+--   song <song|district|none> (the jukebox pick: client/meta_qa.lua) |
 --   layer <tension|party> [0] | sfx <name> | note <color> <wave> |
 --   chord <wave> <color> <color> ... |
 --   hint_move | swap x1 y1 x2 y2 | tap x y | skip | booster <id> [x y | row | col | x1 y1 x2 y2] |

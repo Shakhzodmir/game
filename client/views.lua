@@ -16,7 +16,7 @@
 --   views.shop_boosters(meta)                --> every booster pack
 --   views.shop_products(products, available) --> coin packs of the store
 --   views.refill(meta, now)                  --> the refill button
---   views.jukebox(meta)                      --> one row per district
+--   views.jukebox(meta, districts_by_id)     --> the genre tabs and the songs of each
 --   views.chest_items(chest)                 --> what a chest holds, in reveal order
 --   views.gift(id, config)                   --> an unlock gift
 --   views.settings(meta)                     --> the settings window
@@ -282,12 +282,20 @@ function M.refill(meta, now)
 	return { price = o.price, available = o.available, affordable = o.affordable, reason = o.reason }
 end
 
--- The jukebox list: {id, index, name, color, state, done, total, stems,
--- prev_name, bpm}. state: "complete" (the full song: every stem + party),
--- "current" (the stems built so far), "locked" (not open yet).
+-- The jukebox: one genre per district (a tab) and the songs of each.
+--   {tabs = {{id, index, genre = {en, ru}, name, color, state, count, prev_name, playing}},
+--    songs = {[district id] = {row, ...}}, chosen = the picked song id | nil}
+-- tab.state / row.state: "complete" (the finished district: its theme plays the full song, every stem + party),
+-- "current" (the district being built: its theme plays the stems built so far), "locked" (not open yet:
+-- a dark silhouette with what opens it). tab.playing: the picked song is in this genre.
+-- The first row of a genre is the layered theme of the district (id = the district id, name = the district's name,
+-- done / total / stems = the layers built); the rows after it are the songs of the genre
+-- (content/districts.json songs[]): playable at once in an open genre. row = {id, district, index (1 = the theme),
+-- theme, name, color, state, bpm, done, total, stems, prev_name, playable, playing}.
 function M.jukebox(meta, districts_by_id)
-	local out = {}
 	local list = meta:districts()
+	local chosen = meta:song()
+	local tabs, songs = {}, {}
 	for i, d in ipairs(list) do
 		local state
 		if d.complete then
@@ -298,15 +306,33 @@ function M.jukebox(meta, districts_by_id)
 			state = "locked"
 		end
 		local data = districts_by_id and districts_by_id[d.id] or nil
-		out[i] = {
-			id = d.id, index = d.index, name = d.name, color = M.district_color(d.index),
-			state = state, done = d.done, total = d.total, stems = #d.unmuted,
-			prev_name = list[i - 1] and list[i - 1].name or nil,
-			bpm = data and data.bpm or nil,
-			playable = state == "complete" or (state == "current" and #d.unmuted > 0),
+		local color = M.district_color(d.index)
+		local prev_name = list[i - 1] and list[i - 1].name or nil
+		local rows = {
+			{
+				id = d.id, district = d.id, index = 1, theme = true, name = d.name, color = color, state = state,
+				done = d.done, total = d.total, stems = #d.unmuted, prev_name = prev_name,
+				bpm = data and data.bpm or nil,
+				playable = state == "complete" or (state == "current" and #d.unmuted > 0),
+				playing = chosen == d.id,
+			},
+		}
+		local playing = chosen == d.id
+		for j, s in ipairs(data and data.songs or {}) do
+			rows[#rows + 1] = {
+				id = s.id, district = d.id, index = j + 1, theme = false, name = s.name, color = color, state = state,
+				done = d.done, total = d.total, stems = #d.unmuted, prev_name = prev_name, bpm = s.bpm,
+				playable = state ~= "locked", playing = chosen == s.id,
+			}
+			if chosen == s.id then playing = true end
+		end
+		songs[d.id] = rows
+		tabs[i] = {
+			id = d.id, index = d.index, genre = data and data.genre or d.name, name = d.name, color = color,
+			state = state, count = #rows, prev_name = prev_name, playing = playing,
 		}
 	end
-	return out
+	return { tabs = tabs, songs = songs, chosen = chosen }
 end
 
 -- "k/n layers" of the district being built (or the last one).

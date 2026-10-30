@@ -20,7 +20,8 @@
 -- leaves out the unlimited lives of a chest that has not opened yet (hud.lua lives_view).
 -- The district on display (town.district) can differ from the one being built (town.focus): the
 -- player pages through the open districts with the ribbon arrows or a swipe on the scene; the
--- card then offers the way back, and the track of the district on display plays.
+-- card then offers the way back, and the track of the district on display plays (unless the player
+-- picked a song in the jukebox: that song goes on, client/songs.lua).
 -- Bus in: meta_changed, lives_tick, language_changed, settings_changed,
 -- save_reset, screen_leaving, popup_request (app.open_popup), reward_pushed,
 -- meta_qa (client/meta_qa.lua).
@@ -30,6 +31,7 @@ local ui = require("client.ui")
 local i18n = require("client.i18n")
 local bus = require("client.bus")
 local audio = require("client.audio")
+local songs = require("client.songs")
 local fx = require("client.fx")
 local bit = require("client.bit")
 local views = require("client.views")
@@ -179,7 +181,7 @@ function Town:browse_to(id, dir)
 	self.sliding = true
 	self.district = id
 	audio.sfx("button")
-	audio.music(id)
+	songs.play("town", id)
 	self.hud:build()
 	self.scene:slide_to(id, function()
 		self.sliding = false
@@ -391,7 +393,7 @@ local function new_town()
 	audio.level_duck(false)
 	audio.layer("tension", false)
 	audio.layer("party", false)
-	audio.music(t.district)
+	songs.play("town", t.district)
 
 	t.enter_t = 0
 	t.twinkle_t = 0
@@ -428,7 +430,7 @@ function Town:update(dt)
 			self.focus = focus
 			self.district = focus
 			self.dirty_scene, self.dirty_ui = true, true
-			audio.music(focus)
+			songs.play("town", focus)
 		end
 		if self.dirty_scene then
 			self.dirty_scene = false

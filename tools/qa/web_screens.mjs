@@ -13,8 +13,9 @@
 // the attempt (client/flow.lua), toasts slide into view, a modal closes when
 // its screen goes away, a stray fade cannot hang a transition, the notes
 // contract (dedupe, 3 voices), tonal effects follow the district key, jukebox =
-// task stems + party, the music resyncs after a stall, a failed save is
-// retried and reported, saves and language survive a reload, window resizes
+// task stems + party, a song picked in the jukebox stays (closing the window, a level,
+// the way back, a reload) and the effects follow its key, the music resyncs after a
+// stall, a failed save is retried and reported, saves and language survive a reload, window resizes
 // re-layout without errors, the board plays on the real engine (autoplay,
 // hold, the win with its final concert and results window with no effect left on the board, "Next level" ->
 // start window -> Play, a lost level with the moves and defeat windows, record boxes on their plates and a
@@ -470,6 +471,54 @@ async function debugChecks() {
 		await waitFor(page, st => !st.app.ui.popup, 'window ' + popup + ' closed', 8000);
 		check(true, 'window ' + popup + ' opens, draws and closes');
 	}
+
+	// the jukebox keeps the pick (client/songs.lua): a song of an open genre is ONE mix, it goes on when the window
+	// closes, in a level and on the way back; the effects follow the key of the song that plays; the way home brings
+	// the track of the district back
+	await command(page, 'song none');
+	await command(page, 'open jukebox');
+	await waitFor(page, st => st.app.ui && st.app.ui.popup === 'jukebox', 'the jukebox', 8000);
+	await sleep(800);
+	await tapTarget(page, 'tab_cafe', 'popup'); // the first genre is always open
+	await sleep(500);
+	const jb = (await state(page)).app.ui.jukebox;
+	check(jb && jb.tab === 'cafe' && jb.rows >= 4 && !jb.chosen, 'jukebox: the open genre lists its theme and songs, nothing picked', jb);
+	await tapTarget(page, 'play_sleepy_cat', 'popup');
+	const picked = await waitFor(page, s => s.app.song === 'sleepy_cat' && s.app.audio.song === 'sleepy_cat', 'the picked song', 8000);
+	check(picked.app.audio.single === true && picked.app.audio.stems === 1 && picked.app.ui.jukebox.chosen === 'sleepy_cat',
+		'jukebox: a tap on a row picks the song, it plays as one mix', { song: picked.app.audio.song, stems: picked.app.audio.stems });
+	await sleep(700);
+	await page.screenshot({ path: `${outDir}/client_jukebox_pick.png` });
+	await command(page, 'close');
+	await waitFor(page, st => !st.app.ui.popup, 'the jukebox closed', 8000);
+	check((await state(page)).app.audio.song === 'sleepy_cat', 'jukebox: closing the window keeps the song', (await state(page)).app.audio.song);
+	await command(page, 'goto level 5');
+	await onScreen(page, 'level');
+	await sleep(1200);
+	const inLevel = (await state(page)).app;
+	check(inLevel.audio.song === 'sleepy_cat' && inLevel.audio.playing && inLevel.song === 'sleepy_cat',
+		'jukebox: a level plays the picked song', inLevel.audio.song);
+	await command(page, 'goto town');
+	await onScreen(page, 'town');
+	await sleep(800);
+	check((await state(page)).app.audio.song === 'sleepy_cat', 'jukebox: the town plays the picked song again', (await state(page)).app.audio.song);
+	// the key of the effects follows the song that plays (the "music" command plays any track): Bb of the jazz genre
+	await command(page, 'music bossa_breeze');
+	await sleep(400);
+	await command(page, 'sfx tap');
+	await sleep(300);
+	const jazz = (await state(page)).app.audio;
+	check(jazz.song === 'bossa_breeze' && jazz.district === 'jazz' && jazz.semitones === -2 && Math.abs(jazz.last_sfx_speed - Math.pow(2, -2 / 12)) < 1e-6,
+		'jukebox: the effects follow the key of the song that plays (jazz, Bb)', { song: jazz.song, semitones: jazz.semitones, speed: jazz.last_sfx_speed });
+	await command(page, 'open jukebox');
+	await waitFor(page, st => st.app.ui && st.app.ui.popup === 'jukebox', 'the jukebox again', 8000);
+	await sleep(700);
+	await tapTarget(page, 'back_home', 'popup');
+	const homeAgain = await waitFor(page, s => !s.app.song && s.app.audio.song && s.app.audio.song === s.app.ui.district, 'the track of the district', 8000);
+	check(homeAgain.app.audio.single === false && homeAgain.app.audio.stems > 1, 'jukebox: the way home brings the track of the district back',
+		{ song: homeAgain.app.audio.song, stems: homeAgain.app.audio.stems });
+	await command(page, 'close');
+	await waitFor(page, st => !st.app.ui.popup, 'the jukebox closed', 8000);
 	await command(page, 'lang ru'); // the reload check below expects the saved language
 
 	// a failed save is retried and reported
@@ -494,10 +543,15 @@ async function debugChecks() {
 	await command(page, 'music_stop');
 	await sleep(1000);
 	const noMusic = await cpuPerSecond(page, cdp, 4);
-	console.log('perf (headless Chromium, SwiftShader GL): 11 stems ' + JSON.stringify(withMusic) + ', no music ' + JSON.stringify(noMusic));
+	await command(page, 'music stomp_clap');
+	await sleep(1000);
+	const withSong = await cpuPerSecond(page, cdp, 4);
+	console.log('perf (headless Chromium, SwiftShader GL): 11 stems ' + JSON.stringify(withMusic) + ', one song ' + JSON.stringify(withSong) +
+		', no music ' + JSON.stringify(noMusic));
 	await command(page, 'music cafe');
 
-	// saves survive a reload (sys.save -> IndexedDB): both slots, current wins
+	// saves survive a reload (sys.save -> IndexedDB): both slots, current wins; so does the song of the jukebox
+	await command(page, 'song sleepy_cat');
 	await sleep(1500);
 	await page.reload();
 	const reloaded = await waitFor(page, s => s.app && s.app.coins !== undefined, 'boot after reload', 30000);
@@ -505,6 +559,10 @@ async function debugChecks() {
 	check(reloaded.app.coins === 1234 && reloaded.app.save_source === 'current', 'save: coins from the current slot after reload',
 		{ coins: reloaded.app.coins, source: reloaded.app.save_source });
 	check(reloaded.app.language === 'ru', 'save: language survives a reload', reloaded.app.language);
+	check(reloaded.app.song === 'sleepy_cat', 'save: the song of the jukebox survives a reload', reloaded.app.song);
+	const afterReload = await waitFor(page, s => s.app.screen === 'town' && !s.app.transitioning && s.app.audio && s.app.audio.playing,
+		'the town music after the reload', 40000);
+	check(afterReload.app.audio.song === 'sleepy_cat', 'jukebox: the town plays the picked song after a restart', afterReload.app.audio.song);
 	await page.context().close();
 
 	// 1b. the level chest (a fresh save): it waits for the player, the unlimited lives start at "Collect" -------
@@ -580,6 +638,10 @@ async function debugChecks() {
 		await onScreen(p, 'town');
 		await sleep(900);
 		await p.screenshot({ path: `${outDir}/${name}.png` });
+		await command(p, 'open jukebox');
+		await waitFor(p, st => st.app.ui && st.app.ui.popup === 'jukebox', 'the jukebox (' + name + ')', 8000);
+		await sleep(900);
+		await p.screenshot({ path: `${outDir}/${name.replace('town', 'jukebox')}.png` });
 		await p.context().close();
 	}
 
@@ -592,6 +654,12 @@ async function debugChecks() {
 	await onScreen(tall, 'town');
 	await sleep(900);
 	await tall.screenshot({ path: `${outDir}/client_town_tall.png` });
+	await command(tall, 'open jukebox');
+	await waitFor(tall, st => st.app.ui && st.app.ui.popup === 'jukebox', 'the jukebox (tall)', 8000);
+	await sleep(900);
+	await tall.screenshot({ path: `${outDir}/client_jukebox_tall.png` });
+	await command(tall, 'close');
+	await waitFor(tall, st => !st.app.ui.popup, 'the jukebox closed (tall)', 8000);
 	await startLevelFromTown(tall);
 	await sleep(900);
 	await tall.screenshot({ path: `${outDir}/client_level_tall.png` });

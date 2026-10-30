@@ -21,6 +21,10 @@
 --   app.open_popup(name, params) -- asks the screen on display for a meta popup
 --   app.close_popup()            -- closes its top popup
 --   app.reduced_motion()         -- the "reduced motion" setting
+--   app.song(id)                 -- a single-mix song of the jukebox catalogue {id, district, name, bpm, bars} | nil
+--                                -- (the layered theme of a district is not one: app.district(id))
+--   app.set_song(id | nil)       -- the jukebox pick (nil = follow the town again): meta, save and analytics;
+--                                -- the music itself is started by client/songs.lua
 --   app.ui                       -- status of the town and its popups (QA / debug)
 --   app.snapshot()               -- plain table for debug / QA bridge
 --
@@ -86,12 +90,15 @@ function M.claim(ticket)
 end
 
 local function index_districts(data)
-	local by_id, list = {}, {}
+	local by_id, list, songs = {}, {}, {}
 	for i, d in ipairs(data.districts or {}) do
 		by_id[d.id] = d
 		list[i] = d
+		for _, s in ipairs(d.songs or {}) do
+			songs[s.id] = { id = s.id, district = d.id, name = s.name, bpm = s.bpm, bars = s.bars }
+		end
 	end
-	return by_id, list
+	return by_id, list, songs
 end
 
 -- opts = {districts = table (content/districts.json), store = save_io store,
@@ -104,7 +111,7 @@ function M.init(opts)
 	end
 	clock = opts.clock or platform.now
 	M.districts = opts.districts
-	M.district_by_id, M.district_list = index_districts(opts.districts)
+	M.district_by_id, M.district_list, M.song_by_id = index_districts(opts.districts)
 	M.store = opts.store
 	M.debug = opts.debug and true or false
 	M.sys_language = opts.sys_language
@@ -257,6 +264,19 @@ function M.reset_save(seed, now)
 	M.commit("reset", true)
 end
 
+-- The jukebox pick. id = a song of the catalogue (a district id picks its theme) or nil to follow the town again.
+-- true, or false and the meta's reason ("unknown_song", "locked", "no_layers"). One analytics event per pick.
+function M.set_song(id)
+	local ok, why = M.meta:set_song(id)
+	if not ok then return false, why end
+	if id ~= nil then
+		local info = M.meta:song_info(id)
+		analytics.log("jukebox_play", { district = info.district, song = id })
+	end
+	M.commit("song")
+	return true
+end
+
 -- Levels 1..n never cost a life (a number of the meta config, shown in the
 -- lives window; the rule itself is applied by the meta).
 function M.free_levels()
@@ -299,6 +319,11 @@ end
 
 function M.district(id)
 	return M.district_by_id and M.district_by_id[id] or nil
+end
+
+-- A single-mix song of the jukebox (content/districts.json songs[]) or nil.
+function M.song(id)
+	return M.song_by_id and M.song_by_id[id] or nil
 end
 
 -- District to show in the town and to play music for: the one being built,
@@ -417,6 +442,7 @@ function M.snapshot(now)
 		out.lives_next_in = lives.next_in_seconds
 		out.infinite_seconds = lives.infinite_seconds
 		out.district = M.focus_district()
+		out.song = meta:song() -- the song picked in the jukebox (nil: the town plays the district on display)
 		out.next_task = task and { district = task.district, id = task.id, cost = task.cost, stem = task.stem } or nil
 		out.revision = meta:revision()
 		out.dirty = meta:dirty()

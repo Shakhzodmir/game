@@ -47,6 +47,7 @@
 local app = require("client.app")
 local bus = require("client.bus")
 local audio = require("client.audio")
+local songs = require("client.songs")
 local platform = require("client.platform")
 local layout = require("client.layout")
 local levels = require("client.levels")
@@ -418,7 +419,7 @@ function init(self)
 		end,
 	})
 
-	audio.music(app.focus_district())
+	songs.play("level", app.focus_district()) -- the pick of the jukebox, else the track of the district
 	audio.level_duck(true)
 	local d = s.data
 	bus.publish("level_ready", { level_id = s.info.level_id, W = self.W, H = self.H, moves = d.moves,
