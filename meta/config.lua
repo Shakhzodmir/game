@@ -42,7 +42,7 @@ C.level_chest = {
 	-- opens is skipped: the walk moves on to the next unlocked one, which it
 	-- then passes. If none is unlocked the chest gives the fallback and the
 	-- walk stays where it is.
-	rotation = { "stick", "row_light", "riff", "col_light", "sub", "remix", "disco" },
+	rotation = { "stick", "row_light", "riff", "col_light", "sub", "remix", "disco", "swap" },
 	fallback = "stick",
 }
 
@@ -73,6 +73,7 @@ C.boosters = {
 	{ id = "row_light", kind = "in",  unlock = 14, gift = 2, pack_price = 600 },
 	{ id = "col_light", kind = "in",  unlock = 18, gift = 2, pack_price = 600 },
 	{ id = "remix",     kind = "in",  unlock = 25, gift = 2, pack_price = 450 },
+	{ id = "swap",      kind = "in",  unlock = 21, gift = 2, pack_price = 450 },
 	{ id = "riff",      kind = "pre", unlock = 12, gift = 3, pack_price = 600 },
 	{ id = "sub",       kind = "pre", unlock = 16, gift = 3, pack_price = 750 },
 	{ id = "disco",     kind = "pre", unlock = 22, gift = 3, pack_price = 900 },

@@ -35,7 +35,7 @@ function MV.expected_colors(s)
 	local swaps = s.swaps
 	for k = 1, #swaps do
 		local sw = swaps[k]
-		if sw.kind == C.TM_SWAP or sw.kind == C.TM_BACK then
+		if sw.kind == C.TM_SWAP or sw.kind == C.TM_BACK or sw.kind == C.TM_XCHG then
 			local a, b = B.get(s, sw.from), B.get(s, sw.to)
 			col[sw.to] = (a and a.kind == K_REGULAR) and a.color or 0
 			col[sw.from] = (b and b.kind == K_REGULAR) and b.color or 0

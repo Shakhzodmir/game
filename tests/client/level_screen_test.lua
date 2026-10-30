@@ -102,8 +102,14 @@ local function empty_stock(app)
 end
 
 describe("level screen: the HUD", function()
-	it("draws the level, its goals, the moves, the pause button and the four boosters", function()
+	it("draws the level, its goals, the moves, the pause button and the five boosters", function()
 		G.with_level({ level = 1 }, function(c)
+			local n = 0
+			for _, id in ipairs(level_hud.BOOSTERS) do
+				assert_true(c.hud.self.l.hud.btns[id] ~= nil, id .. " has its button")
+				n = n + 1
+			end
+			assert_eq(n, 5)
 			assert_true(c.has("Level 1"))
 			assert_true(c.has("Moves"))
 			assert_true(c.has("20"), "the moves")
@@ -211,6 +217,172 @@ describe("level screen: boosters", function()
 			c.step(20)
 			assert_eq(c.app.meta:booster_count("stick"), before - 1)
 			assert_eq(ui(c).targeting, nil)
+			clean(c)
+		end)
+	end)
+
+	it("keeps the Crossfader locked until level 21, then gives two and shows its count", function()
+		G.with_level({ level = 20 }, function(c)
+			local b = c.hud.self.l.hud.btns.swap
+			assert_true(b.st.mode == "locked")
+			tap_booster(c, "swap")
+			c.run(0.5)
+			assert_eq(c.app.overlay.toast, "Opens at level 21")
+			assert_eq(ui(c).targeting, nil)
+			clean(c)
+		end)
+		G.with_level({ level = 21 }, function(c)
+			local b = c.hud.self.l.hud.btns.swap
+			assert_eq(b.st.mode, "ready")
+			assert_eq(b.st.count, 2, "the unlock gift")
+			assert_eq(c.app.meta:booster_count("swap"), 2)
+			assert_true(c.has("2"))
+			clean(c)
+		end)
+	end)
+
+	it("lays the five buttons out inside the bar, none on top of another", function()
+		G.with_level({ level = 21 }, function(c)
+			local rects = {}
+			for _, id in ipairs(level_hud.BOOSTERS) do rects[#rects + 1] = c.hud.self.l.hud:booster_rect(id) end
+			local bar = L.bar
+			for i, r in ipairs(rects) do
+				assert_true(r.x0 >= bar.x0 and r.x1 <= bar.x1, "button " .. i .. " is in the bar")
+				if i > 1 then assert_false(level_hud.overlaps(rects[i - 1], r), "buttons " .. (i - 1) .. " and " .. i) end
+			end
+			local targets = ui(c).targets
+			for _, id in ipairs(level_hud.BOOSTERS) do assert_true(targets[id] ~= nil, "a tap target for " .. id) end
+			clean(c)
+		end)
+	end)
+
+	it("aims the Crossfader with two taps: the bar asks for two pieces, then for the second, and the meta is charged once", function()
+		G.with_level({ level = 21 }, function(c)
+			local before = c.app.meta:booster_count("swap")
+			assert_eq(before, 2)
+			tap_booster(c, "swap")
+			c.step(3)
+			assert_eq(ui(c).targeting, "swap")
+			assert_true(c.has("Pick two pieces"))
+			assert_true(c.has("Cancel"))
+			-- cancelling costs nothing
+			c.hud:tap_text("Cancel")
+			c.step(3)
+			assert_eq(ui(c).targeting, nil)
+			assert_eq(c.app.meta:booster_count("swap"), before)
+			-- two far pieces of different colours
+			local list = c.fb.session.game:pieces()
+			local a, b
+			for _, p in ipairs(list) do
+				if p.kind == "regular" then
+					if not a then a = p elseif p.color ~= a.color and not b and math.abs(p.x - a.x) + math.abs(p.y - a.y) >= 3 then b = p end
+				end
+			end
+			assert_true(a and b)
+			tap_booster(c, "swap")
+			c.step(3)
+			assert_true(c.fb:tap(a.x, a.y))
+			c.step(3)
+			assert_true(c.has("Now the second piece"), "the prompt asks for the second piece")
+			assert_false(c.has("Pick two pieces"))
+			-- the first piece again lets it go: back to two
+			c.fb:tap(a.x, a.y)
+			c.step(3)
+			assert_true(c.has("Pick two pieces"))
+			assert_eq(c.app.meta:booster_count("swap"), before, "nothing was charged")
+			c.fb:tap(a.x, a.y)
+			c.step(3)
+			local ok = c.fb:tap(b.x, b.y)
+			assert_true(ok, "the core took the exchange")
+			settle(c)
+			c.step(20)
+			assert_eq(c.app.meta:booster_count("swap"), before - 1, "charged once, when the core took it")
+			assert_eq(ui(c).targeting, nil)
+			assert_false(c.has("Now the second piece"))
+			assert_eq(c.fb.session.game:status().moves_left, c.fb.session.data.moves, "no move is spent")
+			clean(c)
+		end)
+	end)
+
+	it("drops a half-made pick when the pause opens: the mode ends, nothing is charged, the bar is back after it", function()
+		G.with_level({ level = 21 }, function(c)
+			local before = c.app.meta:booster_count("swap")
+			local a
+			for _, p in ipairs(c.fb.session.game:pieces()) do
+				if p.kind == "regular" then a = p break end
+			end
+			assert_true(a)
+			tap_booster(c, "swap")
+			c.step(3)
+			assert_true(c.fb:tap(a.x, a.y))
+			c.step(3)
+			assert_true(c.has("Now the second piece"))
+			c.tap(PAUSE[1], PAUSE[2])
+			c.step(20)
+			assert_eq(top(c), "pause")
+			assert_eq(ui(c).targeting, nil, "the target mode ended with the pause")
+			assert_eq(c.fb.input.pair, nil, "and the first piece is let go")
+			c.tap_target("resume")
+			c.step(20)
+			assert_eq(top(c), nil)
+			assert_false(c.has("Now the second piece"))
+			assert_false(c.has("Pick two pieces"))
+			assert_eq(c.app.meta:booster_count("swap"), before, "no charge")
+			-- the booster is there again, for a fresh start
+			tap_booster(c, "swap")
+			c.step(3)
+			assert_eq(ui(c).targeting, "swap")
+			assert_true(c.has("Pick two pieces"))
+			-- the other boosters keep their target mode over a pause as before
+			c.hud:tap_text("Cancel")
+			c.step(3)
+			tap_booster(c, "stick")
+			c.step(3)
+			assert_eq(ui(c).targeting, "stick")
+			c.tap(PAUSE[1], PAUSE[2])
+			c.step(20)
+			assert_eq(ui(c).targeting, "stick", "a one-tap booster is not dropped by the pause")
+			c.tap_target("resume")
+			c.step(20)
+			clean(c)
+		end)
+	end)
+
+	it("refuses a piece that cannot move and two that are alike, says so, and charges nothing", function()
+		local LEVEL = [[{"id": 21, "version": 1, "size": [7, 7], "moves": 20, "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue"],
+  "goals": [{"type": "break", "item": "record_box", "count": 1}, {"type": "collect", "color": "red", "count": 60}],
+  "cells": ["#######", "#######", "#######", "#######", "#######", "#######", "#######"],
+  "slots": [{"at": [3, 3], "type": "record_box", "hp": 2}]}]]
+		G.with_level({ level = 21, level_text = LEVEL }, function(c)
+			local before = c.app.meta:booster_count("swap")
+			local game = c.fb.session.game
+			local box, a, twin
+			for _, p in ipairs(game:pieces()) do
+				if p.kind == "blocker" then box = p end
+			end
+			for _, p in ipairs(game:pieces()) do
+				if p.kind == "regular" then
+					if not a then a = p elseif p.color == a.color and not twin then twin = p end
+				end
+			end
+			assert_true(box and a and twin)
+			tap_booster(c, "swap")
+			c.step(3)
+			c.fb:tap(box.x, box.y)
+			c.run(0.5)
+			assert_eq(c.app.overlay.toast, "This one can't be moved")
+			assert_eq(ui(c).targeting, "swap", "the target mode stays")
+			assert_true(c.has("Pick two pieces"), "and nothing is picked")
+			c.run(4) -- the toast goes
+			c.fb:tap(a.x, a.y)
+			c.step(3)
+			c.fb:tap(twin.x, twin.y)
+			c.run(0.5)
+			assert_eq(c.app.overlay.toast, "Pick two different pieces")
+			assert_true(c.has("Now the second piece"), "the first piece stays picked")
+			assert_eq(c.app.meta:booster_count("swap"), before, "no charge for a refusal")
+			assert_eq(game.s.act, 0)
 			clean(c)
 		end)
 	end)

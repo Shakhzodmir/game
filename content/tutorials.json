@@ -43,6 +43,9 @@
   "16": {"steps": [
     {"kind": "tip", "at": [4, 5], "text": "tutorial.dancefloor_double"}
   ]},
+  "21": {"steps": [
+    {"kind": "tip", "booster": "swap", "text": "tutorial.swap_booster"}
+  ]},
   "22": {"steps": [
     {"kind": "tip", "at": [2, 4], "text": "tutorial.wires"},
     {"kind": "swap", "from": [1, 3], "to": [1, 4], "text": "tutorial.wires_match"},

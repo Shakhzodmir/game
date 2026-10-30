@@ -23,6 +23,7 @@ M.LAND_GAP = 0.09       -- seconds between two landing ticks at most
 M.LAND_GAIN = 0.28
 M.SFX_GAP = 0.05        -- same effect again only after this long
 M.BIG_WAVE = 4          -- a wave this deep ducks the music (audio.combo)
+M.EXCHANGE_LAND = 0.3   -- seconds from the start of the Crossfader's flight to its landing (T.exchange = 18 ticks)
 
 M.SPECIAL_SFX = { riff = "riff", sub = "sub", bird = "bird", disco = "disco" }
 -- What each of the ten combos sounds like: effects in order, {name, delay seconds, gain}. The
@@ -227,8 +228,16 @@ function LA:event(e)
 		self:sfx("swap", { gain = 0.8 }, 0.04)
 	elseif ty == "swap_fail" then
 		self:sfx("swap_fail", nil, 0.04)
+	elseif ty == "exchange" then
+		-- the Crossfader scratches: the whoosh of the swap forth, high and fast, and back, low and slow, then a
+		-- click where the pieces land
+		self:sfx("swap", { gain = 0.9, speed = 1.5 }, 0)
+		self:sfx("swap", { gain = 0.85, speed = 0.8, delay = 0.09 }, 0)
+		self:sfx("tap", { gain = 0.7, speed = 1.3, delay = M.EXCHANGE_LAND }, 0)
+		self:buzz("tap")
 	elseif ty == "booster" then
-		self:sfx("booster", nil, 0)
+		-- the scratch above is the Crossfader's own sound
+		if e.booster ~= "swap" then self:sfx("booster", nil, 0) end
 	end
 end
 

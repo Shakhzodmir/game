@@ -154,6 +154,38 @@ describe("client.level_effects", function()
 		assert_eq(#by_kind(E:drain(), "banner"), 1)
 	end)
 
+	it("lights both cells of the Crossfader's exchange: a flash at the start, and a flash and a sparkle at the landing", function()
+		local g = G()
+		local E = level_effects.new({ geom = g })
+		E:event({ type = "booster", t = 10, booster = "swap", ok = true, at = { 2, 2 }, to = { 5, 4 } })
+		E:event({ type = "exchange", t = 10, a = { 2, 2 }, b = { 5, 4 }, ids = { 1, 2 }, duration = 18 })
+		local c = E:drain()
+		local flashes, bursts = by_kind(c, "flash"), by_kind(c, "burst")
+		assert_eq(#flashes, 4, "two cells, two flashes each")
+		assert_eq(#bursts, 2)
+		local ax, ay = g:center(2, 2)
+		local bx, by = g:center(5, 4)
+		local at_start, at_land = {}, {}
+		for _, f in ipairs(flashes) do
+			if f.at == 10 then at_start[#at_start + 1] = f elseif f.at == 28 then at_land[#at_land + 1] = f end
+		end
+		assert_eq(#at_start, 2, "the pieces leave glowing")
+		assert_eq(#at_land, 2, "and land in a flash, T.exchange = 18 ticks later")
+		assert_eq(at_start[1].x, ax)
+		assert_eq(at_start[1].y, ay)
+		assert_eq(at_start[2].x, bx)
+		assert_true(at_start[1].color ~= at_start[2].color, "the two colours of the slider")
+		assert_eq(at_land[1].color, at_start[2].color, "each cell lands in the colour the other left in")
+		for _, b in ipairs(bursts) do
+			assert_eq(b.fx, "sparkle")
+			assert_eq(b.at, 28)
+		end
+		assert_eq(#by_kind(c, "banner"), 0)
+		-- the Crossfader is no Remix: the next automatic shuffle still gets its banner
+		E:event({ type = "shuffle", t = 200, moves = {}, recolors = {}, duration = 30 })
+		assert_eq(by_kind(E:drain(), "banner")[1].key, "hud.shuffle")
+	end)
+
 	it("plans effects for every event of a real game", function()
 		local s = assert(level_session.new({ params = { level = 2 }, read_level = function()
 			return [[{

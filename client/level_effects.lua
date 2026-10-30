@@ -32,6 +32,7 @@
 --   {kind = "praise", word, index, wave, at}                    a praise word (fx GUI)
 --   {kind = "floor", x, y, at}                                  a dance-floor tile lit (bg GUI pop)
 --   {kind = "stinger", x, y, at}                                a microphone delivered
+-- (the Crossfader's exchange is flashes and a burst in each of its two cells: H.exchange)
 --
 -- Each of the ten combos has its own picture (M.COMBO_LOOK; tests/client/level_effects_test.lua
 -- checks that no two look alike): a Cross is four fat cyan bolts, a Triple cross a pink and cyan
@@ -267,6 +268,22 @@ function H.booster(self, e)
 		self:flash(lx, ly, cell * 1.8, M.GOLD, t, 0.3)
 		self:burst("spark", e.at[1], e.at[2], "#FFB020", 5, t)
 		self:shake(M.SHAKE.stick, 0.2, t)
+	end
+end
+
+-- The Crossfader: the two pieces leave in the two colours of the slider (cyan from the first cell, magenta from
+-- the second) and land in the other's colour, with a sparkle in each cell. The flight itself is level_anim's.
+function H.exchange(self, e)
+	local t = e.t or 0
+	local cell = self.geom.cell
+	local at = t + math.max(e.duration or 18, 1)
+	for k = 1, 2 do
+		local c = (k == 1) and e.a or e.b
+		local from, to = (k == 1) and M.GLOW.riff or M.GLOW.sub, (k == 1) and M.GLOW.sub or M.GLOW.riff
+		local lx, ly = self:center(c[1], c[2])
+		self:flash(lx, ly, cell * 1.9, from, t, 0.3)
+		self:flash(lx, ly, cell * 2.1, to, at, 0.4)
+		self:burst("sparkle", c[1], c[2], to, 8, at)
 	end
 end
 

@@ -38,7 +38,7 @@ local ALLOWED = {
 	swap = { kind = true, from = true, to = true, text = true },
 	tap = { kind = true, at = true, text = true },
 	booster = { kind = true, booster = true, at = true, text = true },
-	tip = { kind = true, at = true, text = true },
+	tip = { kind = true, at = true, booster = true, text = true },
 }
 local MOVABLE = { piece = true, riff = true, sub = true, bird = true, disco = true, mic = true }
 local SPECIAL_SLOT = { riff = true, sub = true, bird = true, disco = true }
@@ -219,8 +219,10 @@ local function form_problems(step)
 		if (step.booster == "stick" or step.booster == "row_light" or step.booster == "col_light") and not is_cell(step.at) then
 			out[#out + 1] = step.booster .. " needs a target in at"
 		end
-	elseif step.at ~= nil and not is_cell(step.at) then
-		out[#out + 1] = "at must be [x, y]"
+	else -- a tip: a cell, or a button of the bar (the booster to light), or neither
+		if step.at ~= nil and not is_cell(step.at) then out[#out + 1] = "at must be [x, y]" end
+		if step.booster ~= nil and type(step.booster) ~= "string" then out[#out + 1] = "booster must be the booster id" end
+		if step.booster ~= nil and step.at ~= nil then out[#out + 1] = "a tip lights a cell or a button, not both" end
 	end
 	if type(step.text) ~= "string" or step.text == "" then out[#out + 1] = "every step has a text (an i18n key)" end
 	return out
@@ -603,9 +605,9 @@ describe("tutorials: the file", function()
 		for _, n in ipairs(ids_of(defs)) do
 			for i, st in ipairs(defs[tostring(n)].steps) do
 				local where = "level " .. n .. " step " .. i
-				if st.kind == "booster" then
+				if st.kind == "booster" or (st.kind == "tip" and st.booster ~= nil) then
 					if not C.BOOSTER[st.booster] then
-						problems[#problems + 1] = where .. ": '" .. tostring(st.booster) .. "' is not a booster of the core (stick, row_light, col_light, remix)"
+						problems[#problems + 1] = where .. ": '" .. tostring(st.booster) .. "' is not a booster of the core (stick, row_light, col_light, remix, swap)"
 					elseif not unlock[st.booster] or unlock[st.booster].kind ~= "in" then
 						problems[#problems + 1] = where .. ": the meta has no in-level booster '" .. st.booster .. "'"
 					elseif unlock[st.booster].unlock > n then
@@ -649,6 +651,26 @@ describe("tutorials: the plan", function()
 		assert_same(kinds(12), { "tip" })
 		assert_eq(steps_of(defs, 12)[1].at, nil, "the pre-level tip points at no cell")
 		assert_eq(steps_of(defs, 11)[1].text, "tutorial.combo")
+	end)
+
+	it("shows the Crossfader on the level where the meta opens it: one tip that lights its button", function()
+		local defs = authored()
+		local at
+		for _, b in ipairs(config.boosters) do
+			if b.id == "swap" then at = b.unlock end
+		end
+		assert_eq(at, 21, "the Crossfader opens at level 21")
+		local steps = steps_of(defs, at)
+		assert_eq(#steps, 1)
+		assert_eq(steps[1].kind, "tip")
+		assert_eq(steps[1].booster, "swap", "it lights the button of the bar")
+		assert_eq(steps[1].at, nil, "and no cell of the board")
+		assert_eq(steps[1].text, "tutorial.swap_booster")
+		-- no other lesson is moved by it: the 18 lessons that were there are still there
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90 }) do
+			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
+		end
+		assert_eq(#ids_of(defs), 19)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()
