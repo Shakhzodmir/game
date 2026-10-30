@@ -136,6 +136,14 @@ describe("client.layout", function()
 			assert_true(k <= last + 1e-12 and k > 0, "k never grows with h")
 			last = k
 		end
+		-- more below the panel than above it (nothing in the game, but the contract holds): it slides up, the bottom
+		-- edge is clamped inside the margin as well
+		for h = 400, 2400, 8 do
+			k, dy = layout.fit_window(h, 0, 100, margin)
+			local t, b = layout.H / 2 + dy + k * (h / 2), layout.H / 2 + dy - k * (h / 2 + 100)
+			assert_true(t <= layout.H - margin + 1e-6, "top at h " .. h .. " (down > up): " .. t)
+			assert_true(b >= margin - 1e-6, "bottom at h " .. h .. " (down > up): " .. b)
+		end
 		-- no margin given: the design area itself
 		k, dy = layout.fit_window(layout.H, 0, 0)
 		assert_eq(k, 1)

@@ -1402,6 +1402,28 @@ describe("level screen: the window host fits tall windows and deafens a window t
 			assert_near(e.deaf, 0.45, 1e-9, "the default is the host's DEAF")
 		end)
 	end)
+
+	it("stays deaf while a finger keeps hammering: every swallowed press extends the moment", function()
+		G.with_level({ level = 3 }, function(c)
+			local hits = 0
+			local e = open_probe(c, "hammer", { build = function(w)
+				w.ui:button({ parent = w.content, x = 0, y = 0, w = 300, h = 120, on_click = function() hits = hits + 1 end })
+				w:target("b", 0, 0)
+			end })
+			e:deafen(0.3)
+			-- a press every 0.2 s for 1.4 s: each one lands before the moment of the previous one is over
+			for _ = 1, 7 do
+				c.run(0.2)
+				c.tap_target("b")
+			end
+			assert_eq(hits, 0, "the hammering never gets through")
+			assert_true(e.deaf ~= nil, "and the window is still deaf")
+			c.run(0.3)
+			assert_eq(e.deaf, nil, "a quiet moment ends it")
+			c.tap_target("b")
+			assert_eq(hits, 1, "and the window answers again")
+		end)
+	end)
 end)
 
 -- the core's hint of a level at its start, as the 0-based cells of a tutorial step

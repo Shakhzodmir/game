@@ -45,6 +45,7 @@ M.DIM_ALPHA = 0.55
 M.CX, M.CY = 360, 640
 M.MARGIN = 16 -- px a fitted window keeps from the edges of the design area
 M.DEAF = 0.45 -- seconds a window that woke up under a closed one takes no input (Entry:deafen)
+M.DEAF_REARM = 0.25 -- a press swallowed meanwhile keeps it deaf for this long again: a hammering finger stays swallowed
 
 local BACK = hash("back")
 
@@ -275,7 +276,10 @@ end
 function Host:on_input(action_id, action)
 	local e = self.stack[#self.stack]
 	if not e then return false end
-	if e.deaf then return true end -- Entry:deafen: nothing reaches the window or the buttons
+	if e.deaf then -- Entry:deafen: nothing reaches the window or the buttons
+		if action and action.pressed and e.deaf < M.DEAF_REARM then e.deaf = M.DEAF_REARM end
+		return true
+	end
 	if e.mod.on_input and e.mod.on_input(e, action_id, action) then return true end
 	if self.ui:on_input(action_id, action) then return true end
 	if action_id == BACK and action.released and not e.mod.no_back then self:close(e, "back") end
