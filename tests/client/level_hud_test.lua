@@ -160,8 +160,23 @@ describe("client.level_hud layout", function()
 		assert_true(three.icon < one.icon) -- three goals are a little smaller
 		assert_eq(#hud.goal_slots(5).xs, 3) -- at most three
 		assert_eq(#hud.goal_slots(0).xs, 1)
-		assert_eq(#hud.bar_slots(), 4)
-		assert_eq(hud.bar_slots()[1], -250)
+		assert_same(hud.bar_slots(), { -268, -134, 0, 134, 268 })
+	end)
+
+	it("fits the five booster buttons and their badges into the bar, side by side", function()
+		local xs = hud.bar_slots()
+		assert_eq(#xs, #hud.BOOSTERS)
+		assert_same(hud.BOOSTERS, { "stick", "row_light", "col_light", "remix", "swap" })
+		local half, bw = hud.BAR.w / 2, hud.BAR_BUTTONS.w
+		for i, x in ipairs(xs) do
+			assert_true(x - bw / 2 >= -half + 8, "the button " .. i .. " is inside the bar")
+			-- the count badge (46 px, 46 px right of the middle) and the plus (56 px, 40 px right) stay inside the bar too
+			assert_true(x + 46 + 23 <= half - 8, "the badge " .. i .. " is inside the bar")
+			if i > 1 then assert_true(x - bw / 2 > xs[i - 1] + bw / 2 + 10, "the buttons " .. (i - 1) .. " and " .. i .. " do not touch") end
+		end
+		assert_near(xs[1] + xs[#xs], 0, 1e-9, "the row is centred")
+		-- a window as narrow as the design: the bar is as wide as the screen minus its margins
+		assert_true(hud.BAR.w <= 720 - 2 * 8)
 	end)
 end)
 
@@ -196,6 +211,8 @@ describe("client.level_hud boosters", function()
 		-- the toast of a refusal says what the player can do about it
 		assert_eq(hud.refusal_key("not_rest"), "hud.wait_board")
 		assert_eq(hud.refusal_key("no_candidates"), "hud.remix_no")
+		assert_eq(hud.refusal_key("not_movable"), "hud.swap_fixed", "a Crossfader on a piece that cannot move")
+		assert_eq(hud.refusal_key("same_piece"), "hud.swap_same", "... or on two alike")
 		assert_eq(hud.refusal_key("bad_cell"), "hud.booster_no")
 		assert_eq(hud.refusal_key("bad_state"), "hud.booster_no")
 		assert_eq(hud.refusal_key(nil), "hud.booster_no")
@@ -208,6 +225,9 @@ describe("client.level_hud boosters", function()
 		assert_eq(hud.PROMPT.stick, "hud.pick_cell")
 		assert_eq(hud.PROMPT.row_light, "hud.pick_row")
 		assert_eq(hud.PROMPT.col_light, "hud.pick_col")
+		assert_eq(hud.PROMPT.swap, "hud.pick_two")
+		assert_eq(hud.PROMPT2.swap, "hud.pick_second")
+		assert_eq(hud.PROMPT2.stick, nil, "only the Crossfader takes two picks")
 	end)
 end)
 

@@ -6,12 +6,12 @@ local C = require("core.const")
 
 describe("core const: timings (section 14)", function()
 	local NORMAL = {
-		swap = 10, swap_fail = 14, shuffle = 30, clear = 9, chain = 3, sub_swell = 6, ring = 2,
+		swap = 10, exchange = 18, swap_fail = 14, shuffle = 30, clear = 9, chain = 3, sub_swell = 6, ring = 2,
 		bird_flight = 33, disco_step = 2, transform_step = 2, fire_step = 3, finale_pause = 24,
 		light_step = 1, concert_step = 2, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080, start_delay = 1,
 	}
 	local TURBO = {
-		swap = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0, sub_swell = 0, ring = 0,
+		swap = 1, exchange = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0, sub_swell = 0, ring = 0,
 		bird_flight = 0, disco_step = 0, transform_step = 0, fire_step = 0, finale_pause = 0,
 		light_step = 0, concert_step = 0, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080, start_delay = 0,
 	}
@@ -41,13 +41,14 @@ describe("core const: timings (section 14)", function()
 	end)
 
 	it("the turbo duration of every timer kind is one tick (15.1.8)", function()
-		for _, kind in ipairs({ C.TM_SWAP, C.TM_FAIL, C.TM_BACK, C.TM_LOCK, C.TM_CLEAR }) do
+		for _, kind in ipairs({ C.TM_SWAP, C.TM_FAIL, C.TM_BACK, C.TM_LOCK, C.TM_CLEAR, C.TM_XCHG }) do
 			assert_eq(C.TURBO_TIMER[kind], 1, "timer " .. kind)
 		end
 		assert_eq(C.TURBO_TIMER[C.TM_SWAP], C.T[C.TIMING_TURBO].swap)
 		assert_eq(C.TURBO_TIMER[C.TM_FAIL], C.T[C.TIMING_TURBO].swap_fail)
 		assert_eq(C.TURBO_TIMER[C.TM_LOCK], C.T[C.TIMING_TURBO].shuffle)
 		assert_eq(C.TURBO_TIMER[C.TM_CLEAR], C.T[C.TIMING_TURBO].clear)
+		assert_eq(C.TURBO_TIMER[C.TM_XCHG], C.T[C.TIMING_TURBO].exchange)
 	end)
 
 	it("limits: 100 000 records per tick, 20 concert rounds, 50 shuffle attempts, 100 start fills", function()
@@ -79,14 +80,16 @@ describe("core const: enumeration codes (17.2)", function()
 	it("states, timers, source kinds", function()
 		assert_same({ C.S_IDLE, C.S_FALL, C.S_SWAP, C.S_CLEAR, C.S_ARMED }, { 1, 2, 3, 4, 5 })
 		assert_same(C.STATE_NAME, { "idle", "fall", "swap", "clear", "armed" })
-		assert_same({ C.TM_NONE, C.TM_SWAP, C.TM_FAIL, C.TM_BACK, C.TM_LOCK, C.TM_CLEAR }, { 0, 1, 2, 3, 4, 5 })
+		assert_same({ C.TM_NONE, C.TM_SWAP, C.TM_FAIL, C.TM_BACK, C.TM_LOCK, C.TM_CLEAR, C.TM_XCHG }, { 0, 1, 2, 3, 4, 5, 6 })
 		assert_same({ C.SRC_MATCH, C.SRC_ADJ, C.SRC_EFFECT }, { 1, 2, 3 })
 	end)
 
-	it("items: in-level boosters, pre-level boosters and the continue Riff", function()
+	it("items: in-level boosters, pre-level boosters, the continue Riff and the Crossfader", function()
 		assert_same({ C.IT_STICK, C.IT_ROW, C.IT_COL, C.IT_REMIX }, { 1, 2, 3, 4 })
 		assert_same({ C.IT_PRE_RIFF, C.IT_PRE_SUB, C.IT_PRE_DISCO, C.IT_CONT_RIFF }, { 5, 6, 7, 8 })
-		assert_same(C.BOOSTER, { stick = 1, row_light = 2, col_light = 3, remix = 4 })
+		assert_eq(C.IT_SWAP, 9)
+		assert_same(C.BOOSTER, { stick = 1, row_light = 2, col_light = 3, remix = 4, swap = 9 })
+		assert_eq(C.BOOSTER_NAME[C.IT_SWAP], "swap")
 		assert_same(C.PRE_BOOSTER, { riff = 5, sub = 6, disco = 7 })
 		assert_same(C.PRE_BOOSTER_NAME, { [5] = "riff", [6] = "sub", [7] = "disco" })
 	end)

@@ -579,46 +579,274 @@ describe("meta windows: settings", function()
 end)
 
 describe("meta windows: jukebox", function()
-	it("lists the districts: finished ones play the whole song, the next one its built layers", function()
-		G.with_town({ setup = function(app) G.build_tasks(app, "cafe") end }, function(c)
+	-- the music requests the window made: {district = id, all?, party?}
+	local function music(c)
+		local out = {}
+		for _, m in ipairs(c.E.posted("music", "main:/audio#audio")) do out[#out + 1] = m.message end
+		return out
+	end
+
+	local function last_music(c)
+		local list = music(c)
+		return list[#list]
+	end
+
+	-- the analytics events of a name logged since the last call
+	local function events(name)
+		local out = {}
+		for _, ev in ipairs(analytics.drain()) do
+			if ev.name == name then out[#out + 1] = ev.params end
+		end
+		return out
+	end
+
+	local function cafe_done(app) G.build_tasks(app, "cafe") end
+
+	it("opens on the genre being built: a tab per district, the theme, the songs, the way home", function()
+		G.with_town({ setup = cafe_done }, function(c)
 			open(c, "jukebox")
-			assert_true(has(c, "Lo-fi Café"), texts(c))
-			assert_true(has(c, "Full song"))
-			assert_true(has(c, "Jazz Bar"))
-			assert_true(has(c, "Layers: 0/7"))
-			assert_true(has(c, "Build Jazz Bar to unlock"), texts(c))
-			-- the finished district plays every stem and the party layer
-			wtap(c, "play_cafe")
-			c.step(3)
-			local m = c.E.posted("music", "main:/audio#audio")
-			assert_eq(m[#m].message.district, "cafe")
-			assert_eq(m[#m].message.all, true)
-			assert_true(has(c, "Now playing: Lo-fi Café"))
-			assert_eq(#c.E.posted("jukebox_play"), 0) -- analytics, not a message
-			-- Jazz has no layer yet: it cannot play
-			wtap(c, "play_jazz")
-			assert_eq(toast(c), "Build a task to hear it")
-			-- the way home: the town track comes back
-			wtap(c, "back_home")
-			c.step(3)
-			m = c.E.posted("music", "main:/audio#audio")
-			assert_eq(m[#m].message.district, "jazz")
-			assert_true(m[#m].message.all ~= true)
+			for _, text in ipairs({ "Jukebox", "Pick a song", "Lo-fi", "Jazz", "Jazz Bar", "Layers: 0/7", "Bossa Breeze", "112 BPM",
+				"Moonlight Ballad", "Scat Parade", "Boogie Mouse", "Return the town music" }) do
+				assert_true(has(c, text), "no '" .. text .. "' in: " .. texts(c))
+			end
+			assert_eq(c.app.ui.jukebox.tab, "jazz")
+			for _, name in ipairs({ "tab_cafe", "tab_jazz", "tab_square", "tab_stadium", "tab_garage", "back_home", "play_jazz",
+				"play_bossa_breeze", "play_scat_parade", "close" }) do
+				assert_true(c.app.ui.popup_targets[name] ~= nil, "no target " .. name)
+			end
+			assert_eq(c.app.meta:song(), nil, "opening the window picks nothing")
+			assert_eq(#events("jukebox_play"), 0)
+			assert_same(c.E.audit(), {})
 		end)
 	end)
 
-	it("plays the layers built so far of the district being built", function()
+	it("switches the genre with the tabs; a locked genre is a dark silhouette that says what opens it", function()
+		G.with_town({ setup = cafe_done }, function(c)
+			open(c, "jukebox")
+			wtap(c, "tab_cafe")
+			assert_eq(c.app.ui.jukebox.tab, "cafe")
+			for _, text in ipairs({ "Lo-fi Café", "Full song", "Rainy Window", "72 BPM", "Pancake Sunday", "Pixel Café", "Sleepy Cat" }) do
+				assert_true(has(c, text), "no '" .. text .. "' in: " .. texts(c))
+			end
+			assert_false(has(c, "Bossa Breeze"), "the songs of the other genre are gone")
+			wtap(c, "tab_square")
+			assert_eq(c.app.ui.jukebox.tab, "square")
+			assert_true(has(c, "? ? ?"), texts(c))
+			assert_true(has(c, "Build Jazz Bar to unlock"), texts(c))
+			assert_false(has(c, "Carnival Samba"), "a locked genre does not show its names")
+			-- a tap on a silhouette says the same and picks nothing
+			wtap(c, "play_carnival_samba")
+			assert_eq(toast(c), "Build Jazz Bar to unlock")
+			assert_eq(c.app.meta:song(), nil)
+			assert_eq(#music(c) > 0 and music(c)[#music(c)].district ~= "carnival_samba" and 1 or 0, 1)
+		end)
+	end)
+
+	it("plays a song at once, keeps it when the window closes and shows it when the window comes back", function()
+		G.with_town({ setup = cafe_done }, function(c)
+			open(c, "jukebox")
+			events("jukebox_play")
+			wtap(c, "play_bossa_breeze")
+			c.step(3)
+			assert_same(last_music(c), { district = "bossa_breeze" }, "a song is one mix, no layers")
+			assert_eq(c.app.meta:song(), "bossa_breeze")
+			assert_true(has(c, "Now playing: Bossa Breeze"), texts(c))
+			assert_same(events("jukebox_play"), { { district = "jazz", song = "bossa_breeze" } })
+			assert_false(c.app.meta:dirty(), "the pick is saved through app.commit")
+			-- the window closes: the pick stays and nothing else is asked of the music
+			local before = #music(c)
+			close(c)
+			assert_eq(#music(c), before, "closing the window must not bring the district track back")
+			assert_eq(c.app.meta:song(), "bossa_breeze")
+			-- it comes back open on the genre of the pick, even when another genre is on display
+			c.app.ui.district = "cafe"
+			open(c, "jukebox")
+			assert_eq(c.app.ui.jukebox.tab, "jazz")
+			assert_true(has(c, "Now playing: Bossa Breeze"), texts(c))
+			assert_eq(#music(c), before)
+		end)
+	end)
+
+	it("changes the pick with another row and logs one event per pick", function()
+		G.with_town({ setup = cafe_done }, function(c)
+			open(c, "jukebox")
+			events("jukebox_play")
+			wtap(c, "play_scat_parade")
+			wtap(c, "play_boogie_mouse")
+			assert_eq(c.app.meta:song(), "boogie_mouse")
+			assert_same(last_music(c), { district = "boogie_mouse" })
+			assert_true(has(c, "Now playing: Boogie Mouse"))
+			assert_false(has(c, "Now playing: Scat Parade"))
+			assert_same(events("jukebox_play"), { { district = "jazz", song = "scat_parade" }, { district = "jazz", song = "boogie_mouse" } })
+		end)
+	end)
+
+	it("hands the music back to the town with a tap on the playing row or on the way-home button", function()
+		G.with_town({ setup = cafe_done }, function(c)
+			open(c, "jukebox")
+			wtap(c, "play_bossa_breeze")
+			-- the playing row again
+			wtap(c, "play_bossa_breeze")
+			assert_eq(c.app.meta:song(), nil)
+			assert_same(last_music(c), { district = "jazz" }, "the track of the district on display is back")
+			assert_true(has(c, "Pick a song"))
+			assert_false(c.app.meta:dirty())
+			-- the button
+			wtap(c, "play_moonlight_ballad")
+			assert_eq(c.app.meta:song(), "moonlight_ballad")
+			wtap(c, "back_home")
+			assert_eq(c.app.meta:song(), nil)
+			assert_same(last_music(c), { district = "jazz" })
+			assert_eq(#events("jukebox_play") > 0 and 1 or 0, 1, "the picks were logged")
+			-- the button is there without a pick, looks disabled and only says so
+			local n = #music(c)
+			wtap(c, "back_home")
+			assert_eq(toast(c), "The town music is playing")
+			assert_eq(#music(c), n)
+		end)
+	end)
+
+	it("plays the theme of a finished district in full, a district being built with the layers built so far", function()
+		G.with_town({ setup = cafe_done }, function(c)
+			open(c, "jukebox")
+			wtap(c, "tab_cafe")
+			wtap(c, "play_cafe")
+			assert_same(last_music(c), { district = "cafe", all = true })
+			assert_eq(c.app.meta:song(), "cafe")
+			assert_true(has(c, "Now playing: Lo-fi Café"))
+			-- the theme of the district being built has no layer yet
+			wtap(c, "tab_jazz")
+			wtap(c, "play_jazz")
+			assert_eq(toast(c), "Build a task to hear it")
+			assert_eq(c.app.meta:song(), "cafe")
+		end)
 		G.with_town({ setup = function(app) G.give_stars(app, 4); assert(app.meta:complete_task("cafe", "turntable")); assert(app.meta:complete_task("cafe", "lamps")); app.commit("t") end }, function(c)
 			open(c, "jukebox")
 			assert_true(has(c, "Layers: 2/6"), texts(c))
 			wtap(c, "play_cafe")
-			c.step(3)
-			local m = c.E.posted("music", "main:/audio#audio")
-			assert_eq(m[#m].message.district, "cafe")
-			assert_true(m[#m].message.all ~= true)
+			assert_same(last_music(c), { district = "cafe" })
+			assert_eq(c.app.meta:song(), "cafe")
 			close(c)
-			m = c.E.posted("music", "main:/audio#audio")
-			assert_eq(m[#m].message.district, "cafe") -- the town track is back when the window closes
+			assert_same(last_music(c), { district = "cafe" })
+		end)
+	end)
+
+	it("keeps the tab, the page and the pick when the language changes", function()
+		G.with_town({ setup = cafe_done }, function(c)
+			open(c, "jukebox")
+			wtap(c, "tab_cafe")
+			wtap(c, "play_pixel_cafe")
+			c.app.set_setting("language", "ru")
+			c.run(0.5)
+			assert_eq(c.app.ui.popup, "jukebox")
+			assert_eq(c.app.ui.jukebox.tab, "cafe")
+			assert_eq(c.app.meta:song(), "pixel_cafe")
+			for _, text in ipairs({ "Музыкальный автомат", "Лоу-фай", "Сейчас играет: Пиксельное кафе", "Блинчики в воскресенье", "98 уд/мин",
+				"Вернуть музыку города" }) do
+				assert_true(has(c, text), "no '" .. text .. "' in: " .. texts(c))
+			end
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("fits every genre, picked or not, in both languages and every window size", function()
+		for _, lang in ipairs({ "en", "ru" }) do
+			for _, w in ipairs(WINDOWS) do
+				G.with_town({ language = lang, window = w, safe = { left = 0, top = 48, right = 0, bottom = 30 },
+					setup = function(app) G.win(app, 13); G.build_tasks(app, "cafe"); G.build_tasks(app, "jazz") end }, function(c)
+					open(c, "jukebox")
+					local label = lang .. " " .. w[1] .. "x" .. w[2]
+					for _, tab in ipairs({ "cafe", "jazz", "square", "stadium", "garage" }) do
+						wtap(c, "tab_" .. tab)
+						assert_same(c.E.audit(), {}, label .. " " .. tab)
+						for _, s in ipairs(c.town:smallest_texts(3)) do
+							assert_true(s.px >= 15, label .. " " .. tab .. ": '" .. s.text .. "' is only " .. string.format("%.1f", s.px) .. " px")
+						end
+					end
+					-- the longest name of a district (Russian) on the strip, picked
+					wtap(c, "tab_square")
+					wtap(c, "play_square")
+					assert_same(c.E.audit(), {}, label .. " picked")
+					for _, s in ipairs(c.town:smallest_texts(3)) do
+						assert_true(s.px >= 15, label .. " picked: '" .. s.text .. "' is only " .. string.format("%.1f", s.px) .. " px")
+					end
+				end)
+			end
+		end
+	end)
+
+	it("stays small: its nodes, and taps of at least 80 px", function()
+		local ui = require("client.ui")
+		local seen = {}
+		local real = ui.scene
+		ui.scene = function(opts)
+			local s = real(opts)
+			seen[#seen + 1] = s
+			return s
+		end
+		local ok, err = pcall(function()
+			G.with_town({ setup = cafe_done }, function(c)
+				local before = c.town:stats().nodes
+				open(c, "jukebox")
+				wtap(c, "play_boogie_mouse")
+				local nodes = c.town:stats().nodes
+				assert_true(nodes - before <= 260, "the window uses " .. (nodes - before) .. " nodes")
+				assert_true(nodes < 1200, "the town scene has " .. nodes .. " nodes (the gui allows 2048)")
+				local small = {}
+				for _, s in ipairs(seen) do
+					for _, b in ipairs(s.buttons or {}) do
+						if b.enabled and b.spec.w and b.spec.h and (b.spec.w < 80 or b.spec.h < 80) then
+							small[#small + 1] = string.format("%s %dx%d", tostring(b.spec.text or b.spec.icon or "?"), b.spec.w, b.spec.h)
+						end
+					end
+				end
+				assert_same(small, {}, "taps under 80 px")
+				-- no node is left behind by a pick (the window is rebuilt, the old nodes are deleted)
+				wtap(c, "play_scat_parade")
+				wtap(c, "play_boogie_mouse")
+				assert_eq(c.town:stats().nodes, nodes)
+			end)
+		end)
+		ui.scene = real
+		if not ok then error(err, 0) end
+	end)
+
+	it("pages a long genre with two arrows (four songs a page)", function()
+		G.with_town({ setup = function(app)
+			for i = 1, 4 do
+				local list = app.district_by_id.cafe.songs
+				list[#list + 1] = { id = "extra_" .. i, name = { en = "Extra " .. i, ru = "Ещё " .. i }, bpm = 100 + i, bars = 8 }
+			end
+		end }, function(c)
+			open(c, "jukebox")
+			assert_eq(c.app.ui.jukebox.pages, 3, "nine rows, four a page")
+			assert_true(has(c, "Lo-fi Café"), texts(c))
+			assert_true(has(c, "Pixel Café"))
+			assert_false(has(c, "Sleepy Cat"))
+			assert_true(has(c, "1 / 3"))
+			wtap(c, "page_next")
+			assert_eq(c.app.ui.jukebox.page, 2)
+			assert_true(has(c, "2 / 3"))
+			assert_true(has(c, "Sleepy Cat"), texts(c))
+			assert_false(has(c, "Rainy Window"))
+			wtap(c, "page_next")
+			assert_true(has(c, "Extra 4"), texts(c))
+			wtap(c, "page_next")
+			assert_eq(c.app.ui.jukebox.page, 1, "the arrows go round")
+			wtap(c, "page_prev")
+			assert_eq(c.app.ui.jukebox.page, 3)
+			assert_same(c.E.audit(), {})
+		end)
+	end)
+
+	it("closes with the back button of the phone and the close button, leaving no status behind", function()
+		G.with_town({ setup = cafe_done }, function(c)
+			open(c, "jukebox")
+			assert_true(c.app.ui.jukebox ~= nil)
+			wtap(c, "close")
+			c.run(0.5)
+			assert_eq(c.app.ui.popup, nil)
+			assert_eq(c.app.ui.jukebox, nil)
 		end)
 	end)
 end)

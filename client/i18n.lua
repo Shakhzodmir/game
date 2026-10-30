@@ -127,6 +127,19 @@ local S = {
 	["booster.sub_desc"] = { en = "A Subwoofer on the board at start", ru = "Сабвуфер на поле со старта" },
 	["booster.disco_desc"] = { en = "A Disco ball on the board at start", ru = "Диско-шар на поле со старта" },
 
+	-- the Crossfader (booster "swap"): its name and line in the shop, the prompts of its two picks, its refusals,
+	-- the first-use hint of level 21
+	["booster.swap"] = { en = "Crossfader", ru = "Кроссфейдер" },
+	["booster.swap_desc"] = { en = "Swaps any two pieces", ru = "Меняет местами любые две фишки" },
+	["hud.pick_two"] = { en = "Pick two pieces", ru = "Выбери две фишки" },
+	["hud.pick_second"] = { en = "Now the second piece", ru = "Теперь вторую фишку" },
+	["hud.swap_fixed"] = { en = "This one can't be moved", ru = "Эту фишку не сдвинуть" },
+	["hud.swap_same"] = { en = "Pick two different pieces", ru = "Выбери две разные фишки" },
+	["tutorial.swap_booster"] = {
+		en = "Swap any two pieces with the Crossfader!",
+		ru = "Меняй любые две фишки Кроссфейдером!",
+	},
+
 	-- pieces, specials, blockers (goals, tutorials) ----------------------------------------------
 	["piece.red"] = { en = "Red picks", ru = "Красные медиаторы" },
 	["piece.orange"] = { en = "Orange tambourines", ru = "Оранжевые бубны" },
@@ -570,7 +583,13 @@ local S = {
 	["jukebox.now_playing"] = { en = "Now playing: {name}", ru = "Сейчас играет: {name}" },
 	["jukebox.pick"] = { en = "Pick a song", ru = "Выбери песню" },
 	["jukebox.no_layers"] = { en = "Build a task to hear it", ru = "Выполни задачу, чтобы услышать" },
-	["jukebox.back_home"] = { en = "Back to the town track", ru = "Вернуть музыку города" },
+	["jukebox.back_home"] = { en = "Return the town music", ru = "Вернуть музыку города" },
+
+	-- jukebox songs: genre tabs, several songs each, the pick that stays --------------------------------------------------
+	-- (the genre names and the song names come from content/districts.json: genre / songs[].name)
+	["jukebox.bpm"] = { en = "{bpm} BPM", ru = "{bpm} уд/мин" },
+	["jukebox.page"] = { en = "{page} / {pages}", ru = "{page} / {pages}" },
+	["jukebox.already_home"] = { en = "The town music is playing", ru = "Сейчас играет музыка города" },
 
 	-- toasts (overlay, debug keys) -------------------------------------------------------------------------------------
 	["toast.coming_soon"] = { en = "Coming soon!", ru = "Скоро!" },

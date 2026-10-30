@@ -8,4 +8,5 @@ return {
 	"combos_normal",
 	"combos_turbo",
 	"concert",
+	"exchange",
 }
