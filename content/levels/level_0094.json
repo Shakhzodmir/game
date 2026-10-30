@@ -1,0 +1,41 @@
+{
+  "id": 94, "version": 1,
+  "size": [9, 10],
+  "moves": 27,
+  "difficulty": "hard",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "break", "item": "column", "count": 2},
+    {"type": "break", "item": "concrete", "count": 5}
+  ],
+  "cells": [
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "####.####",
+    ".###.###.",
+    "..#####..",
+    "..#.#.#.."
+  ],
+  "spawners": [[2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [1, 1], [7, 1], [0, 2], [8, 2], [4, 8]],
+  "slots": [
+    {"at": [1, 3], "type": "column", "hp": 7},
+    {"at": [3, 3], "type": "piece", "color": "blue"},
+    {"at": [5, 3], "type": "piece", "color": "green"},
+    {"at": [6, 3], "type": "column", "hp": 7},
+    {"at": [3, 4], "type": "piece", "color": "blue"},
+    {"at": [5, 4], "type": "piece", "color": "green"},
+    {"at": [3, 5], "type": "piece", "color": "red"},
+    {"at": [4, 5], "type": "piece", "color": "blue"},
+    {"at": [5, 5], "type": "piece", "color": "orange"},
+    {"at": [6, 5], "type": "piece", "color": "green"},
+    {"at": [3, 8], "type": "concrete", "hp": 2},
+    {"at": [5, 8], "type": "concrete", "hp": 2},
+    {"at": [2, 9], "type": "concrete", "hp": 2},
+    {"at": [4, 9], "type": "concrete", "hp": 2},
+    {"at": [6, 9], "type": "concrete", "hp": 2}
+  ]
+}

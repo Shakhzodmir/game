@@ -88,6 +88,49 @@ describe("tools levels", function()
 		assert_false(board:find("+", 1, true) ~= nil, "no random placeholders on a start board")
 	end)
 
+	it("counts a mic as an element when there is a deliver goal or a mic block, like the core", function()
+		local only_goal = Levels.elements(F.level_table({ goals = { { type = "deliver", count = 2 } } }))
+		assert_same(only_goal, { "mic" })
+		local block = Levels.elements(F.level_table({ mic = { total = 2, on_board_max = 1, gap_moves = 3 } }))
+		assert_same(block, { "mic" })
+		local piece = Levels.elements(F.level_table({ slots = { { at = { 1, 1 }, type = "mic" } } }))
+		assert_same(piece, { "mic" })
+		assert_same(Levels.elements(F.level_table()), {})
+		-- the order of rule 2.1.6 and the specials are counted apart
+		local el, specials = Levels.elements(F.level_table({
+			floor = { { at = { 0, 0 }, hp = 1 } }, overlay = { { at = { 1, 1 }, type = "wires", hp = 1 } },
+			slots = { { at = { 2, 2 }, type = "record_box", hp = 1 }, { at = { 3, 3 }, type = "riff", axis = "h" },
+				{ at = { 4, 4 }, type = "piece", color = "red" } },
+		}))
+		assert_same(el, { "record_box", "dancefloor", "wires" })
+		assert_eq(specials, 1)
+	end)
+
+	it("lists the level numbers without a file as ranges", function()
+		assert_same(Levels.missing_ranges({ 1, 2, 3 }, 5), { "4-5" })
+		assert_same(Levels.missing_ranges({ 2, 4 }, 5), { "1", "3", "5" })
+		assert_same(Levels.missing_ranges({ 1, 2, 3, 4, 5 }, 5), {})
+		assert_same(Levels.missing_ranges({}, 3), { "1-3" })
+		assert_same(Levels.missing_ranges({ 1, 2, 7 }, 5), { "3-5" }, "ids beyond the plan do not count")
+	end)
+
+	it("keeps a column's hp to one character, up to the 12 the schema allows", function()
+		assert_eq(Levels.hp_char(1), "1")
+		assert_eq(Levels.hp_char(9), "9")
+		assert_eq(Levels.hp_char(10), "a")
+		assert_eq(Levels.hp_char(12), "c")
+		assert_eq(Levels.hp_char(nil), " ")
+		local raw = F.level_table({ slots = { { at = { 1, 1 }, type = "column", hp = 12 }, { at = { 4, 4 }, type = "record_box", hp = 3 } } })
+		local out = Levels.preview_raw(raw)
+		local width
+		for line in out:gmatch("[^\n]+") do
+			width = width or #line
+			assert_eq(#line, width, "every row of the drawing is equally wide: " .. line)
+		end
+		assert_true(out:find("C12", 1, true) == nil, "the hp is one character")
+		assert_true(out:find("Cc", 1, true) ~= nil, "12 is drawn as c")
+	end)
+
 	it("validates the repository's levels through the CLI", function()
 		local vm = (jit and "luajit") or "lua5.1"
 		if not F.have(vm) then return end

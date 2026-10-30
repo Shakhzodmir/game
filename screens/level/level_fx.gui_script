@@ -1,12 +1,15 @@
 -- Level overlay effects in GUI (above the board and the HUD, under the
 -- overlay of main.collection): praise words of a cascade (juicy, hit,
--- drive, vibe, legend) popping over the board, banners ("No moves -
--- shuffling!"), the white flash of the Grand finale and the "tap to skip"
--- hint of the final concert. Everything arrives as bus events from
--- screens/level/board.script (client/level_link.lua lists the topics).
--- Reduced motion: words appear and fade without bouncing.
+-- drive, vibe, legend) popping over the board, the titles of the ten combos
+-- ("Bass drop!", "Grand finale!"...), banners ("No moves - shuffling!"), the
+-- white flash of the Grand finale, the "Final concert!" title with its
+-- confetti shower, and the "tap to skip" hint of the final concert.
+-- Everything arrives as bus events from screens/level/board.script (its
+-- header lists the topics). Reduced motion: words appear and fade without
+-- bouncing, no confetti.
 
 local ui = require("client.ui")
+local fx = require("client.fx")
 local i18n = require("client.i18n")
 local bus = require("client.bus")
 local app = require("client.app")
@@ -20,6 +23,14 @@ local PRAISE_STYLE = {
 	{ "#8B45FF", "white" }, { "#FFB020", "#8B45FF" },
 }
 
+-- colour and outline of the title of each combo
+local COMBO_STYLE = {
+	cross = { "#1FA8E6", "white" }, triple_cross = { "#FF4D8D", "white" }, bass_drop = { "#8B45FF", "white" },
+	bird_riff = { "#1FA8E6", "white" }, bird_sub = { "#FF4D8D", "white" }, trio = { "#22C55E", "white" },
+	finale = { "#FFB020", "#8B45FF" }, color_riff = { "#1FA8E6", "#8B45FF" }, color_sub = { "#FF4D8D", "#8B45FF" },
+	color_bird = { "#22C55E", "#8B45FF" },
+}
+
 local function reduced()
 	return app.reduced_motion()
 end
@@ -29,6 +40,37 @@ local function praise_y()
 	local r = link.board_rect()
 	if not r then return 900 end
 	return math.min(r.y1 + 30, 1280 - 250)
+end
+
+-- Pops a word up, holds it and lets it float away; `slot` names the field of
+-- self that keeps the node (one word of a kind at a time).
+local function pop_word(self, slot, n, hold)
+	local s = self.ui
+	self[slot] = n
+	local function gone()
+		if self[slot] == n then self[slot] = nil end
+		s:clear(n)
+	end
+	local sc = gui.get_scale(n)
+	if reduced() then
+		local c = gui.get_color(n)
+		gui.set_color(n, vmath.vector4(c.x, c.y, c.z, 0))
+		-- a node has ONE running animation per property: a second gui.animate of color.w would replace the
+		-- fade-in at once (the word would never show), so the fade-out starts when the fade-in is done
+		gui.animate(n, "color.w", 1, gui.EASING_OUTQUAD, 0.15, 0, function()
+			gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.3, hold, gone)
+		end)
+		return
+	end
+	gui.set_scale(n, sc * 0.25)
+	gui.set_euler(n, vmath.vector3(0, 0, -8))
+	gui.animate(n, "scale", sc * 1.15, gui.EASING_OUTBACK, 0.2, 0, function()
+		gui.animate(n, "scale", sc, gui.EASING_OUTQUAD, 0.12)
+	end)
+	gui.animate(n, "euler.z", 4, gui.EASING_OUTBACK, 0.3)
+	local p0 = gui.get_position(n)
+	gui.animate(n, "position.y", p0.y + 60, gui.EASING_INQUAD, 0.35, hold)
+	gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.35, hold, gone)
 end
 
 local function show_praise(self, p)
@@ -44,30 +86,43 @@ local function show_praise(self, p)
 	local n = s:text(self.layer, i18n.t("praise." .. idx), 360, praise_y(), {
 		font = "title", size = size, color = st[1], outline = st[2], shadow = "shadow", max_width = 640,
 	})
-	self.praise = n
-	local sc = gui.get_scale(n)
-	local hold = 0.75 + idx * 0.08
-	if reduced() then
-		gui.set_color(n, vmath.vector4(gui.get_color(n).x, gui.get_color(n).y, gui.get_color(n).z, 0))
-		gui.animate(n, "color.w", 1, gui.EASING_OUTQUAD, 0.15)
-		gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.3, hold, function()
-			if self.praise == n then self.praise = nil end
-			s:clear(n)
-		end)
-		return
+	pop_word(self, "praise", n, 0.75 + idx * 0.08)
+end
+
+-- The title of a combo, over the cell where it fires (kept inside the board).
+local function show_combo(self, p)
+	local name = p.combo
+	if not name or not i18n.has("combo." .. name) then return end
+	local s = self.ui
+	if self.combo then
+		gui.cancel_animations(self.combo, "scale")
+		s:clear(self.combo)
+		self.combo = nil
 	end
-	gui.set_scale(n, sc * 0.25)
-	gui.set_euler(n, vmath.vector3(0, 0, -8))
-	gui.animate(n, "scale", sc * 1.15, gui.EASING_OUTBACK, 0.2, 0, function()
-		gui.animate(n, "scale", sc, gui.EASING_OUTQUAD, 0.12)
-	end)
-	gui.animate(n, "euler.z", 4, gui.EASING_OUTBACK, 0.3)
-	local p0 = gui.get_position(n)
-	gui.animate(n, "position.y", p0.y + 60, gui.EASING_INQUAD, 0.35, hold)
-	gui.animate(n, "color.w", 0, gui.EASING_INQUAD, 0.35, hold, function()
-		if self.praise == n then self.praise = nil end
-		s:clear(n)
-	end)
+	local r = link.board_rect()
+	local x, y = p.lx or 360, p.ly or 640
+	if r then
+		x = math.max(r.x0 + 190, math.min(r.x1 - 190, x))
+		y = math.max(r.y0 + 70, math.min(r.y1 - 50, y + r.cell * 1.2))
+	end
+	local st = COMBO_STYLE[name] or { "#8B45FF", "white" }
+	local big = name == "finale"
+	local n = s:text(self.layer, i18n.t("combo." .. name), x, y, {
+		font = "title", size = big and 88 or 62, color = st[1], outline = st[2], shadow = "shadow", max_width = 620,
+	})
+	pop_word(self, "combo", n, big and 1.0 or 0.7)
+end
+
+-- "Final concert!" in the middle of the board when the concert starts.
+local function show_concert(self)
+	local s = self.ui
+	if self.concert_title then s:clear(self.concert_title) end
+	local r = link.board_rect()
+	local y = r and (r.y0 + r.y1) / 2 or 640
+	local n = s:text(self.layer, i18n.t("fx.concert"), 360, y, {
+		font = "title", size = 84, color = "#FFB020", outline = "#8B45FF", shadow = "shadow", max_width = 640,
+	})
+	pop_word(self, "concert_title", n, 1.2)
 end
 
 local function show_banner(self, key)
@@ -76,20 +131,24 @@ local function show_banner(self, key)
 	local r = link.board_rect()
 	local y = r and (r.y0 + r.y1) / 2 or 640
 	local b = s:round(self.layer, 360, y, 600, 120, "white", { alpha = 0.96, radius = 30 })
-	s:text(b, i18n.t(key), 0, 4, { font = "button", size = 44, color = "#8B45FF", outline = false, max_width = 560 })
+	local label = s:text(b, i18n.t(key), 0, 4, { font = "button", size = 44, color = "#8B45FF", outline = false, max_width = 560 })
+	-- a node made by script takes no alpha from its parent: without this the text would stay solid while
+	-- the plate fades away under it
+	gui.set_inherit_alpha(label, true)
 	self.banner = b
+	local function gone()
+		if self.banner == b then self.banner = nil end
+		s:clear(b)
+	end
 	if reduced() then
-		gui.animate(b, "color.w", 0, gui.EASING_INQUAD, 0.3, 1.2, function()
-			if self.banner == b then self.banner = nil end
-			s:clear(b)
-		end)
+		gui.animate(b, "color.w", 0, gui.EASING_INQUAD, 0.3, 1.2, gone)
 		return
 	end
 	gui.set_scale(b, vmath.vector3(0.3, 0.3, 1))
-	gui.animate(b, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3)
-	gui.animate(b, "scale", vmath.vector3(0.2, 0.2, 1), gui.EASING_INBACK, 0.25, 1.3, function()
-		if self.banner == b then self.banner = nil end
-		s:clear(b)
+	-- one animation per property (a second gui.animate of the scale would replace the pop-in and the
+	-- banner would stay at 30 % size): the exit starts when the pop-in is done, 1.3 s after the start
+	gui.animate(b, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3, 0, function()
+		gui.animate(b, "scale", vmath.vector3(0.2, 0.2, 1), gui.EASING_INBACK, 0.25, 1.0, gone)
 	end)
 end
 
@@ -117,21 +176,47 @@ local function skip_hint(self, on)
 	end
 end
 
+-- The confetti shower of the final concert runs from "concert" until the level
+-- is complete (or lost, or the player skipped to the end).
+local function confetti(self, on)
+	if on and not self.confetti then
+		self.confetti = self.confetti_fx:confetti({ rate = 34, burst = 26, bottom = -60 })
+	elseif not on and self.confetti then
+		self.confetti.stop()
+		self.confetti = nil
+	end
+end
+
+local function on_state(self, p)
+	local st = p.state
+	skip_hint(self, st == "won_wait" or st == "concert")
+	if st == "concert" then
+		show_concert(self)
+		confetti(self, true)
+	elseif st ~= "won_wait" then
+		confetti(self, false)
+	end
+end
+
 function init(self)
 	gui.set_render_order(3)
 	self.ui = ui.scene({ gui = GUI })
-	self.layer = self.ui:layer(self.ui.root, "fx")
-	self.sub = bus.subscribe({ "level_praise", "level_banner", "level_flash", "level_state", "language_changed" },
-		"level_fx")
+	-- confetti under everything else of this scene
+	self.confetti_fx = fx.new(self.ui, self.ui.root)
+	self.layer = self.ui:layer(self.ui.root, "level_fx")
+	self.sub = bus.subscribe({ "level_praise", "level_banner", "level_flash", "level_state", "level_special",
+		"language_changed" }, "level_fx")
 	self.on_bus = function(topic, p)
 		if topic == "level_praise" then
 			show_praise(self, p)
+		elseif topic == "level_special" then
+			show_combo(self, p)
 		elseif topic == "level_banner" then
 			show_banner(self, p.key)
 		elseif topic == "level_flash" then
 			screen_flash(self, p)
 		elseif topic == "level_state" then
-			skip_hint(self, p.state == "won_wait" or p.state == "concert")
+			on_state(self, p)
 		elseif topic == "language_changed" then
 			if self.skip then
 				skip_hint(self, false)
@@ -148,5 +233,6 @@ end
 
 function update(self, dt)
 	self.ui:update(dt)
+	self.confetti_fx:update(dt)
 	self.sub:drain(self.on_bus)
 end

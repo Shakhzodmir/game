@@ -162,6 +162,78 @@ Turbo keeps the same natural order; every effect delay is 0 there, so a
 whole effect (Bird flight included) runs inside its activation record, and
 chains (delay 0) run later in the same step 3.
 
+Readings fixed by the audit of §8-§9 (`docs/handoff/core-audit-B2.md`):
+
+- The Bird's cross is its five cells in plain index order, so a neighbour
+  above is hit before the Bird's own cell.
+- Reservations and deduplication keys are object keys (a column: its
+  top-left cell); a pinned piece zeroes its whole cell in the level table.
+- The "Triple cross" has no bolt for a row or column outside the field; an
+  exit point in a void still sends its two bolts.
+- A cargo's `activate` event has no `id`, `combo` or `partner`; its source
+  starts at the impact and carries the Bird's label.
+- In an activation the actions of tick `t0` run first, in list order, and
+  the rest are queued after them: a chain launched by a `t0` action (a Riff
+  cargo landing on a special) is queued before the later hits of that tick.
+- In the Trio a later choice sees the earlier targets pinned, so their cells
+  count as level 0 in its density.
+
+Readings fixed by the audit of §6-§7 (`docs/handoff/core-audit-B1.md`):
+
+- A removing hit (7.2.4) does no tile damage by itself; the same hit then
+  meets the open slot, so an `effect` source damages the tile under the
+  special it removes.
+- An `all_layers` hit that takes the last wire layer goes on to the slot in
+  the same hit; while a layer is left the slot is spared and only the tile
+  is hit.
+- `goal` is one event per goal and hit, with the final `left`: a column over
+  four unlit tiles lowers a `light` goal by four in one event.
+- Lines of one colour that share no cell are separate groups even when they
+  touch. A group without a wire-free cell makes no special, no bonus and no
+  `special` in its `match` event (it cannot arise in play: a new group always
+  holds a piece that just moved).
+
+Readings fixed by the audit of §5.3, §10-§13 and §16-§17
+(`docs/handoff/core-audit-C.md`):
+
+- A Remix that finds fewer than two candidates when its record runs still
+  takes a source id, emits `booster{ok=false}` and goes to `unplaced`.
+- The spotlights send one `bolt`: a row light from (1, row) to the right, a
+  column light from (col, 1) downwards, `at` = the tick of the record;
+  `booster.at` is `{x, y}`.
+- Hint tier 2 orders special moves by rank (sub > riff > bird > disco) first
+  and puts a swap before a tap of the same special second.
+- A diagonal donor needs support (no cell under it, or a non-empty one) at the
+  moment its target cell is processed: a right donor over a cell the same pass
+  fills later is passed over.
+- A microphone on an exit is delivered also while a path pin holds it (10.4
+  asks only for `idle`).
+- `result()` has one more field, `won`; a lost game reports `stars = 0` and
+  `moves_at_win = 0`.
+- The hash entry of a swap taken back keeps the number and the remembered
+  marks of the swap it undoes.
+
+Readings fixed by the audit of §0-§5, §14 and §15
+(`docs/handoff/core-audit-A.md`):
+
+- Rule 2.1.7: board B1 keeps only the voids. The wire layer goes with the
+  pieces under it, so a wired cell is an ordinary piece (and donor) there.
+- `mic` is required with a `deliver` goal (the schema reports a missing
+  block as 2.1.1) and forbidden without one (2.1.8). Rule 2.1.6 counts
+  "mic" for a deliver goal, a mic block or a starting mic, and the dance
+  floor for any tile.
+- A `swap` from a free special is a tap when `to` is off the field, a void,
+  an empty slot, a whole (idle) blocker or a piece under wires. A blocker in
+  `clear` is none of these: the swap is `not_movable`.
+- The `swap_back` event lists the ids of the pieces now standing in `a` and
+  `b`; the piece in `a` is the one that moves to `b`.
+- The seed fold reduces every value modulo 2^31 - 1 first (same result,
+  exact up to 2^53). The JSON reader refuses integers of more than 15 digits,
+  nesting deeper than 32 and `\u` escapes above ASCII, reads `-0` as 0 and
+  names the byte where the offending token starts.
+- `skip` twice is harmless; `set_timing('normal')` on a turbo clone changes
+  the mode only.
+
 ## Status
 
 Implemented: all of §0-§17, including every special and combo (§8), Bird
@@ -170,3 +242,42 @@ targeting (§9), taps and special swaps (§5.1.4, §5.1.5, §5.2).
 Tests: `tests/core/*_test.lua`, run by `./tools/test.sh` on both VMs.
 `tests/core/helper.lua` builds levels from pictures and can rebuild a live
 board (`H.board`) for tick-by-tick scenarios.
+
+Sections 8 and 9 are also checked against oracles written from the text of
+the specification, not from the code: `geometry_test.lua` (every hit of the
+Riff, Sabwoofer, Cross, Triple cross, Bass drop and Grand finale: tick, cell,
+order, bolts, rings, path pins, removal of the specials), `bird_oracle_test.lua`
+(the level table, candidates, density, single and cargo choices, draws of the
+`effects` stream on random boards) and `disco_lists_test.lua` (the list of
+the Disco ball and of "Colour X", the steps, transforms and fires).
+
+Sections 6 and 7 have oracles of their own: `oracle.lua` (brute-force groups,
+kind and cell of the new special, the events of a resolution, the whole hit
+procedure, the action list of `EF.run`) is run by `monitor_test.lua` over
+random play and over random hits on random boards; `effects_test.lua` pins
+the framework (order, first occurrence, queue, path pins).
+
+Sections 5.3 and 10-17 are pinned by `boosters_test.lua`, `moves_test.lua`,
+`events_test.lua` (a schema of every event of §16, checked over random play
+and for the causal order), `api_test.lua` and blocks in `gravity_test.lua`,
+`flow_test.lua`, `hint_test.lua` and `hash_test.lua` (the §17.2 layout written
+out a second time from the text, one probe per hashed field). `tests/golden/`
+holds eight replays (§17.1) with the final hash and a digest of every event of
+the game; `golden_test.lua` plays them back on both VMs. After a deliberate
+change of the rules run `lua5.1 tests/golden/regen.lua` and read the diff of
+the summaries (state, tick, score, commands, events).
+
+Sections 0-5, 14 and 15 are pinned by `const_test.lua` (the tables of §14,
+§17.2, §7.4 and §15.2 typed from the text), `sched_test.lua`, `board_test.lua`,
+`tick_test.lua` (the duration of every timer kind in both timing modes, the
+order of the steps, the record queue inside a tick, the 100 000-record guard,
+the switch to turbo) and blocks in `rng_test.lua` (known answers of an
+independent implementation), `json_test.lua`, `level_test.lua` (every range
+of the schema at both ends), `start_test.lua` and `input_test.lua`. Three
+oracles written from the text, in `oracle_a.lua`, run on random data:
+`level_oracle_test.lua` (stage and rules 2.0-2.1.9 of `load_level` on random
+and mutated levels; the empty cells of boards B0 and B1), `start_oracle_test.lua`
+(section 4 on valid, dense and walled levels, start shuffle included) and
+`swap_oracle_test.lua` (5.1.1 and 5.1.2 in the middle of random games). The
+swap oracle reads the state (`objs`, `swaps`, timers) and must be kept in step
+with it.

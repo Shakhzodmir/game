@@ -3,16 +3,20 @@
 
     python3 assets/fx_defold/gen_particles.py
 
+The board is bright (white and lavender cells), so every emitter is alpha blended:
+additive light would vanish on it.
+
 Every effect is a one-shot burst: a very high spawn rate capped by
 max_particle_count, so play() emits exactly that many particles at once.
 Sizes and speeds are for 80 px cells; client/level_vfx.lua scales the burst
-game object to the real cell size and tints every emitter with
+game object to the real cell size and, right AFTER particlefx.play (the engine keeps a
+constant only on a playing instance), tints every emitter with
 particlefx.set_constant(url, emitter, "tint", colour) (white images from
 assets/images/fx). Emitters are in world space, so a pooled burst object
 can move on once its particles are out.
 
 Effects (emitter ids in brackets):
-  pop       a cleared piece: 7 soft dots in the piece colour [dots] + 3 white sparks [sparks]
+  pop       a cleared piece: 7 soft dots [dots] + 3 sparks [sparks], all in the piece colour
   sparkle   gold stars rising and twinkling (new special, lit floor, microphone) [stars]
   debris    cardboard bits of a record box, falling with gravity [chunks]
   dust      soft puffs (concrete, noise) [puffs]
@@ -112,7 +116,7 @@ EFFECTS = {
         emitter("dots", "fx_glow_dot", 7, 0.42, 0.12, 230.0, 90.0, 26.0, 8.0, 14.0,
                 scale=[(0.0, 1.1), (1.0, 0.1)], gravity=260.0),
         emitter("sparks", "fx_spark", 3, 0.32, 0.08, 300.0, 60.0, 24.0, 6.0, 10.0,
-                scale=[(0.0, 1.0), (1.0, 0.2)], rot_spread=180.0, blend="BLEND_MODE_ADD", z=0.01),
+                scale=[(0.0, 1.0), (1.0, 0.2)], rot_spread=180.0, z=0.01),
     ],
     "sparkle": [
         emitter("stars", "fx_star_particle", 8, 0.7, 0.15, 110.0, 50.0, 24.0, 8.0, 22.0,
@@ -134,7 +138,7 @@ EFFECTS = {
     ],
     "spark": [
         emitter("sparks", "fx_spark", 5, 0.28, 0.08, 260.0, 80.0, 22.0, 6.0, 12.0,
-                scale=[(0.0, 1.0), (1.0, 0.2)], rot_spread=180.0, blend="BLEND_MODE_ADD"),
+                scale=[(0.0, 1.0), (1.0, 0.2)], rot_spread=180.0),
     ],
 }
 

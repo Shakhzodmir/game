@@ -218,3 +218,335 @@ describe("tools tune: jobs and reports", function()
 		assert_eq(rows[1].n, 3)
 	end)
 end)
+
+-- Result cache, extension by seeds, safe --write, endings ------------------------------
+
+local F = require("tests.tools.fixture")
+
+local function quick_goal()
+	return { goals = { { type = "collect", color = "red", count = 6 } } }
+end
+
+-- Games of a result without the timing fields (those differ between runs).
+local function games_of_result(res)
+	return common.decode(common.encode(res.games))
+end
+
+describe("tools tune: the result cache", function()
+	it("keys results by the level text without moves, the bot, the budget and the code", function()
+		local text = F.level_text({ moves = 20 })
+		local run = { bot = "greedy", budget = 120, n = 300, code = "abc" }
+		local key = Tune.run_key(text, run)
+		assert_eq(Tune.run_key(F.level_text({ moves = 31 }), run), key, "the move limit is not part of the key")
+		assert_eq(Tune.run_key(text, { bot = "greedy", budget = 120, n = 50, code = "abc" }), key, "N is not part of the key")
+		assert_true(Tune.run_key(text, { bot = "strong", budget = 120, code = "abc" }) ~= key)
+		assert_true(Tune.run_key(text, { bot = "greedy", budget = 100, code = "abc" }) ~= key)
+		assert_true(Tune.run_key(text, { bot = "greedy", budget = 120, code = "abd" }) ~= key)
+		assert_true(Tune.run_key(F.level_text({ moves = 20, difficulty = "hard" }), run) ~= key)
+		assert_eq(Tune.run_key(text, {}), Tune.run_key(text, { bot = "greedy", budget = Tune.DEFAULT_BUDGET }), "defaults")
+	end)
+
+	it("fingerprints the sources the games depend on", function()
+		local a = Tune.code_fingerprint()
+		assert_true(type(a) == "string" and #a == 16, tostring(a))
+		assert_eq(Tune.code_fingerprint(), a)
+	end)
+
+	it("saves and loads a result, and ignores other keys and damaged files", function()
+		local work = F.tmpdir()
+		local res = { id = 1, file = "x/level_0001.json", n = 2, secs = 1.5, evals = 10,
+			games = { { m = 3, r = { 0.5, 0 }, e = "won", t = 120, sp = 1 }, { r = {}, e = "budget", sp = 0 } } }
+		assert(Tune.save_result(work, "x/level_0001.json", "k1", res))
+		assert_same(Tune.load_result(work, "y/level_0001.json", "k1"), res)
+		assert_eq(Tune.load_result(work, "x/level_0001.json", "k2"), nil)
+		assert_eq(Tune.load_result(work, "x/level_0002.json", "k1"), nil)
+		-- a failure is a result too
+		assert(Tune.save_result(work, "x/level_0003.json", "k1", { file = "x/level_0003.json", error = "boom", n = 5 }))
+		assert_eq(Tune.load_result(work, "x/level_0003.json", "k1").error, "boom")
+		-- damaged or foreign content is not a result
+		assert(common.write_file(Tune.slot_path(work, "x/level_0004.json"), "{ not json"))
+		assert_eq(Tune.load_result(work, "x/level_0004.json", "k1"), nil)
+		assert(common.write_file(Tune.slot_path(work, "x/level_0005.json"), common.encode({ key = "k1", level = { id = 5 } })))
+		assert_eq(Tune.load_result(work, "x/level_0005.json", "k1"), nil)
+		F.rmdir(work)
+	end)
+
+	it("cuts a saved result to its first games and reuses failures only when they still apply", function()
+		local res = { n = 4, games = { { m = 1 }, { m = 2 }, { m = 3 }, { m = 4 } }, secs = 8, evals = 100 }
+		assert_true(Tune.fit(res, 4) == res)
+		local cut = Tune.fit(res, 2)
+		assert_eq(#cut.games, 2)
+		assert_eq(cut.n, 2)
+		assert_eq(cut.secs, 4)
+		assert_eq(cut.evals, 50)
+		assert_eq(#res.games, 4, "the saved result is not changed")
+		assert_eq(Tune.fit(res, 5), nil)
+		assert_eq(Tune.reuse(nil, 3), nil)
+		assert_true(Tune.reuse(res, 3) ~= nil)
+		assert_eq(Tune.reuse(res, 9), nil)
+		local failed = { error = "game error: seed 17", n = 100 }
+		assert_true(Tune.reuse(failed, 100) == failed)
+		assert_true(Tune.reuse(failed, 300) == failed)
+		assert_eq(Tune.reuse(failed, 50), nil, "seed 17 may not be among the first 50")
+		local invalid = { error = "2.1.1 moves" }
+		assert_true(Tune.reuse(invalid, 5) == invalid)
+	end)
+
+	it("extending a result by seeds gives the games of a run from scratch", function()
+		local e = F.entry(quick_goal())
+		local three = Tune.run_level(e, { n = 3, budget = 60 })
+		local five = Tune.run_level(e, { n = 5, budget = 60, base = three })
+		local scratch = Tune.run_level(e, { n = 5, budget = 60 })
+		assert_eq(#five.games, 5)
+		assert_same(games_of_result(five), games_of_result(scratch))
+		assert_same(games_of_result({ games = { unpack(five.games, 1, 3) } }), games_of_result(three))
+		assert_true(five.secs >= three.secs, "the seconds of the base are kept")
+		assert_eq(five.evals, scratch.evals)
+	end)
+
+	it("run_files reuses, extends and cuts the work directory's results", function()
+		local dir, work = F.tmpdir(), F.tmpdir()
+		local files = F.write_levels(dir, { 901, 902 }, { [902] = quick_goal() })
+		local function run(n, extra)
+			local r = { n = n, budget = 60, bot = "greedy", work = work, code = "t" }
+			for k, v in pairs(extra or {}) do r[k] = v end
+			return Tune.run_files(files, r)
+		end
+		local first = run(2)
+		assert_eq(#first, 2)
+		assert_eq(first[1].cached, nil)
+		assert_eq(#first[1].games, 2)
+		assert_eq(#common.list_dir(work, "%.result%.json$"), 2)
+		local again = run(2)
+		assert_true(again[1].cached and again[2].cached)
+		assert_same(games_of_result(again[1]), games_of_result(first[1]))
+		local more = run(4)
+		assert_eq(more[1].cached, nil)
+		assert_eq(#more[1].games, 4)
+		assert_same(games_of_result({ games = { unpack(more[1].games, 1, 2) } }), games_of_result(first[1]))
+		local fewer = run(1)
+		assert_true(fewer[1].cached)
+		assert_eq(#fewer[1].games, 1)
+		assert_eq(#run(4)[1].games, 4)
+		assert_true(run(4)[1].cached, "the larger result is still saved after a smaller request")
+		assert_eq(run(4, { fresh = true })[1].cached, nil)
+		-- another bot is another key: nothing is reused
+		assert_eq(run(2, { bot = "strong" })[1].cached, nil)
+		F.rmdir(dir)
+		F.rmdir(work)
+	end)
+
+	it("collect keeps the order, reports unreadable and invalid files and counts the cache", function()
+		local dir, work = F.tmpdir(), F.tmpdir()
+		local files = F.write_levels(dir, { 901, 902 }, { [901] = quick_goal(), [902] = quick_goal() })
+		assert(common.write_file(dir .. "/level_0903.json", "{ not a level"))
+		local list = { files[2], dir .. "/level_0903.json", dir .. "/level_0904.json", files[1] }
+		local run = { n = 2, budget = 60, bot = "greedy", work = work, code = "t", jobs = 1 }
+		local res, counts = Tune.collect(list, run)
+		assert_eq(#res, 4)
+		assert_eq(res[1].id, 902)
+		assert_eq(#res[1].games, 2)
+		assert_true(res[2].error:find("json", 1, true) ~= nil, res[2].error)
+		assert_true(res[3].error:find("cannot read", 1, true) ~= nil, res[3].error)
+		assert_eq(res[4].id, 901)
+		assert_eq(counts.cached, 0)
+		local res2, counts2 = Tune.collect(list, run)
+		assert_eq(counts2.cached, 3, "two levels and the failure of the third")
+		assert_true(res2[1].cached and res2[4].cached)
+		assert_eq(res2[2].error, res[2].error)
+		-- the move limit changed since: the cache serves the games, the row shows the new limit
+		assert(common.write_file(files[1], F.level_text({ id = 901, moves = 41, goals = quick_goal().goals })))
+		local res3 = Tune.collect({ files[1] }, run)
+		assert_true(res3[1].cached)
+		assert_eq(res3[1].moves, 41)
+		F.rmdir(dir)
+		F.rmdir(work)
+	end)
+end)
+
+describe("tools tune: rows, flags and reports", function()
+	local function lv(list_of_endings)
+		local games = {}
+		for i, e in ipairs(list_of_endings) do
+			if e == "won" then
+				games[i] = { m = 10 + i, r = { 0.5, 0 }, e = "won", t = 100, sp = 2 }
+			else
+				games[i] = { r = { 0.5 }, e = e, sp = 0 }
+			end
+		end
+		return { id = 5, file = "content/levels/level_0005.json", difficulty = "easy", moves = 20, n = #games,
+			secs = 2, evals = 10, games = games, sig = "abc" }
+	end
+
+	it("counts how the games ended and flags dead ends and hangs", function()
+		local ok = Tune.evaluate({ lv({ "won", "won", "budget" }) })[1]
+		assert_same(ok.endings, { won = 2, budget = 1, stuck = 0, timeout = 0 })
+		assert_eq(ok.no_win, 1)
+		assert_eq(ok.sig, "abc")
+		for _, f in ipairs(ok.flags) do assert_true(f ~= "stuck_games", f) end
+		local stuck = Tune.evaluate({ lv({ "won", "stuck", "won" }) })[1]
+		assert_eq(stuck.endings.stuck, 1)
+		assert_eq(stuck.flags[#stuck.flags], "stuck_games")
+		local hung = Tune.evaluate({ lv({ "won", "timeout" }) })[1]
+		assert_eq(hung.flags[#hung.flags], "stuck_games")
+	end)
+
+	it("an empty or failed level becomes an invalid row", function()
+		local rows = Tune.evaluate({
+			{ id = 6, file = "b.json", difficulty = "easy", moves = 20, games = {} },
+			{ id = 7, file = "a.json", error = "game error: seed 3" },
+		})
+		assert_eq(rows[1].id, 6)
+		assert_eq(rows[1].flags[1], "invalid")
+		assert_eq(rows[1].error, "no games were played")
+		assert_eq(rows[2].error, "game error: seed 3")
+	end)
+
+	it("the JSON report leaves the rows alone and copes with a missing previous win rate", function()
+		local rows = Tune.evaluate({ lv({ "won", "won", "budget", "won" }) })
+		rows[1].p_before = nil
+		local meta = { bot = "greedy", n = 4, budget = 120, jobs = 1, vm = "luajit", wall = 1, applied = false, dir = "/tmp/copy" }
+		local data = common.decode(Tune.report_json(rows, meta))
+		assert_eq(data.levels[1].win_rate_before, nil)
+		assert_eq(data.levels[1].endings.won, 3)
+		assert_eq(data.dir, "/tmp/copy")
+		assert_eq(rows[1].flags.__array, nil)
+		assert_eq(rows[1].mtw.__array, nil)
+		local md = Tune.report_md(rows, meta)
+		assert_true(md:find("каталог `/tmp/copy`", 1, true) ~= nil)
+	end)
+
+	it("the Russian report names the dead-end flag", function()
+		local rows = Tune.evaluate({ lv({ "won", "stuck", "won", "won" }) })
+		local md = Tune.report_md(rows, { bot = "greedy", n = 4, budget = 120, jobs = 1, vm = "luajit", wall = 1, applied = true })
+		assert_true(md:find("партии в тупике или зависли", 1, true) ~= nil)
+		assert_true(md:find("Ходы записаны в файлы уровней", 1, true) ~= nil)
+	end)
+
+	it("splits a mixed set so that no heavy level shares a part with another heavy one", function()
+		local dir = F.tmpdir()
+		local specs = { { 901, "super_hard", 9, 11 }, { 902, "super_hard", 9, 11 }, { 903, "easy", 7, 7 }, { 904, "easy", 7, 7 },
+			{ 905, "hard", 9, 10 }, { 906, "easy", 8, 8 } }
+		local files = {}
+		for _, s in ipairs(specs) do
+			local cells = {}
+			for y = 1, s[4] do cells[y] = string.rep("#", s[3]) end
+			local path = string.format("%s/level_%04d.json", dir, s[1])
+			assert(common.write_file(path, F.level_text({ id = s[1], difficulty = s[2], size = { s[3], s[4] }, cells = cells })))
+			files[#files + 1] = path
+		end
+		local parts = Tune.partition(files, 2)
+		local function load(part)
+			local sum = 0
+			for _, f in ipairs(part) do
+				for _, s in ipairs(specs) do
+					if f:find(string.format("level_%04d", s[1]), 1, true) then
+						sum = sum + ({ easy = 1, medium = 1.5, hard = 2, super_hard = 3 })[s[2]] * s[3] * s[4]
+					end
+				end
+			end
+			return sum
+		end
+		local a, b = load(parts[1]), load(parts[2])
+		assert_true(math.max(a, b) / math.min(a, b) < 1.2, a .. " vs " .. b)
+		-- three parts for three heavy levels: one each
+		local parts3 = Tune.partition({ files[1], files[2], files[5] }, 3)
+		assert_eq(#parts3[1] + #parts3[2] + #parts3[3], 3)
+		assert_eq(#parts3[1], 1)
+		assert_eq(#parts3[2], 1)
+		F.rmdir(dir)
+	end)
+end)
+
+describe("tools tune --write: stale files", function()
+	it("skips a file edited after the games were played, but not a changed move limit", function()
+		local dir = F.tmpdir()
+		local path = dir .. "/level_0901.json"
+		local original = F.level_text({ moves = 20 })
+		local sig = common.level_sig(original)
+		assert(common.write_file(path, F.level_text({ moves = 20, difficulty = "medium" })))
+		local before = common.read_file(path)
+		local changed, skipped = Tune.write_moves({ { file = path, M = 31, sig = sig } })
+		assert_eq(changed, 0)
+		assert_eq(skipped, 1)
+		assert_eq(common.read_file(path), before)
+		-- somebody else tuned the limit meanwhile: still the same level
+		assert(common.write_file(path, F.level_text({ moves = 22 })))
+		changed, skipped = Tune.write_moves({ { file = path, M = 31, sig = sig } })
+		assert_eq(changed, 1)
+		assert_eq(skipped, 0)
+		assert_eq(common.find_moves(common.read_file(path)), 31)
+		F.rmdir(dir)
+	end)
+
+	it("never writes a limit the schema refuses or into a file without one moves key", function()
+		local dir = F.tmpdir()
+		local path = dir .. "/level_0901.json"
+		assert(common.write_file(path, F.level_text({ moves = 20 })))
+		local before = common.read_file(path)
+		local changed, skipped = Tune.write_moves({ { file = path, M = 3 } })
+		assert_eq(changed, 0)
+		assert_eq(skipped, 1)
+		assert_eq(common.read_file(path), before)
+		local odd = dir .. "/level_0902.json"
+		assert(common.write_file(odd, "{}"))
+		changed, skipped = Tune.write_moves({ { file = odd, M = 30 }, { file = dir .. "/absent.json", M = 30 } })
+		assert_eq(changed, 0)
+		assert_eq(skipped, 2)
+		assert_eq(common.read_file(odd), "{}")
+		assert_same(common.list_dir(dir), { "level_0901.json", "level_0902.json" })
+		F.rmdir(dir)
+	end)
+end)
+
+describe("tools tune: the choice of M on random distributions", function()
+	-- Properties that hold for any set of games (README, "Как считается", 3-4):
+	-- M is a minimiser of |p - target|, a plateau at or above the target gives
+	-- its smallest M, and the flags follow from the curve.
+	it("picks a nearest limit, the low end of a plateau above the target, and consistent flags", function()
+		local r = common.rng(2024)
+		local checked = 0
+		for _ = 1, 60 do
+			local n = 20 + common.rng_int(r, 281)
+			local spread = 5 + common.rng_int(r, 80)
+			local shift = common.rng_int(r, 40)
+			local list = {}
+			for i = 1, n do
+				if common.rng_int(r, 12) == 1 then
+					list[i] = false
+				else
+					list[i] = shift + common.rng_int(r, spread)
+				end
+			end
+			local games = games_of(list, 0.1)
+			for _, d in ipairs({ "easy", "medium", "hard", "super_hard" }) do
+				local c = Tune.choose(games, d, 25)
+				local cor = common.CORRIDOR[d]
+				local best = math.abs(c.p - cor.target)
+				assert_eq(c.p, Tune.win_rate(games, c.M))
+				assert_true(c.M >= 5 and c.M <= 60)
+				for M = 5, 60 do
+					assert_true(math.abs(Tune.win_rate(games, M) - cor.target) >= best - 1e-12, d .. " M " .. M .. " is nearer than " .. c.M)
+				end
+				if c.p >= cor.target - 1e-12 and c.M > 5 then
+					assert_true(Tune.win_rate(games, c.M - 1) ~= c.p, d .. ": the plateau above the target starts at M")
+				end
+				if c.p < cor.target - 1e-12 and c.M < 60 then
+					local runs_to_60 = Tune.win_rate(games, 60) == c.p and c.p >= cor.lo - 1e-12
+					if not runs_to_60 then
+						assert_true(Tune.win_rate(games, c.M + 1) ~= c.p, d .. ": the plateau below the target ends at M")
+					end
+				end
+				local has = {}
+				for _, f in ipairs(c.flags) do has[f] = true end
+				assert_eq(has.too_hard == true, c.p60 < cor.lo - 1e-12)
+				assert_eq(has.too_easy == true, (not has.too_hard) and c.p5 > cor.hi + 1e-12)
+				assert_eq(has.outside_band == true, c.M < 20 or c.M > 35)
+				assert_eq(c.p_before, Tune.win_rate(games, 25))
+				assert_eq(c.attempts ~= nil, c.p > 0)
+				checked = checked + 1
+			end
+		end
+		assert_eq(checked, 240)
+	end)
+end)

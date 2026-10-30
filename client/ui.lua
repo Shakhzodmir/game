@@ -77,6 +77,7 @@ local TOUCH = hash("touch")
 local cache = {}       -- pixel buffers, computed once per app (shared Lua state)
 local edge_cache = {}  -- loose image key -> {left, right, top, bottom} colour lists
 local pulses = setmetatable({}, { __mode = "k" }) -- node -> {amount, period, base}
+local rests = setmetatable({}, { __mode = "k" })  -- button node -> its scale when nothing animates it
 
 function M.color(hex, alpha)
 	local c = gfx.hex(M.PALETTE[hex] or hex, alpha)
@@ -642,12 +643,17 @@ function Scene:button(spec)
 		end
 	end
 	local btn = { node = node, spec = spec, enabled = spec.enabled ~= false, style = style, base_scale = gui.get_scale(node) }
+	rests[node] = btn.base_scale
 	local label_dx = 0
 	if spec.icon then
 		local isz = spec.icon_size or math.min(h * 0.62, 72)
 		local ix = spec.text and (-w / 2 + isz / 2 + 22) or 0
 		btn.icon = self:image(node, spec.icon, ix, 4, { w = isz, h = isz })
-		if btn.icon and spec.text then label_dx = isz / 2 + 6 end
+		if btn.icon then
+			-- nodes made by script do not take their parent's alpha: the icon and the label must fade with a dimmed face
+			gui.set_inherit_alpha(btn.icon, true)
+			if spec.text then label_dx = isz / 2 + 6 end
+		end
 	end
 	if spec.text then
 		local st = M.STYLES[style] or M.STYLES.green
@@ -660,6 +666,7 @@ function Scene:button(spec)
 			shadow = not dark and st[4] or false,
 			max_width = math.max(10, w - (w >= 120 and 40 or 12) - (label_dx * 2)),
 		})
+		gui.set_inherit_alpha(btn.label, true)
 	end
 	self.buttons[#self.buttons + 1] = btn
 	self:set_enabled(btn, btn.enabled)
@@ -721,6 +728,8 @@ end
 
 -- small animations ------------------------------------------------------------------------------------
 
+-- gui.PLAYBACK_*_PINGPONG: the `duration` of the animation is the WHOLE there-and-back cycle (the engine plays
+-- 0 -> 1 -> 0 within it), not the one-way time. Every "period" of this kit is such a full cycle.
 local function start_pulse(node, p)
 	gui.set_scale(node, p.base)
 	local k = 1 + p.amount
@@ -783,8 +792,9 @@ function M.pop_in(node, delay, from)
 	gui.animate(node, "scale", s, gui.EASING_OUTBACK, 0.35, delay or 0)
 end
 
--- A slow breathing scale (a button that wants a tap). It survives presses:
--- the press animation hands the scale back to the pulse on release.
+-- A breathing scale (a button that wants a tap): `amount` is the growth at the peak (0.05 = 5 %), `period`
+-- the seconds of one full breath (out and back). It survives presses: the press animation hands the scale
+-- back to the pulse on release.
 function M.pulse(node, amount, period)
 	local p = { amount = amount or 0.05, period = period or 0.8, base = gui.get_scale(node) }
 	pulses[node] = p
@@ -800,6 +810,15 @@ end
 
 function M.is_pulsing(node)
 	return pulses[node] ~= nil
+end
+
+-- The scale a node goes back to when nothing animates it: a button's own (its press feedback and a pop
+-- from its on_click both animate around it, so the live scale at that moment is not the rest scale), a
+-- pulsing node's base. nil for any other node.
+function M.rest_scale(node)
+	local p = pulses[node]
+	if p then return p.base end
+	return rests[node]
 end
 
 return M

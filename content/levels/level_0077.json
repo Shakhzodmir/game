@@ -1,0 +1,42 @@
+{
+  "id": 77, "version": 1,
+  "size": [9, 10],
+  "moves": 26,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "break", "item": "noise", "count": 7},
+    {"type": "collect", "color": "yellow", "count": 45}
+  ],
+  "cells": [
+    "...###...",
+    ".#######.",
+    ".#######.",
+    "#######..",
+    "#####....",
+    "#####....",
+    "#######..",
+    ".#######.",
+    ".#######.",
+    "...###..."
+  ],
+  "spawners": [[3, 0], [4, 0], [5, 0], [1, 1], [2, 1], [6, 1], [7, 1], [0, 3], [5, 6], [6, 6], [7, 7]],
+  "slots": [
+    {"at": [4, 1], "type": "piece", "color": "yellow"},
+    {"at": [4, 2], "type": "piece", "color": "yellow"},
+    {"at": [6, 2], "type": "noise"},
+    {"at": [3, 3], "type": "piece", "color": "yellow"},
+    {"at": [4, 3], "type": "piece", "color": "orange"},
+    {"at": [5, 3], "type": "noise"},
+    {"at": [2, 4], "type": "noise"},
+    {"at": [4, 4], "type": "noise"},
+    {"at": [4, 5], "type": "noise"},
+    {"at": [4, 6], "type": "piece", "color": "yellow"},
+    {"at": [5, 6], "type": "noise"},
+    {"at": [4, 7], "type": "piece", "color": "yellow"},
+    {"at": [6, 7], "type": "noise"},
+    {"at": [3, 8], "type": "piece", "color": "yellow"},
+    {"at": [4, 8], "type": "piece", "color": "orange"}
+  ],
+  "spawn_weights": {"red": 3, "orange": 3, "yellow": 2, "green": 3, "blue": 3}
+}

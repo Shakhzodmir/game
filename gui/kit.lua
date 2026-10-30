@@ -71,6 +71,36 @@ function M.panel(e, w, h, opts)
 	return body, h / 2
 end
 
+-- Width of a text in logical px at `size` (the font's own metrics; an estimate without the engine).
+function M.text_width(font, str, size)
+	local base = assets.font_size(font)
+	local ok, m = pcall(function()
+		local res = gui.get_font_resource(font)
+		return resource.get_text_metrics(res, str)
+	end)
+	local w = ok and m and m.width or (#str * base * 0.55)
+	return w * (size or base) / base
+end
+
+-- A text that wraps onto up to `lines` lines before it shrinks (long Russian names): opts = {font,
+-- size, color, outline, pivot, max_width, lines = 2}. A single line when it fits max_width.
+-- Returns the node, info (for Scene:set_text).
+function M.label(e, parent, str, x, y, opts)
+	opts = opts or {}
+	local font, size = opts.font or "body", opts.size or 24
+	local max_w = opts.max_width or 300
+	local o = { font = font, size = size, color = opts.color, outline = opts.outline, shadow = opts.shadow, pivot = opts.pivot }
+	if (opts.lines or 2) <= 1 or M.text_width(font, str, size) <= max_w then
+		o.max_width = max_w
+		return e.ui:text(parent, str, x, y, o)
+	end
+	o.width = max_w
+	o.height = size * 1.4 * (opts.lines or 2)
+	local n, info = e.ui:text(parent, str, x, y, o)
+	-- even two lines may be too wide for one very long word: shrink to the widest word
+	return n, info
+end
+
 -- A section caption with thin lines on both sides.
 function M.section(e, parent, text, x, y, w)
 	local s = e.ui
@@ -146,18 +176,28 @@ function M.lock(e, parent, x, y, size)
 	return body
 end
 
--- The three hit-streak notes. notes = {{lit}}; returns the nodes.
-function M.notes(e, parent, x, y, notes, size, gap)
+-- One hit-streak note. note = {lit, unlocked}: lit when the free booster of its slot is earned, empty when it
+-- is not yet, CLOSED (a faded note with a padlock) when that booster is still locked: the streak hands out
+-- only open boosters, so a closed slot stays empty whatever the streak counts (decisions.md item 11).
+-- fade = the alpha of an empty note. Returns the node.
+function M.note(e, parent, x, y, note, size, fade)
 	local s = e.ui
+	local closed = note.unlocked == false
+	local lit = note.lit and not closed
+	local node = s:image(parent, lit and "ui/icons/note_on" or "ui/icons/note_off", x, y, { w = size, h = size })
+		or s:circle(parent, x, y, size * 0.7, lit and "yellow" or "lavender")
+	if not lit then gui.set_color(node, vmath.vector4(1, 1, 1, closed and 0.5 or (fade or 0.7))) end
+	if closed then M.lock(e, node, size * 0.2, -size * 0.2, size * 0.55) end
+	return node
+end
+
+-- The three hit-streak notes. notes = {{lit, unlocked}}; returns the nodes.
+function M.notes(e, parent, x, y, notes, size, gap)
 	size, gap = size or 48, gap or 50
 	local out = {}
 	local n = #notes
 	for i, note in ipairs(notes) do
-		local nx = x + (i - (n + 1) / 2) * gap
-		local node = s:image(parent, note.lit and "ui/icons/note_on" or "ui/icons/note_off", nx, y, { w = size, h = size })
-			or s:circle(parent, nx, y, size * 0.7, note.lit and "yellow" or "lavender")
-		if not note.lit then gui.set_color(node, vmath.vector4(1, 1, 1, 0.7)) end
-		out[i] = node
+		out[i] = M.note(e, parent, x + (i - (n + 1) / 2) * gap, y, note, size)
 	end
 	return out
 end
@@ -262,30 +302,35 @@ local function slider_set(sl, v)
 	gui.set_size(sl.fill, vmath.vector3(math.max(22, sl.w * v), 22, 0))
 end
 
+-- The end of a drag: the knob settles and the value is committed.
+local function slider_release(e, sl)
+	e.dragging = nil
+	gui.animate(sl.knob, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTQUAD, 0.12)
+	if sl.on_commit then sl.on_commit(sl.value) end
+end
+
 function M.slider_input(e, action_id, action)
 	if action_id ~= M.TOUCH then return false end
-	local drag = e.dragging
 	if action.pressed then
+		-- a press always starts a new gesture: a drag whose release never came (the app lost focus mid-drag)
+		-- ends here with the value it had, instead of turning this press (anywhere in the window) into a drag
+		if e.dragging then slider_release(e, e.dragging) end
 		for _, sl in ipairs(e.sliders or {}) do
 			if gui.pick_node(sl.hit, action.x, action.y) then
 				e.dragging = sl
-				drag = sl
+				gui.cancel_animations(sl.knob, "scale") -- (the stale drag above may have just set it settling back)
 				gui.animate(sl.knob, "scale", vmath.vector3(1.15, 1.15, 1), gui.EASING_OUTBACK, 0.15)
 				break
 			end
 		end
-		if not drag then return false end
 	end
+	local drag = e.dragging
 	if not drag then return false end
 	local lx = e.ui:logical(action)
 	local v = (lx - (drag.ax - drag.w / 2)) / drag.w
 	slider_set(drag, v)
 	if drag.on_change then drag.on_change(drag.value) end
-	if action.released then
-		e.dragging = nil
-		gui.animate(drag.knob, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTQUAD, 0.12)
-		if drag.on_commit then drag.on_commit(drag.value) end
-	end
+	if action.released then slider_release(e, drag) end
 	return true
 end
 
@@ -322,12 +367,13 @@ function M.glow(e, parent, x, y, size, color, alpha)
 	return g
 end
 
--- A gentle squash-and-bounce loop (a chest or a gift waiting for a tap).
+-- A gentle squash-and-bounce loop (a chest or a gift waiting for a tap): one squash and release per `period`
+-- seconds (a PINGPONG animation's duration is the whole cycle).
 function M.wiggle(node, amount, period)
 	if M.reduced() then return end
 	local s = gui.get_scale(node)
 	gui.animate(node, "scale", vmath.vector3(s.x * (1 + (amount or 0.06)), s.y * (1 - (amount or 0.06) * 0.6), 1),
-		gui.EASING_INOUTSINE, (period or 0.9) / 2, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+		gui.EASING_INOUTSINE, period or 0.9, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
 end
 
 -- A node pops in from nothing (under reduced motion: at once).

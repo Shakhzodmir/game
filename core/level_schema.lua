@@ -66,7 +66,8 @@ local function ser_scalar(v, out)
 	if t == "string" then
 		out[#out + 1] = '"' .. string.gsub(v, '[\\"]', function(c) return "\\" .. c end) .. '"'
 	elseif t == "number" then
-		out[#out + 1] = string.format("%.0f", v)
+		-- minus zero prints as "-0" under %.0f; the text reader already folds it
+		out[#out + 1] = v == 0 and "0" or string.format("%.0f", v)
 	elseif t == "boolean" then
 		out[#out + 1] = v and "true" or "false"
 	else
@@ -303,7 +304,10 @@ function LS.check(raw, errs)
 			e("spawn_weights: object required")
 		elseif is_array(raw.colors) then
 			local want = {}
-			for k = 1, #raw.colors do want[raw.colors[k]] = true end
+			for k = 1, #raw.colors do
+				-- only strings can name a colour (a NaN or table entry is reported by the colors check)
+				if type(raw.colors[k]) == "string" then want[raw.colors[k]] = true end
+			end
 			local keys = sorted_string_keys(w)
 			for k = 1, #keys do
 				local c = keys[k]

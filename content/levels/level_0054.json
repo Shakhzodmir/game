@@ -1,0 +1,39 @@
+{
+  "id": 54, "version": 1,
+  "size": [9, 10],
+  "moves": 26,
+  "difficulty": "hard",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "break", "item": "noise", "count": 6},
+    {"type": "break", "item": "concrete", "count": 8}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "####.####",
+    "####.####",
+    "####.####",
+    "####.####",
+    "####.####",
+    "####.####",
+    "####.####"
+  ],
+  "slots": [
+    {"at": [1, 3], "type": "noise"},
+    {"at": [7, 3], "type": "noise"},
+    {"at": [2, 4], "type": "concrete", "hp": 2},
+    {"at": [6, 4], "type": "concrete", "hp": 2},
+    {"at": [0, 5], "type": "noise"},
+    {"at": [8, 5], "type": "noise"},
+    {"at": [2, 6], "type": "noise"},
+    {"at": [6, 6], "type": "noise"},
+    {"at": [1, 7], "type": "concrete", "hp": 1},
+    {"at": [7, 7], "type": "concrete", "hp": 1},
+    {"at": [0, 9], "type": "concrete", "hp": 1},
+    {"at": [3, 9], "type": "concrete", "hp": 1},
+    {"at": [5, 9], "type": "concrete", "hp": 1},
+    {"at": [8, 9], "type": "concrete", "hp": 1}
+  ]
+}

@@ -149,6 +149,26 @@ local function watchdog(self, dt)
 	end
 end
 
+-- analytics sessions ----------------------------------------------------------------------------
+-- A session is a foreground period: it ends when the app goes to the background (or exits) and a new
+-- one starts when it comes back (app.init logged the first session_start).
+
+local function end_session(self)
+	local s = self.session
+	if not s or not s.open then return end
+	s.open = false
+	pcall(analytics.log, "session_end", { seconds = math.max(0, math.floor(app.now() - s.t0)) })
+end
+
+local function start_session(self)
+	local s = self.session
+	if not s or s.open then return end
+	s.open, s.t0 = true, app.now()
+	pcall(analytics.log, "session_start", {
+		first = false, source = "resume", language = i18n.language(), version = app.VERSION, platform = platform.system(),
+	})
+end
+
 -- QA bridge commands ------------------------------------------------------------------------
 
 local function qa_handlers(self)
@@ -270,7 +290,8 @@ function init(self)
 	msg.post("/screens", "acquire_input_focus")
 
 	local debug = platform.is_debug()
-	analytics.init({ strict = debug, echo = false, clock = platform.now })
+	-- a debug build prints every event (client/services/analytics.lua); a real SDK replaces this with a sink
+	analytics.init({ strict = debug, echo = debug, clock = platform.now })
 	local backend = save_io.defold_backend()
 	if debug then
 		-- QA can make the writes fail (save_fail 1) to check the retry
@@ -299,6 +320,7 @@ function init(self)
 	self.busy = false
 	self.current = nil
 	self.tick = 0
+	self.session = { open = true, t0 = app.now() }
 
 	local run_js = html5 and html5.run or nil
 	qa_bridge.init({
@@ -319,8 +341,10 @@ function init(self)
 	hooks.on_window(function(event)
 		if event == "focus_lost" or event == "iconified" then
 			app.commit("background", true)
+			end_session(self)
 			bus.publish("app_focus", { focused = false, event = event })
 		elseif event == "focus_gained" or event == "deiconified" then
+			start_session(self)
 			bus.publish("app_focus", { focused = true, event = event })
 		end
 	end)
@@ -331,6 +355,7 @@ function init(self)
 end
 
 function final(self)
+	end_session(self)
 	app.commit("exit", true)
 end
 

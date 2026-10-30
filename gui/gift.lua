@@ -66,6 +66,8 @@ function M.build(e)
 	local s = e.ui
 	local st = e.state
 	st.phase = st.phase or "closed"
+	-- rebuilt while the gift wobbled (a language change): its callback went with the nodes, open it now
+	if st.phase == "opening" then st.phase = "open" end
 	local g = views.gift(e.params.id, config)
 	local opened = st.phase == "open" or st.phase == "done"
 

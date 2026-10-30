@@ -9,7 +9,9 @@ local app = require("client.app")
 local i18n = require("client.i18n")
 local views = require("client.views")
 local ui = require("client.ui")
+local analytics = require("client.services.analytics")
 local kit = require("gui.kit")
+local config = require("meta.config")
 
 local M = {}
 
@@ -42,6 +44,7 @@ local function refill(e)
 	local ok = app.meta:refill_lives(app.now())
 	app.commit("refill_lives")
 	if not ok then return end
+	analytics.log("lives_refill", { price = o.price })
 	e.busy = true -- no rebuild while the hearts fill
 	kit.sfx("unlock")
 	if e.bit then e.bit:cheer(2, 2) end
@@ -49,7 +52,7 @@ local function refill(e)
 	for i = before + 1, #hearts do
 		local node = hearts[i]
 		local delay = (i - before - 1) * 0.12
-		e.fx:after(delay, function()
+		e:later(delay, function()
 			gui.set_color(node, vmath.vector4(1, 1, 1, 1))
 			e.fx:pop(node, 0.4, 0.3)
 			local x, y = kit.abs(e.hearts_x[i], e.hearts_y)
@@ -119,7 +122,8 @@ function M.build(e)
 		end
 		if v.state == "empty" and o.affordable and not kit.reduced() then ui.pulse(b.node, 0.04, 0.7) end
 	else
-		kit.caption(e, body, i18n.t("lives.full"), 0, ry, { size = 28, color = "green" })
+		-- full lives: the status line above already says so; tell the rule instead
+		kit.caption(e, body, i18n.t("lives.rule", { n = views.regen_minutes(config) }), 0, ry, { size = 26, width = W - 100 })
 	end
 
 	-- first levels are free

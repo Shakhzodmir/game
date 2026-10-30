@@ -1,0 +1,38 @@
+{
+  "id": 71, "version": 1,
+  "size": [9, 10],
+  "moves": 24,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "collect", "color": "red", "count": 42},
+    {"type": "collect", "color": "yellow", "count": 42},
+    {"type": "collect", "color": "blue", "count": 42}
+  ],
+  "cells": [
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "..#####..",
+    "...###...",
+    "...###...",
+    "...###...",
+    "...###..."
+  ],
+  "slots": [
+    {"at": [8, 2], "type": "piece", "color": "yellow"},
+    {"at": [0, 3], "type": "piece", "color": "red"},
+    {"at": [1, 3], "type": "piece", "color": "red"},
+    {"at": [2, 3], "type": "piece", "color": "orange"},
+    {"at": [8, 3], "type": "piece", "color": "yellow"},
+    {"at": [2, 4], "type": "piece", "color": "red"},
+    {"at": [7, 4], "type": "piece", "color": "yellow"},
+    {"at": [8, 4], "type": "piece", "color": "orange"},
+    {"at": [3, 7], "type": "piece", "color": "blue"},
+    {"at": [4, 7], "type": "piece", "color": "blue"},
+    {"at": [5, 7], "type": "piece", "color": "orange"},
+    {"at": [5, 8], "type": "piece", "color": "blue"}
+  ]
+}

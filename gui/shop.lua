@@ -11,6 +11,7 @@ local views = require("client.views")
 local ui = require("client.ui")
 local iap = require("client.services.iap")
 local ads = require("client.services.ads")
+local analytics = require("client.services.analytics")
 local kit = require("gui.kit")
 
 local M = {}
@@ -18,8 +19,6 @@ local M = {}
 M.rebuild_on_meta = true
 
 local W, H = 680, 1150
-
-local gift_at = nil -- app time of the last shop gift (this session)
 
 local function coins_fly(e, n, x, y)
 	if not e.pill then return end
@@ -34,6 +33,8 @@ local function coins_fly(e, n, x, y)
 		e.fx:fly({ image = "ui/icons/coin", size = 60, from = { x + (i - 1) * 6, y }, to = { px, py },
 			delay = (i - 1) * 0.07, arc = 120 + i * 12, trail = "#FFE066",
 			on_land = function()
+				-- the flight outlives the window when it is closed meanwhile: the pill is gone with it
+				if e.closing then return end
 				shown = math.floor(from + step * i + 0.5)
 				if i == flyers then shown = target end
 				e.shown_coins = shown
@@ -67,9 +68,11 @@ local function buy_pack(e, b, x, y, node)
 		return
 	end
 	app.commit("booster_pack")
+	analytics.log("booster_buy", { id = b.id, count = res.count, price = res.price })
 	kit.sfx("booster")
-	e.fx:burst(kit.abs(x, y), { count = 12, radius = 120 })
-	e.fx:float_text(i18n.t("shop.pack_got", { n = res.count, name = i18n.t("booster." .. b.id) }), kit.abs(x, y + 60),
+	local ax, ay = kit.abs(x, y)
+	e.fx:burst(ax, ay, { count = 12, radius = 120 })
+	e.fx:float_text(i18n.t("shop.pack_got", { n = res.count, name = i18n.t("booster." .. b.id) }), ax, ay + 60,
 		{ size = 34, outline = "#8B45FF" })
 	e.fx:pop(node, 0.18, 0.3)
 	-- the spent coins leave the pill
@@ -89,8 +92,10 @@ local function refill(e, x, y, node)
 		return
 	end
 	app.commit("refill_lives")
+	analytics.log("lives_refill", { price = require("meta.config").lives.refill_price })
 	kit.sfx("unlock")
-	e.fx:burst(kit.abs(x, y), { count = 12, radius = 120, colors = { "#FFFFFF", "#FFB3C7", "#FF4D8D" } })
+	local ax, ay = kit.abs(x, y)
+	e.fx:burst(ax, ay, { count = 12, radius = 120, colors = { "#FFFFFF", "#FFB3C7", "#FF4D8D" } })
 	app.toast_key("lives.refilled", nil, { color = "green" })
 end
 
@@ -111,8 +116,9 @@ local function buy_product(e, p, x, y, node)
 		end
 		kit.sfx("win")
 		app.toast_key("shop.bought", nil, { color = "gold" })
-		e.fx:burst(kit.abs(x, y), { count = 16, radius = 150 })
-		coins_fly(e, app.meta:coins() - before, kit.abs(x, y))
+		local ax, ay = kit.abs(x, y)
+		e.fx:burst(ax, ay, { count = 16, radius = 150 })
+		coins_fly(e, app.meta:coins() - before, ax, ay)
 	end)
 end
 
@@ -123,15 +129,15 @@ local function gift(e, x, y, node)
 		app.toast_key("shop.gift_unavailable", nil, { color = "blue" })
 		return
 	end
-	local now = app.now()
-	if gift_at and now - gift_at < ads.GIFT_COOLDOWN then
+	local wait = ads.cooldown_left("shop_gift", app.now())
+	if wait > 0 then
 		kit.sfx("swap_fail")
-		app.toast_key("shop.gift_wait", { time = i18n.duration(ads.GIFT_COOLDOWN - (now - gift_at)) }, { color = "blue" })
+		app.toast_key("shop.gift_wait", { time = i18n.duration(wait) }, { color = "blue" })
 		return
 	end
 	ads.show_rewarded("shop_gift", function(ok)
 		if not ok then return end
-		gift_at = app.now()
+		ads.mark_rewarded("shop_gift", app.now())
 		local r = ads.REWARDS.shop_gift
 		local before = app.meta:coins()
 		e.shown_coins = before
@@ -145,51 +151,53 @@ end
 
 -- boosters tab ------------------------------------------------------------------------------
 
+local CARD_W, CARD_H, CARD_STEP = 300, 214, 226
+
+-- One pack: the name on top (two lines when it is long), the picture, "x3" and the stock, the
+-- price button (or what unlocks it).
 local function booster_card(e, body, b, x, y, focus)
 	local s = e.ui
-	local cw, ch = 300, 196
 	local hl = focus == b.id
-	local card = s:round(body, x, y, cw, ch, hl and "gold" or "#E3D9FF", { radius = 30 })
-	local inner = s:round(card, 0, 0, cw - 10, ch - 10, b.unlocked and "white" or "#F6F3FB", { radius = 26 })
-	local icon = kit.booster_icon(e, inner, b.id, -84, 22, 104)
-	s:text(inner, i18n.t("booster." .. b.id), 40, 60, {
-		font = "button", size = 22, color = b.unlocked and "text" or "text_soft", max_width = 170,
+	local card = s:round(body, x, y, CARD_W, CARD_H, hl and "gold" or "#E3D9FF", { radius = 30 })
+	local inner = s:round(card, 0, 0, CARD_W - 10, CARD_H - 10, b.unlocked and "white" or "#F6F3FB", { radius = 26 })
+	kit.label(e, inner, i18n.t("booster." .. b.id), 0, 74, {
+		font = "button", size = 22, color = b.unlocked and "text" or "text_soft", max_width = CARD_W - 40, lines = 2,
 	})
-	s:text(inner, "×" .. b.size, 40, 18, { font = "number", size = 40, color = "purple", max_width = 160 })
+	local icon = kit.booster_icon(e, inner, b.id, -86, 10, 96)
+	s:text(inner, "×" .. b.size, 44, 26, { font = "number", size = 44, color = "purple", max_width = 130 })
 	if not b.unlocked then
 		gui.set_color(icon, vmath.vector4(0.75, 0.72, 0.85, 0.45))
-		kit.lock(e, inner, -84, 20, 56)
-		kit.badge(e, inner, 0, -58, i18n.t("start.locked", { n = b.unlock_level }), "text_soft", { w = 260, h = 50, size = 20 })
+		kit.lock(e, inner, -86, 10, 56)
+		kit.badge(e, inner, 0, -62, i18n.t("start.locked", { n = b.unlock_level }), "text_soft", { w = 258, h = 50, size = 20 })
 		return card
 	end
-	s:text(inner, i18n.t("shop.owned", { n = b.count }), 40, -18, { font = "small", size = 20, color = "text_soft", max_width = 170 })
-	local btn = kit.price_button(e, { parent = inner, x = 0, y = -58, w = 250, h = 88, price = b.price, sfx = false,
+	s:text(inner, i18n.t("shop.owned", { n = b.count }), 44, -12, { font = "small", size = 21, color = "text_soft", max_width = 150 })
+	local btn = kit.price_button(e, { parent = inner, x = 0, y = -62, w = 252, h = 74, price = b.price, sfx = false,
 		on_click = function() buy_pack(e, b, x, y, card) end })
 	if not b.affordable then gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.7)) end
-	e:target("pack_" .. b.id, x, y - 58)
+	e:target("pack_" .. b.id, x, y - 62)
 	if hl and e.first then
-		e.fx:after(0.3, function() if not e.closing then e.fx:pop(card, 0.12, 0.35) end end)
+		e:later(0.3, function() e.fx:pop(card, 0.12, 0.35) end)
 	end
 	return card
 end
 
 local function refill_card(e, body, x, y)
 	local s = e.ui
-	local cw, ch = 300, 196
 	local o = views.refill(app.meta, app.now())
-	local card = s:round(body, x, y, cw, ch, "#FFC2D6", { radius = 30 })
-	local inner = s:round(card, 0, 0, cw - 10, ch - 10, "white", { radius = 26 })
-	kit.icon(e, inner, "ui/icons/heart", -84, 22, 100, "pink")
-	s:text(inner, i18n.t("shop.refill"), 40, 50, { font = "button", size = 22, color = "text", max_width = 170, width = 170 })
+	local card = s:round(body, x, y, CARD_W, CARD_H, "#FFC2D6", { radius = 30 })
+	local inner = s:round(card, 0, 0, CARD_W - 10, CARD_H - 10, "white", { radius = 26 })
+	kit.label(e, inner, i18n.t("shop.refill"), 0, 74, { font = "button", size = 22, color = "text", max_width = CARD_W - 40, lines = 2 })
+	kit.icon(e, inner, "ui/icons/heart", -86, 10, 92, "pink")
 	local l = app.meta:lives(app.now())
-	s:text(inner, l.count .. "/" .. l.max, 40, 4, { font = "number", size = 34, color = "pink" })
+	s:text(inner, l.count .. "/" .. l.max, 44, 14, { font = "number", size = 44, color = "pink", max_width = 130 })
 	if o.available then
-		kit.price_button(e, { parent = inner, x = 0, y = -58, w = 250, h = 88, price = o.price, sfx = false,
+		kit.price_button(e, { parent = inner, x = 0, y = -62, w = 252, h = 74, price = o.price, sfx = false,
 			on_click = function() refill(e, x, y, card) end })
-		e:target("refill", x, y - 58)
+		e:target("refill", x, y - 62)
 	else
-		kit.badge(e, inner, 0, -58, i18n.t(o.reason == "infinite_active" and "shop.infinite_on" or "shop.lives_full"), "green",
-			{ w = 250, h = 60, size = 22 })
+		kit.badge(e, inner, 0, -62, i18n.t(o.reason == "infinite_active" and "shop.infinite_on" or "shop.lives_full"), "green",
+			{ w = 258, h = 60, size = 22 })
 	end
 end
 
@@ -200,10 +208,10 @@ local function build_boosters(e, body, top)
 	for _, b in ipairs(list) do
 		local col = i % 2
 		local row = math.floor(i / 2)
-		booster_card(e, body, b, col == 0 and -160 or 160, top - 110 - row * 212, focus)
+		booster_card(e, body, b, col == 0 and -160 or 160, top - 116 - row * CARD_STEP, focus)
 		i = i + 1
 	end
-	refill_card(e, body, i % 2 == 0 and -160 or 160, top - 110 - math.floor(i / 2) * 212)
+	refill_card(e, body, i % 2 == 0 and -160 or 160, top - 116 - math.floor(i / 2) * CARD_STEP)
 end
 
 -- coins tab -------------------------------------------------------------------------------------
@@ -250,7 +258,12 @@ local function product_row(e, body, p, y)
 	end
 	local btn = s:button({ parent = inner, x = 196, y = 0, w = 176, h = 92, style = p.available and "gold" or "white",
 		text = p.price, text_size = 32, sfx = false, on_click = function() buy_product(e, p, 196, y, row) end })
-	if not p.available then gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.75)) end
+	if not p.available then
+		-- honest: the store is not there (web demo); the price stays readable, the lock says why it is dim
+		gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.8))
+		if btn.label then gui.set_position(btn.label, vmath.vector3(18, 6, 0)) end
+		kit.lock(e, btn.node, -52, 4, 38)
+	end
 	e:target("product_" .. p.id, 196, y)
 	return row
 end
@@ -259,6 +272,11 @@ local function gift_row(e, body, y)
 	local s = e.ui
 	local rw, rh = 600, 132
 	local avail = ads.can_show("shop_gift")
+	-- the offer is on screen: logged once per visit of the window (e.state outlives a rebuild)
+	if not e.state.ad_offer_logged then
+		e.state.ad_offer_logged = true
+		ads.offer_shown("shop_gift")
+	end
 	local row = s:round(body, 0, y, rw, rh, "#BDF5CF", { radius = 30 })
 	local inner = s:round(row, 0, 0, rw - 10, rh - 10, "white", { radius = 26 })
 	local g = kit.icon(e, inner, "ui/icons/gift", -236, 4, 100, "green")
@@ -267,10 +285,19 @@ local function gift_row(e, body, y)
 	local r = ads.REWARDS.shop_gift or {}
 	kit.icon(e, inner, "ui/icons/coin", -154, -18, 34, "coin")
 	s:text(inner, "+" .. i18n.number(r.coins or 0), -132, -17, { font = "number", size = 26, color = "gold", pivot = gui.PIVOT_W })
-	local btn = s:button({ parent = inner, x = 196, y = 0, w = 176, h = 92, style = avail and "green" or "white",
-		icon = "ui/icons/play", icon_size = 44, text = i18n.t(avail and "shop.gift_desc" or "common.soon"), text_size = 22,
-		sfx = false, on_click = function() gift(e, 196, y, row) end })
-	if not avail then gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.75)) end
+	local btn
+	if avail then
+		btn = s:button({ parent = inner, x = 196, y = 0, w = 176, h = 92, style = "green", sfx = false,
+			on_click = function() gift(e, 196, y, row) end })
+		-- the words wrap onto a second line before they shrink ("Watch a video" / "Посмотри видео")
+		local edge = ui.STYLES.green[4]
+		kit.label(e, btn.node, i18n.t("shop.gift_desc"), 0, 6, { font = "button", size = 26, color = "white",
+			outline = edge, shadow = edge, max_width = 152 })
+	else
+		btn = s:button({ parent = inner, x = 196, y = 0, w = 176, h = 92, style = "white", text = i18n.t("nav.soon"), text_size = 30,
+			sfx = false, on_click = function() gift(e, 196, y, row) end })
+		gui.set_color(btn.node, vmath.vector4(1, 1, 1, 0.8))
+	end
 	e:target("gift", 196, y)
 end
 
@@ -278,15 +305,17 @@ local function build_coins(e, body, top)
 	local s = e.ui
 	local avail = iap.available()
 	local list = views.shop_products(iap.PRODUCTS, avail)
-	local y = top - 86
+	-- the honest note comes first: no store in the web demo (a debug build grants test purchases)
+	local note = s:round(body, 0, top - 34, W - 80, 56, avail and "#EFE3FF" or "#FFE9F1", { radius = 26 })
+	s:text(note, avail and i18n.t("shop.debug_grant") or i18n.t("shop.demo"), 0, 1, {
+		font = "small", size = 22, color = avail and "purple" or "pink", max_width = W - 120,
+	})
+	local y = top - 134
 	for _, p in ipairs(list) do
 		product_row(e, body, p, y)
 		y = y - 146
 	end
 	gift_row(e, body, y)
-	y = y - 104
-	local note = avail and i18n.t("shop.debug_grant") or i18n.t("shop.demo")
-	s:text(body, note, 0, y, { font = "small", size = 22, color = avail and "purple" or "text_soft", max_width = W - 80 })
 end
 
 function M.build(e)

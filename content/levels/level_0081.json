@@ -1,0 +1,29 @@
+{
+  "id": 81, "version": 1,
+  "size": [9, 8],
+  "moves": 23,
+  "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 3},
+    {"type": "collect", "color": "green", "count": 30}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "..#######",
+    "....#####",
+    "......###"
+  ],
+  "slots": [
+    {"at": [0, 3], "type": "mic"},
+    {"at": [0, 4], "type": "piece", "color": "green"},
+    {"at": [1, 4], "type": "piece", "color": "green"},
+    {"at": [2, 4], "type": "piece", "color": "purple"},
+    {"at": [2, 5], "type": "piece", "color": "green"}
+  ],
+  "mic": {"total": 3, "on_board_max": 3, "gap_moves": 3}
+}

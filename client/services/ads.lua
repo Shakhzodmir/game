@@ -18,16 +18,29 @@ M.PLACEMENTS = { continue = true, shop_gift = true }
 M.REWARDS = { shop_gift = { coins = 100 } }
 M.GIFT_COOLDOWN = 60
 
-local state = { debug = false }
+local state = { debug = false, rewarded = {} } -- rewarded: placement -> app time of its last reward
 
 function M.init(opts)
 	opts = opts or {}
 	state.debug = opts.debug and true or false
+	state.rewarded = {} -- a new session: every cooldown starts fresh
 end
 
 -- Pure check, safe to call every frame.
 function M.can_show(placement)
 	return state.debug and M.PLACEMENTS[placement] == true
+end
+
+-- The shop gift can be taken once per M.GIFT_COOLDOWN seconds of the session: mark_rewarded(placement, now)
+-- when it paid, cooldown_left(placement, now) = seconds until it pays again (0: now).
+function M.mark_rewarded(placement, now)
+	state.rewarded[placement] = now
+end
+
+function M.cooldown_left(placement, now)
+	local at = state.rewarded[placement]
+	if placement ~= "shop_gift" or not at then return 0 end
+	return math.max(0, M.GIFT_COOLDOWN - (now - at))
 end
 
 -- Call once when the offer is actually shown to the player (analytics).

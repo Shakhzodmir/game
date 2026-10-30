@@ -1,0 +1,46 @@
+{
+  "id": 85, "version": 1,
+  "size": [9, 11],
+  "moves": 25,
+  "difficulty": "medium",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "balloon", "count": 10},
+    {"type": "collect", "color": "green", "count": 45}
+  ],
+  "cells": [
+    "...###...",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####..",
+    "...###...",
+    "...###...",
+    "..#####..",
+    "..#####.."
+  ],
+  "spawners": [[3, 0], [4, 0], [5, 0], [1, 1], [2, 1], [6, 1], [7, 1], [0, 2], [8, 2], [2, 9], [6, 9]],
+  "slots": [
+    {"at": [5, 1], "type": "piece", "color": "blue"},
+    {"at": [2, 2], "type": "balloon", "color": "purple"},
+    {"at": [4, 2], "type": "balloon", "color": "blue"},
+    {"at": [5, 2], "type": "piece", "color": "yellow"},
+    {"at": [6, 2], "type": "balloon", "color": "purple"},
+    {"at": [1, 3], "type": "balloon", "color": "blue"},
+    {"at": [2, 3], "type": "piece", "color": "purple"},
+    {"at": [3, 3], "type": "piece", "color": "yellow"},
+    {"at": [4, 3], "type": "piece", "color": "purple"},
+    {"at": [5, 3], "type": "piece", "color": "blue"},
+    {"at": [7, 3], "type": "balloon", "color": "purple"},
+    {"at": [2, 4], "type": "balloon", "color": "blue"},
+    {"at": [3, 4], "type": "piece", "color": "purple"},
+    {"at": [4, 4], "type": "balloon", "color": "purple"},
+    {"at": [5, 4], "type": "piece", "color": "blue"},
+    {"at": [6, 4], "type": "balloon", "color": "blue"},
+    {"at": [3, 5], "type": "balloon", "color": "purple"},
+    {"at": [5, 5], "type": "balloon", "color": "blue"}
+  ],
+  "spawn_weights": {"red": 4, "yellow": 4, "green": 3, "blue": 4, "purple": 4}
+}

@@ -15,16 +15,29 @@ local M = {}
 
 local W, H = 640, 1100
 
+-- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
+-- offers that has no label yet (a new language needs its strings first) is left out.
+local INPUT_LABELS = { swipe = "settings.input_swipe", taptap = "settings.input_taptap" }
+local LANGUAGE_LABELS = { auto = "settings.lang_auto", en = "settings.lang_en", ru = "settings.lang_ru" }
+
+local function options(ids, labels)
+	local out = {}
+	for _, id in ipairs(ids) do
+		if labels[id] then out[#out + 1] = { id = id, text = i18n.t(labels[id]) } end
+	end
+	return out
+end
+
 local function row_label(e, body, icon, text, y)
 	local s = e.ui
 	kit.icon(e, body, icon, -W / 2 + 76, y, 60, "lavender")
 	s:text(body, text, -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 230 })
 end
 
-local function volume_row(e, body, key, icon_on, icon_off, y, value)
+local function volume_row(e, body, key, text_key, icon_on, icon_off, y, value)
 	local s = e.ui
 	local icon = kit.icon(e, body, value > 0 and icon_on or icon_off, -W / 2 + 76, y, 60, "lavender")
-	s:text(body, i18n.t("settings." .. key), -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 150 })
+	s:text(body, i18n.t(text_key), -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 150 })
 	local sx, sw = 128, 300
 	kit.slider(e, body, sx, y, sw, value, function(v)
 		local st = views.settings(app.meta)
@@ -60,8 +73,8 @@ function M.build(e)
 	local body, hh = kit.panel(e, W, H, { title = { key = "settings.title" } })
 	local y = hh - 110
 	kit.section(e, body, i18n.t("settings.sound"), 0, y, W - 80)
-	volume_row(e, body, "music", "ui/icons/music_on", "ui/icons/music_off", y - 86, v.music)
-	volume_row(e, body, "sfx", "ui/icons/sound_on", "ui/icons/sound_off", y - 186, v.sfx)
+	volume_row(e, body, "music", "settings.music", "ui/icons/music_on", "ui/icons/music_off", y - 86, v.music)
+	volume_row(e, body, "sfx", "settings.sfx", "ui/icons/sound_on", "ui/icons/sound_off", y - 186, v.sfx)
 
 	y = y - 270
 	kit.section(e, body, i18n.t("settings.game"), 0, y, W - 80)
@@ -80,10 +93,7 @@ function M.build(e)
 	-- controls
 	y = y - 270
 	s:text(body, i18n.t("settings.input_mode"), -W / 2 + 46, y + 4, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 186 })
-	kit.segmented(e, body, 110, y, 380, {
-		{ id = "swipe", text = i18n.t("settings.input_swipe") },
-		{ id = "taptap", text = i18n.t("settings.input_taptap") },
-	}, v.input_mode, function(id)
+	kit.segmented(e, body, 110, y, 380, options(v.input_modes, INPUT_LABELS), v.input_mode, function(id)
 		app.set_setting("input_mode", id)
 		e:rebuild()
 	end, { h = 84, text_size = 26, targets = "input" })
@@ -91,11 +101,7 @@ function M.build(e)
 	-- language
 	y = y - 130
 	s:text(body, i18n.t("settings.language"), 0, y + 4, { font = "button", size = 28, color = "text", max_width = 400 })
-	kit.segmented(e, body, 0, y - 84, W - 70, {
-		{ id = "auto", text = i18n.t("settings.lang_auto") },
-		{ id = "en", text = i18n.t("settings.lang_en") },
-		{ id = "ru", text = i18n.t("settings.lang_ru") },
-	}, v.language, function(id)
+	kit.segmented(e, body, 0, y - 84, W - 70, options(v.languages, LANGUAGE_LABELS), v.language, function(id)
 		app.set_setting("language", id) -- the host rebuilds every window on language_changed
 		e:rebuild()
 	end, { h = 84, text_size = 26, targets = "lang" })

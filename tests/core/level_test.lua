@@ -197,6 +197,23 @@ describe("core level: validation (2.1)", function()
 		assert_true(core.load_level(H.level(FULL, { slots = { { at = { 2, 1 }, type = "concrete", hp = 1 } } })) ~= nil)
 	end)
 
+	it("2.1.7: board B1 has no wires: a wired cell is an ordinary donor there", function()
+		-- Column 7 below the void (7,4) has no spawner: (7,5) is filled only by a
+		-- diagonal move from (6,4). In B1 ("only voids remain") (6,4) is an
+		-- ordinary piece, so the level is fillable; wires there must not block it.
+		local cells = {}
+		for y = 1, 11 do cells[y] = y == 5 and "#######." or "########" end
+		local lvl = {
+			id = 1, version = 1, size = { 8, 11 }, moves = 20, difficulty = "easy",
+			colors = { "red", "green", "blue", "yellow" },
+			goals = { { type = "collect", color = "red", count = 5 } },
+			cells = cells,
+			overlay = { { at = { 6, 4 }, type = "wires", hp = 1 }, { at = { 7, 5 }, type = "wires", hp = 1 } },
+		}
+		local loaded, errs = core.load_level(lvl)
+		assert_true(loaded ~= nil, errs and table.concat(errs, " | "))
+	end)
+
 	it("2.1.8: mics only with deliver, exits cover segment bottoms", function()
 		expect(H.level(FULL, { slots = { { at = { 1, 1 }, type = "mic" } } }), "2.1.8 mic pieces without a deliver goal")
 		local deliver = { goals = { { type = "deliver", count = 2 } }, mic = { total = 2, on_board_max = 1, gap_moves = 2 } }
@@ -218,6 +235,13 @@ describe("core level: validation (2.1)", function()
 		expect(lvl, "2.1.8 exit is also a spawner at 1,5")
 	end)
 
+	it("2.1.8: the default exits start at cell 1: a one-cell segment under it is a spawner and an exit", function()
+		local rows = { "######", ".#####", "######", "######", "######", "######" }
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		expect(H.level(rows, deliver), "2.1.8 exit is also a spawner at 0,0")
+		assert_true(core.load_level(H.level(rows)) ~= nil, "without a deliver goal there are no exits")
+	end)
+
 	it("2.1.9: starting pieces form no match", function()
 		expect(H.level({ "rrr###", "######", "######", "######", "######", "######" }), "2.1.9")
 		expect(H.level({ "bb####", "bb####", "######", "######", "######", "######" }), "2.1.9")
@@ -227,8 +251,503 @@ describe("core level: validation (2.1)", function()
 		expect(H.level({ "##KKKK", "KKKKKK", "KKKKKK", "KKKKKK", "KKKKKK", "KKKKKK" }), "2.1.10 start board for seed 1")
 	end)
 
+	it("prints large coordinates in full, not in exponent form (0.7 rule 6)", function()
+		local errs = errors_of(H.level(FULL, { floor = { { at = { 123456789012345, -7 }, hp = 1 } } }))
+		assert_true(has_error(errs, "2.1.2 floor is not on an existing cell at 123456789012345,-7"), table.concat(errs, " | "))
+	end)
+
 	it("reports errors with zero-based JSON coordinates", function()
 		local errs = errors_of(H.level(FULL, { overlay = { { at = { 4, 3 }, type = "wires", hp = 1 } }, slots = { { at = { 4, 3 }, type = "mic" } } }))
 		assert_true(has_error(errs, "2.1.3 wires over a cell without a regular piece at 4,3"), table.concat(errs, " | "))
+	end)
+end)
+
+-- The canonical form (2.2) and the level hash (17.1), against an independent
+-- implementation (Python: sorted keys, no spaces, null keys dropped, folded
+-- over the bytes with the integer fold of 17.2).
+describe("core level: canonical form and hash (2.2, 17.1)", function()
+	local LS = require("core.level_schema")
+
+	local RICH = [==[
+	{ "version": 3, "id": 42, "moves": 28, "difficulty": "hard",
+	  "size": [7, 8], "colors": ["purple", "red", "blue", "yellow", "orange"],
+	  "goals": [ {"count": 30, "type": "collect", "color": "red"},
+	             {"type": "break", "item": "record_box", "count": 2}, {"type": "light"} ],
+	  "cells": ["#######", "#######", "###.###", "#######", "#######", "#######", "#######", "#######"],
+	  "spawners": [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0]], "exits": null,
+	  "floor": [{"at": [3, 4], "hp": 2}, {"hp": 1, "at": [0, 7]}],
+	  "overlay": [{"at": [2, 6], "type": "wires", "hp": 1}],
+	  "slots": [{"at": [4, 4], "type": "record_box", "hp": 3}, {"at": [1, 1], "type": "record_box", "hp": 1},
+	            {"at": [4, 0], "type": "riff", "axis": "h"}, {"at": [5, 1], "type": "piece", "color": "blue"},
+	            {"at": [0, 6], "type": "disco"}, {"at": [6, 6], "type": "bird"}, {"at": [3, 6], "type": "sub"}],
+	  "mic": null,
+	  "spawn_weights": {"purple": 3, "red": 1, "blue": 1000, "yellow": 2, "orange": 7} }
+	]==]
+	local RICH_CANON = '{"cells":["#######","#######","###.###","#######","#######","#######","#######","#######"],'
+		.. '"colors":["purple","red","blue","yellow","orange"],"difficulty":"hard",'
+		.. '"floor":[{"at":[3,4],"hp":2},{"at":[0,7],"hp":1}],'
+		.. '"goals":[{"color":"red","count":30,"type":"collect"},{"count":2,"item":"record_box","type":"break"},{"type":"light"}],'
+		.. '"id":42,"moves":28,"overlay":[{"at":[2,6],"hp":1,"type":"wires"}],"size":[7,8],'
+		.. '"slots":[{"at":[4,4],"hp":3,"type":"record_box"},{"at":[1,1],"hp":1,"type":"record_box"},'
+		.. '{"at":[4,0],"axis":"h","type":"riff"},{"at":[5,1],"color":"blue","type":"piece"},'
+		.. '{"at":[0,6],"type":"disco"},{"at":[6,6],"type":"bird"},{"at":[3,6],"type":"sub"}],'
+		.. '"spawn_weights":{"blue":1000,"orange":7,"purple":3,"red":1,"yellow":2},'
+		.. '"spawners":[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0]],"version":3}'
+
+	local DELIVER = [==[
+	{"id": 9, "version": 1, "size": [6, 6], "moves": 12, "difficulty": "easy", "colors": ["red", "green", "blue", "yellow"],
+	 "goals": [{"type": "deliver", "count": 3}, {"type": "collect", "color": "green", "count": 5}],
+	 "cells": ["######", "######", "######", "######", "######", "######"],
+	 "exits": [[0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5]],
+	 "mic": {"total": 3, "on_board_max": 2, "gap_moves": 0},
+	 "slots": [{"at": [2, 2], "type": "mic"}]}
+	]==]
+	local DELIVER_CANON = '{"cells":["######","######","######","######","######","######"],'
+		.. '"colors":["red","green","blue","yellow"],"difficulty":"easy","exits":[[0,5],[1,5],[2,5],[3,5],[4,5],[5,5]],'
+		.. '"goals":[{"count":3,"type":"deliver"},{"color":"green","count":5,"type":"collect"}],'
+		.. '"id":9,"mic":{"gap_moves":0,"on_board_max":2,"total":3},"moves":12,"size":[6,6],'
+		.. '"slots":[{"at":[2,2],"type":"mic"}],"version":1}'
+
+	it("sorts keys by bytes, drops null keys, adds no defaults, keeps array order (pinned strings)", function()
+		local lvl = assert(core.load_level(RICH))
+		assert_eq(lvl.canonical, RICH_CANON)
+		assert_eq(lvl.hash, 469747379)
+		local d = assert(core.load_level(DELIVER))
+		assert_eq(d.canonical, DELIVER_CANON)
+		assert_eq(d.hash, 484183498)
+	end)
+
+	it("does not depend on key order, spacing or null keys of the source text", function()
+		local a = assert(core.load_level(RICH))
+		local compact = string.gsub(RICH, "%s+", " ")
+		local b = assert(core.load_level(compact))
+		local c = assert(core.load_level(json.decode(RICH)))
+		assert_eq(b.canonical, a.canonical)
+		assert_eq(c.canonical, a.canonical)
+		assert_eq(c.hash, a.hash)
+		-- the same level without the explicit nulls
+		local plain = string.gsub(string.gsub(RICH, ',%s*"exits": null', ""), ',%s*"mic": null', "")
+		assert_eq(assert(core.load_level(plain)).hash, a.hash)
+	end)
+
+	it("a changed value changes the hash; the hash is the 17.2 fold over the canonical bytes", function()
+		local a = assert(core.load_level(RICH))
+		local other = string.gsub(RICH, '"moves": 28', '"moves": 29')
+		local b = assert(core.load_level(other))
+		assert_true(a.hash ~= b.hash)
+		assert_eq(a.hash, HS.fold_bytes(a.canonical))
+	end)
+
+	it("escapes only the quote and the backslash; integers go through %.0f", function()
+		assert_eq(LS.canonical({ s = 'a"b\\c\td', n = 2 ^ 40, big = 1e15, z = 0 }),
+			'{"big":1000000000000000,"n":1099511627776,"s":"a\\"b\\\\c\td","z":0}')
+		assert_eq(LS.canonical({ floor = {}, size = { 6, 7 }, mic = { gap_moves = 0, total = 2 } }),
+			'{"floor":[],"mic":{"gap_moves":0,"total":2},"size":[6,7]}')
+	end)
+
+	it("prints minus zero as 0, so decoded tables and text give one canonical form", function()
+		local zero = 0
+		local nz = -zero
+		assert_eq(LS.canonical({ id = nz, size = { nz, 1 } }), '{"id":0,"size":[0,1]}')
+		local text = string.gsub(VALID_TEXT, '"moves": 20', '"moves": 20, "spawners": [[-0, -0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0]]')
+		local lvl = assert(core.load_level(text))
+		assert_true(string.find(lvl.canonical, '"spawners":[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0]]', 1, true) ~= nil, lvl.canonical)
+	end)
+end)
+
+-- Robustness: a bad level file must come back as errors, never as a Lua error.
+describe("core level: hostile input", function()
+	local function rng_from(seed)
+		local x = seed
+		return function(n)
+			x = (x * 1103515245 + 12345) % 2147483648
+			return math.floor(x / 65536) % n + 1
+		end
+	end
+	local JUNK = { 0, 1, -1, 2, 6, 7, 12, 13, 61, 1000, 1001, 1.5, 1e300, -1e300, 2 ^ 53, 2 ^ 60, 1 / 0, -1 / 0, 0 / 0,
+		"", "x", "top", "bottom", "red", "riff", "wires", true, false, {}, { 1 }, { "a" }, { x = 1 }, { 1, 2 }, { 1, 2, 3 } }
+
+	local function copy(v)
+		if type(v) ~= "table" then return v end
+		local t = {}
+		for k, x in pairs(v) do t[k] = copy(x) end
+		return t
+	end
+
+	local function containers(root)
+		local list = {}
+		local function walk(t)
+			list[#list + 1] = t
+			local keys = {}
+			for k in pairs(t) do keys[#keys + 1] = k end
+			table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+			for _, k in ipairs(keys) do if type(t[k]) == "table" then walk(t[k]) end end
+		end
+		walk(root)
+		return list
+	end
+
+	it("structurally mutated tables never raise: the answer is a level or a list of strings", function()
+		local rnd = rng_from(2026)
+		local base = H.level({ "######", "#r####", "##X###", "######", "####R#", "######" }, {
+			floor = { { at = { 0, 5 }, hp = 1 } }, overlay = { { at = { 3, 3 }, type = "wires", hp = 1 } },
+			goals = { { type = "collect", color = "red", count = 3 }, { type = "break", item = "record_box", count = 1 }, { type = "light" } },
+			spawn_weights = { red = 1, orange = 2, yellow = 3, green = 4, blue = 5, purple = 6 },
+		})
+		assert_true(core.load_level(copy(base)) ~= nil, "the base level must be valid")
+		local rejected = 0
+		for _ = 1, 500 do
+			local lvl = copy(base)
+			for _ = 1, rnd(3) do
+				local nodes = containers(lvl)
+				local t = nodes[rnd(#nodes)]
+				local keys = {}
+				for k in pairs(t) do keys[#keys + 1] = k end
+				table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+				if #keys > 0 then
+					local k = keys[rnd(#keys)]
+					local op = rnd(4)
+					if op == 1 then t[k] = nil
+					elseif op == 2 then t[k] = copy(JUNK[rnd(#JUNK)])
+					elseif op == 3 then t["extra"] = 1
+					else t[k] = copy(t[keys[rnd(#keys)]]) end
+				end
+			end
+			local ok, res, errs = pcall(core.load_level, lvl)
+			assert_true(ok, "raised: " .. tostring(res))
+			if res == nil then
+				rejected = rejected + 1
+				assert_eq(type(errs), "table")
+				assert_true(#errs >= 1)
+				for _, e in ipairs(errs) do
+					assert_eq(type(e), "string")
+					assert_true(string.find(e, "^2%.%d") ~= nil, "an error starts with its rule: " .. e)
+				end
+			else
+				assert_true(res.hash ~= nil and res.canonical ~= nil)
+			end
+		end
+		assert_true(rejected > 100, "the mutations must actually break levels")
+	end)
+
+	it("mutated JSON text never raises either", function()
+		local rnd = rng_from(77)
+		local text = VALID_TEXT
+		local pieces = { "{", "}", "[", "]", ",", ":", '"', "-", "0", "9", ".", "e", "null", "true", " ", "\\" }
+		for _ = 1, 600 do
+			local t = text
+			for _ = 1, rnd(3) do
+				local pos = rnd(#t)
+				local op = rnd(3)
+				if op == 1 then t = string.sub(t, 1, pos - 1) .. string.sub(t, pos + 1)
+				elseif op == 2 then t = string.sub(t, 1, pos - 1) .. pieces[rnd(#pieces)] .. string.sub(t, pos)
+				else t = string.sub(t, 1, pos - 1) .. pieces[rnd(#pieces)] .. string.sub(t, pos + 1) end
+			end
+			local ok, res, errs = pcall(core.load_level, t)
+			assert_true(ok, "raised: " .. tostring(res))
+			if res == nil then
+				assert_eq(type(errs), "table")
+				assert_eq(type(errs[1]), "string")
+			end
+		end
+	end)
+
+	it("things that are not levels are refused with a message", function()
+		for _, v in ipairs({ 5, true, {}, { 1, 2 }, "[]", "5", '"x"', "null", "" }) do
+			local lvl, errs = core.load_level(v)
+			assert_eq(lvl, nil, tostring(v))
+			assert_eq(type(errs[1]), "string")
+		end
+		local lvl, errs = core.load_level(nil)
+		assert_eq(lvl, nil)
+		assert_true(string.find(errs[1], "2.2", 1, true) ~= nil)
+	end)
+end)
+
+-- Every range of 2.0 is inclusive at both ends, and each goal, list entry and row is checked (audit A).
+describe("core level: ranges and entries of the schema", function()
+	local function rect(W, Hh)
+		local rows = {}
+		for y = 1, Hh do rows[y] = string.rep("#", W) end
+		return rows
+	end
+	local function loads(rows, extra)
+		return core.load_level(H.level(rows, extra)) ~= nil
+	end
+	local function check(rows, extra, want, label)
+		local lvl, errs = core.load_level(H.level(rows, extra))
+		assert_eq(lvl ~= nil, want, label .. (errs and (": " .. table.concat(errs, " | ")) or ""))
+	end
+
+	it("size 6..9 x 6..11", function()
+		for _, c in ipairs({ { 5, 6, false }, { 6, 5, false }, { 6, 6, true }, { 9, 11, true }, { 10, 6, false }, { 9, 12, false },
+			{ 6, 11, true }, { 9, 6, true }, { 7, 8, true } }) do
+			check(rect(c[1], c[2]), nil, c[3], c[1] .. "x" .. c[2])
+		end
+	end)
+
+	it("id, version >= 1, moves 5..60", function()
+		check(FULL, { id = 0 }, false, "id 0")
+		check(FULL, { id = 1 }, true, "id 1")
+		check(FULL, { id = 999999999999999 }, true, "id of 15 digits")
+		check(FULL, { version = 0 }, false, "version 0")
+		check(FULL, { version = 1 }, true, "version 1")
+		check(FULL, { moves = 4 }, false, "moves 4")
+		check(FULL, { moves = 5 }, true, "moves 5")
+		check(FULL, { moves = 60 }, true, "moves 60")
+		check(FULL, { moves = 61 }, false, "moves 61")
+		check(FULL, { moves = 5.5 }, false, "moves 5.5")
+	end)
+
+	it("4..6 different colours", function()
+		local six = { "red", "orange", "yellow", "green", "blue", "purple" }
+		check(FULL, { colors = { "red", "green", "blue" } }, false, "3 colours")
+		check(FULL, { colors = { "red", "green", "blue", "yellow" } }, true, "4 colours")
+		check(FULL, { colors = six }, true, "6 colours")
+		check(FULL, { colors = { "red", "green", "blue", "yellow", "orange", "purple", "red" } }, false, "7 entries")
+		check(FULL, { colors = { "red", "green", "blue", "gold" } }, false, "unknown colour")
+	end)
+
+	it("1..3 goals, a count of at least 1, one goal per (type, colour or item)", function()
+		local box = { { at = { 0, 0 }, type = "record_box", hp = 1 }, { at = { 2, 0 }, type = "record_box", hp = 1 } }
+		local noise = { { at = { 4, 4 }, type = "noise" } }
+		check(FULL, { goals = {} }, false, "no goal")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 0 } } }, false, "collect 0")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 1 } } }, true, "collect 1")
+		check(FULL, { goals = { { type = "break", item = "record_box", count = 0 } }, slots = box }, false, "break 0")
+		check(FULL, { goals = { { type = "break", item = "record_box", count = 2 } }, slots = box }, true, "break 2")
+		check(FULL, { goals = { { type = "break", item = "record_box", count = 3 } }, slots = box }, false, "break 3 of 2")
+		check(FULL, { goals = { { type = "deliver", count = 0 } }, mic = { total = 0, on_board_max = 1, gap_moves = 0 } }, false, "deliver 0")
+		-- two collect goals of different colours, collect and break, two breaks of different items
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "green", count = 3 } } }, true, "two collects")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "green", count = 3 },
+			{ type = "collect", color = "blue", count = 3 } } }, true, "three collects")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "green", count = 3 },
+			{ type = "collect", color = "blue", count = 3 }, { type = "collect", color = "yellow", count = 3 } } }, false, "four goals")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "break", item = "record_box", count = 1 } }, slots = box }, true, "collect and break")
+		check(FULL, { goals = { { type = "break", item = "noise", count = 1 }, { type = "break", item = "record_box", count = 1 } },
+			slots = { box[1], noise[1] } }, true, "two breaks of different items")
+		check(FULL, { goals = { { type = "break", item = "noise", count = 1 }, { type = "break", item = "noise", count = 1 } },
+			slots = noise }, false, "the same break twice")
+		check(FULL, { goals = { { type = "collect", color = "red", count = 3 }, { type = "collect", color = "red", count = 2 } } }, false, "the same collect twice")
+		check(FULL, { goals = { { type = "light" }, { type = "light" } }, floor = { { at = { 0, 0 }, hp = 1 } } }, false, "light twice")
+	end)
+
+	it("element hp: record_box 1..3, concrete 1..2, column 6..12, floor and wires 1..2", function()
+		for hp = 0, 4 do
+			check(FULL, { slots = { { at = { 1, 1 }, type = "record_box", hp = hp } } }, hp >= 1 and hp <= 3, "record_box " .. hp)
+		end
+		for hp = 0, 3 do
+			check(FULL, { slots = { { at = { 1, 1 }, type = "concrete", hp = hp } } }, hp >= 1 and hp <= 2, "concrete " .. hp)
+		end
+		for _, hp in ipairs({ 5, 6, 12, 13 }) do
+			check(FULL, { slots = { { at = { 1, 1 }, type = "column", hp = hp } } }, hp >= 6 and hp <= 12, "column " .. hp)
+		end
+		for hp = 0, 3 do
+			check(FULL, { floor = { { at = { 1, 1 }, hp = hp } } }, hp >= 1 and hp <= 2, "floor " .. hp)
+			check(FULL, { overlay = { { at = { 1, 1 }, type = "wires", hp = hp } } }, hp >= 1 and hp <= 2, "wires " .. hp)
+		end
+	end)
+
+	it("the mic block: total >= 1, on_board_max >= 1, gap_moves >= 0, total = the deliver count", function()
+		local function mic(total, max, gap, count)
+			return { goals = { { type = "deliver", count = count or total } }, mic = { total = total, on_board_max = max, gap_moves = gap } }
+		end
+		check(FULL, mic(0, 1, 0), false, "total 0")
+		check(FULL, mic(1, 1, 0), true, "1, 1, 0")
+		check(FULL, mic(1, 0, 0), false, "on_board_max 0")
+		check(FULL, mic(1, 1, -1), false, "gap_moves -1")
+		check(FULL, mic(3, 5, 9), true, "3, 5, 9")
+		check(FULL, mic(2, 1, 0, 3), false, "total <> deliver count")
+		local m = mic(2, 1, 0)
+		m.mic.total = 2.5
+		check(FULL, m, false, "fractional total")
+		-- the schema names the field even when the deliver count disagrees as well
+		expect(H.level(FULL, m), "2.1.1 mic: total >= 1 required")
+		expect(H.level(FULL, mic(0, 1, 0)), "2.1.1 mic: total >= 1 required")
+		m = mic(2, 1, 0)
+		m.mic.on_board_max = "1"
+		check(FULL, m, false, "text on_board_max")
+		expect(H.level(FULL, m), "2.1.1 mic: on_board_max >= 1 required")
+		m = mic(2, 1, 0)
+		m.mic.gap_moves = true
+		check(FULL, m, false, "boolean gap_moves")
+		expect(H.level(FULL, m), "2.1.1 mic: gap_moves >= 0 required")
+		expect(H.level(FULL, mic(2, 0, 0)), "2.1.1 mic: on_board_max >= 1 required")
+		expect(H.level(FULL, mic(2, 1, -1)), "2.1.1 mic: gap_moves >= 0 required")
+	end)
+
+	it("a bad row of cells is named by its y counted from 0, like the coordinates, and by the width", function()
+		local t = H.level(FULL)
+		t.cells[1] = "#####"
+		expect(t, "2.1.1 cells[0]: 6 characters of '#' and '.' required")
+		t = H.level(FULL)
+		t.cells[6] = "#####x"
+		expect(t, "2.1.1 cells[5]: 6 characters of '#' and '.' required")
+		t = H.level(rect(7, 6))
+		t.cells[4] = "######"
+		expect(t, "2.1.1 cells[3]: 7 characters of '#' and '.' required")
+	end)
+
+	it("spawn_weights 1..1000 for every colour of the level", function()
+		local colors = { "red", "green", "blue", "yellow" }
+		local function w(a, b, c, d) return { red = a, green = b, blue = c, yellow = d } end
+		check(FULL, { colors = colors, spawn_weights = w(1, 1, 1, 1) }, true, "all 1")
+		check(FULL, { colors = colors, spawn_weights = w(1000, 1000, 1000, 1000) }, true, "all 1000")
+		check(FULL, { colors = colors, spawn_weights = w(0, 1, 1, 1) }, false, "a zero")
+		check(FULL, { colors = colors, spawn_weights = w(1, 1, 1, 1001) }, false, "1001")
+		check(FULL, { colors = colors, spawn_weights = w(1, 1, 1.5, 1) }, false, "a fraction")
+		check(FULL, { colors = colors, spawn_weights = { red = 1, green = 1, blue = 1, yellow = 1, purple = 1 } }, false, "a colour not in the level")
+		check(FULL, { colors = colors, spawn_weights = { red = 1, green = 1, blue = 1 } }, false, "a colour missing")
+		check(FULL, { colors = colors, spawn_weights = { 1, 1, 1, 1 } }, false, "a list")
+	end)
+
+	it("spawners and exits: the words, and every entry of a list is looked at", function()
+		check(FULL, { spawners = "top" }, true, "top")
+		check(FULL, { spawners = "bottom" }, false, "spawners 'bottom'")
+		check(FULL, { exits = "top" }, false, "exits 'top'")
+		check(FULL, { exits = "bottom" }, true, "exits 'bottom'")
+		check(FULL, { spawners = 5 }, false, "spawners 5")
+		local all = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 } }
+		check(FULL, { spawners = all }, true, "all columns")
+		local bad_first = { { 1 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 } }
+		check(FULL, { spawners = bad_first }, false, "a bad first entry")
+		local bad_last = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, "0" } }
+		check(FULL, { spawners = bad_last }, false, "a bad last entry")
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		local exits_bad = { goals = deliver.goals, mic = deliver.mic, exits = { { 0, 5 }, { 1, 5 }, { 2, 5 }, { 3, 5 }, { 4, 5 }, { 5, 5.5 } } }
+		check(FULL, exits_bad, false, "a bad exit entry")
+	end)
+
+	it("cells: H rows of W characters '#' or '.', each row looked at", function()
+		local function cells_of(edit)
+			local rows = { "######", "######", "######", "######", "######", "######" }
+			edit(rows)
+			return rows
+		end
+		check(FULL, nil, true, "plain")
+		check(FULL, { cells = cells_of(function(r) r[1] = "#####" end) }, false, "a short first row")
+		check(FULL, { cells = cells_of(function(r) r[6] = "#####x" end) }, false, "a bad character in the last row")
+		check(FULL, { cells = cells_of(function(r) r[3] = "#######" end) }, false, "a long row")
+		check(FULL, { cells = cells_of(function(r) r[4] = 7 end) }, false, "a row that is no string")
+		check(FULL, { cells = cells_of(function(r) r[2] = "#.##.#" end) }, true, "voids inside the board are fine when the fill reaches every cell")
+		check(FULL, { cells = { "######" } }, false, "one row")
+		check(FULL, { cells = { "######", "######", "######", "######", "######", "######", "######" } }, false, "seven rows")
+	end)
+end)
+
+describe("core level: positions outside the field (2.1.2, audit A)", function()
+	it("negative and too large coordinates are not cells, and a coordinate never wraps into another row", function()
+		-- x = -1 would be the last cell of the row above, x = 6 the first cell of the next row, y = -1 and 6 are off the board
+		for _, at in ipairs({ { -1, 1 }, { -1, 0 }, { 6, 0 }, { 6, 1 }, { 0, -1 }, { 5, -1 }, { 0, 6 }, { 5, 6 }, { -1, -1 }, { 100, 100 } }) do
+			local text = string.format("%.0f,%.0f", at[1], at[2])
+			expect(H.level(FULL, { floor = { { at = at, hp = 1 } } }), "2.1.2 floor is not on an existing cell at " .. text)
+			expect(H.level(FULL, { overlay = { { at = at, type = "wires", hp = 1 } } }), "2.1.2 overlay is not on an existing cell at " .. text)
+			expect(H.level(FULL, { slots = { { at = at, type = "noise" } } }), "2.1.2 slot is not on an existing cell at " .. text)
+			expect(H.level(FULL, { spawners = { at } }), "2.1.2 spawner is not an existing cell at " .. text)
+		end
+		-- the corners are cells
+		for _, at in ipairs({ { 0, 0 }, { 5, 0 }, { 0, 5 }, { 5, 5 } }) do
+			assert_true(core.load_level(H.level(FULL, { floor = { { at = at, hp = 1 } } })) ~= nil, "corner " .. at[1] .. "," .. at[2])
+		end
+	end)
+
+	it("a column at the right or bottom edge does not fit (2.1.2)", function()
+		expect(H.level(FULL, { slots = { { at = { 5, 0 }, type = "column", hp = 6 } } }), "2.1.2 column needs 4 existing cells at 5,0")
+		expect(H.level(FULL, { slots = { { at = { 0, 5 }, type = "column", hp = 6 } } }), "2.1.2 column needs 4 existing cells at 0,5")
+		expect(H.level(FULL, { slots = { { at = { 5, 5 }, type = "column", hp = 6 } } }), "2.1.2 column needs 4 existing cells at 5,5")
+		assert_true(core.load_level(H.level(FULL, { slots = { { at = { 4, 4 }, type = "column", hp = 6 } } })) ~= nil, "the last fitting position")
+		expect(H.level({ "######", "######", "######", "######", "#####.", "######" }, { slots = { { at = { 4, 3 }, type = "column", hp = 6 } } }),
+			"2.1.2 column needs 4 existing cells at 4,3")
+	end)
+
+	it("an explicit exit or spawner list is read cell by cell, repeats included (2.1.2)", function()
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		local exits = { { 0, 5 }, { 1, 5 }, { 2, 5 }, { 3, 5 }, { 4, 5 }, { 5, 5 }, { 5, 5 } }
+		expect(H.level(FULL, { goals = deliver.goals, mic = deliver.mic, exits = exits }), "2.1.2 repeated exit at 5,5")
+		expect(H.level(FULL, { goals = deliver.goals, mic = deliver.mic, exits = { { 0, 5 }, { 9, 5 } } }), "2.1.2 exit is not an existing cell at 9,5")
+		-- spawners need a void or the edge above them
+		expect(H.level(FULL, { spawners = { { 0, 0 }, { 0, 1 } } }), "2.1.2 the cell above a spawner")
+	end)
+end)
+
+describe("core level: segments of the columns (1.1, audit A)", function()
+	it("seg_top and seg_bot give the first and last row of the run of existing cells; a void has 0", function()
+		local lvl = H.load({
+			"######",
+			"#.####",
+			"######",
+			"#.####",
+			"######",
+			"######",
+		})
+		-- column 2 is cut into the rows 1 | 3 | 5-6, every other column is one run
+		local top2 = { 1, 0, 3, 0, 5, 5 }
+		local bot2 = { 1, 0, 3, 0, 6, 6 }
+		for y = 1, 6 do
+			for x = 1, 6 do
+				local i = (y - 1) * 6 + x
+				local wt, wb = 1, 6
+				if x == 2 then wt, wb = top2[y], bot2[y] end
+				assert_same({ lvl.seg_top[i], lvl.seg_bot[i] }, { wt, wb }, "cell " .. x .. "," .. y)
+			end
+		end
+	end)
+
+	it("voids at the top and the bottom of a column, the corner cell included", function()
+		local lvl = H.load({
+			"..####",
+			"#.####",
+			"######",
+			"######",
+			"##.###",
+			"##.###",
+		})
+		local want = { -- x = 1, 2, 3 (the rest are full columns)
+			{ { 0, 0 }, { 2, 6 }, { 2, 6 }, { 2, 6 }, { 2, 6 }, { 2, 6 } },
+			{ { 0, 0 }, { 0, 0 }, { 3, 6 }, { 3, 6 }, { 3, 6 }, { 3, 6 } },
+			{ { 1, 4 }, { 1, 4 }, { 1, 4 }, { 1, 4 }, { 0, 0 }, { 0, 0 } },
+		}
+		for y = 1, 6 do
+			for x = 1, 3 do
+				local i = (y - 1) * 6 + x
+				assert_same({ lvl.seg_top[i], lvl.seg_bot[i] }, want[x][y], "cell " .. x .. "," .. y)
+			end
+		end
+		assert_same({ lvl.seg_top[4], lvl.seg_bot[4] }, { 1, 6 })
+		assert_same({ lvl.seg_top[0], lvl.seg_bot[0] }, { nil, nil }, "the arrays hold cells 1..N only")
+	end)
+end)
+
+describe("core level: default spawners and exits (2.0, audit A)", function()
+	local function cells_of(list)
+		local out = {}
+		for i = 1, #list do
+			if list[i] then out[#out + 1] = i end
+		end
+		return out
+	end
+
+	it("spawners: the topmost existing cell of every column, a column of one bottom cell included", function()
+		local lvl = H.load({
+			".####.",
+			".####.",
+			".####.",
+			".####.",
+			".####.",
+			"######",
+		})
+		assert_same(cells_of(lvl.spawner), { 2, 3, 4, 5, 31, 36 })
+		-- only the topmost cell of a column: the segment under a void gets no spawner of its own
+		local lvl2 = H.load({ "######", "#.####", "######", "######", "######", "######" })
+		assert_same(cells_of(lvl2.spawner), { 1, 2, 3, 4, 5, 6 })
+	end)
+
+	it("exits (deliver goal): the bottom cell of every segment, none without the goal", function()
+		local deliver = { goals = { { type = "deliver", count = 1 } }, mic = { total = 1, on_board_max = 1, gap_moves = 0 } }
+		local lvl = H.load({ "######", "######", "######", "######", "######", "#####." }, deliver)
+		-- column 6 ends one row higher
+		assert_same(cells_of(lvl.exit), { 30, 31, 32, 33, 34, 35 })
+		assert_same(cells_of(H.load({ "######", "######", "######", "######", "######", "#####." }).exit), {}, "no goal, no exits")
 	end)
 end)
