@@ -14,7 +14,7 @@
 --
 -- Commands (words separated by spaces; handlers live in main/app.script):
 --   state | goto <splash|town|level> [n] | level <n> | set_coins <n> |
---   lang <auto|en|ru> | volume <music> [sfx] | reset_save | meta_win [moves] |
+--   lang <auto|en|ru> | volume <music> [sfx] | reset_save | meta_win [moves] [keep] |
 --   toast <text...> | toast_key <key> | modal [id] | save_fail <0|1> |
 --   stall <ms> | stray_fade <in|out> | music <district|song> [all] | music_stop |
 --   song <song|district|none> (the jukebox pick: client/meta_qa.lua) |
@@ -23,6 +23,9 @@
 --   hint_move | swap x1 y1 x2 y2 | tap x y | skip | booster <id> [x y | row | col | x1 y1 x2 y2] |
 --   continue [n] [riff] | give_up | autoplay [n] [free] | win | hold [0|1] | level_stats
 --   (the level board, while it is on display: client/level_qa.lua; "state" then adds {level, board})
+-- QA wins (meta_win, advance) take the level chest at once, as if the player had opened it (flow.debug_win): the
+-- unlimited lives of the chest run from the win. The word `keep` after the numbers (meta_win 5 keep, advance 20 keep)
+-- leaves the chest waiting in the meta, as a win on the board does (keep_chest = true).
 -- Handlers are supplied by main/app.script; a screen adds its own while it
 -- is on display (register below). parse/execute are pure and tested.
 

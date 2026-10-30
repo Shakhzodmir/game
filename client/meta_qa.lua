@@ -5,7 +5,9 @@
 --   reward <json>          queue a level result for the town (app.push_reward),
 --                          e.g. reward {"won":true,"stars":2,"coins":60,"streak":1,
 --                          "chest":{"coins":60,"boosters":["stick"],"infinite_minutes":15},
---                          "unlocked":["riff"]}
+--                          "unlocked":["riff"]}. A `chest` here is the old kind: one the meta has paid
+--                          already, which the town only shows. The real chest of a win waits in the meta and
+--                          the town offers it (meta_win 5 keep, advance <n> keep leave one waiting).
 --   add_stars <n>          debug stars (the meta only pays stars for wins)
 --   complete_task          the next district task: on the town through its card
 --                          (the full animation), elsewhere straight in the meta
@@ -18,7 +20,8 @@
 --   view <day|concert>     the look of the district on display
 --   close                  closes the top popup
 --   town_skip              skips the running town animation (task, rewards)
---   advance <n>            wins levels through the meta until level n is next
+--   advance <n> [keep]     wins levels through the meta until level n is next. Like meta_win it takes the
+--                          level chests at once (the unlimited lives start); keep leaves them waiting
 --   meta_lose              loses the next level (a life from level 21 on)
 --   meta_ui                the town / popup status (app.ui) with tap targets
 -- Pure Lua apart from what app.show_screen / the bus do; tests pass a JSON
@@ -147,7 +150,7 @@ function M.handlers()
 			local target = math.floor(tonumber(args[1]) or 0)
 			local wins = 0
 			while app.meta:level_to_play() and app.meta:level_to_play() < target and wins < 200 do
-				local res, why = flow.debug_win(3)
+				local res, why = flow.debug_win(3, args[2] == "keep")
 				if not res then return { ok = false, error = why, wins = wins } end
 				wins = wins + 1
 			end

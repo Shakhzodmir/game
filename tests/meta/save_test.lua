@@ -256,6 +256,61 @@ describe("save fallback", function()
 	end)
 end)
 
+describe("save: waiting chests of an untrusted save", function()
+	-- The checksum is a public hash, so a save with a chosen list of chests passes it. The chest of a level costs a
+	-- walk over the booster rotation (O(level)): a loop over hostile ids used to freeze Meta.load for seconds, for
+	-- ever with 1e15, before the previous slot was even tried.
+	local BUDGET = 5000000 -- a normal Meta.load takes about 5e4 VM instructions
+	local function ids_of(m)
+		local ids = {}
+		for i, w in ipairs(m:pending_chests()) do ids[i] = w.level_id end
+		return ids
+	end
+	local function forged(beaten, chests)
+		local m = H.new(5)
+		H.advance_to(m, beaten + 1)
+		local t = H.json_round_trip(m:serialize())
+		t.chests = chests
+		return resign(t)
+	end
+
+	it("loads at once whatever huge level ids the list holds, and keeps the honest chest", function()
+		local t = forged(10, { 10, 1e15, 20, 1e9, 1e300 })
+		assert_eq(select(2, save.decode(t)), 1, "the forged save passes the checksum")
+		local finished, res = H.within_budget(BUDGET, Meta.load, H.districts(), t, nil, 1, T)
+		assert_true(finished, "Meta.load did not finish within " .. BUDGET .. " VM instructions")
+		assert_true(res[1], tostring(res[2]))
+		local m, info = res[2], res[3]
+		assert_eq(info.source, "current")
+		assert_eq(m:level_to_play(), 11, "the rest of the progress is kept")
+		assert_same(ids_of(m), { 10 }, "level 20 is not beaten in this save")
+	end)
+
+	it("does not freeze on a long list of valid ids either, even with a forged progress", function()
+		local list = {}
+		for i = 1, 10000 do list[i] = i * 10 end -- every level with a chest below the hard cap
+		local t = forged(10, list)
+		t.progress.beaten = 1e15
+		resign(t)
+		local finished, res = H.within_budget(4 * BUDGET, Meta.load, H.districts(), t, nil, 1, T) -- about 2e6: the list itself is read
+		assert_true(finished, "Meta.load did not finish within " .. 4 * BUDGET .. " VM instructions")
+		assert_true(res[1], tostring(res[2]))
+		local m = res[2]
+		local listed
+		finished, listed = H.within_budget(BUDGET, function() return ids_of(m) end)
+		assert_true(finished, "describing the waiting chests did not finish")
+		assert_true(#listed[2] > 0 and #listed[2] <= 100, "a bounded number of chests wait: " .. #listed[2])
+	end)
+
+	it("drops a chest for a level the save has not beaten", function()
+		local m = Meta.load(H.districts(), forged(3, { 10 }), nil, 1, T)
+		assert_same(ids_of(m), {})
+		assert_eq(m:level_to_play(), 4)
+		m = Meta.load(H.districts(), forged(10, { 10 }), nil, 1, T)
+		assert_same(ids_of(m), { 10 })
+	end)
+end)
+
 describe("save migration", function()
 	-- A pretend history: version 2 renamed wallet -> purse, version 3 added a field.
 	local migrations = {
