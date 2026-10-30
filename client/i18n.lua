@@ -142,8 +142,8 @@ local S = {
 		ru = "Собирай рядом с коробкой или бей спецфишкой. Некоторым коробкам нужно до 3 ударов.",
 	},
 	["blocker.dancefloor_desc"] = {
-		en = "Make matches on the dance floor to light it up. A double outline needs two.",
-		ru = "Собирай фишки на танцполе, чтобы зажечь его. Двойной обводке нужно два раза.",
+		en = "Make matches on the purple tiles to light them gold. A double frame needs two matches.",
+		ru = "Собирай фишки на фиолетовых плитках, чтобы зажечь их золотом. Двойной рамке нужно два матча.",
 	},
 	["blocker.wires_desc"] = {
 		en = "A piece in wires cannot move. Match it or hit it with a special to cut the wires.",
@@ -296,8 +296,13 @@ local S = {
 		en = "Pick boosters before the level: they start on the board",
 		ru = "Выбирай бустеры перед уровнем: они сразу ложатся на поле",
 	},
-	["tutorial.dancefloor_match"] = { en = "Match on the tiles to light them", ru = "Собирай фишки на плитках — они загорятся" },
-	["tutorial.dancefloor_double"] = { en = "A double outline takes two matches", ru = "Двойной обводке нужно два матча" },
+	-- the dance floor: violet = still to light, gold = lit (client/level_floor.lua)
+	-- (two lines at most: a longer step runs into the Skip button of the bubble)
+	["tutorial.dancefloor_match"] = {
+		en = "Match on purple tiles: they turn gold",
+		ru = "Фиолетовая плитка загорится от матча",
+	},
+	["tutorial.dancefloor_double"] = { en = "A double frame takes two matches", ru = "Двойной рамке нужно два матча" },
 	["tutorial.wires_match"] = {
 		en = "Wired pieces can't move, but you can still match them",
 		ru = "Фишка в проводах не двигается, но её можно собрать в ряд",
