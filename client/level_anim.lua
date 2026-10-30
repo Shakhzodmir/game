@@ -14,12 +14,14 @@
 --   colour of a Disco ball, the path of a bolt); blockers wobble when hit; a
 --   destroyed column stays lit; the noise creeps over a piece before it turns
 --   grey; shuffled pieces fly to their new cells; the selected piece stays big;
---   the hint pair wobbles towards each other; the board blooms in at the start.
+--   the hint pair wobbles towards each other; the board blooms in at the start; a blocker (or a wired piece)
+--   the player tried to move shakes its head: a short sideways shake that dies away, with a brief flash.
 --
 --   local level_anim = require("client.level_anim")
 --   local A = level_anim.new({geom = g, reduced = false})
 --   A:event(e, t)                 -- every core event (t = real seconds)
 --   A:touch(id, t)                -- a finger went down on a piece
+--   A:nope(id, t)                 -- the player tried to move something that cannot move: it shakes
 --   A:select(id)                  -- the selection (nil = none)
 --   A:intro(game:pieces(), t)     -- the first frame of a level: the pieces bloom in as a wave
 --   A:hint(a, b, phase)           -- hint cells {x, y} and wobble phase 0..1 (nil = none)
@@ -61,6 +63,10 @@ M.PIN_FLASH = 0.16      -- white pulse of a piece an effect has pinned (about to
 M.PIN_SCALE = 0.035
 M.NOISE_HOLD = 0.2      -- seconds a piece keeps its look while the noise creeps over to it
 M.INTRO_DELAY = 0.15    -- the board pops in after the screen fades in: delay, then a wave from the bottom left
+M.NOPE_TIME = 0.34      -- a refused move: the object shakes sideways for this long ...
+M.NOPE_AMP = 0.085      -- ... by this share of a cell at first (it dies away quadratically) ...
+M.NOPE_FREQ = 55        -- ... three swings (radians per second) ...
+M.NOPE_FLASH = 0.22     -- ... with a white flash of this strength at the start
 
 M.Z = {
 	blocker = 0.08, piece = 0.10, special = 0.11, mic = 0.10,
@@ -202,6 +208,11 @@ end
 
 function Anim:touch(id, t)
 	if id then rec(self, id).touch = t end
+end
+
+-- The player tried to move an object that cannot move (the core answered not_movable): it shakes its head.
+function Anim:nope(id, t)
+	if id then rec(self, id).nope = t end
 end
 
 function Anim:select(id)
@@ -497,6 +508,16 @@ function Anim:frame(pieces, tick_f, t)
 						sx, sy = sx * s, sy * s
 						flash = math.max(flash, 0.45 * k)
 					end
+				end
+			end
+			if v.nope then
+				local dt = t - v.nope
+				if dt >= M.NOPE_TIME then
+					v.nope = nil
+				else
+					local k = 1 - dt / M.NOPE_TIME
+					if not reduced then x = x + cell * M.NOPE_AMP * k * k * math.sin(dt * M.NOPE_FREQ) end
+					flash = math.max(flash, M.NOPE_FLASH * k)
 				end
 			end
 			if p.pinned then

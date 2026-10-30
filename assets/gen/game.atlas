@@ -231,6 +231,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "board_plate"
+  images {
+    image: "/assets/images/board/plate.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "fx_bolt"
   images {
     image: "/assets/images/fx/bolt.png"
