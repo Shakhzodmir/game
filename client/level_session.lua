@@ -7,11 +7,12 @@
 --   local s, err = level_session.new({
 --       params = app.params,                -- {level_id, run, level_text} or {level = n} (debug)
 --       read_level = function(n) return text end,  -- standalone: reads level_%04d.json
---       hooks = {first_move = fn(), booster_used = fn(id)},
+--       hooks = {first_move = fn(), booster_used = fn(id), rejected = fn(cmd, reason)},
 --   })
 --   s:advance(dt, function(events, tick) ... end)  -- in update(): 1/60 s ticks, at most 6
 --   s:display_tick()          -- tick + fraction of the next one (for animations)
---   s:command(cmd)            -- game:input with the move / booster hooks
+--   s:command(cmd)            -- game:input with the move / booster hooks; a command the core refuses is
+--                             -- handed to hooks.rejected(cmd, reason) (reason = the core's: not_movable, bad_cell, ...)
 --   s:slowmo(0.4, 0.5)        -- visual slow motion: logic runs at half speed for 0.4 s
 --   s:set_paused(on)          -- a window is open (client/level_link.lua pause)
 --   s:set_hold(on)            -- the app lost the focus: no ticks until it is back
@@ -261,10 +262,13 @@ function Session:autoplay_step()
 end
 
 -- game:input(cmd) plus the hooks: first_move() at the first accepted swap or
--- tap (meta:note_move), booster_used(id) when the core accepts a booster.
+-- tap (meta:note_move), booster_used(id) when the core accepts a booster,
+-- rejected(cmd, reason) when it refuses a command (a swipe on a blocker: not_movable).
 function Session:command(cmd)
 	local ok, res = self.game:input(cmd)
-	if ok then
+	if not ok then
+		if self.hooks.rejected then self.hooks.rejected(cmd, res) end
+	else
 		local t = cmd.type
 		if (t == "swap" or t == "tap") and res == "ok" and not self.moved then
 			self.moved = true

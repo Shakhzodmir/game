@@ -10,6 +10,7 @@
 --                               now = socket.gettime, width = W})
 --   la:events(events)      -- every tick's events, in order
 --   la:touch()             -- a finger touched a piece: the click sounds at once
+--   la:nope()              -- the player tried to move something that cannot move: a soft thud
 --   la:finish()            -- the screen is leaving: layers off
 --
 -- Layers: "tension" while playing with 1..5 moves left, "party" in the final
@@ -44,7 +45,10 @@ M.BLOCKER_BREAK = {
 	balloon = "balloon_pop", column = "column_on",
 }
 M.PRAISE_INDEX = { juicy = 1, hit = 2, drive = 3, vibe = 4, legend = 5 }
-M.HAPTIC = { tap = 8, special = 22, combo = 40, finale = 70, praise = 14, goal = 18, destroy = 10 }
+M.HAPTIC = { tap = 8, special = 22, combo = 40, finale = 70, praise = 14, goal = 18, destroy = 10, nope = 14 }
+-- A refused move (a blocker or a wired piece does not give): the soft thump of a landing piece, but plainly
+-- heard, under a name of its own so a landing in the same moment does not swallow it.
+M.NOPE_SFX, M.NOPE_GAIN, M.NOPE_GAP = "land", 0.9, 0.08
 
 local LA = {}
 LA.__index = LA
@@ -71,13 +75,14 @@ function LA:_log(...)
 	if self.log then self.log[#self.log + 1] = { ... } end
 end
 
--- An effect, at most once per `gap` seconds (0 = always).
-function LA:sfx(name, opts, gap)
+-- An effect, at most once per `gap` seconds (0 = always); `key` names the limiter when it is not the effect.
+function LA:sfx(name, opts, gap, key)
 	local now = self.now()
 	local g = gap or M.SFX_GAP
-	local t = self.last[name]
+	key = key or name
+	local t = self.last[key]
 	if g > 0 and t and now - t < g then return false end
-	self.last[name] = now
+	self.last[key] = now
 	self:_log("sfx", name)
 	if self.audio then self.audio.sfx(name, opts) end
 	return true
@@ -108,6 +113,10 @@ end
 function LA:touch()
 	self:sfx("tap", { gain = 0.7 }, 0.03)
 	self:buzz("tap")
+end
+
+function LA:nope()
+	if self:sfx(M.NOPE_SFX, { gain = M.NOPE_GAIN }, M.NOPE_GAP, "nope") then self:buzz("nope") end
 end
 
 -- The tension layer follows the moves left while playing.

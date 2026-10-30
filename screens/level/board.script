@@ -7,6 +7,8 @@
 --   pieces .......... client/level_anim.lua (how each object looks) -> client/level_view.lua
 --   effects ......... client/level_effects.lua (events -> commands) -> client/level_vfx.lua
 --   input ........... client/level_input.lua (swipe / tap-tap / booster targets)
+--   fixed things .... client/level_plates.lua (plates under blockers and wired pieces; the refusal of a move
+--                     the core answers with not_movable shakes the thing, thuds and, once per session, explains)
 --   hint ............ client/level_hint.lua (5 s idle -> game:hint() wobble)
 --   sound ........... client/level_audio.lua (notes, effects, layers, haptics)
 --   HUD / windows ... client/level_link.lua (plain calls) + the bus topics below
@@ -50,6 +52,7 @@ local levels = require("client.levels")
 local level_session = require("client.level_session")
 local level_geom = require("client.level_geom")
 local level_input = require("client.level_input")
+local level_plates = require("client.level_plates")
 local level_hint = require("client.level_hint")
 local level_audio = require("client.level_audio")
 local level_link = require("client.level_link")
@@ -199,24 +202,50 @@ local function command(self, cmd)
 	return ok, res
 end
 
-local function try_swap(self, cmd)
-	local r = self.session.game:can_swap(cmd.from, cmd.to)
-	if r == "reject" then
-		-- nothing to swap with (a blocker, a pinned piece...): a small nudge
+-- What is at core cell (x, y): the piece of game:pieces() (a column answers on all four of its cells) and what
+-- keeps it in place for good ("blocker" | "wired", client/level_plates.lua), or nil.
+local function fixed_at(self, x, y)
+	local i = (y - 1) * self.W + x
+	local p = self.cellmap[i]
+	if not p then return nil end
+	local c = self.cells and self.cells[i]
+	return p, level_plates.kind(p, c ~= nil and (c.wires or 0) > 0)
+end
+
+-- The core refused a command (client/level_session.lua hooks.rejected, so the QA bridge gets the same). A swipe or
+-- a tap on something that never moves comes back as not_movable: that thing shakes its head, thuds, and the
+-- first time of each kind in a session a toast says how to get rid of it. Any other refusal of a swap (the
+-- edge of the board, a piece still falling) keeps the small nudge of the piece that was touched.
+local function on_rejected(self, cmd, why)
+	if type(cmd) ~= "table" or (cmd.type ~= "swap" and cmd.type ~= "tap") then return end
+	local first_kind, shook = nil, false
+	if why == "not_movable" then
+		for k = 1, 2 do
+			local c = (k == 1) and (cmd.at or cmd.from) or cmd.to
+			if type(c) == "table" and c[1] and c[2] then
+				local p, kind = fixed_at(self, c[1], c[2])
+				if kind then
+					self.anim:nope(p.id, self.t)
+					shook = true
+					if not first_kind and level_plates.first(kind) then first_kind = kind end
+				end
+			end
+		end
+	end
+	if shook then
+		self.laudio:nope()
+		if first_kind then app.toast_key(level_plates.TOAST[first_kind], nil, { color = "blue", duration = 3 }) end
+	elseif cmd.type == "swap" and type(cmd.from) == "table" then
 		local p = self.cellmap[(cmd.from[2] - 1) * self.W + cmd.from[1]]
 		if p then self.anim:touch(p.id, self.t) end
-		return false, "reject"
 	end
-	return command(self, cmd)
 end
 
 local function dispatch(self, cmd)
 	if not cmd then return end
 	if not level_link.allow_command(cmd) then return end -- a tutorial step lets only its own move through
-	if cmd.type == "swap" then
-		try_swap(self, cmd)
-	elseif cmd.type == "tap" then
-		command(self, cmd)
+	if cmd.type == "swap" or cmd.type == "tap" then
+		command(self, cmd) -- the core judges; a refusal comes back through on_rejected
 	elseif cmd.type == "booster" then
 		local ok, res = command(self, cmd)
 		if ok then
@@ -285,6 +314,7 @@ function init(self)
 				app.commit("booster")
 			end
 		end,
+		rejected = function(cmd, why) guard(self, "refusal", on_rejected, self, cmd, why) end,
 	}
 	local s, err = level_session.new({ params = params, read_level = read_level, hooks = hooks })
 	if not s then return fail(self, err) end
@@ -316,6 +346,7 @@ function init(self)
 		return { id = p.id, kind = p.kind, state = p.state, pinned = p.pinned, wired = c and (c.wires or 0) > 0 }
 	end })
 	self.hint = level_hint.new()
+	self.plates = level_plates.new()
 	self.anim = level_anim.new({ reduced = reduced })
 	self.effects = level_effects.new({ reduced = reduced, lookup = function(id) return self.by_id[id] end })
 	self.effects:set_cell_lookup(function(x, y) return self.cellmap[(y - 1) * self.W + x] end)
@@ -351,7 +382,7 @@ function init(self)
 		session = s,
 		stats = function()
 			local v, x = self.view:stats(), self.vfx:stats()
-			return { view = v, vfx = x, frames = self.frames or 0, ticks = s.ticks_run, dropped = s.dropped,
+			return { view = v, vfx = x, plates = self.plates:count(), frames = self.frames or 0, ticks = s.ticks_run, dropped = s.dropped,
 				selected = self.input.selected, targeting = self.input.targeting, errors = self.errors or 0,
 				w = self.ww, h = self.wh, cell = self.geom and self.geom.cell, lite = self.vfx.lite }
 		end,
@@ -408,6 +439,8 @@ local function marks(self)
 	local g = self.geom
 	local cell = g.cell
 	local sx, sy = self.shake_x, self.shake_y
+	-- the plates under blockers and wired pieces go first: they keep the low slots of the pooled mark sprites
+	n = self.plates:fill(list, n, self.pieces, self.cells, g, self.anim, self.t, sx, sy)
 	local sel = self.input.selected
 	if sel then
 		local x, y = g:center(sel.x, sel.y)
@@ -510,8 +543,12 @@ function update(self, dt)
 		for k in pairs(by_id) do by_id[k] = nil end -- order-independent
 		for i = 1, #pieces do
 			local p = pieces[i]
-			cellmap[(p.y - 1) * self.W + p.x] = p
+			local k = (p.y - 1) * self.W + p.x
+			cellmap[k] = p
 			by_id[p.id] = p
+			if p.item == "column" then -- one object on four cells: a finger on any of them is on the column
+				cellmap[k + 1], cellmap[k + self.W], cellmap[k + self.W + 1] = p, p, p
+			end
 		end
 	else
 		self.pieces_age = self.pieces_age + 1
@@ -575,8 +612,10 @@ function on_input(self, action_id, action)
 		if fx and not level_link.allow_cell(x, y) then return true end -- tutorial: only the guided cells
 		self.input:press(fx, fy)
 		if fx then
-			local p = self.cellmap[(y - 1) * self.W + x]
-			if p and not targeting then
+			local p, fixed = fixed_at(self, x, y)
+			-- a piece swells and clicks under the finger; a blocker or a wired piece stays dead until it is
+			-- swiped or tapped (then it shakes its head: on_rejected)
+			if p and not fixed and not targeting then
 				self.anim:touch(p.id, self.t)
 				self.laudio:touch()
 			end

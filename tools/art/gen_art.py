@@ -111,6 +111,7 @@ def build_jobs():
     J.append(("board", "board/cell_a.png", "ui", "draw_cell", (palette.CELL_A,), {}))
     J.append(("board", "board/cell_b.png", "ui", "draw_cell", (palette.CELL_B,), {}))
     J.append(("board", "board/board_frame.png", "ui", "draw_board_frame", (), {}))
+    J.append(("board", "board/plate.png", "ui", "draw_plate", (), {}))
     for k in ui.FX_FUNCS:
         J.append(("fx", f"fx/{k}.png", "ui", "FX_FUNCS", k, {}))
     for k in ui.EDGE_KINDS:
@@ -301,6 +302,8 @@ NOTES = {
                         "2 diagonal = diag (base: top-left + bottom-right), 3 = inner (base: all but top-left), "
                         "4 = full, 0 = nothing. Rotate the base in 90 degree steps to match; tiles join seamlessly",
     "board/cell_*.png": "96x96 flat tiles (white / #EFE8FF, 95% alpha), scale to the cell size",
+    "board/plate.png": "160x160 sunken bolted plate (violet slate, outline, 4 corner rivets, 5 px margin): drawn under "
+                       "everything that cannot be swapped (blockers, wired pieces) at cell size, 2x for the 2x2 column",
     "blockers/mic_stand.png": "exit marker drawn under the bottom cell of an exit column",
     "blockers/column_*.png": "2x2 cells",
     "blockers/wires_*.png": "overlay drawn above the piece; the centre stays transparent",

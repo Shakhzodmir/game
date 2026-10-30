@@ -5,7 +5,8 @@
 -- the level: the step of the author is wrong for the board (or the board changed under it). The file must
 -- exist and be what the runtime loads through sys.load_resource, and every level that brings a new element
 -- (levels-plan.md, section 2) must have its lesson: the build fails otherwise, so the game cannot ship without
--- tutorials unnoticed.
+-- tutorials unnoticed. Every text must fit the two lines of the bubble in English and in Russian (a third line runs
+-- under the bubble's Skip tab), and the first record box must say that it does not move.
 
 local tutorial = require("client.tutorial")
 local link = require("client.level_link")
@@ -115,6 +116,38 @@ local function first_levels()
 	return first
 end
 
+-- The bubble of a step (screens/level/tutorial_view.lua) sets its text in the body font at 30 px and breaks it at the
+-- width of the bubble less Bit's face (620 - 230). Its Skip tab covers the top right corner, so a third line runs under
+-- the tab: a text takes two lines at most. The break is modelled word by word with the real advances of the font (as the
+-- GUI stub measures text); the margin keeps out the texts that fit by a hair, because the model is not exact to the pixel.
+-- A test below pins these numbers to tutorial_view.lua, so the model cannot drift away from the screen unnoticed.
+local BUBBLE_W, BUBBLE_FACE, BUBBLE_FONT_SIZE, BUBBLE_LINES, BUBBLE_MARGIN = 620, 230, 30, 2, 6
+local BUBBLE_WIDTH = BUBBLE_W - BUBBLE_FACE
+
+local function bubble_lines(text)
+	local font = require("tests.client.font_advances").body
+	local codepoints = require("tests.client.town_defold_stub").utf8_codepoints
+	local function width(s)
+		local w = 0
+		for _, cp in ipairs(codepoints(s)) do
+			local advance = font.advances[cp]
+			assert_true(advance ~= nil, string.format("the body font has no glyph U+%04X (%s)", cp, text))
+			w = w + advance * BUBBLE_FONT_SIZE / font.size
+		end
+		return w
+	end
+	local lines, line = 1, nil
+	for word in string.gmatch(text, "%S+") do
+		local try = line and (line .. " " .. word) or word
+		if line and width(try) > BUBBLE_WIDTH - BUBBLE_MARGIN then
+			lines, line = lines + 1, word
+		else
+			line = try
+		end
+	end
+	return lines
+end
+
 describe("the authored tutorials on the real boards", function()
 	it("are in the file the game loads: /content/tutorials.json through sys.load_resource", function()
 		local town_stub = require("tests.client.town_defold_stub")
@@ -192,5 +225,46 @@ describe("the authored tutorials on the real boards", function()
 			for i, st in ipairs(steps) do kinds[i] = st.kind end
 			assert_same(done, kinds, "level " .. n)
 		end
+	end)
+
+	it("are measured the way tutorial_view.lua sets its text (the numbers of the model are the screen's)", function()
+		local src = assert(read("screens/level/tutorial_view.lua"), "screens/level/tutorial_view.lua")
+		assert_true(string.find(src, "M.BUBBLE_W = " .. BUBBLE_W, 1, true) ~= nil,
+			"the bubble is no longer " .. BUBBLE_W .. " px wide: update BUBBLE_W of this test")
+		local text = string.format('size = %d, color = "text", width = br.w - %d,', BUBBLE_FONT_SIZE, BUBBLE_FACE)
+		assert_true(string.find(src, text, 1, true) ~= nil,
+			"the text of the bubble is no longer set as [" .. text .. "]: update the model of this test")
+	end)
+
+	it("keep every text within the two lines the bubble has room for, in both languages", function()
+		local defs = authored()
+		local long = {}
+		for _, n in ipairs(levels_of(defs)) do
+			for i, st in ipairs(tutorial.steps(defs, n)) do
+				if st.text then
+					for _, lang in ipairs(i18n.LANGUAGES) do
+						local text = i18n.t(st.text, nil, lang)
+						local lines = bubble_lines(text)
+						if lines > BUBBLE_LINES then
+							long[#long + 1] = string.format("level %d step %d %s [%s] takes %d lines: %s", n, i, st.text, lang, lines, text)
+						end
+					end
+				end
+			end
+		end
+		assert_true(#long == 0, "these texts run under the Skip tab of the bubble:\n  " .. table.concat(long, "\n  "))
+	end)
+
+	it("say at the first record box that it does not move (the plate under it says the same)", function()
+		local level = first_levels().record_box
+		local said = { en = false, ru = false }
+		for _, st in ipairs(tutorial.steps(authored(), level)) do
+			if st.text then
+				said.en = said.en or string.find(i18n.t(st.text, nil, "en"), "don't move", 1, true) ~= nil
+				said.ru = said.ru or string.find(i18n.t(st.text, nil, "ru"), "не двигаются", 1, true) ~= nil
+			end
+		end
+		assert_true(said.en, "no text of the lesson of level " .. level .. " says in English that record boxes do not move")
+		assert_true(said.ru, "no text of the lesson of level " .. level .. " says in Russian that record boxes do not move")
 	end)
 end)
