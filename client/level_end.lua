@@ -14,9 +14,10 @@
 --
 -- ctx = {level_id, t0 (app.now() at the start of the level)}. A level without a meta attempt (the
 -- debug start) gets a stand-in result and touches nothing. Every function returns the meta's result
--- table (win: {coins, stars, chest, unlocked, streak, next_level}; loss: {life_lost, streak_lost,
--- fails, reason}) or nil and a reason; none of them raises: a bug here must not lose the player's
--- result.
+-- table (win: {coins, stars, chest, unlocked, streak, next_level} where chest is the chest that now WAITS in
+-- the meta, not paid (the results window offers it, app.claim_level_chest pays it); loss: {life_lost,
+-- streak_lost, fails, reason}) or nil and a reason; none of them raises: a bug here must not lose the
+-- player's result.
 
 local app = require("client.app")
 local analytics = require("client.services.analytics")

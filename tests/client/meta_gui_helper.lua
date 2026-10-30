@@ -10,7 +10,8 @@ local town_stub = require("tests.client.town_defold_stub")
 
 local G = {}
 
--- Wins `n` levels through the meta (no board): stars, coins, chests as in the game.
+-- Wins `n` levels through the meta (no board): stars, coins; the level chests are taken at once (flow.debug_win;
+-- a chest left waiting, as after a win on the board, needs flow.debug_win(3, true)).
 function G.win(app, n)
 	local flow = require("client.flow")
 	local res

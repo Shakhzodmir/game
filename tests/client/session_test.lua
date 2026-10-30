@@ -18,7 +18,7 @@ local audio = require("client.audio")
 local LEVEL = "screens/level/level.gui_script"
 local TOWN = "screens/town/town.gui_script"
 
--- Wins n levels through the meta (no board): stars, coins, chests as in the game.
+-- Wins n levels through the meta (no board): stars, coins; the level chests are taken at once (flow.debug_win).
 local function advance(app, n)
 	for _ = 1, n do assert(flow.debug_win(3)) end
 end
@@ -620,6 +620,22 @@ describe("a session: a cold start", function()
 			assert_eq(s.app.meta:lives(s.app.now()).count, 5, "no move was made: nothing was lost")
 			s:step_until(function() return s.app.overlay.toast == i18n.t("splash.cancelled") end, 6, "the notice about the dropped attempt")
 			on_town(s)
+		end)
+	end)
+
+	it("takes the level chest of a QA win at once, like advance, unless the command says keep", function()
+		S.run({ setup = function(app) advance(app, 9) end }, function(s)
+			local r = s:qa("meta_win 5")
+			assert_true(r.ok, tostring(r.error))
+			assert_eq(r.level, 10)
+			assert_eq(#s.app.meta:pending_chests(), 0, "meta_win claims the chest of level 10 like advance does")
+			assert_true(s.app.meta:lives(s.app.now()).infinite_seconds > 0, "and its unlimited lives run")
+		end)
+		S.run({ setup = function(app) advance(app, 9) end }, function(s)
+			local r = s:qa("meta_win 5 keep")
+			assert_true(r.ok, tostring(r.error))
+			assert_eq(#s.app.meta:pending_chests(), 1, "the opt-in leaves the chest waiting, as a win on the board does")
+			assert_eq(s.app.meta:lives(s.app.now()).infinite_seconds, 0)
 		end)
 	end)
 
