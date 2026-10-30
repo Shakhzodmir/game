@@ -37,7 +37,25 @@ function BO.line_has_effect(s, code, n)
 	return false
 end
 
+-- Two pieces that look alike: exchanging them would change nothing a player can see.
+function BO.same_look(a, b)
+	return a.kind == b.kind and a.color == b.color and a.special == b.special and a.axis == b.axis
+end
+
+-- The cells of the Crossfader's exchange (5.3): both must hold a free movable piece (what a swap may move),
+-- two different cells, two pieces that differ. Returns the two cell indices, or nil and the refusal reason.
+function BO.exchange_cells(s, ax, ay, bx, by)
+	if not B.exists_xy(s, ax, ay) or not B.exists_xy(s, bx, by) then return nil, "bad_cell" end
+	local a, b = (ay - 1) * s.W + ax, (by - 1) * s.W + bx
+	if a == b then return nil, "bad_cell" end
+	local oa, ob = B.get(s, a), B.get(s, b)
+	if not (oa and B.is_free(s, oa)) or not (ob and B.is_free(s, ob)) then return nil, "not_movable" end
+	if BO.same_look(oa, ob) then return nil, "same_piece" end
+	return a, b
+end
+
 -- Record data: {booster code, target (cell, row or column; 0 for Remix), mv, wv}.
+-- (The Crossfader has no record: its exchange starts with the command, input.lua.)
 function BO.run(s, rec)
 	local code, target, mv, wv = rec.d[1], rec.d[2], rec.d[3], rec.d[4]
 	local now = s.now

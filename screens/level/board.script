@@ -30,7 +30,8 @@
 --                  out_of_moves | lost | complete (reason "stuck" at out_of_moves)
 --   level_praise   {word, index (1..5, i18n "praise.<index>"), wave}   a cascade word
 --   level_banner   {key}                                               an i18n key, e.g. "hud.shuffle"
---   level_booster  {booster, phase = "target" | "cancel" | "used" | "rejected" | "done", ok, reason}
+--   level_booster  {booster, phase = "target" | "cancel" | "used" | "rejected" | "done" | "pick", ok, reason, step}
+--                  (pick: the Crossfader's first piece was picked, step 1, or let go, step 0)
 --   level_result   {result = game:result()}                            complete or lost
 --   level_special  {special, combo, lx, ly}                            a special fired (Bit scratches);
 --                  combo = cross | triple_cross | bass_drop | bird_riff | bird_sub | trio | finale |
@@ -210,7 +211,21 @@ local function try_swap(self, cmd)
 	return command(self, cmd)
 end
 
-local function dispatch(self, cmd)
+-- The Crossfader's picks (client/level_input.lua pick_pair): a click and a nudge for a piece taken, a shake and
+-- the HUD's toast for one that cannot be moved.
+local function pair_note(self, note)
+	local p = self.cellmap[(note.y - 1) * self.W + note.x]
+	if note.kind == "pick" or note.kind == "send" then
+		if p then self.anim:touch(p.id, self.t) end
+		self.laudio:touch()
+	elseif note.kind == "refuse" then
+		if p then self.anim:shake(p.id, self.t) end
+		bus.publish("level_booster", { booster = "swap", phase = "rejected", reason = note.why })
+	end
+end
+
+local function dispatch(self, cmd, note)
+	if note then pair_note(self, note) end
 	if not cmd then return end
 	if not level_link.allow_command(cmd) then return end -- a tutorial step lets only its own move through
 	if cmd.type == "swap" then
@@ -223,6 +238,10 @@ local function dispatch(self, cmd)
 			self.input:cancel_target()
 			bus.publish("level_booster", { booster = cmd.booster, phase = "used" })
 		else
+			if cmd.to then
+				local p = self.cellmap[(cmd.to[2] - 1) * self.W + cmd.to[1]]
+				if p then self.anim:shake(p.id, self.t) end
+			end
 			bus.publish("level_booster", { booster = cmd.booster, phase = "rejected", reason = res })
 		end
 	end
@@ -269,6 +288,7 @@ end
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	self.t = 0
+	self.pairing = false -- the Crossfader's first piece is picked
 	self.shake_x, self.shake_y = 0, 0
 	local params = app.params or {}
 	local hooks = {
@@ -352,8 +372,9 @@ function init(self)
 		stats = function()
 			local v, x = self.view:stats(), self.vfx:stats()
 			return { view = v, vfx = x, frames = self.frames or 0, ticks = s.ticks_run, dropped = s.dropped,
-				selected = self.input.selected, targeting = self.input.targeting, errors = self.errors or 0,
-				w = self.ww, h = self.wh, cell = self.geom and self.geom.cell, lite = self.vfx.lite }
+				selected = self.input.selected, pair = self.input.pair, targeting = self.input.targeting, errors = self.errors or 0,
+				w = self.ww, h = self.wh, cell = self.geom and self.geom.cell, rect = self.geom and self.geom.rect,
+				lite = self.vfx.lite }
 		end,
 		on_qa = function(name, res)
 			-- the QA bridge runs in the main collection, where the id of an object of this one does not
@@ -408,7 +429,7 @@ local function marks(self)
 	local g = self.geom
 	local cell = g.cell
 	local sx, sy = self.shake_x, self.shake_y
-	local sel = self.input.selected
+	local sel = self.input.selected or self.input.pair
 	if sel then
 		local x, y = g:center(sel.x, sel.y)
 		n = n + 1
@@ -517,6 +538,12 @@ function update(self, dt)
 		self.pieces_age = self.pieces_age + 1
 	end
 	self.input:validate(self.find_piece, playing)
+	local pairing = self.input.pair ~= nil
+	if pairing ~= self.pairing then
+		-- the Crossfader's first piece was picked / let go / lost: the HUD's prompt follows
+		self.pairing = pairing
+		bus.publish("level_booster", { booster = "swap", phase = "pick", step = pairing and 1 or 0 })
+	end
 	if not self.intro_done then
 		self.intro_done = true
 		self.anim:intro(pieces, self.t)
@@ -543,7 +570,8 @@ function update(self, dt)
 	else
 		self.anim:hint(nil)
 	end
-	self.anim:select(self.input.selected and self.input.selected.id or nil)
+	local picked = self.input.selected or self.input.pair
+	self.anim:select(picked and picked.id or nil)
 
 	local tick_f = s:display_tick()
 	guard(self, "vfx update", run_vfx, self, dt, tick_f)
@@ -585,7 +613,8 @@ function on_input(self, action_id, action)
 		return false
 	elseif action.released then
 		local fx, fy = board_point(self, lx, ly)
-		dispatch(self, self.input:release(fx, fy))
+		local cmd, note = self.input:release(fx, fy)
+		dispatch(self, cmd, note)
 		return fx ~= nil
 	else
 		local g = self.geom

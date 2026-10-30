@@ -126,6 +126,45 @@ describe("client.level_session", function()
 		assert_false(ok)
 	end)
 
+	it("charges the Crossfader when the core takes it and not when it refuses it; the QA bridge drives it", function()
+		local used = {}
+		local s = assert(level_session.new({ params = { level_text = LEVEL, level = 3 },
+			hooks = { booster_used = function(id) used[#used + 1] = id end } }))
+		local first, other, alike
+		for _, p in ipairs(s.game:pieces()) do
+			if not first then
+				first = p
+			elseif p.color ~= first.color and not other then
+				other = p
+			elseif p.color == first.color and not alike then
+				alike = p
+			end
+		end
+		assert_true(first and other and alike, "a 6x6 board of four colours has all three")
+		-- two alike: refused by the core, nothing is charged, no move, no action
+		local r = s:qa("booster", { "swap", tostring(first.x), tostring(first.y), tostring(alike.x), tostring(alike.y) })
+		assert_false(r.ok)
+		assert_eq(r.result, "same_piece")
+		assert_same(used, {})
+		-- one cell only: the core wants the second one
+		r = s:qa("booster", { "swap", "1", "1" })
+		assert_false(r.ok)
+		-- two that differ, far apart or not: taken
+		r = s:qa("booster", { "swap", tostring(first.x), tostring(first.y), tostring(other.x), tostring(other.y) })
+		assert_true(r.ok, tostring(r.result))
+		assert_same(r.cmd, { type = "booster", booster = "swap", at = { first.x, first.y }, to = { other.x, other.y } })
+		assert_same(used, { "swap" })
+		assert_eq(r.state.moves, 12, "no move is spent")
+		-- the exchange runs, the game settles, the same booster can be used again
+		local evs = play_to_rest(s)
+		local types = {}
+		for _, e in ipairs(evs) do types[e.type] = (types[e.type] or 0) + 1 end
+		assert_eq(types.exchange, 1, "the events of the command come out with the first tick")
+		assert_eq(types.booster, 1)
+		assert_true(s.game:is_stable())
+		assert_eq(s.game:status().moves_left, 12)
+	end)
+
 	it("answers the QA bridge commands", function()
 		local s = assert(level_session.new({ params = { level_text = LEVEL, level = 3 } }))
 		local st = s:qa("state")

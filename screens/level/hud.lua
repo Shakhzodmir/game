@@ -1,5 +1,5 @@
 -- The HUD of the level screen, drawn into a GUI scene (client/ui.lua): the top row (pause, the goals
--- with what is left of each, the moves badge), the booster bar (the four in-level boosters with their
+-- with what is left of each, the moves badge), the booster bar (the five in-level boosters with their
 -- counts, a "+" when the stock is empty, a lock before they open; in target mode the bar shows what to
 -- pick and a cancel button), Bit beside the board, the flights of collected things to their goal icon,
 -- and the score pops. The numbers come from the board (client/level_link.lua) and the meta; where
@@ -11,6 +11,7 @@
 --   hud:set_moves(left)   hud:on_goal(p)   hud:on_score(p)   hud:set_state(state)
 --   hud:refresh_boosters()                 -- counts changed (the meta), the state changed
 --   hud:set_target(booster id | nil)       -- target mode on / off
+--   hud:set_pick(step)                     -- the Crossfader's prompt: 0 pick two pieces, 1 now the second
 --   hud:bit_event(topic, payload)          -- the board's topics for Bit
 --   hud:update(dt)
 --   hud:booster_rect(id), hud:goal_pos(k)  -- logical rectangles / positions (the tutorial, the flights)
@@ -30,7 +31,7 @@ local fx = require("client.fx")
 
 local M = {}
 
-local BOOSTER_STYLE = { stick = "pink", row_light = "gold", col_light = "blue", remix = "purple" }
+local BOOSTER_STYLE = { stick = "pink", row_light = "gold", col_light = "blue", remix = "purple", swap = "green" }
 M.GOAL_ICON = { light = "ui/icons/goal_floor" }
 local BIT_SYNC_EVERY = 2.0 -- seconds between corrections of Bit's step to the music clock
 
@@ -210,9 +211,10 @@ function Hud:build(info, status, rect)
 	self:_bar()
 	self:_bit()
 	if self.target then
-		local id = self.target
+		local id, step = self.target, self.pick_step
 		self.target = nil
 		self:set_target(id)
+		if step == 1 then self:set_pick(1) end -- a first piece of the Crossfader stays picked across a rebuild
 	end
 	self.built = true
 end
@@ -346,17 +348,28 @@ function Hud:set_target(id)
 	gui.set_enabled(self.c_btn, false)
 	local c = s:layer(self.bar)
 	self.c_target = c
-	local tile = s:round(c, -250, 2, 104, 96, "#F4EEFF", { radius = 30 })
+	local tile = s:round(c, level_hud.BAR_BUTTONS.x0, 2, 104, 96, "#F4EEFF", { radius = 30 })
 	icon(s, tile, "ui/icons/" .. id, 0, 2, 72, "purple")
 	if not app.reduced_motion() then ui.pulse(tile, 0.08, 0.3) end
-	s:text(c, i18n.t(level_hud.PROMPT[id] or "hud.pick_cell"), -20, 2, {
+	self.pick_text, self.pick_info = s:text(c, i18n.t(level_hud.PROMPT[id] or "hud.pick_cell"), -20, 2, {
 		font = "button", size = 34, color = "purple", max_width = 280,
 	})
+	self.pick_step = 0
 	local cancel = s:button({ parent = c, x = 236, y = 2, w = 200, h = 84, style = "pink", icon = "ui/icons/close", icon_size = 40,
 		text = i18n.t("common.cancel"), text_size = 28, on_click = function()
 			if self.actions.cancel_booster then self.actions.cancel_booster() end
 		end })
 	self.cancel_btn = cancel
+end
+
+-- The Crossfader takes two pieces: once the first is picked the prompt asks for the second (step 1), and
+-- goes back to asking for two when it is let go (step 0).
+function Hud:set_pick(step)
+	step = step == 1 and 1 or 0
+	if self.target == nil or not level_hud.PROMPT2[self.target] or not self.pick_text or step == self.pick_step then return end
+	self.pick_step = step
+	local key = step == 1 and level_hud.PROMPT2[self.target] or level_hud.PROMPT[self.target]
+	self.ui:set_text(self.pick_text, i18n.t(key), self.pick_info)
 end
 
 -- Bit ---------------------------------------------------------------------------------------------------------

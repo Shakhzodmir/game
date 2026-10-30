@@ -1270,6 +1270,12 @@
       "alpha": true,
       "bytes": 12282
     },
+    "ui/icons/swap.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11513
+    },
     "ui/icons/team.png": {
       "w": 96,
       "h": 96,

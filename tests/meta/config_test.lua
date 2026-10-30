@@ -25,10 +25,10 @@ describe("meta config", function()
 	it("has the booster table of the spec", function()
 		local expected = {
 			stick = { "in", 8, 3, 450 }, row_light = { "in", 14, 2, 600 },
-			col_light = { "in", 18, 2, 600 }, remix = { "in", 25, 2, 450 },
+			col_light = { "in", 18, 2, 600 }, remix = { "in", 25, 2, 450 }, swap = { "in", 21, 2, 450 },
 			riff = { "pre", 12, 3, 600 }, sub = { "pre", 16, 3, 750 }, disco = { "pre", 22, 3, 900 },
 		}
-		assert_eq(#C.boosters, 7)
+		assert_eq(#C.boosters, 8)
 		for _, b in ipairs(C.boosters) do
 			assert_same({ b.kind, b.unlock, b.gift, b.pack_price }, expected[b.id], b.id)
 		end

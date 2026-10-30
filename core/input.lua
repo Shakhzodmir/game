@@ -87,7 +87,7 @@ end
 local function start_swap(s, kind, a, from, to, dur, oa, ob)
 	local due = s.now + dur
 	local sw = { kind = kind, a = a, from = from, to = to, m1 = 0, w1 = 0, m2 = 0, w2 = 0, due = due }
-	if kind ~= C.TM_FAIL then
+	if kind ~= C.TM_FAIL and kind ~= C.TM_XCHG then -- a failed swap and an exchange have nothing to give back
 		sw.m1, sw.w1, sw.m2, sw.w2 = oa.mv, oa.wv, ob.mv, ob.wv
 		sw.special = oa.kind == K_SPECIAL or ob.kind == K_SPECIAL
 	end
@@ -149,13 +149,29 @@ local function do_tap(s, cmd)
 	return true, "ok"
 end
 
+-- Crossfader (5.3): the two pieces leave for `swap` on T.exchange at once; step 2 puts them into each other's
+-- cells, with no special launched and no move spent. Events: booster (the start of the booster), exchange.
+local function start_exchange(s, a, from, to)
+	local T = B.T(s)
+	local oa, ob = B.get(s, from), B.get(s, to)
+	local ax, ay = U.xy(s.W, from)
+	local bx, by = U.xy(s.W, to)
+	E.emit(s, "booster", { booster = "swap", at = { ax, ay }, to = { bx, by }, ok = true })
+	start_swap(s, C.TM_XCHG, a, from, to, T.exchange, oa, ob)
+	swap_event(s, "exchange", from, to, oa, ob, T.exchange)
+end
+
 local function do_booster(s, cmd)
 	local code = type(cmd.booster) == "string" and C.BOOSTER[cmd.booster] or nil
 	if not code then return false, "bad_cmd" end
-	local target, x, y = 0, nil, nil
+	local target, other, x, y, x2, y2 = 0, 0, nil, nil, nil, nil -- other: the second cell of the Crossfader
 	if code == C.IT_STICK then
 		x, y = coord(cmd.at)
 		if not x then return false, "bad_cmd" end
+	elseif code == C.IT_SWAP then
+		x, y = coord(cmd.at)
+		x2, y2 = coord(cmd.to)
+		if not x or not x2 then return false, "bad_cmd" end
 	elseif code == C.IT_ROW then
 		if not U.is_int(cmd.row) or cmd.row < 1 or cmd.row > s.H then return false, "bad_cmd" end
 		target = cmd.row
@@ -171,13 +187,21 @@ local function do_booster(s, cmd)
 		if not BO.has_effect(s, target) then return false, "bad_cell" end
 	elseif code == C.IT_ROW or code == C.IT_COL then
 		if not BO.line_has_effect(s, code, target) then return false, "bad_cell" end
+	elseif code == C.IT_SWAP then
+		local a, b = BO.exchange_cells(s, x, y, x2, y2)
+		if not a then return false, b end
+		target, other = a, b
 	else
 		if #SH.candidates(s) < 2 then return false, "no_candidates" end
 	end
 	if s.state == C.G_OUT then E.set_state(s, C.G_PLAYING) end
 	s.act = s.act + 1
 	s.rest_flag = false
-	sched.push(s, s.now, C.R_BOOSTER, { code, target, s.act, 1 })
+	if code == C.IT_SWAP then
+		start_exchange(s, s.act, target, other)
+	else
+		sched.push(s, s.now, C.R_BOOSTER, { code, target, s.act, 1 })
+	end
 	return true, "ok"
 end
 

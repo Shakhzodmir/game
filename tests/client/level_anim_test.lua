@@ -345,6 +345,83 @@ describe("client.level_anim (finish)", function()
 		assert_true(find(A:frame(ps, 46, 5.0 + level_anim.APPEAR_DELAY + 0.1), 12).sx > 0.5)
 	end)
 
+	it("flies the Crossfader's two pieces across the board on arcs to opposite sides, lifted, and pops them on landing", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		A:event({ type = "exchange", t = 100, a = { 1, 1 }, b = { 6, 5 }, ids = { 7, 8 }, duration = 18 }, 5.0)
+		local ps = { piece(7, 1, 1, { state = "swap" }), piece(8, 6, 5, { state = "swap" }) }
+		local ax, ay = g:center(1, 1)
+		local bx, by = g:center(6, 5)
+		local l0 = A:frame(ps, 100, 5.0)
+		assert_near(find(l0, 7).x, ax, 1e-9)
+		assert_near(find(l0, 7).y, ay, 1e-9)
+		assert_near(find(l0, 8).x, bx, 1e-9)
+		-- half way: both are off the middle of the chord by the arc, the two on opposite sides of it
+		local mid = { (ax + bx) / 2, (ay + by) / 2 }
+		local l9 = A:frame(ps, 109, 5.0)
+		local e7, e8 = find(l9, 7), find(l9, 8)
+		local bulge = math.min(math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2) * level_anim.EXCHANGE_BULGE, 100 * 2)
+		local d7 = math.sqrt((e7.x - mid[1]) ^ 2 + (e7.y - mid[2]) ^ 2)
+		local d8 = math.sqrt((e8.x - mid[1]) ^ 2 + (e8.y - mid[2]) ^ 2)
+		assert_near(d7, bulge, 1e-6, "off the chord by the arc")
+		assert_near(d8, bulge, 1e-6)
+		assert_near(e7.x + e8.x, 2 * mid[1], 1e-6, "mirrored through the middle: they pass on opposite sides")
+		assert_near(e7.y + e8.y, 2 * mid[2], 1e-6)
+		assert_true(e7.sx > 1.1 and e8.sx > 1.1, "lifted")
+		assert_eq(e7.z, level_anim.Z.fly)
+		assert_eq(e8.z, level_anim.Z.fly, "both above the others")
+		-- the end: each in the other's cell, no arc, no lift
+		local l18 = A:frame(ps, 118, 5.0)
+		assert_near(find(l18, 7).x, bx, 1e-6)
+		assert_near(find(l18, 7).y, by, 1e-6)
+		assert_near(find(l18, 8).x, ax, 1e-6)
+		assert_near(find(l18, 7).sx, 1, 1e-9)
+		-- the core has swapped the cells and the pieces are idle: they pop (a 0.3 s pulse that starts at the landing)
+		local landed = { piece(7, 6, 5), piece(8, 1, 1) }
+		assert_eq(find(A:frame(landed, 119, 5.0 + 0.1), 7).sx, 1, "not yet")
+		local pop = find(A:frame(landed, 119, 5.0 + 0.3 + 0.15), 7)
+		assert_true(pop.sx > 1.2, "popping at 0.15 s after the landing")
+		assert_eq(find(A:frame(landed, 119, 5.0 + 0.3 + 0.4), 7).sx, 1, "and over")
+	end)
+
+	it("flies the Crossfader's pieces in a straight line, without lift or pop, under reduced motion", function()
+		local g = G()
+		local A = level_anim.new({ geom = g, reduced = true })
+		A:event({ type = "exchange", t = 100, a = { 1, 1 }, b = { 6, 5 }, ids = { 7, 8 }, duration = 18 }, 5.0)
+		local ps = { piece(7, 1, 1, { state = "swap" }), piece(8, 6, 5, { state = "swap" }) }
+		local ax, ay = g:center(1, 1)
+		local bx, by = g:center(6, 5)
+		local e = find(A:frame(ps, 109, 5.0), 7)
+		assert_near(e.x, (ax + bx) / 2, 1e-9)
+		assert_near(e.y, (ay + by) / 2, 1e-9)
+		assert_eq(e.sx, 1)
+		local landed = { piece(7, 6, 5), piece(8, 1, 1) }
+		assert_eq(find(A:frame(landed, 119, 5.0 + 0.45), 7).sx, 1)
+	end)
+
+	it("shakes a piece that cannot be moved sideways for a third of a second, with a blink under reduced motion", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		local ps = { piece(3, 3, 3, { kind = "blocker", item = "concrete", hp = 2, color = nil }) }
+		local cx = g:center(3, 3)
+		assert_near(find(A:frame(ps, 1, 1.0), 3).x, cx, 1e-9)
+		A:shake(3, 1.0)
+		A:shake(nil, 1.0) -- no piece: nothing
+		local moved = false
+		for k = 1, 20 do
+			local e = find(A:frame(ps, 1, 1.0 + k * 0.015), 3)
+			if math.abs(e.x - cx) > 1 then moved = true end
+			assert_true(math.abs(e.x - cx) <= 100 * level_anim.SHAKE_AMP + 1e-9, "never farther than the amplitude")
+		end
+		assert_true(moved, "it shook")
+		assert_near(find(A:frame(ps, 1, 1.0 + level_anim.SHAKE_TIME + 0.05), 3).x, cx, 1e-9, "and is still after SHAKE_TIME")
+		local R = level_anim.new({ geom = g, reduced = true })
+		R:shake(3, 1.0)
+		local e = find(R:frame(ps, 1, 1.05), 3)
+		assert_near(e.x, cx, 1e-9)
+		assert_true(e.flash > 0.1, "a blink instead")
+	end)
+
 	it("blooms the board in a wave from the bottom left at the start of a level", function()
 		local g = G()
 		local A = level_anim.new({ geom = g })

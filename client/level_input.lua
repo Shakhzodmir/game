@@ -14,8 +14,9 @@
 --   cmd = inp:release(fx, fy)       -- a tap -> {type = "swap" | "tap" | "booster", ...} or nil
 --   inp:validate(find, playing)     -- drops a stale selection (every frame)
 --   inp.selected                    -- {id, x, y} or nil
---   inp:target("stick" | "row_light" | "col_light")  -- the next tap picks a booster target
+--   inp:target("stick" | "row_light" | "col_light" | "swap")  -- the next tap picks a booster target
 --   inp.hover                       -- {x, y} under the finger in target mode
+--   inp.pair                        -- the Crossfader's first piece {id, x, y} once it is picked, else nil
 --
 -- Selection rules (5.5):
 --   1. the selection belongs to a piece id and ends when that piece stops
@@ -29,6 +30,10 @@
 --   4. "taptap" mode: the first tap on any piece selects it; a tap on the
 --      selected special sends tap; a tap on a non-adjacent piece moves the
 --      selection.
+-- The Crossfader ("swap") takes two taps in target mode, anywhere on the board: the first picks a piece
+-- (a blocker, a wired or a moving one is refused), a tap on that piece again lets it go, the second sends
+-- booster{swap, at = first, to = second}. release() then also answers a note {kind = "pick" | "unpick" |
+-- "refuse" | "send", x, y, why} for the feedback (a nudge, a toast); the core has the last word on the command.
 -- A swipe from a cell swaps it with its neighbour along the major axis
 -- (swiping a special into a gap or a blocker is a tap: the core decides).
 -- A tap off the board, on a gap or on a blocker clears the selection.
@@ -37,7 +42,7 @@ local M = {}
 
 M.SWIPE = 0.3 -- share of a cell along the major axis that makes a swipe
 M.MODES = { swipe = true, taptap = true }
-M.TARGETS = { stick = "at", row_light = "row", col_light = "col" }
+M.TARGETS = { stick = "at", row_light = "row", col_light = "col", swap = "pair" }
 
 local Input = {}
 Input.__index = Input
@@ -50,6 +55,7 @@ function M.new(opts)
 		selected = nil,  -- {id, x, y}
 		pressed = nil,   -- {x, y, fx, fy, swiped}
 		targeting = nil, -- booster id while picking a target
+		pair = nil,      -- {id, x, y}: the Crossfader's first piece
 		hover = nil,     -- {x, y} in target mode
 		enabled = true,
 	}, Input)
@@ -85,6 +91,12 @@ end
 -- Drops the selection when its piece is gone (rule 1). find(id) -> the
 -- piece {x, y, state} or nil; playing = the game is in "playing".
 function Input:validate(find, playing)
+	local pr = self.pair
+	if pr then
+		-- the Crossfader's first piece goes the way of a selection (also out of moves: the booster works there)
+		local q = find and find(pr.id)
+		if not self.targeting or not q or q.state ~= "idle" or q.x ~= pr.x or q.y ~= pr.y then self.pair = nil end
+	end
 	local s = self.selected
 	if not s then return end
 	if not playing then
@@ -104,6 +116,7 @@ function Input:target(booster)
 	self.targeting = booster
 	self.hover = nil
 	self.selected = nil
+	self.pair = nil
 	self.pressed = nil
 	return true
 end
@@ -111,6 +124,7 @@ end
 function Input:cancel_target()
 	self.targeting = nil
 	self.hover = nil
+	self.pair = nil
 end
 
 local function booster_cmd(booster, x, y)
@@ -118,6 +132,26 @@ local function booster_cmd(booster, x, y)
 	if field == "at" then return { type = "booster", booster = booster, at = { x, y } } end
 	if field == "row" then return { type = "booster", booster = booster, row = y } end
 	return { type = "booster", booster = booster, col = x }
+end
+
+-- A tap of the Crossfader's target mode on cell (x, y): the first piece is picked (or let go), the second one
+-- completes the command. Returns cmd | nil, note.
+function Input:pick_pair(x, y)
+	local p = self.query(x, y)
+	local first = self.pair
+	if first and first.x == x and first.y == y then
+		self.pair = nil
+		return nil, { kind = "unpick", x = x, y = y }
+	end
+	if not selectable(p, "taptap") then
+		-- a blocker, wires, an empty slot or a gap are fixed; a piece in motion only has to wait
+		return nil, { kind = "refuse", x = x, y = y, why = (p and p.state ~= "idle") and "not_rest" or "not_movable" }
+	end
+	if not first then
+		self.pair = { id = p.id, x = x, y = y }
+		return nil, { kind = "pick", x = x, y = y }
+	end
+	return { type = "booster", booster = "swap", at = { first.x, first.y }, to = { x, y } }, { kind = "send", x = x, y = y }
 end
 
 -- Touches ------------------------------------------------------------------------
@@ -195,7 +229,8 @@ function Input:tap_cell(x, y)
 end
 
 -- The finger went up. Returns a command for a tap (or a booster target),
--- else nil. fx, fy may be nil (released off the board).
+-- else nil; the Crossfader's picks come with a note as the second result (see the header).
+-- fx, fy may be nil (released off the board).
 function Input:release(fx, fy)
 	local pr = self.pressed
 	self.pressed = nil
@@ -208,6 +243,7 @@ function Input:release(fx, fy)
 		end
 		self.hover = h
 		if not h then return nil end
+		if M.TARGETS[self.targeting] == "pair" then return self:pick_pair(h.x, h.y) end
 		return booster_cmd(self.targeting, h.x, h.y)
 	end
 	return self:tap_cell(pr.x, pr.y)

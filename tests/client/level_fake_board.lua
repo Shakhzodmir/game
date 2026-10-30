@@ -39,7 +39,7 @@ function M.new(opts)
 		if app.meta and app.meta:run() then params.run = app.meta:run() end
 		params.run = opts.run or params.run
 	end
-	local self = setmetatable({ events = {}, t = 0 }, FB)
+	local self = setmetatable({ events = {}, t = 0, pairing = false }, FB)
 	local hooks = {
 		first_move = function()
 			if app.meta and app.meta:run() then
@@ -153,7 +153,7 @@ function FB:advance(dt)
 	if s.auto then s:autoplay_step() end -- the QA "win" command
 	s:advance(dt, self.on_tick)
 	-- a selection that belongs to a piece that is gone or moving ends (the board does this every frame)
-	if self.input.selected then
+	if self.input.selected or self.input.pair then
 		self.input:validate(function(id)
 			local list = s.game:pieces()
 			for i = 1, #list do
@@ -161,6 +161,16 @@ function FB:advance(dt)
 			end
 			return nil
 		end, s.game:status().state == "playing")
+	end
+	self:_pair_step()
+end
+
+-- the Crossfader's first piece picked / let go / lost: the HUD's prompt follows (the board does this every frame)
+function FB:_pair_step()
+	local pairing = self.input.pair ~= nil
+	if pairing ~= self.pairing then
+		self.pairing = pairing
+		bus.publish("level_booster", { booster = "swap", phase = "pick", step = pairing and 1 or 0 })
 	end
 end
 
@@ -206,7 +216,11 @@ end
 function FB:tap(x, y)
 	if not link.allow_cell(x, y) then return false, "guard" end
 	self.input:press(x, y)
-	local cmd = self.input:release(x, y)
+	local cmd, note = self.input:release(x, y)
+	if note and note.kind == "refuse" then
+		bus.publish("level_booster", { booster = "swap", phase = "rejected", reason = note.why })
+	end
+	self:_pair_step()
 	if cmd then return self:send(cmd) end
 	return true, "select"
 end
