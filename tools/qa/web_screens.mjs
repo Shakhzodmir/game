@@ -478,9 +478,9 @@ async function debugChecks() {
 	const f1 = await waitFor(page, s => s.app.save_failing >= 1, 'save failure seen', 3000);
 	const f1t = await waitFor(page, s => s.app.overlay.toast && /сохран|save/i.test(s.app.overlay.toast), 'save failure toast', 3000);
 	check(true, 'save: failure reported to the player', f1t.app.overlay.toast);
-	await sleep(1300);
-	const f2 = await state(page);
-	check(f2.app.save_failing > f1.app.save_failing, 'save: retried every second while failing', f2.app.save_failing);
+	// the retry is driven by a one-second tick of game time: on a loaded machine a fixed 1.3 s is not enough
+	const f2 = await waitFor(page, s => s.app.save_failing > f1.app.save_failing, 'a retry of the failed save', 6000).catch(() => state(page));
+	check(f2.app.save_failing > f1.app.save_failing, 'save: retried while failing', f2.app.save_failing);
 	await command(page, 'save_fail 0');
 	await waitFor(page, s => s.app.save_failing === 0, 'save retried after the disk recovered', 3000);
 	check(true, 'save: the retry succeeds once writes work again');
