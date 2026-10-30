@@ -23,7 +23,12 @@ DISCO_HI, DISCO_LO = "#FFFFFF", "#B7C2DC"
 CELL_A, CELL_B = "#FFFFFF", "#EFE8FF"
 FRAME_GLOW = (155 / 255, 82 / 255, 1.0)       # rgba(155,82,255,0.25)
 FRAME_SHADOW = (47 / 255, 128 / 255, 237 / 255)  # rgba(47,128,237,0.3)
-FLOOR, FLOOR_LIT_A, FLOOR_LIT_B = "#D8CCFF", "#FFF6B8", "#FFD23F"
+# Dance floor: one colour language, VIOLET = still to light, GOLD = lit (art-direction.md, "Танцпол"). The ordinary
+# cells around are white / #EFE8FF, so an unlit tile has to stay clearly darker and more saturated than they are.
+FLOOR_LIGHT, FLOOR, FLOOR_SHADE = "#DCCFFF", "#C0A9FF", "#A78CFA"   # unlit plate: light, base, shade
+FLOOR_GROUT, FLOOR_DEEP = "#8A68E8", "#9070EE"                      # the grout around a plate, the deeper layer of hp 2
+FLOOR_LIT_A, FLOOR_LIT_MID, FLOOR_LIT_B = "#FFF6B8", "#FFE680", "#FFD23F"   # lit plate (gold)
+FLOOR_LIT_GROUT = "#F2A31B"
 NOISE = "#8A8FA3"
 WIRE, WIRE_CORE = "#5B4B7A", "#FFB463"
 CARD, CARD_DARK = "#FFB463", "#C56A1C"

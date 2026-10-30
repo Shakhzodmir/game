@@ -3,24 +3,22 @@
 -- the design area, the bunting, and the board itself: the white frame
 -- (rectangular boards) or the edge tiles of shaped boards (one tile per grid
 -- vertex, tools/art/gen_art.py board_backing), the checker cells, the dance
--- floor tiles (hp 2 / hp 1 / lit, updated as they are hit) and the
+-- floor tiles (violet while unlit, gold when lit, a stage in between for a
+-- two-layer tile: client/level_floor.lua; updated as they are hit) and the
 -- microphone stands under the exits. Pieces, wires and effects are world
 -- sprites drawn on top by screens/level/board.script.
 --
 -- The board publishes what to draw through client/level_link.lua (view):
 -- rev (layout), floor_rev (a tile changed), the shake offset every frame.
 
+local app = require("client.app")
 local ui = require("client.ui")
 local assets = require("client.assets")
 local link = require("client.level_link")
+local level_floor = require("client.level_floor")
 
 local GUI = "/screens/level/level_bg.gui"
 local FRAME_PAD = 20 -- board/board_frame: 14 px frame + 6 px backing around the cells
-
-local function floor_key(hp, lit)
-	if lit then return "blockers/floor_lit" end
-	return hp >= 2 and "blockers/floor_2" or "blockers/floor_1"
-end
 
 local function shaped(g)
 	for i = 1, g.W * g.H do
@@ -57,8 +55,7 @@ local function rebuild(self, v)
 				local lx, ly = g:center(x, y)
 				local key
 				if (v.floor0[i] or 0) > 0 then
-					local hp = cells[i] and cells[i].floor or 0
-					key = floor_key(hp, hp <= 0)
+					key = level_floor.image(v.floor0[i], cells[i] and cells[i].floor or 0)
 				else
 					key = ((x + y) % 2 == 0) and "board/cell_a" or "board/cell_b"
 				end
@@ -80,22 +77,29 @@ local function rebuild(self, v)
 	self.floor_rev = v.floor_rev
 end
 
--- Floor tiles follow the core: hp 2 -> hp 1 -> lit (with a pop).
+-- Floor tiles follow the core: violet (two layers / one) -> violet with a gold core (a two-layer tile after its
+-- first hit) -> gold, each change with a pop (smaller for the first layer of two).
+local ONE = vmath.vector3(1, 1, 1)
+
 local function update_floor(self, v)
 	self.floor_rev = v.floor_rev
 	local cells = v.cells or {}
+	local calm = app.reduced_motion()
 	for i, n in pairs(self.tiles) do -- order-independent
-		if (v.floor0[i] or 0) > 0 then
+		local start = v.floor0[i] or 0
+		if start > 0 then
 			local hp = cells[i] and cells[i].floor or 0
-			local key = floor_key(hp, hp <= 0)
+			local key = level_floor.image(start, hp)
 			if key ~= self.tile_key[i] then
 				self.tile_key[i] = key
 				local e = assets.image(key)
 				if e and e.anim then gui.play_flipbook(n, e.anim) end
-				local base = vmath.vector3(1, 1, 1)
-				gui.cancel_animations(n, "scale")
-				gui.set_scale(n, vmath.vector3(1.22, 1.22, 1))
-				gui.animate(n, "scale", base, gui.EASING_OUTBACK, 0.35)
+				local pop = level_floor.pop(level_floor.stage(start, hp))
+				if pop and not calm then
+					gui.cancel_animations(n, "scale")
+					gui.set_scale(n, vmath.vector3(pop.scale, pop.scale, 1))
+					gui.animate(n, "scale", ONE, gui.EASING_OUTBACK, pop.time)
+				end
 			end
 		end
 	end

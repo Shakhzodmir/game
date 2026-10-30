@@ -8,8 +8,8 @@ import numpy as np
 from artkit import (C, Canvas, F32, WHITE, bez, candy, edge_fade, fit, gblur, gloss_drop, inset, mix, noise2, opening, ramp,
                     rim_gloss, rng, sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly, sd_polyline,
                     sd_rect, sd_ring, sd_star, sd_taper, smoothstep, soft_shadow, sparkle4, text_sdf, SU, SUB, U, I)
-from palette import PIECES, ORDER, PIECE_SHADOW, NOISE, WIRE, WIRE_CORE, CARD, CARD_DARK, FLOOR, FLOOR_LIT_A, \
-    FLOOR_LIT_B
+from palette import PIECES, ORDER, PIECE_SHADOW, NOISE, WIRE, WIRE_CORE, CARD, CARD_DARK, FLOOR_LIGHT, FLOOR, FLOOR_SHADE, \
+    FLOOR_GROUT, FLOOR_DEEP, FLOOR_LIT_A, FLOOR_LIT_MID, FLOOR_LIT_B, FLOOR_LIT_GROUT
 
 FONT_BLACK = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts", "Rubik-Black.ttf")
 
@@ -525,39 +525,76 @@ def draw_mic_stand():
 
 
 # ------------------------------------------------------- dance floor tiles
-def draw_floor(kind):
-    """kind: 2 (double white border), 1 (single border), 'lit' (gold, thin pink inner glow). Opaque 160x160.
-    Unlit tiles carry a subtle 2x2 disco grid so they read against the lavender cells."""
-    lit = kind == "lit"
-    cv = Canvas(160, 160, bg=FLOOR if not lit else FLOOR_LIT_B)
+# One colour language (art-direction.md, "Танцпол"): VIOLET = still to light, GOLD = lit. Four looks:
+#   2     two layers left: violet, a deeper frame band between two white outlines
+#   1     one layer left: violet, one white outline
+#   half  a 2 after its first hit (one layer left): the violet frame stays, a gold core has lit
+#   lit   done: gold, a soft pink glow, sparkles
+# The tiles are opaque 160x160 and the colour runs to the edge (the grout), so neighbours join up. The ordinary
+# cells around are white / #EFE8FF: an unlit tile has to stay clearly darker and more saturated than they are,
+# and every state has to read on the ring and corners that a piece leaves free (a piece covers under half of it).
+FLOOR_KINDS = (2, 1, "half", "lit")
+
+
+def floor_tile(cv, kind, ox=0.0, oy=0.0, size=160.0, r_out=None):
+    """Draws the 160 px design of a floor tile into `cv` at (ox, oy), scaled to `size` px (the goal icon is
+    the very same tile). r_out: corner radius of the outer edge (design px; None = a square that fills the
+    area to its edge, as the board needs)."""
+    s = size / 160.0
     X, Y = cv.X, cv.Y
-    full = sd_rect(X, Y, -4, -4, 164, 164, 0)
-    if not lit:
-        cv.fill_grad(full, [(0, "#E4DAFF"), (0.5, FLOOR), (1, "#C6B6FA")], axis=(1, 1), p0=0, p1=320)
-        # disco grid: four panels, alternate ones a touch lighter, soft seams + tiny coloured dots
-        for (px, py) in ((0, 0), (1, 1)):
-            cv.fill(sd_rect(X, Y, 10 + px * 70, 10 + py * 70, 80 + px * 70, 80 + py * 70, 8), "#FFFFFF", 0.22)
-        seam = np.minimum(np.abs(X - 80), np.abs(Y - 80))
-        cv.fill(np.maximum(seam - 1.4, sd_rect(X, Y, 8, 8, 152, 152, 10)), "#B5A3F2", 0.7)
-        cv.fill(np.maximum(np.minimum(np.abs(X - 81.4), np.abs(Y - 81.4)) - 0.8,
-                           sd_rect(X, Y, 8, 8, 152, 152, 10)), "#FFFFFF", 0.55)
-        for (dx, dy, c) in ((45, 45, "#FF7EB6"), (115, 115, "#5CD6FF"), (115, 45, "#FFD84D"), (45, 115, "#6CF08E")):
-            cv.fill(sd_circle(X, Y, dx, dy, 3.4), c, 0.55, soft=0.6)
-        refl = np.maximum(np.abs((X - Y) * 0.7071 + 26) - 9, 0 * X)
-        cv.fill(refl, "#FFFFFF", 0.16, soft=6)
-        borders = (5.0, 19.0) if kind == 2 else (5.0,)
-        for k, o in enumerate(borders):
-            b = sd_rect(X, Y, o, o, 160 - o, 160 - o, 16 - k * 4)
-            cv.stroke(b, 3.6 if k == 0 else 3.0, "#FFFFFF", 1.0)
-    else:
-        # gold everywhere (also in the corners outside the white rounded outline, so lit tiles join up)
-        cv.fill_grad(full, [(0, FLOOR_LIT_A), (0.55, "#FFE680"), (1, FLOOR_LIT_B)], axis=(1, 1), p0=0, p1=320)
-        edge = sd_rect(X, Y, 5, 5, 155, 155, 16)
+
+    def rect(x0, y0, x1, y1, r=0.0):
+        return sd_rect(X, Y, ox + x0 * s, oy + y0 * s, ox + x1 * s, oy + y1 * s, r * s)
+
+    lit = kind == "lit"
+    outer = rect(5, 5, 155, 155, 16)        # the plate; the 5 px around it are the grout
+    inner = rect(19, 19, 141, 141, 12)      # the core of a two-layer tile
+    area = rect(0, 0, 160, 160, r_out) if r_out else rect(-4, -4, 164, 164)
+    cv.fill(area, FLOOR_LIT_GROUT if lit else FLOOR_GROUT)
+    p0, p1 = ox + oy, ox + oy + 320 * s     # the diagonal run of the gradients
+
+    def gold(sdf):
+        cv.fill_grad(sdf, [(0, FLOOR_LIT_A), (0.55, FLOOR_LIT_MID), (1, FLOOR_LIT_B)], axis=(1, 1), p0=p0, p1=p1)
+
+    def sparkles(spots):
+        for (sx, sy, sz) in spots:
+            sparkle4(cv, ox + sx * s, oy + sy * s, sz * s, WHITE, 0.95)
+
+    if lit:
+        gold(outer)
         # thin pink glow ring just inside the outline, <= 30 %
-        ring = smoothstep(-12, -3.5, edge) * (edge < -1.5)
+        ring = smoothstep(-12 * s, -3.5 * s, outer) * (outer < -1.5 * s)
         cv.paint(ring, C("#FF7EB6"), 0.3)
-        cv.fill(sd_rect(X, Y, 34, 34, 126, 126, 30), "#FFFFFF", 0.4, soft=22)
-        cv.stroke(edge, 3.6, "#FFFFFF", 1.0)
-        for (sx, sy, sz) in ((44, 40, 13), (118, 116, 10), (116, 46, 6), (46, 112, 5)):
-            sparkle4(cv, sx, sy, sz, WHITE, 0.95)
+        cv.fill(rect(34, 34, 126, 126, 30), "#FFFFFF", 0.4, soft=22 * s)
+        cv.stroke(outer, 3.6 * s, "#FFFFFF", 1.0)
+        sparkles(((44, 40, 13), (118, 116, 10), (116, 46, 6), (46, 112, 5)))
+        return cv
+    cv.fill_grad(outer, [(0, FLOOR_LIGHT), (0.5, FLOOR), (1, FLOOR_SHADE)], axis=(1, 1), p0=p0, p1=p1)
+    # disco grid: four panels, alternate ones a touch lighter, soft seams + tiny coloured dots
+    for (px, py) in ((0, 0), (1, 1)):
+        cv.fill(np.maximum(rect(10 + px * 70, 10 + py * 70, 80 + px * 70, 80 + py * 70, 8), outer + 3 * s), "#FFFFFF", 0.2)
+    cx, cy = ox + 80 * s, oy + 80 * s
+    seam = np.minimum(np.abs(X - cx), np.abs(Y - cy))
+    cv.fill(np.maximum(seam - 1.4 * s, outer + 4 * s), FLOOR_GROUT, 0.55)
+    cv.fill(np.maximum(np.minimum(np.abs(X - cx - 1.4 * s), np.abs(Y - cy - 1.4 * s)) - 0.8 * s, outer + 4 * s),
+            "#FFFFFF", 0.5)
+    for (dx, dy, c) in ((45, 45, "#FF7EB6"), (115, 115, "#5CD6FF"), (115, 45, "#FFD84D"), (45, 115, "#6CF08E")):
+        cv.fill(np.hypot(X - ox - dx * s, Y - oy - dy * s) - 3.6 * s, c, 0.7, soft=0.6 * s)
+    refl = np.maximum((np.abs(((X - ox) - (Y - oy)) * 0.7071 / s + 26) - 9) * s, 0 * X)
+    cv.fill(np.maximum(refl, outer + 2 * s), "#FFFFFF", 0.14, soft=6 * s)
+    if kind == 2:
+        cv.fill(SUB(outer + 1 * s, inner), FLOOR_DEEP, 0.55)   # the deeper layer: the frame band
+    elif kind == "half":
+        gold(inner)                                              # the first layer has gone: the core is lit
+        cv.fill(rect(40, 40, 120, 120, 22), "#FFFFFF", 0.35, soft=14 * s)
+        sparkles(((60, 56, 8), (104, 100, 6)))
+    cv.stroke(outer, 3.6 * s, "#FFFFFF", 1.0)
+    if kind in (2, "half"):
+        cv.stroke(inner, 3.0 * s, "#FFFFFF", 1.0)
     return cv
+
+
+def draw_floor(kind):
+    """kind: 2, 1, "half" or "lit" (see above). Opaque 160x160."""
+    cv = Canvas(160, 160)
+    return floor_tile(cv, kind)

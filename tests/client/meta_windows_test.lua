@@ -140,6 +140,21 @@ describe("meta windows: start", function()
 		end)
 	end)
 
+	it("shows the dance-floor goal as the unlit tile with its tile count, like the level HUD does", function()
+		G.with_town({ setup = function(app) G.win(app, 14) end }, function(c)
+			open(c, "start") -- level 15: the first dance floor, 35 tiles
+			assert_true(has(c, "Goals"))
+			local icon, lit = 0, 0
+			for _, node in ipairs(c.E.alive_nodes(c.town.scene)) do
+				if node.anim == "ui_icons_goal_floor" then icon = icon + 1 end
+				if node.anim == "blockers_floor_lit" then lit = lit + 1 end
+			end
+			assert_eq(icon, 1, "the goal icon of the unlit tile")
+			assert_eq(lit, 0, "not the lit tile: it is what the goal turns into")
+			assert_true(has(c, "35"), "the number of tiles")
+		end)
+	end)
+
 	it("takes the picked boosters along and pays them at the start", function()
 		G.with_town({ setup = function(app)
 			G.win(app, 11) -- level 12 is next: the Riff is open (3 as a gift), no hit streak yet

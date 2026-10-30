@@ -396,7 +396,8 @@ function H.hit(self, e)
 	elseif e.layer == "wires" then
 		self:burst("spark", e.x, e.y, "#FFB463", 5, t)
 	elseif e.layer == "floor" and (e.hp or 0) > 0 then
-		-- the tile cracks: a quick white blink
+		-- the first layer of a two-layer tile is gone: a gold blink while the tile itself (client/level_floor.lua)
+		-- lights its core
 		local lx, ly = self:center(e.x, e.y)
 		self:flash(lx, ly, cell * 1.5, "#FFD84D", t, 0.22)
 	end
