@@ -80,8 +80,10 @@ function M.settle_stale_run()
 end
 
 -- Debug / QA: wins the next level through the meta's own start and finish
--- (no board). Returns the finish_level result or false, why.
-function M.debug_win(moves_left)
+-- (no board). Returns the finish_level result or false, why. There is no results window to open the
+-- level chest in, so the player counts as having taken it at once (keep_chest = true leaves it waiting in the
+-- meta, as a win on the board does).
+function M.debug_win(moves_left, keep_chest)
 	local n = app.meta:level_to_play()
 	if not n then return false, "all_done" end
 	local ref = M.level_ref(n)
@@ -89,6 +91,9 @@ function M.debug_win(moves_left)
 	if not run then return false, why end
 	app.meta:note_move()
 	local res = app.meta:finish_level({ won = true, level_id = n, moves_at_win = moves_left or 3 }, app.now())
+	if not keep_chest then
+		for _, w in ipairs(app.meta:pending_chests()) do app.meta:claim_level_chest(w.level_id, app.now()) end
+	end
 	app.commit("qa_win")
 	return res
 end

@@ -1,14 +1,17 @@
 -- Results window of the level screen, after the final concert: the stars earned (the meta's number
 -- for the difficulty), the coins (the meta's: the base and 5 for every move left), the score, the hit
 -- streak with the free boosters of the next start, the progress to the next level chest (or the
--- chest that just came: the town opens it), new boosters, boosters the core could not place and
--- returned. "Next level" opens the start window of the next level (Play there starts it), "To town"
+-- chest that just came: "Open" shows the chest window and, once the player takes it, the meta pays it and
+-- its unlimited lives start; left unopened it is offered again by the next results window and the town),
+-- new boosters, boosters the core could not place and returned. "Next level" opens the start window of the next level (Play there starts it), "To town"
 -- goes back. Stars, coins and Bit are animated once; a rebuild (language) shows the final state.
 -- params = {view = level_windows.result(...), refund = {[id] = count} | nil, standalone}
 -- Result: "town" | {action = "next", level} (a debug level: no start window).
 
+local app = require("client.app")
 local i18n = require("client.i18n")
 local views = require("client.views")
+local lw = require("client.level_windows")
 local config = require("meta.config")
 local fx = require("client.fx")
 local kit = require("gui.kit")
@@ -37,21 +40,68 @@ local function refund_ids(refund)
 	return out
 end
 
+-- The chest to offer now: live from the meta (a chest taken in this window is gone from it and the next one
+-- waiting takes its place); the view's own chest when the window was handed one without a meta behind it.
+local function offered_chest(v)
+	if v.standalone then return nil end
+	local meta = app.meta
+	if meta and meta.pending_chests then return lw.chest(meta) end
+	return v.chest
+end
+
+-- The contents of a chest in a row to the right of the chest icon, at height y of `inner`: the gaps shrink
+-- when there are four.
+local function chest_row(e, inner, chest, sw, y)
+	local s = e.ui
+	local items = views.chest_items(chest)
+	local rooms, used = {}, 0
+	for i, it in ipairs(items) do
+		rooms[i] = it.kind == "infinite" and 74 or (it.kind == "coins" and 66 or 36)
+		used = used + 38 + rooms[i]
+	end
+	local left, right = -sw / 2 + 150, sw / 2 - 18
+	local gap = math.min(14, math.max(4, (right - left - used) / math.max(1, #items - 1)))
+	local row = used + gap * (#items - 1)
+	local ix = math.max(left, math.min(40 - row / 2, right - row))
+	for i, it in ipairs(items) do
+		kit.icon(e, inner, it.image, ix + 17, y, 38, "gold")
+		local label = it.kind == "infinite" and i18n.t("time.min", { m = it.amount }) or ("×" .. i18n.number(it.amount))
+		s:text(inner, label, ix + 38, y, { font = "number", size = 24, color = "text", pivot = gui.PIVOT_W, max_width = rooms[i] })
+		ix = ix + 38 + rooms[i] + gap
+	end
+end
+
+-- "Open": the chest window shows the chest; the player taking it ("Collect") is the moment the meta pays it,
+-- so its unlimited lives run from there. A chest window closed any other way (the screen goes away) pays
+-- nothing: the chest stays in the meta.
+local function open_chest(e, chest)
+	e:open("chest", { kind = "level", level_id = chest.level_id, chest = chest, on_close = function(result)
+		if type(result) ~= "table" or result.action ~= "collect" then return end
+		if app.claim_level_chest(chest.level_id) then
+			e.state.claimed = chest
+			e.state.pop_claimed = true
+		end
+		e:rebuild()
+	end })
+end
+
 -- the blocks, top to bottom: {h, draw = function(y)}
 local function blocks(e, body, v, animate, alive)
 	local s = e.ui
 	local list = {}
 	local function add(h, draw) list[#list + 1] = { h = h, draw = draw } end
 
-	-- stars
+	-- stars: only the ones earned (the meta's number for the difficulty, not a rating of the play: empty
+	-- slots made players think more stars could be won by playing better)
+	local n_stars = math.max(1, math.min(3, v.stars))
 	add(150, function(y)
-		local stars = lkit.stars(e, body, 0, y - 4, math.min(3, v.stars), 3, 100)
+		local stars = lkit.stars(e, body, 0, y - 4, n_stars, n_stars, 100)
 		if animate and not kit.reduced() then
-			for i = 1, math.min(3, v.stars) do
+			for i = 1, n_stars do
 				local node = stars[i]
 				local base = gui.get_scale(node)
 				gui.set_scale(node, base * 0.01)
-				local sx = (i - 2) * 100 * 1.08
+				local sx = (i - (n_stars + 1) / 2) * 100 * 1.08
 				e.fx:after(0.35 + i * 0.4, function()
 					if not alive() then return end
 					gui.animate(node, "scale", base, gui.EASING_OUTBACK, 0.45)
@@ -63,6 +113,13 @@ local function blocks(e, body, v, animate, alive)
 			end
 		end
 	end)
+	if not v.standalone and n_stars < 3 then
+		add(104 + GAP, function(y)
+			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
+				text = { key = "win.stars_note" }, icon = "ui/icons/star", size = 22, h = 104, color = "text_soft", wrap = true,
+			})
+		end)
+	end
 
 	-- coins, moves left, score
 	add(172, function(y)
@@ -79,7 +136,7 @@ local function blocks(e, body, v, animate, alive)
 				if not alive() then return end
 				s:set_text(txt, "+" .. i18n.number(val), info)
 				e.fx:sfx("coin", nil, 0.09)
-			end, 1.0 + 0.4 * math.min(3, v.stars))
+			end, 1.0 + 0.4 * n_stars)
 		end
 		s:text(body, i18n.t("win.moves_left", { n = v.moves_left }), 0, y - 40, {
 			font = "button", size = 28, color = "text", max_width = W - 100,
@@ -122,33 +179,40 @@ local function blocks(e, body, v, animate, alive)
 		end)
 	end
 
-	-- the level chest
-	if v.chest then
+	-- the level chest: waiting to be opened here, or just taken
+	local chest = offered_chest(v)
+	local taken = (not chest) and e.state.claimed or nil
+	if chest then
+		add(196 + GAP, function(y)
+			local sw = W - 80
+			local strip = s:round(body, 0, y - GAP / 2, sw, 196, "#FFD84D", { radius = 34 })
+			local inner = s:round(strip, 0, 0, sw - 8, 188, "#FFF6D6", { radius = 30 })
+			local icon = kit.icon(e, inner, "ui/icons/chest_closed", -sw / 2 + 80, 22, 120, "gold")
+			if not kit.reduced() then kit.wiggle(icon, 0.05, 0.9) end
+			-- an older chest left unopened says which level it is from
+			local title = (chest.level_id == v.level_id) and i18n.t("win.chest") or i18n.t("reward.chest_level", { n = chest.level_id })
+			s:text(inner, title, 40, 62, { font = "title", size = 44, color = "gold", outline = "white", max_width = 360 })
+			chest_row(e, inner, chest, sw, 8)
+			s:button({ parent = inner, x = 40, y = -56, w = 260, h = 64, style = "green", text = i18n.t("win.chest_open"), text_size = 30,
+				on_click = function() open_chest(e, chest) end })
+			e:target("chest", 40, y - GAP / 2 - 56)
+		end)
+	elseif taken then
 		add(150 + GAP, function(y)
 			local sw = W - 80
-			local strip = s:round(body, 0, y - GAP / 2, sw, 150, "#FFD84D", { radius = 34 })
-			local inner = s:round(strip, 0, 0, sw - 8, 142, "#FFF6D6", { radius = 30 })
-			local chest = kit.icon(e, inner, "ui/icons/chest_open", -sw / 2 + 80, 4, 110, "gold")
-			if not kit.reduced() then kit.wiggle(chest, 0.05, 0.9) end
-			s:text(inner, i18n.t("win.chest"), 40, 42, { font = "title", size = 44, color = "gold", outline = "white", max_width = 360 })
-			-- the items stand in a row to the right of the chest: the gaps shrink when there are four
-			local items = views.chest_items(v.chest)
-			local rooms, used = {}, 0
-			for i, it in ipairs(items) do
-				rooms[i] = it.kind == "infinite" and 74 or (it.kind == "coins" and 66 or 36)
-				used = used + 38 + rooms[i]
+			local strip = s:round(body, 0, y - GAP / 2, sw, 150, "green", { radius = 34 })
+			local inner = s:round(strip, 0, 0, sw - 8, 142, "#E8FBEF", { radius = 30 })
+			kit.icon(e, inner, "ui/icons/chest_open", -sw / 2 + 80, 4, 110, "gold")
+			s:text(inner, i18n.t("win.chest_got"), 40, 42, { font = "title", size = 40, color = "green", outline = "white", max_width = 360 })
+			chest_row(e, inner, taken, sw, -6)
+			if (taken.infinite_minutes or 0) > 0 then
+				s:text(inner, i18n.t("win.chest_lives_on"), 40, -50, { font = "small", size = 22, color = "text_soft", max_width = 360 })
 			end
-			local left, right = -sw / 2 + 150, sw / 2 - 18
-			local gap = math.min(14, math.max(4, (right - left - used) / math.max(1, #items - 1)))
-			local row = used + gap * (#items - 1)
-			local ix = math.max(left, math.min(40 - row / 2, right - row))
-			for i, it in ipairs(items) do
-				kit.icon(e, inner, it.image, ix + 17, -6, 38, "gold")
-				local label = it.kind == "infinite" and i18n.t("time.min", { m = it.amount }) or ("×" .. i18n.number(it.amount))
-				s:text(inner, label, ix + 38, -6, { font = "number", size = 24, color = "text", pivot = gui.PIVOT_W, max_width = rooms[i] })
-				ix = ix + 38 + rooms[i] + gap
+			if e.state.pop_claimed then
+				e.state.pop_claimed = nil
+				kit.pop_in(strip, 0, 0.4)
+				kit.sfx("unlock")
 			end
-			s:text(inner, i18n.t("win.chest_waits"), 40, -50, { font = "small", size = 22, color = "text_soft", max_width = 360 })
 		end)
 	elseif not v.standalone and v.progress and not v.progress.opened then
 		add(96 + GAP, function(y)

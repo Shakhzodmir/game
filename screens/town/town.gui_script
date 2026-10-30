@@ -291,6 +291,20 @@ function Town:queue_rewards()
 	self:publish()
 end
 
+-- The level chests the player won and has not opened yet (the results window offers the chest first; a player
+-- who went on without opening it gets it here). The meta pays a chest when the player takes it, so nothing
+-- is held beforehand.
+function Town:queue_pending_chests()
+	for _, w in ipairs(app.meta:pending_chests()) do
+		local id = w.level_id
+		self.show:push(steps.chest(self, {
+			kind = "level", chest = w.chest, level_id = id,
+			claim = function() return app.claim_level_chest(id) end,
+		}))
+	end
+	self:publish()
+end
+
 -- lifecycle ------------------------------------------------------------------------------------------
 
 local function on_bus(self, topic, p)
@@ -395,6 +409,7 @@ function Town:update(dt)
 	if self.enter_t > 0.45 and not self.rewards_started then
 		self.rewards_started = true
 		if rewards.count() > 0 then self:queue_rewards() end
+		self:queue_pending_chests()
 	end
 	if self.pending_open and self.enter_t > 0.5 and not self.show:busy() then
 		local want = self.pending_open
