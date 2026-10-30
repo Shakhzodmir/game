@@ -29,6 +29,8 @@ FLOOR_LIGHT, FLOOR, FLOOR_SHADE = "#DCCFFF", "#C0A9FF", "#A78CFA"   # unlit plat
 FLOOR_GROUT, FLOOR_DEEP = "#8A68E8", "#9070EE"                      # the grout around a plate, the deeper layer of hp 2
 FLOOR_LIT_A, FLOOR_LIT_MID, FLOOR_LIT_B = "#FFF6B8", "#FFE680", "#FFD23F"   # lit plate (gold)
 FLOOR_LIT_GROUT = "#F2A31B"
+# the bolted plate under everything that cannot be swapped: top, bottom, outline, shadow, bounce light, rivet head
+PLATE = ("#9C92DB", "#6E64B0", "#40387F", "#2A2260", "#C7BFF7", "#E3DEFF")
 NOISE = "#8A8FA3"
 WIRE, WIRE_CORE = "#5B4B7A", "#FFB463"
 CARD, CARD_DARK = "#FFB463", "#C56A1C"

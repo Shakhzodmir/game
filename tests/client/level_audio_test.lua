@@ -152,6 +152,30 @@ describe("client.level_audio", function()
 		assert_same(layers, { "tension=true", "tension=false", "tension=true", "tension=false" })
 	end)
 
+	it("thuds and buzzes when a thing that cannot move is pushed, even right after a landing", function()
+		local a, calls = fake_audio()
+		local buzz = {}
+		local t = 0
+		local la = level_audio.new({ audio = a, now = function() return t end, vibrate = function(ms) buzz[#buzz + 1] = ms end })
+		la:event({ type = "land", id = 1, x = 1, y = 1 })
+		t = 0.02 -- inside the landing gap
+		la:nope()
+		assert_same(names(calls, "sfx"), { "land", "land" }) -- the landing, and the thud under its own limiter
+		assert_true(calls[2][3].gain >= 0.8 and calls[2][3].gain <= 1, "plainly heard, not loud")
+		assert_true(calls[2][3].gain > calls[1][3].gain, "louder than a landing tick")
+		assert_eq(#buzz, 1)
+		t = 0.04
+		la:nope() -- hammering at the same thing: the thud is rate-limited
+		assert_eq(#names(calls, "sfx"), 2)
+		t = 0.2
+		la:nope()
+		assert_eq(#names(calls, "sfx"), 3)
+		assert_eq(#buzz, 2)
+		-- the name must exist in the sound registry
+		local index = require("client.assets_index")
+		assert_true(index.sounds.sfx[level_audio.NOPE_SFX] ~= nil, "sound effect " .. level_audio.NOPE_SFX)
+	end)
+
 	it("clicks and buzzes on touch", function()
 		local a, calls = fake_audio()
 		local buzz = {}

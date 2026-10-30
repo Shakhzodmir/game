@@ -234,3 +234,60 @@ describe("client.level_session focus and autoplay", function()
 		assert_eq(t.auto, nil, "the autoplay ended at the out-of-moves state")
 	end)
 end)
+
+-- a 6x6 board: a record box at (2, 2), concrete at (3, 2), a free pair elsewhere
+local BLOCKED = [[{
+  "id": 4, "version": 1, "size": [6, 6], "moves": 12, "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue"],
+  "goals": [{"type": "break", "item": "record_box", "count": 1}],
+  "cells": ["######", "######", "######", "######", "######", "######"],
+  "slots": [
+    {"at": [1, 1], "type": "record_box", "hp": 1},
+    {"at": [2, 1], "type": "concrete", "hp": 1}
+  ]
+}]]
+
+describe("client.level_session (refused commands)", function()
+	it("hands every command the core refuses to hooks.rejected with the core's reason, and nothing else", function()
+		local seen = {}
+		local s = assert(level_session.new({
+			params = { level = 4, level_text = BLOCKED },
+			hooks = { rejected = function(cmd, why) seen[#seen + 1] = { cmd.type, why } end },
+		}))
+		play_to_rest(s)
+		-- a swipe from the record box, a swipe into the concrete, a tap on the box: not_movable each
+		local ok, why = s:command({ type = "swap", from = { 1, 2 }, to = { 2, 2 } })
+		assert_false(ok)
+		assert_eq(why, "not_movable")
+		assert_false(s:command({ type = "swap", from = { 3, 2 }, to = { 2, 2 } }))
+		assert_false(s:command({ type = "tap", at = { 1, 2 } }))
+		-- off the board: bad_cell; a booster with nowhere to go
+		assert_false(s:command({ type = "swap", from = { 1, 4 }, to = { 0, 4 } }))
+		assert_same(seen, { { "swap", "not_movable" }, { "swap", "not_movable" }, { "tap", "not_movable" }, { "swap", "bad_cell" } })
+		-- an accepted move is not a refusal
+		local cmd = s:hint_command()
+		assert_true(s:command(cmd))
+		assert_eq(#seen, 4)
+		-- the failed swap (a bounce) is accepted too
+		assert_eq(s.moved, true)
+	end)
+
+	it("needs no hook", function()
+		local s = assert(level_session.new({ params = { level = 4, level_text = BLOCKED } }))
+		play_to_rest(s)
+		assert_false(s:command({ type = "tap", at = { 1, 2 } }))
+	end)
+
+	it("answers the QA swap on a blocker the same way as a touch does", function()
+		local seen = {}
+		local s = assert(level_session.new({
+			params = { level = 4, level_text = BLOCKED },
+			hooks = { rejected = function(cmd, why) seen[#seen + 1] = why end },
+		}))
+		play_to_rest(s)
+		local r = s:qa("swap", { "1", "2", "2", "2" })
+		assert_false(r.ok)
+		assert_eq(r.result, "not_movable")
+		assert_same(seen, { "not_movable" })
+	end)
+end)
