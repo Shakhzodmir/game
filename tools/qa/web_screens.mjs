@@ -239,8 +239,10 @@ async function debugChecks() {
 	await sleep(400);
 	await tapTarget(page, 'task');
 	await waitFor(page, s => s.app.next_task && s.app.next_task.id !== 'turntable', 'task done', 3000);
-	await sleep(1200);
-	const at = (await state(page)).app.audio;
+	// the stem joins the track when the stars have landed and the item lights up (stars fly first: a slow
+	// software-GL page needs seconds), then crossfades in over 0.5 s
+	const lit = await waitFor(page, s => s.app.audio && s.app.audio.stems_on >= 1, 'the stem of the task', 15000).catch(() => null);
+	const at = (lit || await state(page)).app.audio;
 	check(at.stems_on === 1, 'town: the task unlocked its stem', at.stems_on);
 	await page.screenshot({ path: `${outDir}/client_town_task.png` });
 	await waitFor(page, s => !s.app.overlay.toast && s.app.overlay.toasts_queued === 0, 'toasts done', 8000);

@@ -356,7 +356,9 @@ function init(self)
 				w = self.ww, h = self.wh, cell = self.geom and self.geom.cell, lite = self.vfx.lite }
 		end,
 		on_qa = function(name, res)
-			if name == "skip" and res and res.ok then self.vfx:clear() end
+			-- the QA bridge runs in the main collection, where the id of an object of this one does not
+			-- resolve (go.set_position: "Instance (null) not found"): the next update clears the effects
+			if name == "skip" and res and res.ok then self.clear_vfx = true end
 		end,
 	})
 
@@ -460,6 +462,10 @@ end
 
 -- the effects of this frame; the shake offset moves the pieces, the wires and the background
 local function run_vfx(self, dt, tick_f)
+	if self.clear_vfx then
+		self.clear_vfx = nil
+		self.vfx:clear()
+	end
 	self.shake_x, self.shake_y = self.vfx:update(dt, tick_f, self.t)
 end
 
