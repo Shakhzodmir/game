@@ -364,3 +364,82 @@ describe("client.level_anim (finish)", function()
 		assert_eq(find(R:frame(ps, 1, 2.0), 1).sx, 1)
 	end)
 end)
+
+describe("client.level_anim (refused moves)", function()
+	local function box(id, x, y)
+		return piece(id, x, y, { kind = "blocker", item = "record_box", hp = 1, color = nil })
+	end
+
+	it("shakes an object sideways for NOPE_TIME and then leaves it still", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		local ps = { box(1, 3, 3), piece(2, 4, 4) }
+		local cx = g:center(3, 3)
+		local base = find(A:frame(ps, 1, 1.0), 1)
+		assert_eq(base.x, cx)
+		A:nope(1, 2.0)
+		local left, right, last = false, false, 0
+		for k = 0, 60 do
+			local t = 2.0 + k / 120
+			local e = find(A:frame(ps, 100 + k, t), 1)
+			if k / 120 < level_anim.NOPE_TIME then
+				if e.x < cx - 0.5 then left = true end
+				if e.x > cx + 0.5 then right = true end
+				assert_true(math.abs(e.x - cx) <= g.cell * level_anim.NOPE_AMP + 1e-9, "never further than the amplitude")
+				assert_eq(e.y, base.y) -- sideways only
+			end
+			last = e.x
+		end
+		assert_true(left and right, "it swings both ways")
+		assert_eq(last, cx, "and stands still after NOPE_TIME")
+		assert_eq(find(A:frame(ps, 200, 2.5), 2).x, g:center(4, 4)) -- the neighbour never moved
+	end)
+
+	it("dies away: the swings get smaller", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		local ps = { box(1, 3, 3) }
+		local cx = g:center(3, 3)
+		A:nope(1, 0)
+		local first, second = 0, 0
+		for k = 0, 90 do
+			local t = k / 240
+			local e = find(A:frame(ps, k, t), 1)
+			local off = math.abs(e.x - cx)
+			if t < level_anim.NOPE_TIME / 2 then first = math.max(first, off) elseif t < level_anim.NOPE_TIME then second = math.max(second, off) end
+		end
+		assert_true(first > second * 1.5 and second > 0, "first half " .. first .. " second half " .. second)
+	end)
+
+	it("flashes at first, and under reduced motion only flashes (no shake)", function()
+		local g = G()
+		local A = level_anim.new({ geom = g, reduced = true })
+		local ps = { box(1, 3, 3) }
+		local cx = g:center(3, 3)
+		A:nope(1, 0)
+		local e = find(A:frame(ps, 1, 0.0), 1)
+		assert_true(e.flash > 0.1, "a flash")
+		for k = 0, 30 do
+			assert_eq(find(A:frame(ps, k, k / 100), 1).x, cx)
+		end
+		assert_eq(find(A:frame(ps, 99, 1.0), 1).flash, 0)
+		local B = level_anim.new({ geom = g })
+		B:nope(1, 0)
+		assert_true(find(B:frame(ps, 1, 0.0), 1).flash > 0.1)
+	end)
+
+	it("shakes a wired piece as well, and ignores an object it does not know", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		local ps = { piece(1, 2, 2) }
+		A:nope(1, 0)
+		A:nope(99, 0)
+		A:nope(nil, 0)
+		local cx = g:center(2, 2)
+		local moved = false
+		for k = 0, 20 do
+			if math.abs(find(A:frame(ps, k, k / 100), 1).x - cx) > 0.5 then moved = true end
+		end
+		assert_true(moved)
+	end)
+end)

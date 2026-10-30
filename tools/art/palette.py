@@ -24,6 +24,8 @@ CELL_A, CELL_B = "#FFFFFF", "#EFE8FF"
 FRAME_GLOW = (155 / 255, 82 / 255, 1.0)       # rgba(155,82,255,0.25)
 FRAME_SHADOW = (47 / 255, 128 / 255, 237 / 255)  # rgba(47,128,237,0.3)
 FLOOR, FLOOR_LIT_A, FLOOR_LIT_B = "#D8CCFF", "#FFF6B8", "#FFD23F"
+# the bolted plate under everything that cannot be swapped: top, bottom, outline, shadow, bounce light, rivet head
+PLATE = ("#9C92DB", "#6E64B0", "#40387F", "#2A2260", "#C7BFF7", "#E3DEFF")
 NOISE = "#8A8FA3"
 WIRE, WIRE_CORE = "#5B4B7A", "#FFB463"
 CARD, CARD_DARK = "#FFB463", "#C56A1C"

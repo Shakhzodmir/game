@@ -839,7 +839,7 @@ describe("level screen: the tutorial", function()
 		} } } }, function(c)
 			c.run(1.0)
 			assert_eq(ui(c).tutorial.phase, "active")
-			assert_true(c.has("Break the record boxes!"))
+			assert_true(c.has("Record boxes don't move. Break them!"))
 			assert_true(c.has("Tap to continue"))
 			assert_eq(#nodes_with(c, "ui_icons_hand"), 1)
 			c.run(0.6) -- the guard time of a tip

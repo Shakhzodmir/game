@@ -8,7 +8,7 @@ from artkit import (C, Canvas, F32, WHITE, bbox_px, bez, candy, edge_fade, fit, 
                     closing, ramp, rim_gloss, rng, sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly,
                     sd_polyline, sd_rect, sd_ring, sd_star, sd_taper, smoothstep, soft_shadow, sparkle4, SU, SUB,
                     U, I)
-from palette import (PIECES, ORDER, BUTTONS, CELL_A, CELL_B, FRAME_GLOW, FRAME_SHADOW, PANEL_LINE, PINK_BADGE,
+from palette import (PIECES, ORDER, BUTTONS, CELL_A, CELL_B, FRAME_GLOW, FRAME_SHADOW, PANEL_LINE, PINK_BADGE, PLATE,
                      PIECE_SHADOW)
 from pieces import note_sdf
 
@@ -91,6 +91,40 @@ def draw_board_edge(kind):
     cv.paint(np.clip(0.5 - np.maximum(d - p1, p0 - d) * cv.ss, 0, 1), WHITE, 1.0)
     cv.paint(np.clip(0.5 - (d - p0) * cv.ss, 0, 1), WHITE, 0.60)
     cv.paint(np.clip(0.5 - np.maximum(d - p0, (p0 - 3) - d) * cv.ss, 0, 1), C("#E6DAFF"), 0.35)
+    return cv
+
+
+# --------------------------------------------------------------------------
+# plate: the sunken, bolted plate under everything that cannot be swapped (blockers, wired pieces).
+# Cooler and darker than the checker cells so a record box never reads as one more piece; recessed (dark
+# inner shadow top-left, bounce light bottom-right) and screwed down at the corners ("bolted = does not move").
+# Drawn by the board under the object (client/level_plates.lua); a 2x2 column gets one plate at twice the size.
+# --------------------------------------------------------------------------
+PLATE_SIZE, PLATE_PAD, PLATE_RADIUS, PLATE_RIVET_AT, PLATE_RIVET_R = 160, 5, 26, 25, 6.0
+
+
+def draw_plate():
+    top, bot, line, shadow, light, head = PLATE
+    n = PLATE_SIZE
+    cv = Canvas(n, n)
+    X, Y = cv.X, cv.Y
+    body = sd_rect(X, Y, PLATE_PAD, PLATE_PAD, n - PLATE_PAD, n - PLATE_PAD, PLATE_RADIUS)
+    cv.fill_grad(body, [(0.0, top), (1.0, bot)], axis="y", p0=PLATE_PAD, p1=n - PLATE_PAD)
+    gy, gx = np.gradient(body)                                  # outward normal of the edge
+    nrm = np.hypot(gx, gy) + 1e-6
+    tl = np.clip((-0.55 * gx - 0.83 * gy) / nrm, 0, 1)          # edges that face the top-left sit in shadow
+    br = np.clip((0.55 * gx + 0.83 * gy) / nrm, 0, 1)           # edges that face the bottom-right catch light
+    cv.paint(smoothstep(10.0, 0.0, -body) * (body < 0) * (0.3 + 0.7 * tl), C(shadow), 0.5)
+    cv.paint(smoothstep(6.0, 0.0, -body) * (body < 0) * br, C(light), 0.55)
+    cv.fill(np.maximum(body, -body - 2.8), line, 1.0)           # outline, inside the plate
+    r0 = PLATE_RIVET_R
+    for cx in (PLATE_RIVET_AT, n - PLATE_RIVET_AT):
+        for cy in (PLATE_RIVET_AT, n - PLATE_RIVET_AT):
+            head_sdf = sd_circle(X, Y, cx, cy, r0)
+            cv.fill(sd_circle(X, Y, cx, cy, r0 + 1.6), line, 0.9)                                # socket
+            cv.fill(head_sdf, head)
+            cv.fill(np.maximum(head_sdf, -sd_circle(X, Y, cx - 1.7, cy - 1.7, r0)), top, 0.8)   # shaded lower right
+            cv.fill(sd_circle(X, Y, cx - 1.8, cy - 2.0, 2.0), "#FFFFFF", 0.9, soft=0.5)          # glint
     return cv
 
 

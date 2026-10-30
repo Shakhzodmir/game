@@ -376,7 +376,7 @@ gh run list --branch claude/brave-curie-dehte0 --limit 5   # CI: тесты и H
 
 ### 4.4 Хаптика
 
-- **Сейчас:** `platform.vibrate(ms)`; в вебе `navigator.vibrate` через `html5.run` (работает в Android-браузерах, в iOS Safari нет), на нативных сборках заглушка `false`. Вызовы идут из `client/level_audio.lua` (`HAPTIC`: tap 8 мс, destroy 10, praise 14, goal 18, special 22, combo 40, finale 70) и из `client/fx.lua` (`buzz`).
+- **Сейчас:** `platform.vibrate(ms)`; в вебе `navigator.vibrate` через `html5.run` (работает в Android-браузерах, в iOS Safari нет), на нативных сборках заглушка `false`. Вызовы идут из `client/level_audio.lua` (`HAPTIC`: tap 8 мс, destroy 10, praise 14, отказ двинуть неподвижное 14, goal 18, special 22, combo 40, finale 70) и из `client/fx.lua` (`buzz`).
 - **Нативное расширение `haptics`:** Android — `VibrationEffect.createOneShot(ms, amplitude)` (разрешение `VIBRATE`, запасной путь для старых устройств); iOS — `UIImpactFeedbackGenerator`: до 14 мс лёгкий, 15–35 средний, больше 35 тяжёлый; победа и поражение — `UINotificationFeedbackGenerator`. Интерфейс `platform.vibrate(ms)` не меняется.
 - **Правила:** не чаще 20 вызовов в секунду, в каскаде один удар на волну; выключается настройкой `haptics` (есть) и системным режимом без вибрации. Работа — 4 ч-д, проверка на трёх устройствах.
 

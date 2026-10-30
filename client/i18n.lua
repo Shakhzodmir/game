@@ -87,6 +87,17 @@ local S = {
 	["praise.4"] = { en = "Groovy!", ru = "Кайф!" },
 	["praise.5"] = { en = "Legend!", ru = "Легенда!" },
 
+	-- things that cannot be moved (client/level_plates.lua, screens/level/board.script): the toast of the first
+	-- refused move of each kind in a session, after the thing has shaken its head -------------------------
+	["level.fixed_blocker"] = {
+		en = "Can't be moved — break it with matches next to it",
+		ru = "Не двигается — разбей совпадениями рядом",
+	},
+	["level.fixed_wired"] = {
+		en = "Wired pieces can't move — match them where they stand",
+		ru = "Фишка в проводах не двигается — собери её на месте",
+	},
+
 	-- level effects: combo titles over the board, the final concert (screens/level/level_fx.gui_script) --
 	["combo.cross"] = { en = "Cross!", ru = "Крест!" },
 	["combo.triple_cross"] = { en = "Triple cross!", ru = "Тройной крест!" },
@@ -252,9 +263,11 @@ local S = {
 	["win.debug"] = { en = "Test level: no reward", ru = "Тестовый уровень: без награды" },
 
 	-- tutorial -----------------------------------------------------------------------------------------------------
+	-- Two lines at most in the bubble (screens/level/tutorial_view.lua): a third one runs under its Skip tab.
+	-- tests/client/tutorial_content_test.lua measures every text of content/tutorials.json in both languages.
 	["tutorial.swap"] = {
 		en = "Swap two pieces to make a line of 3",
-		ru = "Поменяй две фишки местами, чтобы собрать 3 в ряд",
+		ru = "Меняй фишки местами и собирай 3 в ряд",
 	},
 	["tutorial.riff"] = { en = "Match 4 in a line to make a Riff!", ru = "Собери 4 в ряд — получишь Рифф!" },
 	["tutorial.sub"] = { en = "Match in a T or L shape for a Subwoofer!", ru = "Собери уголком — получишь Сабвуфер!" },
@@ -263,7 +276,10 @@ local S = {
 	["tutorial.tap_special"] = { en = "Tap a special piece to launch it", ru = "Нажми на спецфишку, чтобы запустить её" },
 	["tutorial.goals"] = { en = "Complete the goals before moves run out", ru = "Выполни цели, пока не кончились ходы" },
 	["tutorial.booster"] = { en = "Tap a booster, then pick a target", ru = "Нажми на бустер, затем выбери цель" },
-	["tutorial.record_box"] = { en = "Break the record boxes!", ru = "Разбей коробки с пластинками!" },
+	["tutorial.record_box"] = {
+		en = "Record boxes don't move. Break them!",
+		ru = "Коробки не двигаются. Разбей их!",
+	},
 	["tutorial.dancefloor"] = { en = "Light up the whole dance floor!", ru = "Зажги весь танцпол!" },
 	["tutorial.wires"] = { en = "Cut the wires to free the pieces!", ru = "Порви провода, чтобы освободить фишки!" },
 	["tutorial.mic"] = { en = "Bring the microphones to the stage!", ru = "Доставь микрофоны на сцену!" },
@@ -286,14 +302,14 @@ local S = {
 		ru = "Поменяй две спецфишки местами — выйдет комбо!",
 	},
 	["tutorial.pre_boosters"] = {
-		en = "Pick boosters before the level: they start on the board",
-		ru = "Выбирай бустеры перед уровнем: они сразу ложатся на поле",
+		en = "Take boosters along: they start on the board",
+		ru = "Бери бустеры с собой — они сразу на поле",
 	},
 	["tutorial.dancefloor_match"] = { en = "Match on the tiles to light them", ru = "Собирай фишки на плитках — они загорятся" },
 	["tutorial.dancefloor_double"] = { en = "A double outline takes two matches", ru = "Двойной обводке нужно два матча" },
 	["tutorial.wires_match"] = {
-		en = "Wired pieces can't move, but you can still match them",
-		ru = "Фишка в проводах не двигается, но её можно собрать в ряд",
+		en = "Wired pieces can't move, but they still match",
+		ru = "Фишка в проводах не двигается, но собирается",
 	},
 	["tutorial.wires_free"] = { en = "Wires cut: the piece is free again!", ru = "Провода порваны — фишка снова свободна!" },
 	["tutorial.mic_drop"] = { en = "Clear the way under the microphone", ru = "Расчисти путь под микрофоном" },
@@ -311,11 +327,11 @@ local S = {
 	},
 	["tutorial.balloon_match"] = {
 		en = "Match their colour next to a balloon to pop it",
-		ru = "Собери фишки такого же цвета рядом с шариком — он лопнет",
+		ru = "Собери рядом фишки его цвета — шарик лопнет",
 	},
 	["tutorial.column_match"] = {
-		en = "Every match next to the speaker knocks off some dust",
-		ru = "Каждый матч рядом с колонкой сбивает с неё пыль",
+		en = "Every match next to the speaker knocks off dust",
+		ru = "Каждый матч рядом с колонкой сбивает пыль",
 	},
 	["tutorial.tap_continue"] = { en = "Tap to continue", ru = "Нажми, чтобы продолжить" },
 
