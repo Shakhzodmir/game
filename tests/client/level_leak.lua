@@ -31,6 +31,13 @@
 --   vfx_count           the count of effect sprites is not the count of those made
 --   overlong_fx         (every frame) an effect lives much longer than its duration while the session runs: only the
 --                       life limit of level_vfx would take it away
+--   halted_fx_visible   (every frame) an effect that follows the ticks of the core is drawn although the session was stopped
+--                       (a window, a lost focus) during the last frame: it would stand still on the board for as long as
+--                       the window is open (the leftovers of the producer's report, decisions.md 8.3 item 8, the addendum
+--                       on the tick effects that now wait out of sight)
+--   piece_overflow      (every frame) a piece found no sprite in the pool of the view (client/level_view.lua View:sync)
+--   janitor_repair      (every frame) the janitor of the board (screens/level/board.script) had to put a sprite right: it
+--                       is the net under everything above, so in a test it is a leak that got through
 --   stale_piece_sprite  a sprite of a piece that the core no longer has
 --   hidden_piece_visible / missing_piece_sprite / piece_displaced / piece_look   the pieces vs a fresh render
 --   stale_piece_list    the list of pieces the board caches is not the core's
@@ -147,6 +154,8 @@ local function new_context(E, script, self, sub, opts)
 		end
 		E.advance(dt)
 		script.update(B.self, dt)
+		-- (what the effects of that update saw: a window opens after it, in B.pump)
+		B.halted_seen = B.self.session:halted()
 		B.frames = B.frames + 1
 		B.engine_time = B.engine_time + dt
 		B.pump()
@@ -210,7 +219,9 @@ end
 -- (cheap invariants of the pools after every frame)}.
 function M.with_board(params, fn, opts)
 	opts = opts or {}
-	local E = stub.install({ window = opts.window })
+	-- (opts.float32 = true: the vectors keep float32 like the engine's, see the stub; a little slower, so only where it
+	-- matters: what the board sends to the engine at rest, and so when it is calm enough for the janitor to look)
+	local E = stub.install({ window = opts.window, float32 = opts.float32 == true })
 	-- what the board prints (a warning of a booster the meta did not charge, an error it caught) is collected in B.log,
 	-- not written to the output of the test run
 	local real_print, log = print, {}
@@ -307,6 +318,28 @@ function M.frame_check(B)
 	for _, o in ipairs(view.free) do
 		local eng = E.objects[o.go.s]
 		if eng and E.visible(eng) then add("pooled_visible", "a pooled piece sprite is on the screen") end
+	end
+	-- the effects that follow the ticks of the core wait out of sight while the session is stopped (an effect that has
+	-- passed its end and only fades out is on the real clock: that one is drawn, for a fraction of a second)
+	if B.halted_seen and not vfx.finished then
+		for _, fx in ipairs(vfx.active) do
+			if fx.clock == "tick" and fx.after_t0 == nil then
+				for j = 1, fx.n do
+					local o = fx[j]
+					local eng = o and E.objects[o.go.s]
+					if eng and E.visible(eng) then
+						add("halted_fx_visible", "a " .. fx_kind(fx) .. " effect is drawn although the session is stopped")
+						break
+					end
+				end
+			end
+		end
+	end
+	if view.overflow > 0 then
+		add("piece_overflow", view.overflow .. " pieces found no sprite in the pool of the view (" .. view.count .. " made)")
+	end
+	if (view.repaired or 0) > 0 or vfx.repaired > 0 or (self.janitor_repairs or 0) > 0 then
+		add("janitor_repair", "the janitor put right " .. (view.repaired or 0) .. " view and " .. vfx.repaired .. " effect sprites")
 	end
 	return out
 end
@@ -1233,6 +1266,8 @@ function M.play(sc, opts)
 			res.log = B.log
 			res.frames = B.frames
 			res.vfx = B.self.vfx:stats()
+			res.view = B.self.view:stats()
+			res.janitor = { passes = B.self.janitor_passes or 0, repairs = B.self.janitor_repairs or 0 }
 			res.board = B
 		end, opts.board)
 	end, debug.traceback)

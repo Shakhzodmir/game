@@ -531,6 +531,28 @@ describe("client.level_vfx never leaves an effect behind", function()
 		end)
 	end)
 
+	it("sends a position or a scale again that the engine refused", function()
+		with_vfx(function(E, vfx)
+			local level = require("client.level_view")
+			local o = level.create("#piece_factory")
+			local inst = E.by_factory("piece_factory")[1]
+			local real_pos, real_scale = go.set_position, go.set_scale
+			go.set_position = function() error("the engine refused the move") end
+			assert_error(function() level.apply(o, "pieces_red", 200, 500, 0.1, 0.5, 0.5, 0, 0, nil, 1) end, "refused")
+			go.set_position = real_pos
+			assert_false(E.visible(inst), "it did not get there")
+			level.apply(o, "pieces_red", 200, 500, 0.1, 0.5, 0.5, 0, 0, nil, 1) -- the same look again
+			assert_true(E.visible(inst), "it did, the second time")
+			assert_near(inst.pos.x, 200, 1e-9)
+			go.set_scale = function() error("the engine refused the scale") end
+			assert_error(function() level.apply(o, "pieces_red", 200, 500, 0.1, 0.7, 0.7, 0, 0, nil, 1) end, "refused")
+			go.set_scale = real_scale
+			assert_near(inst.scale.x, 0.5, 1e-9)
+			level.apply(o, "pieces_red", 200, 500, 0.1, 0.7, 0.7, 0, 0, nil, 1)
+			assert_near(inst.scale.x, 0.7, 1e-9)
+		end)
+	end)
+
 	it("lets the tick effects run out on their own once the game is over (the result window stops the ticks)", function()
 		with_vfx(function(E, vfx)
 			vfx:play({
@@ -544,11 +566,12 @@ describe("client.level_vfx never leaves an effect behind", function()
 			vfx:update(1 / 60, state.tick, state.t)
 			run(vfx, state, 3 / 60, true)
 			assert_eq(vfx:stats().active, 3)
-			-- a window pauses the session: the tick stops, the effects wait (that is what a pause is)
+			assert_true(on_screen(E) > 0, "they are on their way")
+			-- a window pauses the session: the tick stops, the effects wait (that is what a pause is), out of sight
 			run(vfx, state, 2, false, true)
 			assert_eq(vfx:stats().active, 3)
 			assert_eq(vfx:stats().pending, 1)
-			assert_true(on_screen(E) > 0)
+			assert_eq(on_screen(E), 0, "a frozen bolt, glow or reticle must not sit on the board behind the window")
 			-- the level is complete: nothing will tick again, so they run out on the real clock
 			vfx:finish()
 			run(vfx, state, 3, false, true)
@@ -560,16 +583,134 @@ describe("client.level_vfx never leaves an effect behind", function()
 
 	it("ends an effect whose tick clock never moves, unless the session is held on purpose", function()
 		with_vfx(function(E, vfx)
+			local logged = {}
+			vfx.log = function(text) logged[#logged + 1] = text end
 			local state = { t = 0, tick = 1 }
 			vfx:play({ { kind = "reticle", x = 500, y = 500, size = 100, color = "#FF4FC8", at = 0, dur = 33 } })
 			vfx:update(1 / 60, state.tick, state.t)
-			-- a window is open (the game is paused on purpose): it waits as long as it takes
+			run(vfx, state, 5 / 60, true)
+			assert_true(on_screen(E) > 0, "the reticle is closing in")
+			-- a window is open (the game is paused on purpose): it waits as long as it takes, out of sight
 			run(vfx, state, 40, false, true)
 			assert_eq(vfx:stats().active, 1)
-			assert_true(on_screen(E) > 0)
-			-- the tick clock is stuck without a reason: the effect still ends (a few seconds)
+			assert_eq(on_screen(E), 0, "nothing of it on the board while the window is open")
+			-- the tick clock is stuck without a reason (the session is not halted): it is drawn again, and the effect
+			-- still ends (a few seconds)
+			run(vfx, state, 1 / 60, false, false)
+			assert_true(on_screen(E) > 0, "a clock that is stuck for no reason is not hidden")
 			run(vfx, state, 20, false, false)
 			assert_eq(vfx:stats().active, 0)
+			assert_eq(on_screen(E), 0)
+			-- a cut-off is not silent: it is counted and written to the log, once per effect (the first few)
+			assert_eq(vfx:stats().capped, 1)
+			assert_eq(#logged, 1)
+			assert_true(string.find(logged[1], "WARNING: level vfx: a reticle (tick clock)", 1, true) ~= nil, logged[1])
+			assert_true(string.find(vfx:stats().last_capped, "reticle", 1, true) ~= nil)
+		end)
+	end)
+
+	it("does not count an effect that ends by itself as cut off", function()
+		with_vfx(function(E, vfx)
+			vfx.log = function(text) error("nothing is cut off here: " .. text) end
+			local state = { t = 0, tick = 1 }
+			vfx:play(rings(3))
+			vfx:update(1 / 60, state.tick, state.t)
+			run(vfx, state, 2, true)
+			vfx:play({ { kind = "reticle", x = 500, y = 500, size = 100, color = "#FF4FC8", at = state.tick, dur = 33 } })
+			run(vfx, state, 1 / 60, true)
+			run(vfx, state, 5, false, true) -- a window: it waits, the life limit does not run
+			run(vfx, state, 2, true)
+			assert_eq(vfx:stats().active, 0)
+			assert_eq(vfx:stats().capped, 0)
+		end)
+	end)
+
+	-- The producer's leftovers: the effects that follow the ticks of the core (Riff and light bands, Subwoofer glows, the Bird and
+	-- its reticle, the noise cloud) stood still on the board, drawn, for as long as a window (the pause, the shop, the moves
+	-- window that opens in the tick of the last move) or a lost focus stopped the session. They wait out of sight now.
+	local TICK_KINDS = {
+		charge = { { kind = "charge", x = 300, y = 500, size = 200, color = "#FF4FC8", at = 0, dur = 36 } },
+		comet = { { kind = "beam", x = 100, y = 500, dx = 1, dy = 0, len = 500, speed = 8, at = 0, color = "#1FD1FF", width = 40,
+			core = true, mode = "comet" } },
+		band = { { kind = "beam", x = 100, y = 500, dx = 0, dy = 1, len = 500, speed = 8, at = 0, color = "#FFD84D", width = 80,
+			mode = "band" } },
+		bird = { { kind = "fly", image = "specials_bird", x0 = 100, y0 = 300, x1 = 600, y1 = 800, at = 0, dur = 33, trail = "#7EF0FF" } },
+		bird_with_cargo = { { kind = "fly", image = "specials_bird", carry = "specials_riff", axis = "h", x0 = 600, y0 = 300,
+			x1 = 100, y1 = 800, at = 0, dur = 33, trail = "#7EF0FF" } },
+		reticle = { { kind = "reticle", x = 500, y = 500, size = 100, color = "#FF4FC8", at = 0, dur = 33 } },
+		noise_cloud = { { kind = "creep", x0 = 100, y0 = 500, x1 = 300, y1 = 500, at = 0 } },
+	}
+
+	-- sprites on the screen, as a comparable text (image, rounded place and size)
+	local function picture(E)
+		local out = {}
+		for _, s in ipairs(E.visible_sprites()) do
+			out[#out + 1] = string.format("%s@%.1f,%.1f,%.3f,%.3f", s.image, s.x, s.y, s.sx, s.sy)
+		end
+		table.sort(out)
+		return table.concat(out, " ")
+	end
+
+	for _, name in ipairs({ "charge", "comet", "band", "bird", "bird_with_cargo", "reticle", "noise_cloud" }) do
+		it("hides a " .. name .. " while a window or a lost focus stops the session, and goes on from where it was", function()
+			with_vfx(function(E, vfx)
+				local state = { t = 0, tick = 1 }
+				vfx:play(TICK_KINDS[name])
+				vfx:update(1 / 60, state.tick, state.t)
+				-- (a Bird sheds a trail dot at its third step: the picture is taken before it, and the step that follows the
+				-- window is the third one, whose dot is only drawn in the frame after)
+				run(vfx, state, 1 / 60, true)
+				local before = vfx:stats()
+				assert_true(before.active >= 1 and on_screen(E) > 0, name .. " is on its way")
+				local pic = picture(E)
+				-- the session stops (halted): the clock stands still, the picture goes away, the effect stays
+				run(vfx, state, 30, false, true)
+				assert_eq(on_screen(E), 0, name .. " is frozen on the board behind the window")
+				assert_eq(vfx:stats().active, before.active, "no effect was lost or made while it waited")
+				-- the session runs again: it is back, exactly where it was
+				run(vfx, state, 1 / 60, false, false)
+				assert_eq(picture(E), pic, name .. " does not carry on from where it was")
+				-- and it plays out to the end
+				run(vfx, state, 4, true, false)
+				assert_eq(vfx:stats().active, 0)
+				assert_eq(on_screen(E), 0)
+			end)
+		end)
+	end
+
+	it("sheds no trail dots from a Bird that waits behind a window", function()
+		with_vfx(function(E, vfx)
+			local state = { t = 0, tick = 1 }
+			vfx:play(TICK_KINDS.bird)
+			vfx:update(1 / 60, state.tick, state.t)
+			run(vfx, state, 12 / 60, true)
+			local active = vfx:stats().active
+			assert_true(active >= 2, "the Bird and the dots it shed")
+			run(vfx, state, 5, false, true)
+			-- the dots (they follow the clock of the board) died away, none was shed while the Bird waited
+			assert_eq(vfx:stats().active, 1, "only the Bird is left, and it is not drawn")
+			assert_eq(on_screen(E), 0)
+			run(vfx, state, 12 / 60, true, false)
+			assert_true(vfx:stats().active >= 2, "the Bird sheds its trail again")
+			assert_true(on_screen(E) > 0)
+		end)
+	end)
+
+	it("keeps the time effects running behind a window: they end by themselves, what waits for a tick waits", function()
+		with_vfx(function(E, vfx)
+			local state = { t = 0, tick = 1 }
+			vfx:play({
+				{ kind = "ring", x = 300, y = 500, size = 200, color = "#FF4FC8", image = "fx_shock", at = 0, dur = 0.5 },
+				{ kind = "flash", x = 300, y = 300, size = 100, color = "#FFFFFF", at = 0, dur = 0.5 },
+				{ kind = "reticle", x = 500, y = 500, size = 100, color = "#FF4FC8", at = 0, dur = 33 },
+				{ kind = "flash", x = 100, y = 300, size = 100, color = "#FFFFFF", at = 40, dur = 0.5 }, -- waits for its tick
+			})
+			vfx:update(1 / 60, state.tick, state.t)
+			run(vfx, state, 3 / 60, true)
+			assert_eq(vfx:stats().active, 3)
+			run(vfx, state, 1.2, false, true) -- (a window: the real clock runs, the ticks do not)
+			assert_eq(vfx:stats().active, 1, "the ring and the flash ended on their own clock, the reticle waits")
+			assert_eq(vfx:stats().pending, 1, "a command due at a later tick waits for it")
 			assert_eq(on_screen(E), 0)
 		end)
 	end)
@@ -652,6 +793,93 @@ describe("client.level_view and level_anim in the hot loop", function()
 			assert_eq(V:stats().pooled, 39)
 			V:sync(A:frame(pieces, 701, 11.1), 0, 0)
 			assert_eq(E.counts.factory_create, made)
+			V:final()
+		end)
+		stub.restore()
+		if not ok then error(err, 0) end
+	end)
+
+	-- The engine's vectors keep float32: z = 0.1 reads back as 0.10000000149. A sprite that compared the components of its
+	-- own vector with the numbers of the next frame found them different every time and sent itself to the engine twice per
+	-- frame, position and scale (162 calls a frame for 81 pieces at rest, measured in the real engine; the stub's vectors
+	-- keep doubles, so no test saw it). The stub has a float32 mode for exactly this.
+	it("sends nothing to the engine for a board at rest although the engine's vectors keep float32", function()
+		local E = stub.install({ float32 = true })
+		local ok, err = pcall(function()
+			load_modules()
+			local probe = vmath.vector3(0, 0, 0.1)
+			assert_true(probe.z ~= 0.1 and math.abs(probe.z - 0.1) < 1e-8, "the stub is in float32 mode")
+			local V = level_view.new({})
+			local function list(dx)
+				local out = {}
+				for i = 1, 30 do
+					out[i] = { id = i, image = "pieces_red", x = 20.1 + 57.3 * i + dx, y = 500.7, z = 0.1, sx = 1, sy = 1,
+						scale = 0.358, rot = 0, flash = 0, alpha = 1 }
+				end
+				return out
+			end
+			V:sync(list(0), 0, 0)
+			E.reset_counts()
+			for _ = 1, 30 do V:sync(list(0), 0, 0) end
+			for name, n in pairs(E.counts) do -- order-independent
+				assert_true(false, "a frame at rest called " .. name .. " x" .. n)
+			end
+			-- a piece that moves is sent, once, and again only when it moves again
+			local moved = list(0)
+			moved[3].x = moved[3].x + 3.3
+			V:sync(moved, 0, 0)
+			assert_eq(E.counts.go_set_position, 1)
+			V:sync(moved, 0, 0)
+			assert_eq(E.counts.go_set_position, 1)
+			-- the engine did get the numbers (rounded as its vectors round them)
+			assert_near(E.objects[V.by_id[3].go.s].pos.x, moved[3].x, 1e-3)
+			V:final()
+		end)
+		stub.restore()
+		if not ok then error(err, 0) end
+	end)
+
+	-- A frame that replaces many pieces at once (the concert clears a big board and the refill comes in the same frame) needs
+	-- the sprites of the pieces that left for the pieces that arrive: the pool has MAX_PIECES (150), a 9 x 11 board 99.
+	-- Taking before giving back needed live + replaced sprites and left the new pieces without a sprite for a frame.
+	it("gives the sprites of the pieces that left back before it hands sprites to the ones that arrive", function()
+		local E = stub.install({})
+		local ok, err = pcall(function()
+			load_modules()
+			local V = level_view.new({})
+			local function list(first, n)
+				local out = {}
+				for i = 1, n do
+					out[i] = { id = first + i, image = "pieces_red", x = 20 + 6 * i, y = 500, z = 0.1, sx = 1, sy = 1, scale = 0.5,
+						rot = 0, flash = 0, alpha = 1 }
+				end
+				return out
+			end
+			local function on_screen()
+				local n = 0
+				for _, o in ipairs(E.by_factory("piece_factory")) do
+					if E.visible(o) then n = n + 1 end
+				end
+				return n
+			end
+			V:sync(list(0, 99), 0, 0)
+			assert_eq(on_screen(), 99)
+			-- every one of them is replaced in one frame
+			V:sync(list(1000, 99), 0, 0)
+			assert_eq(on_screen(), 99, "every piece that arrived is drawn in the frame it arrives (" .. V:stats().overflow
+				.. " found no sprite)")
+			assert_eq(V:stats().overflow, 0)
+			assert_eq(V:stats().created, 99, "the sprites of the leavers were reused, none was made for the arrivals")
+			assert_eq(V:stats().pieces, 99)
+			-- more than half of it, a little at a time and in one go, back and forth
+			for round = 1, 6 do
+				V:sync(list(2000 * round, 99), 0, 0)
+				assert_eq(on_screen(), 99, "round " .. round)
+			end
+			V:sync(list(99000, 60), 0, 0)
+			assert_eq(on_screen(), 60)
+			assert_eq(V:stats().pooled, 39)
+			assert_eq(V:stats().overflow, 0)
 			V:final()
 		end)
 		stub.restore()
