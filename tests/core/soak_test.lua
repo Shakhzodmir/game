@@ -217,3 +217,57 @@ describe("core soak: random play keeps the invariants", function()
 		end
 	end
 end)
+
+-- The same with the Crossfader (5.3 swap) among the commands: exchanges anywhere, at rest and while things
+-- move, next to the other boosters, swaps and taps (tests/core/exchange_test.lua judges the answers).
+describe("core soak: random play with the Crossfader keeps the invariants", function()
+	for li, spec in ipairs(LEVELS) do
+		for _, timing in ipairs({ "normal", "turbo" }) do
+			it("level " .. li .. " (" .. timing .. ")", function()
+				local lvl = H.load(spec.rows, spec.extra)
+				local rnd = lcg(li * 53 + #timing)
+				local exchanges = 0
+				for game_no = 1, 2 do
+					local g = core.new(lvl, { seed = li * 100 + game_no + 7, timing = timing, boosters = { "riff" }, help = game_no - 1 })
+					local ticks = 0
+					while g.s.state ~= C.G_COMPLETE and g.s.state ~= C.G_LOST and ticks < 3000 do
+						local st = g.s.state
+						if st == C.G_OUT then
+							if rnd(3) == 1 and not g.s.stuck then
+								g:input({ type = "continue", moves = 2, riff = rnd(2) == 1 })
+							else
+								g:input({ type = "give_up" })
+							end
+						elseif g.s.rest_flag and rnd(2) == 1 then
+							local ax, ay = rnd(g.s.W), rnd(g.s.H)
+							local bx, by = rnd(g.s.W), rnd(g.s.H)
+							if g:input({ type = "booster", booster = "swap", at = { ax, ay }, to = { bx, by } }) then
+								exchanges = exchanges + 1
+							end
+						elseif rnd(3) == 1 then
+							local r = rnd(10)
+							if r <= 6 then
+								local mv = g:moves()
+								if #mv > 0 and (g.s.rest_flag or rnd(8) == 1) then -- mostly at rest, now and then in flight
+									local m = mv[rnd(#mv)]
+									g:input({ type = "swap", from = m.from, to = m.to })
+								end
+							elseif r == 9 then
+								g:input({ type = "tap", at = { rnd(g.s.W), rnd(g.s.H) } })
+							else
+								g:input({ type = "booster", booster = "remix" })
+							end
+						end
+						g:step()
+						ticks = ticks + 1
+						g:drain_events()
+						check_invariants(g, "level " .. li .. " game " .. game_no .. " tick " .. g.s.tick)
+					end
+					local _, ok, why = core.playback(lvl, g:replay())
+					assert_true(ok, why)
+				end
+				assert_true(exchanges >= 2, "exchanges taken: " .. exchanges)
+			end)
+		end
+	end
+end)

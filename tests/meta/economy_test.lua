@@ -67,7 +67,7 @@ describe("economy ledger", function()
 
 	it("sanitizes a stored wallet", function()
 		local w = economy.restore_wallet({ coins = -5, stars = 3.7, stick = "x", gems = 4 })
-		assert_same(w, { coins = 0, stars = 3, stick = 0, row_light = 0, col_light = 0, remix = 0, riff = 0, sub = 0, disco = 0 })
+		assert_same(w, { coins = 0, stars = 3, stick = 0, row_light = 0, col_light = 0, remix = 0, swap = 0, riff = 0, sub = 0, disco = 0 })
 	end)
 end)
 
@@ -91,11 +91,11 @@ describe("economy rewards", function()
 			{ 80, { "col_light" }, 15 },
 			{ 90, { "sub", "remix" }, 30 },
 			{ 100, { "disco" }, 15 },
-			{ 110, { "stick", "row_light" }, 30 },
-			{ 120, { "riff" }, 15 },
-			{ 130, { "col_light", "sub" }, 30 },
-			{ 140, { "remix" }, 15 },
-			{ 150, { "disco", "stick" }, 30 },
+			{ 110, { "swap", "stick" }, 30 }, -- the Crossfader closes the first lap of the rotation
+			{ 120, { "row_light" }, 15 },
+			{ 130, { "riff", "col_light" }, 30 },
+			{ 140, { "sub" }, 15 },
+			{ 150, { "remix", "disco" }, 30 },
 		}
 		for k = 1, 10 do
 			local chest = economy.level_chest(10 * k)
@@ -106,6 +106,18 @@ describe("economy rewards", function()
 		assert_eq(economy.level_chest(0), nil)
 	end)
 
+	it("hands out 15 boosters in the first ten chests: two of each old booster, the Crossfader once", function()
+		local count, seen = 0, {}
+		for k = 1, 10 do
+			for _, id in ipairs(economy.level_chest(10 * k).boosters) do
+				count = count + 1
+				seen[id] = (seen[id] or 0) + 1
+			end
+		end
+		assert_eq(count, 15)
+		assert_same(seen, { stick = 2, row_light = 2, riff = 2, col_light = 2, sub = 2, remix = 2, disco = 2, swap = 1 })
+	end)
+
 	it("walks past a locked booster instead of dealing a neighbour twice", function()
 		-- row_light unlocks at 30: chest 2 (opened on the way to level 21) skips it
 		H.with_unlocks({ row_light = 30 }, function()
@@ -113,21 +125,21 @@ describe("economy rewards", function()
 			assert_same(economy.level_chest(20).boosters, { "riff", "col_light" }, "no riff twice")
 			assert_same(economy.level_chest(30).boosters, { "sub" }, "the walk goes on after col_light")
 			assert_same(economy.level_chest(40).boosters, { "remix", "disco" })
-			assert_same(economy.level_chest(50).boosters, { "stick" })
-			assert_same(economy.level_chest(60).boosters, { "row_light", "riff" }, "open now, dealt on the next lap")
+			assert_same(economy.level_chest(50).boosters, { "swap" }, "the Crossfader is the last of the lap")
+			assert_same(economy.level_chest(60).boosters, { "stick", "row_light" }, "open now, dealt on the next lap")
 		end)
 	end)
 
 	it("gives the fallback while nothing is unlocked and then continues the walk", function()
-		H.with_unlocks({ stick = 15, row_light = 15, riff = 15, col_light = 15, sub = 15, remix = 15, disco = 15 }, function()
+		H.with_unlocks({ stick = 15, row_light = 15, riff = 15, col_light = 15, sub = 15, remix = 15, disco = 15, swap = 15 }, function()
 			assert_same(economy.level_chest(10).boosters, { "stick" }, "fallback")
 			assert_same(economy.level_chest(20).boosters, { "stick", "row_light" }, "the walk did not move")
 		end)
-		H.with_unlocks({ stick = 50, row_light = 50, riff = 50, col_light = 50, sub = 50, remix = 50, disco = 50 }, function()
+		H.with_unlocks({ stick = 50, row_light = 50, riff = 50, col_light = 50, sub = 50, remix = 50, disco = 50, swap = 50 }, function()
 			assert_same(economy.level_chest(20).boosters, { "stick", "stick" })
 		end)
 		-- only the stick open: every slot ends on it
-		H.with_unlocks({ row_light = 50, riff = 50, col_light = 50, sub = 50, remix = 50, disco = 50 }, function()
+		H.with_unlocks({ row_light = 50, riff = 50, col_light = 50, sub = 50, remix = 50, disco = 50, swap = 50 }, function()
 			assert_same(economy.level_chest(20).boosters, { "stick", "stick" })
 		end)
 	end)

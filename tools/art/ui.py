@@ -903,6 +903,39 @@ def icon_remix():
     return finish(cv)
 
 
+def icon_swap():
+    """Booster 'Crossfader': a DJ mixer slider (violet body, dark slot with a white lip, a white fader cap with a
+    pink stripe, tick marks) under two swap arrows, pink to the right and cyan to the left."""
+    cv = Canvas(96, 96)
+    X, Y = cv.X, cv.Y
+    # the mixer body, its slot and the tick marks along it
+    body = sd_rect(X, Y, 8, 53, 88, 90, 13)
+    obj(cv, body, PURPLE, lw=2.8, depth=10, rim=0.4)
+    slot = sd_capsule(X, Y, 22, 73, 74, 73, 5.6)
+    cv.fill(slot + 1.8, "#FFFFFF", 0.6)
+    cv.fill(slot, "#2B2345")
+    for x in (24, 35, 46, 57, 68):
+        cv.fill(sd_capsule(X, Y, x, 59, x, 62.5, 1.3), "#FFFFFF", 0.9)
+    # the fader cap, slid a little to the left of the middle
+    cap = sd_rect(X, Y, 30, 60, 50, 87, 6)
+    obj(cv, cap, WHITE_P, lw=2.4, depth=6, rim=0.25)
+    cv.fill(sd_rect(X, Y, 38, 65, 42, 82, 1.8), "#FF5C9A")
+    hl_drop(cv, 35, 65.5, 3.6, 1.8, 0, cap + 3, alpha=0.9)
+    hl_drop(cv, 20, 59, 8, 2.4, 0, body + 4, alpha=0.8)
+    # the swap arrows above it
+    for (cy, right, pal) in ((17, True, PINK), (37, False, CYAN)):
+        if right:
+            shaft = sd_capsule(X, Y, 14, cy, 56, cy, 5.2)
+            head = opening(sd_poly(X, Y, [(50, cy - 12), (84, cy), (50, cy + 12)]), 3.0)
+        else:
+            shaft = sd_capsule(X, Y, 82, cy, 40, cy, 5.2)
+            head = opening(sd_poly(X, Y, [(46, cy - 12), (12, cy), (46, cy + 12)]), 3.0)
+        d = SU(shaft, head, 2.4)
+        obj(cv, d, pal, lw=2.6, depth=6, rim=0.35)
+        hl_drop(cv, 30 if right else 66, cy - 2.6, 9, 1.5, 0, d + 3, alpha=0.8)
+    return finish(cv)
+
+
 def icon_plus():
     cv = Canvas(96, 96)
     X, Y = cv.X, cv.Y
@@ -1066,7 +1099,7 @@ ICON_FUNCS = {
     "retry": icon_retry, "home": icon_home, "music_on": lambda: icon_music(True),
     "music_off": lambda: icon_music(False), "sound_on": lambda: icon_sound(True),
     "sound_off": lambda: icon_sound(False), "haptics": icon_haptics, "hand": icon_hand,
-    "stick": icon_stick, "row_light": icon_row_light, "col_light": icon_col_light, "remix": icon_remix,
+    "stick": icon_stick, "row_light": icon_row_light, "col_light": icon_col_light, "remix": icon_remix, "swap": icon_swap,
     "plus": icon_plus, "chest_closed": icon_chest_closed, "chest_open": icon_chest_open,
     "note_on": lambda: icon_note(True), "note_off": lambda: icon_note(False), "arrow": icon_arrow,
     "gift": icon_gift, "goal_floor": icon_goal_floor, "streak": icon_streak,

@@ -104,6 +104,14 @@ local function step2(s)
 			to_idle(s, pt)
 			if sw.special then launch_after_swap(s, sw) end
 			finished[#finished + 1] = sw
+		elseif sw.kind == C.TM_XCHG then
+			-- the Crossfader (5.3): the same exchange, labelled with the booster's own action, and no special
+			-- is launched; it joins the swaps of rule 6.2.1 but is never given back
+			local pf, pt = exchange(s, sw.from, sw.to)
+			pf.mv, pf.wv, pt.mv, pt.wv = sw.a, 0, sw.a, 0
+			to_idle(s, pf)
+			to_idle(s, pt)
+			finished[#finished + 1] = sw
 		elseif sw.kind == C.TM_FAIL then
 			to_idle(s, B.get(s, sw.from))
 			to_idle(s, B.get(s, sw.to))
@@ -125,7 +133,7 @@ local function step2(s)
 	local resolved = M.search(s, finished)
 	for k = 1, #finished do
 		local sw = finished[k]
-		if not sw.special and not resolved[sw.from] and not resolved[sw.to] then
+		if sw.kind == C.TM_SWAP and not sw.special and not resolved[sw.from] and not resolved[sw.to] then
 			refund(s, sw)
 		end
 	end

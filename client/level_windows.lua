@@ -65,11 +65,12 @@ end
 
 -- Boosters that cannot help once the moves are out. A Remix only rearranges the pieces: it gives no move, so
 -- the level would fall straight back to this window with the booster spent; and on a stuck board it has
--- nothing to shuffle (the core refuses it: no candidates). The wand and the two lights can still finish a goal.
+-- nothing to shuffle (the core refuses it: no candidates). The wand, the two lights and the Crossfader (it lines up
+-- a match and costs no move) can still finish a goal.
 M.NO_HELP_OUT_OF_MOVES = { remix = true }
 
 -- In-level boosters the player can still use: {{id, count}} (unlocked, in stock). In a debug level
--- (no attempt) all four are free: count nil.
+-- (no attempt) all of them are free: count nil.
 function M.usable_boosters(meta, ids)
 	local out = {}
 	local have = {}

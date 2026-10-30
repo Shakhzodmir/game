@@ -8,6 +8,7 @@ Outputs (all Ogg Vorbis, mono):
     assets/sounds/notes/<color>_<n>.ogg   44.1 kHz, n = 1..11 (C major pentatonic C4..C6)
     assets/sounds/sfx/<name>.ogg          44.1 kHz
     assets/music/<district>/<stem>.ogg    22.05 kHz, bright stems 44.1 kHz; sample-exact seamless loops
+    assets/music/songs/<song>.ogg         22.05 kHz mono full-mix songs of the jukebox genres (songs.py)
     assets/sounds/manifest.json           every file with its measurements, plus the mixer contract
     docs/media/audio_report.md            measurements: loudness, pitch, peaks, headroom, seams, harmony
 
@@ -21,6 +22,8 @@ Levels (all measured on the decoded files; analysis.py has the meters):
   * music: stems at relative loudness targets (music.LOUDNESS), then one common
     gain per district so that the loudest combination the game really plays
     (task stems, + tension, + party) has a true peak of about -1.15 dBTP;
+  * songs: one full mix per file, levelled to SONG_LUFS (integrated, the loop treated as a loop) under a
+    true-peak ceiling of about -1.15 dBTP by a looped limiter (it only trims drum transients);
   * MIXER (copied to the manifest) is the playback contract for the engine:
     music offset in a level, and how simultaneous match notes are staggered and
     attenuated. run_checks() verifies that, played that way, notes + the clear
@@ -29,8 +32,8 @@ Levels (all measured on the decoded files; analysis.py has the meters):
 Deterministic: all randomness is seeded from names (dsp.rng), and the Ogg
 stream serial is fixed, so re-running produces byte-identical files.
 Module map: dsp.py (DSP, limiter, Vorbis I/O), analysis.py (meters),
-instruments.py (voices), notes.py, sfx.py, music.py (district arrangements),
-this file (pipeline, checks, report). Everything here is placeholder audio
+instruments.py (voices), notes.py, sfx.py, music.py (district arrangements), songs.py (jukebox
+songs: one mix per file in the key of a genre), this file (pipeline, checks, report). Everything here is placeholder audio
 meant to be replaced by a composer: the engine only relies on the file paths
 and on manifest.json.
 """
@@ -54,11 +57,13 @@ import dsp  # noqa: E402
 import music  # noqa: E402
 import notes  # noqa: E402
 import sfx  # noqa: E402
+import songs  # noqa: E402
 
 ROOT = HERE.parents[1]
 DIR_NOTES = ROOT / "assets" / "sounds" / "notes"
 DIR_SFX = ROOT / "assets" / "sounds" / "sfx"
 DIR_MUSIC = ROOT / "assets" / "music"
+DIR_SONGS = DIR_MUSIC / "songs"
 MANIFEST = ROOT / "assets" / "sounds" / "manifest.json"
 REPORT = ROOT / "docs" / "media" / "audio_report.md"
 DISTRICTS = ROOT / "content" / "districts.json"
@@ -81,7 +86,14 @@ FEEDBACK_SFX = ("tap", "swap", "swap_fail", "land", "clear", "box_hit", "concret
                 "balloon_pop", "wires_snap", "noise_fizz", "moves_low", "button")
 PITCHED_SFX_MIN_IN_KEY = 75.0  # % of tonal energy on the C major scale for the short pitched cues
 PITCHED_CUES = ("tap", "swap_fail", "bird", "moves_low", "coin", "star", "floor_light")
-SIZE_BUDGET = 7 * 1024 * 1024
+SIZE_BUDGET = 7 * 1024 * 1024        # notes + sfx + the district music
+SONG_BUDGET = 6 * 1024 * 1024        # the jukebox songs (the new audio of the genres)
+SONG_LUFS = -20.0     # integrated loudness of every song (the district full songs sit at -19.0 ... -20.0; in a level the song is a music bed: see the headroom check)
+SONG_TOL = 1.0
+SONG_GR_MAX = 5.0     # dB the loop limiter may take at one peak (a crash, a snare)
+SONG_EGR_MAX = 1.0    # dB of the whole song's energy it may take (it trims transients, it does not squash)
+SONG_KEY_MIN = 85.0   # % of the tonal energy (without drums and noise) on the major scale of the genre
+SONG_SECONDS = (16.0, 32.0)
 KEY_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 
 # Playback contract for the engine (copied into manifest.json as "mixer").
@@ -401,6 +413,71 @@ def build_district(d):
     }
 
 
+# ----------------------------------------------------------------- songs
+
+def level_loop(x, sr, measure, target, ceiling, lookahead=0.0025, release=0.06):
+    """Gain + true-peak limiter for a LOOP, so that measure(y) == target. The limiter runs over three periods and
+    keeps the middle one: the result is exactly periodic (no gain step at the seam). Returns (y, largest gain
+    reduction dB, energy gain reduction dB)."""
+    n = len(x)
+    g = dsp.db_amp(target - measure(x))
+    y, gc = x * g, np.ones(n)
+    for _ in range(14):
+        y3, g3 = dsp.limiter(np.tile(x * g, 3), sr, ceiling, lookahead, release)
+        y, gc = y3[n: 2 * n], g3[n: 2 * n]
+        err = target - measure(y)
+        if abs(err) < 0.02:
+            break
+        g *= dsp.db_amp(err)
+    egr = 10.0 * np.log10(np.sum(y ** 2) / max(np.sum((x * g) ** 2), 1e-30))
+    return y, round(float(dsp.amp_db(gc.min())), 2), round(float(egr), 2)
+
+
+def build_song(job):
+    """One jukebox song (catalogue entry + its genre district): render, level, encode, measure."""
+    entry, genre = job
+    t0 = time.time()
+    s, mix, tonal, parts = songs.render_song(entry, genre)
+    fs = music.SR_HI
+    path = DIR_SONGS / f"{entry['id']}.ogg"
+    measure = lambda z: A.lufs(hi_rate(z, s.sr), fs, circular=True)[0]  # noqa: E731
+    ceiling = MIX_TP_AIM
+    for _ in range(8):  # Vorbis moves peaks a little: settle the decoded true peak under MIX_TP_MAX
+        y, gr, egr = level_loop(mix, s.sr, measure, SONG_LUFS, ceiling)
+        data, dec = dsp.encode_vorbis(y, s.sr, Q_MUSIC, rel(path))
+        dec_hi = hi_rate(dec, s.sr)
+        tp, pk = A.true_peak(dec_hi, circular=True), A.sample_peak(dec)
+        if max(tp, pk) <= MIX_TP_MAX - 0.02:
+            break
+        ceiling -= max(tp, pk) - (MIX_TP_AIM) + 0.03
+    write_bytes(path, data)
+    assert len(dec) == s.n, (path, len(dec), s.n)
+    tonic = s.tonic
+    maj, mnr = f"{KEY_NAMES[tonic]} maj", f"{KEY_NAMES[(tonic + 9) % 12]} min"
+    ks = A.key_scores(dec, music.SR)
+    best = max(ks, key=ks.get)
+    sig = {"seam": seam_check(dec, s.sr, s.bs * s.sr, y)}
+    return {
+        "id": entry["id"], "genre": genre["id"], "bpm": entry["bpm"], "key": genre["key"], "bars": entry["bars"],
+        "path": rel(path), "duration": round(len(dec) / s.sr, 4), "samples": len(dec), "sample_rate": s.sr,
+        "peak_dbfs": round(pk, 2), "true_peak_dbtp": round(tp, 2), "rms_dbfs": round(dsp.rms_db(dec), 2),
+        "bytes": len(data), "loop_samples": s.n, "loop_samples_44100": s.n * 2, "loop_seconds": round(s.n / s.sr, 6),
+        "exact_seconds": round(entry["bars"] * 4 * 60.0 / entry["bpm"], 6),
+        "chords": [c.name for c in s.chords], "chord_beats": [c.dur for c in s.chords], "parts": list(parts),
+        "lufs": round(A.lufs(dec_hi, fs, circular=True)[0], 1), "lufs_target": SONG_LUFS,
+        "limiter_gr_db": gr, "limiter_energy_gr_db": egr,
+        "centroid_hz": round(A.centroid(dec_hi, fs)),
+        "brightness": {"hf_2k_8k_vs_mid_db": round(A.band_db(dec_hi, fs, 2000, 8000), 1),
+                       "air_8k_16k_vs_mid_db": round(A.band_db(dec_hi, fs, 8000, 16000), 1),
+                       "share_below_150hz_pct": round(100 * A.share_below(dec_hi, fs, 150), 1)},
+        "key_reading": {"major": round(ks[maj], 2), "relative_minor": round(ks[mnr], 2), "best": best,
+                        "best_r": round(ks[best], 2)},
+        "harmony_in_scale_pct": harmony_check(tonal, s.sr, tonic),
+        "harmony_in_scale_full_mix_pct": harmony_check(dec, s.sr, tonic),
+        "seam": sig["seam"], "render_s": round(time.time() - t0, 1),
+    }
+
+
 # -------------------------------------------------------------- headroom
 
 def headroom(man, note_dec, clear_dec):
@@ -432,6 +509,11 @@ def headroom(man, note_dec, clear_dec):
         sig = sig * dsp.db_amp(MIXER["music_in_level_db"] + MIXER["group_gain_db"]["music"])
         nb = dd["bars"] * 4
         beds.append((dd["id"], sig, [int(round(b * len(sig) / nb)) for b in range(nb)]))
+    for sd in man.get("songs", {}).values():  # a song chosen in the jukebox plays in levels too (one mix, no layers)
+        x, r = sf.read(ROOT / sd["path"], dtype="float64")
+        sig = hi_rate(x, r) * dsp.db_amp(MIXER["music_in_level_db"] + MIXER["group_gain_db"]["music"])
+        nb = sd["bars"] * 4
+        beds.append((sd["id"], sig, [int(round(b * len(sig) / nb)) for b in range(nb)]))
     g_notes = MIXER["group_gain_db"]["notes"]
     g_sfx = dsp.db_amp(MIXER["group_gain_db"]["sfx"])
     out = {}
@@ -492,8 +574,10 @@ def write_report(man):
     a("generator's gated K-weighted meter with 50 ms windows (`dsp.loudness`).")
     a("")
     tb = man["total_bytes"]
-    a(f"**Total size:** {tb / 1024 / 1024:.2f} MB of {SIZE_BUDGET / 1024 / 1024:.0f} MB budget "
-      f"({man['counts']['notes']} notes, {man['counts']['sfx']} SFX, {man['counts']['music']} music stems).")
+    sb = sum(v["bytes"] for v in man.get("songs", {}).values())
+    a(f"**Total size:** {tb / 1024 / 1024:.2f} MB: {(tb - sb) / 1024 / 1024:.2f} MB of {SIZE_BUDGET / 1024 / 1024:.0f} MB budget "
+      f"({man['counts']['notes']} notes, {man['counts']['sfx']} SFX, {man['counts']['music']} music stems) + "
+      f"{sb / 1024 / 1024:.2f} MB of {SONG_BUDGET / 1024 / 1024:.0f} MB for the {man['counts']['songs']} jukebox songs.")
     a("")
     # ----------------------------------------------------------- notes
     a("## 1. Piece notes (synesthesia core)")
@@ -641,6 +725,36 @@ def write_report(man):
             dl = "first layer" if u["delta_lu"] is None else f"{u['delta_lu']:+.2f}"
             a(f"| `{u['stem']}` | {u['task']} ({u['cost']}) | {u['stem_lufs']:.1f} | {svm} | {dl} |")
         a("")
+    sgs = list(man.get("songs", {}).values())
+    if sgs:
+        a("## 3b. Jukebox songs")
+        a("")
+        a("Every district is a jukebox genre; besides its layered theme (section 3) each genre has ready-made songs in the")
+        a("key of the district. A song is ONE mono 22.05 kHz Vorbis (q0.3) file with no progress layers, so the jukebox can")
+        a("offer it at once; the loop is `round(bars × 4 × 60 / bpm × 22050)` samples and exactly periodic (every effect is")
+        a(f"circular). Loudness: every song is levelled to **{SONG_LUFS:.1f} LUFS** integrated (the district full songs sit at")
+        a(f"−19.0 … −20.0) by a looped true-peak limiter aiming at {MIX_TP_AIM:.2f} dBTP (the decoded file must stay ≤")
+        a(f"{MIX_TP_MAX:.1f} dBTP); *GR* is the largest gain reduction it needed at a peak (drum transients). *In key* is the")
+        a("share of the 6 strongest spectral peaks per frame (80 Hz–2 kHz) of the PITCHED parts that falls on the major scale")
+        a("of the genre (drums, noise and shouts left out); the song is never played in another key, so the match notes and")
+        a("effects, which the engine transposes to the key of the playing song, stay consonant. A song in a level keeps the")
+        a("same music offset (−6 dB) and takes part in the headroom check of section 1.1; it has no tension / party layer, so")
+        a("the engine's layer calls are silent for it.")
+        a("")
+        a("| Genre | Song | BPM | Bars | s | Key | LUFS | dBTP | GR dB | In key % | Centroid Hz | KB | Chords |")
+        a("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+        for v in sgs:
+            a(f"| {v['genre']} | `{v['id']}` | {v['bpm']} | {v['bars']} | {v['loop_seconds']:.1f} | {v['key']} | {v['lufs']:.1f} | "
+              f"{v['true_peak_dbtp']:.2f} | {v['limiter_gr_db']:.1f} | {v['harmony_in_scale_pct']} | {v['centroid_hz']} | "
+              f"{v['bytes'] / 1024:.0f} | {' '.join(dict.fromkeys(v['chords']))} |")
+        a("")
+        a("| Song | Parts | Key reading (major / relative minor, best) | Step/beats | Click/beats | Codec edge |")
+        a("|---|---|---|---|---|---|")
+        for v in sgs:
+            kr = v["key_reading"]
+            a(f"| `{v['id']}` | {', '.join(v['parts'])} | {kr['major']:.2f} / {kr['relative_minor']:.2f} ({kr['best']}) | "
+              f"{v['seam']['step_vs_beats']} | {v['seam']['click_vs_beats']} | {v['seam']['codec_edge']} |")
+        a("")
     a("## 4. Checks")
     a("")
     for line in man["checks"]:
@@ -665,7 +779,8 @@ def write_report(man):
     a("")
     a("Keep the file names, formats and loop durations; `assets/sounds/manifest.json` lists every file (with its sample")
     a("rate) and the mixer contract. Music stems of one district must stay exactly the same duration and start on the")
-    a("same downbeat. Notes and key-C effects must stay in C (the engine transposes them). Re-run")
+    a("same downbeat; a jukebox song is one file of exactly its own loop length in the key of its genre. Notes and key-C")
+    a("effects must stay in C (the engine transposes them). Re-run")
     a("`python3 tools/audio/gen_audio.py` any time to restore the placeholders.")
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text("\n".join(L) + "\n", encoding="utf-8")
@@ -739,8 +854,38 @@ def run_checks(man):
             chk(f"every unlocked layer within {UNLOCK_MIN_LU:.0f} LU of the mix it joins"
                 + (f" (not: {', '.join(quiet)})" if quiet else ""), not quiet),
             chk("seams clean", seams)]) + ".")
-    size = man["total_bytes"]
-    out.append(chk(f"Total size {size / 1024 / 1024:.2f} MB ≤ 7 MB", size <= SIZE_BUDGET) + ".")
+    sg = list(man.get("songs", {}).values())
+    by_genre = {}
+    for v in sg:
+        by_genre.setdefault(v["genre"], []).append(v)
+    for gid, rows in by_genre.items():
+        exact = all(v["samples"] == v["loop_samples"] == int(round(v["bars"] * 4 * 60.0 / v["bpm"] * music.SR)) for v in rows)
+        secs = [v["loop_seconds"] for v in rows]
+        wtp = max(v["true_peak_dbtp"] for v in rows)
+        wpk = max(v["peak_dbfs"] for v in rows)
+        lu = [v["lufs"] for v in rows]
+        gr = max(-v["limiter_gr_db"] for v in rows)
+        egr = max(-v["limiter_energy_gr_db"] for v in rows)
+        key = min(v["harmony_in_scale_pct"] for v in rows)
+        seams = all(v["seam"]["step_vs_beats"] <= 1.5 and v["seam"]["click_vs_beats"] <= 1.5
+                    and v["seam"]["codec_edge"] <= 1.5 for v in rows)
+        out.append(f"Songs `{gid}`: " + "; ".join([
+            chk(f"{len(rows)} songs besides the layered theme (>= 3)", len(rows) >= 3),
+            chk(f"every loop exactly bars x 4 x 60 / bpm long, {min(secs):.1f} … {max(secs):.1f} s within "
+                f"{SONG_SECONDS[0]:.0f}–{SONG_SECONDS[1]:.0f}", exact and all(SONG_SECONDS[0] <= x <= SONG_SECONDS[1] for x in secs)),
+            chk(f"worst mix {wtp:.2f} dBTP / {wpk:.2f} dBFS ≤ {MIX_TP_MAX:.1f}", wtp <= MIX_TP_MAX and wpk <= MIX_TP_MAX),
+            chk(f"loudness {min(lu):.1f} … {max(lu):.1f} LUFS within {SONG_LUFS:.1f} ± {SONG_TOL:.0f}",
+                all(abs(x - SONG_LUFS) <= SONG_TOL for x in lu)),
+            chk(f"limiter takes ≤ {SONG_GR_MAX:.0f} dB at a peak (max {gr:.1f}) and ≤ {SONG_EGR_MAX:.0f} dB of the energy "
+                f"(max {egr:.2f})", gr <= SONG_GR_MAX and egr <= SONG_EGR_MAX),
+            chk(f"in the key of the genre ≥ {SONG_KEY_MIN:.0f} % (min {key})", key >= SONG_KEY_MIN),
+            chk("seams clean", seams)]) + ".")
+    sbytes = sum(v["bytes"] for v in sg)
+    base = man["total_bytes"] - sbytes
+    out.append(chk(f"Notes, SFX and district music {base / 1024 / 1024:.2f} MB ≤ {SIZE_BUDGET // 1024 // 1024} MB",
+                   base <= SIZE_BUDGET) + ".")
+    out.append(chk(f"Songs {len(sg)} files, {sbytes / 1024 / 1024:.2f} MB ≤ {SONG_BUDGET // 1024 // 1024} MB",
+                   sbytes <= SONG_BUDGET) + ".")
     return out, ok
 
 
@@ -752,7 +897,7 @@ def load_decoded(rows):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--only", default="notes,sfx,music", help="comma list of notes,sfx,music")
+    ap.add_argument("--only", default="notes,sfx,music,songs", help="comma list of notes,sfx,music,songs")
     ap.add_argument("--jobs", type=int, default=min(5, mp.cpu_count()))
     args = ap.parse_args()
     parts = set(args.only.split(","))
@@ -760,10 +905,14 @@ def main():
     districts = json.loads(DISTRICTS.read_text(encoding="utf-8"))["districts"]
     prev = json.loads(MANIFEST.read_text(encoding="utf-8")) if MANIFEST.exists() else {}
 
+    catalogue = [(e, d) for d in districts for e in d.get("songs", [])]
     pool = None
-    if "music" in parts and args.jobs > 1:
+    if ("music" in parts or "songs" in parts) and args.jobs > 1:
         pool = mp.get_context("fork").Pool(args.jobs)
-        pending = pool.map_async(build_district, districts)
+        if "music" in parts:
+            pending = pool.map_async(build_district, districts)
+        if "songs" in parts:
+            pending_songs = pool.map_async(build_song, catalogue)
     man = {"generator": "tools/audio/gen_audio.py", "format": "Ogg Vorbis, mono", "mixer": MIXER}
     if "notes" in parts:
         nrows, ndec = build_notes()
@@ -785,24 +934,33 @@ def main():
     print(f"sfx:   {len(man['sfx'])} files  ({time.time() - t0:.1f}s)")
     if "music" in parts:
         res = pending.get() if pool else [build_district(d) for d in districts]
-        if pool:
-            pool.close()
-            pool.join()
         man["music"] = {r["id"]: r for r in res}
     else:
         man["music"] = prev.get("music", {})
     print(f"music: {sum(len(v['stems']) for v in man['music'].values())} stems  ({time.time() - t0:.1f}s)")
+    if "songs" in parts:
+        res = pending_songs.get() if pool else [build_song(j) for j in catalogue]
+        man["songs"] = {r["id"]: r for r in res}
+    else:
+        man["songs"] = prev.get("songs", {})
+    if pool:
+        pool.close()
+        pool.join()
+    print(f"songs: {len(man['songs'])} songs  ({time.time() - t0:.1f}s)")
     man["headroom"] = headroom(man, ndec, sdec["clear"])
     print(f"headroom checked  ({time.time() - t0:.1f}s)")
 
-    all_files = man["notes"]["files"] + man["sfx"] + [s for v in man["music"].values() for s in v["stems"]]
+    all_files = (man["notes"]["files"] + man["sfx"] + [s for v in man["music"].values() for s in v["stems"]]
+                 + list(man["songs"].values()))
     keep = {f["path"] for f in all_files}
     removed = clean_stale(DIR_NOTES, keep) + clean_stale(DIR_SFX, keep) + clean_stale(DIR_MUSIC, keep)
     man["total_bytes"] = sum(f["bytes"] for f in all_files)
     man["counts"] = {"notes": len(man["notes"]["files"]), "sfx": len(man["sfx"]),
-                     "music": sum(len(v["stems"]) for v in man["music"].values())}
+                     "music": sum(len(v["stems"]) for v in man["music"].values()), "songs": len(man["songs"])}
     man["checks"], ok = run_checks(man)
     for v in man["music"].values():
+        v.pop("render_s", None)
+    for v in man["songs"].values():
         v.pop("render_s", None)
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     MANIFEST.write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -810,14 +968,14 @@ def main():
 
     print()
     print(f"GLOW audio: {man['counts']['notes']} notes, {man['counts']['sfx']} sfx, "
-          f"{man['counts']['music']} music stems in {len(man['music'])} districts")
+          f"{man['counts']['music']} music stems in {len(man['music'])} districts, {man['counts']['songs']} songs")
     by_dir = {}
     for f in all_files:
         top = "/".join(f["path"].split("/")[:3])
         by_dir[top] = by_dir.get(top, 0) + f["bytes"]
     for k, v in sorted(by_dir.items()):
         print(f"  {k:28s} {v / 1024:8.1f} KB")
-    print(f"  {'total':28s} {man['total_bytes'] / 1024:8.1f} KB  (budget {SIZE_BUDGET // 1024} KB)")
+    print(f"  {'total':28s} {man['total_bytes'] / 1024:8.1f} KB  (budgets {SIZE_BUDGET // 1024} KB + songs {SONG_BUDGET // 1024} KB)")
     for line in man["checks"]:
         print("  " + line)
     if removed:

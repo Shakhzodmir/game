@@ -39,8 +39,8 @@ C.BLOCKER = { record_box = 1, concrete = 2, noise = 3, balloon = 4, column = 5 }
 C.S_IDLE, C.S_FALL, C.S_SWAP, C.S_CLEAR, C.S_ARMED = 1, 2, 3, 4, 5
 C.STATE_NAME = { "idle", "fall", "swap", "clear", "armed" }
 
--- Timers.
-C.TM_NONE, C.TM_SWAP, C.TM_FAIL, C.TM_BACK, C.TM_LOCK, C.TM_CLEAR = 0, 1, 2, 3, 4, 5
+-- Timers. TM_XCHG: the exchange of the Crossfader booster (5.3), a swap that spends no move.
+C.TM_NONE, C.TM_SWAP, C.TM_FAIL, C.TM_BACK, C.TM_LOCK, C.TM_CLEAR, C.TM_XCHG = 0, 1, 2, 3, 4, 5, 6
 
 -- Source kinds.
 C.SRC_MATCH, C.SRC_ADJ, C.SRC_EFFECT = 1, 2, 3
@@ -48,8 +48,9 @@ C.SRC_MATCH, C.SRC_ADJ, C.SRC_EFFECT = 1, 2, 3
 -- Items: in-level boosters and entries of `unplaced`.
 C.IT_STICK, C.IT_ROW, C.IT_COL, C.IT_REMIX = 1, 2, 3, 4
 C.IT_PRE_RIFF, C.IT_PRE_SUB, C.IT_PRE_DISCO, C.IT_CONT_RIFF = 5, 6, 7, 8
-C.BOOSTER = { stick = 1, row_light = 2, col_light = 3, remix = 4 }
-C.BOOSTER_NAME = { "stick", "row_light", "col_light", "remix" }
+C.IT_SWAP = 9 -- Crossfader: it starts its exchange when the command is taken, so it is never `unplaced`
+C.BOOSTER = { stick = 1, row_light = 2, col_light = 3, remix = 4, swap = 9 }
+C.BOOSTER_NAME = { "stick", "row_light", "col_light", "remix", [9] = "swap" }
 -- Pre-level boosters: name -> item code.
 C.PRE_BOOSTER = { riff = 5, sub = 6, disco = 7 }
 C.PRE_BOOSTER_NAME = { [5] = "riff", [6] = "sub", [7] = "disco" }
@@ -80,14 +81,14 @@ C.STARS = { 1, 1, 2, 3 }
 -- Timings (section 14), indexed by timing mode.
 C.T = {
 	{ -- normal
-		swap = 10, swap_fail = 14, shuffle = 30, clear = 9, chain = 3,
+		swap = 10, swap_fail = 14, shuffle = 30, clear = 9, chain = 3, exchange = 18,
 		sub_swell = 6, ring = 2, bird_flight = 33, disco_step = 2,
 		transform_step = 2, fire_step = 3, finale_pause = 24, light_step = 1,
 		concert_step = 2, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080,
 		start_delay = 1,
 	},
 	{ -- turbo
-		swap = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0,
+		swap = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0, exchange = 1,
 		sub_swell = 0, ring = 0, bird_flight = 0, disco_step = 0,
 		transform_step = 0, fire_step = 0, finale_pause = 0, light_step = 0,
 		concert_step = 0, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080,
@@ -96,7 +97,7 @@ C.T = {
 }
 
 -- Turbo duration of each timer kind (15.1.8).
-C.TURBO_TIMER = { 1, 1, 1, 1, 1 }
+C.TURBO_TIMER = { 1, 1, 1, 1, 1, 1 }
 
 -- Bolt tick at distance d (section 8): (15*d + 6) // 7 in normal mode, 0 in turbo.
 function C.R(d, timing)

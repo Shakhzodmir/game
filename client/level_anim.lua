@@ -5,7 +5,9 @@
 -- on top (client-architecture.md, 4.1):
 --
 --   touch x1.08 in 0.08 s; swap / failed swap (the whole way, 8 % past the other
---   cell and back, 7 + 7 ticks) / swap back, the dragged piece on top; landing
+--   cell and back, 7 + 7 ticks) / swap back, the dragged piece on top; the Crossfader's
+--   exchange (two pieces fly across the board on arcs to opposite sides, lifted, and pop
+--   when they land); a refused piece shakes sideways; landing
 --   squash 0.88 / 1.08 with a spring; clear: pop x1.15 in 3 ticks, then shrink
 --   to 0 by the end of T.clear (9 ticks); pieces of a group that makes a special
 --   fly into its cell; a new special blooms 0 -> 1.2 -> 1.0 with a flash once they
@@ -56,6 +58,10 @@ M.HIT_TIME = 0.24       -- blocker wobble
 M.FAIL_REACH = 1.0      -- a failed swap goes the whole way (7 ticks) ...
 M.FAIL_OVERSHOOT = 0.08 -- ... 8 % past the other cell, and comes back (7 ticks)
 M.FAIL_BACK = 1.5       -- ease-out-back strength that gives exactly that 8 % overshoot
+M.EXCHANGE_BULGE = 0.28 -- the Crossfader's arc: this share of the distance (at most 2 cells) at mid-flight
+M.EXCHANGE_LIFT = 0.16  -- ... and the pieces grow this much at mid-flight
+M.SHAKE_TIME = 0.32     -- a piece that cannot be moved shakes for this long
+M.SHAKE_AMP = 0.085     -- ... by this much of a cell to each side at first
 M.SWELL_TICKS = 6       -- T.sub_swell
 M.SWELL_SCALE = 1.35
 M.APPEAR_DELAY = 5 / 60 -- a new special blooms 5 ticks after the group started flying in
@@ -219,6 +225,11 @@ function Anim:select(id)
 	self.selected = id
 end
 
+-- A piece (or blocker) that cannot be moved shakes sideways (the Crossfader refused it).
+function Anim:shake(id, t)
+	if id then rec(self, id).shake = t end
+end
+
 function Anim:hint(a, b, phase)
 	self.hint_a, self.hint_b, self.hint_phase = a, b, phase
 end
@@ -230,17 +241,20 @@ end
 -- Core events that change how pieces look. t = real seconds now.
 function Anim:event(e, t)
 	local ty = e.type
-	if ty == "swap" or ty == "swap_fail" or ty == "swap_back" then
+	if ty == "swap" or ty == "swap_fail" or ty == "swap_back" or ty == "exchange" then
 		local a, b, ids = e.a, e.b, e.ids or {}
-		local kind = ty == "swap_fail" and "fail" or (ty == "swap_back" and "back" or "swap")
+		local kind = ty == "swap_fail" and "fail" or (ty == "swap_back" and "back" or (ty == "exchange" and "exchange" or "swap"))
 		for k = 1, 2 do
 			local id = ids[k]
 			if id then
 				local from, to = (k == 1) and a or b, (k == 1) and b or a
-				rec(self, id).swap = {
+				local v = rec(self, id)
+				v.swap = {
 					ax = from[1], ay = from[2], bx = to[1], by = to[2],
 					t0 = e.t or 0, dur = math.max(e.duration or 10, 1), kind = kind, top = (k == 1),
 				}
+				-- the landing pops (the pulse of v.pop starts when its time comes)
+				if kind == "exchange" and not self.reduced then v.pop = t + math.max(e.duration or 10, 1) / 60 end
 			end
 		end
 	elseif ty == "land" then
@@ -379,11 +393,26 @@ function Anim:frame(pieces, tick_f, t)
 			local k
 			if w.kind == "fail" then k = M.fail_offset(u) else k = ease_in_out(u) end
 			x, y = x0 + (x1 - x0) * k, y0 + (y1 - y0) * k
-			if not reduced and w.kind ~= "fail" then
-				local s = math.sin(u * math.pi) * 0.07
-				if w.top then sx, sy = 1 + s, 1 + s else sx, sy = 1 - s, 1 - s end
+			if w.kind == "exchange" then
+				-- across the board: each piece flies an arc to the left of its own way, so the two pass on
+				-- opposite sides; both are lifted above the rest
+				local lift = reduced and 0 or math.sin(u * math.pi)
+				local dx, dy = x1 - x0, y1 - y0
+				local len = math.sqrt(dx * dx + dy * dy)
+				if len > 0 and lift > 0 then
+					local bulge = math.min(len * M.EXCHANGE_BULGE, cell * 2) * lift
+					x, y = x - dy / len * bulge, y + dx / len * bulge
+				end
+				local s = 1 + M.EXCHANGE_LIFT * lift
+				sx, sy = s, s
+				z = M.Z.fly
+			else
+				if not reduced and w.kind ~= "fail" then
+					local s = math.sin(u * math.pi) * 0.07
+					if w.top then sx, sy = 1 + s, 1 + s else sx, sy = 1 - s, 1 - s end
+				end
+				z = w.top and M.Z.swap_top or M.Z.swap_under
 			end
-			z = w.top and M.Z.swap_top or M.Z.swap_under
 		elseif state == "clear" then
 			local c = v.clear
 			if not c then
@@ -459,6 +488,15 @@ function Anim:frame(pieces, tick_f, t)
 				end
 				if dt > M.TOUCH_UP + M.TOUCH_DOWN then v.touch = nil end
 				sx, sy = sx * s, sy * s
+			end
+			if v.shake then
+				local dt = t - v.shake
+				if dt >= M.SHAKE_TIME then
+					v.shake = nil
+				else
+					local k = 1 - dt / M.SHAKE_TIME
+					if reduced then flash = math.max(flash, 0.3 * k) else x = x + math.sin(dt * 62) * cell * M.SHAKE_AMP * k end
+				end
 			end
 			if self.selected == p.id then
 				local s = M.SELECT_SCALE + (reduced and 0 or 0.02 * math.sin(t * 6))

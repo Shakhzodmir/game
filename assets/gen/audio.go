@@ -773,3 +773,103 @@ embedded_components {
   type: "sound"
   data: "sound: \"/assets/sounds/sfx/wires_snap.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
+embedded_components {
+  id: "song_boogie_mouse"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/boogie_mouse.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_bossa_breeze"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/bossa_breeze.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_calypso_sun"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/calypso_sun.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_candy_rush"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/candy_rush.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_carnival_samba"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/carnival_samba.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_idol_ballad"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/idol_ballad.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_lightstick_wave"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/lightstick_wave.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_marching_ducks"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/marching_ducks.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_moonlight_ballad"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/moonlight_ballad.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_neon_heartbeat"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/neon_heartbeat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_oompah_polka"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/oompah_polka.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_pancake_sunday"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/pancake_sunday.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_pixel_cafe"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/pixel_cafe.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_rainy_window"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/rainy_window.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_scat_parade"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/scat_parade.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_skate_sprint"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/skate_sprint.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_sleepy_cat"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/sleepy_cat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_stomp_clap"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/stomp_clap.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_sunrise_ballad"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/sunrise_ballad.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_surf_splash"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/surf_splash.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}

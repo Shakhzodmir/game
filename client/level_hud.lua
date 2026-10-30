@@ -32,11 +32,11 @@ M.PAUSE = { x = 62, w = 96, h = 96 }
 M.GOALS = { x = 330, w = 420, h = 176 }
 M.MOVES = { x = 632, w = 160, h = 160 }
 M.BAR = { x = 360, y = 70, w = 704, h = 132 }     -- centre y of the booster bar (anchored to the bottom)
-M.BAR_BUTTONS = { x0 = -250, gap = 166, w = 104, h = 96 } -- relative to the bar's centre
+M.BAR_BUTTONS = { x0 = -268, gap = 134, w = 104, h = 96 } -- relative to the bar's centre: five in 704 px, their badges inside the bar
 M.FRAME = 20                                      -- the board's frame outside its cells (level_bg.gui_script)
 M.BIT_MAX, M.BIT_MIN, M.BIT_TINY = 150, 96, 64
 M.LOW_MOVES = 5                                   -- the moves badge pulses and reddens at <= 5
-M.BOOSTERS = { "stick", "row_light", "col_light", "remix" }
+M.BOOSTERS = { "stick", "row_light", "col_light", "remix", "swap" }
 
 local function rect(cx, cy, w, h)
 	return { cx = cx, cy = cy, w = w, h = h, x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2 }
@@ -156,12 +156,16 @@ function M.booster_tap(id, st, ctx)
 	return "start"
 end
 
--- The text key of the target-mode prompt of a booster.
-M.PROMPT = { stick = "hud.pick_cell", row_light = "hud.pick_row", col_light = "hud.pick_col" }
+-- The text key of the target-mode prompt of a booster; PROMPT2 is the prompt of the second pick of the Crossfader,
+-- which takes two pieces (its first one is chosen).
+M.PROMPT = { stick = "hud.pick_cell", row_light = "hud.pick_row", col_light = "hud.pick_col", swap = "hud.pick_two" }
+M.PROMPT2 = { swap = "hud.pick_second" }
 
 -- The toast for a booster the core refused (its reason): the board is still moving -> wait for it; a Remix with
--- nothing to shuffle; anything else (a spot with nothing to do) -> pick another spot.
-M.REFUSAL = { not_rest = "hud.wait_board", no_candidates = "hud.remix_no" }
+-- nothing to shuffle; a Crossfader on a piece that cannot move, or on two alike; anything else (a spot with
+-- nothing to do) -> pick another spot.
+M.REFUSAL = { not_rest = "hud.wait_board", no_candidates = "hud.remix_no", not_movable = "hud.swap_fixed",
+	same_piece = "hud.swap_same" }
 function M.refusal_key(reason)
 	return M.REFUSAL[reason] or "hud.booster_no"
 end
