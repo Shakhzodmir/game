@@ -160,7 +160,33 @@ end
 -- vectors ------------------------------------------------------------------------------
 
 local V3, V4, QT = {}, {}, {}
-V3.__index, V4.__index, QT.__index = V3, V4, QT
+V4.__index, QT.__index = V4, QT
+
+-- Float32 mode (install{float32 = true}): the engine's vectors keep 32-bit floats, the stub's keep doubles. In this mode
+-- a vector3 reads back what the engine would hold (z = 0.1 reads back as 0.10000000149), which is what a script that
+-- compares a vector with the numbers of the next frame meets in the real engine (client/level_view.lua sent every sprite
+-- to the engine twice per frame because of it, and no test saw it). The components are kept apart from the table, so
+-- that every assignment goes through __newindex and is rounded; the ordinary vectors keep raw fields and cost nothing.
+local F32 = false
+
+local function f32(x)
+	if x == 0 or x ~= x or x == math.huge or x == -math.huge then return x end
+	local m, e = math.frexp(x)
+	return math.ldexp(math.floor(m * 16777216 + 0.5) / 16777216, e) -- (24 bits of mantissa)
+end
+
+V3.__index = function(t, k)
+	local d = rawget(t, "_d")
+	if d then
+		local v = d[k]
+		if v ~= nil then return v end
+	end
+	return V3[k]
+end
+V3.__newindex = function(t, k, v)
+	local d = rawget(t, "_d")
+	if d and (k == "x" or k == "y" or k == "z") then d[k] = f32(v) else rawset(t, k, v) end
+end
 
 local function num_or(v, d)
 	if type(v) == "number" then return v end
@@ -168,6 +194,13 @@ local function num_or(v, d)
 end
 
 local function vector3(x, y, z)
+	if F32 then
+		local a, b, c
+		if type(x) == "table" then a, b, c = x.x, x.y, x.z
+		elseif y == nil and z == nil and type(x) == "number" then a, b, c = x, x, x
+		else a, b, c = num_or(x, 0), num_or(y, 0), num_or(z, 0) end
+		return setmetatable({ _d = { x = f32(a), y = f32(b), z = f32(c) } }, V3)
+	end
 	if type(x) == "table" then return setmetatable({ x = x.x, y = x.y, z = x.z }, V3) end
 	if y == nil and z == nil and type(x) == "number" then return setmetatable({ x = x, y = x, z = x }, V3) end
 	return setmetatable({ x = num_or(x, 0), y = num_or(y, 0), z = num_or(z, 0) }, V3)
@@ -263,6 +296,7 @@ local saved = nil
 function M.install(opts)
 	opts = opts or {}
 	if saved then M.restore() end
+	F32 = opts.float32 and true or false
 	local root = opts.root or "."
 	local E = {
 		root = root,
@@ -1163,6 +1197,7 @@ function M.restore()
 	for _, name in ipairs(GLOBALS) do rawset(_G, name, saved[name]) end
 	saved = nil
 	M.env = nil
+	F32 = false
 end
 
 -- Loads a Defold script file as a table of its global callbacks (init, update,

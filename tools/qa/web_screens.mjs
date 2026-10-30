@@ -387,6 +387,24 @@ async function debugChecks() {
 	// refused by the core (not_movable), costs no move, and the box shakes its head; the first time in a session a toast says why
 	const stats14 = (await command(page, 'level_stats')).result.board;
 	check(stats14.plates >= 12, 'board: every record box sits on a plate', { plates: stats14.plates });
+	// A board at rest costs the engine no write (the vectors of the engine keep float32: a sprite that compared them with the
+	// numbers of the next frame sent itself twice per frame, 162 calls a frame for 81 pieces, until this was looked at in the
+	// engine), and the janitor of the board looks at it once it has been calm for a while and finds nothing to put right.
+	let rest = null;
+	for (let i = 0; i < 30 && !rest; i++) {
+		const a = (await command(page, 'level_stats')).result.board;
+		await sleep(350);
+		const b = (await command(page, 'level_stats')).result.board;
+		if (b.frames > a.frames && b.view.writes === a.view.writes) rest = b;
+	}
+	check(rest !== null, 'board: a board at rest sends nothing to the engine', rest && rest.view);
+	let looked = rest;
+	for (let i = 0; i < 40 && looked && looked.janitor.passes < 1; i++) {
+		await sleep(250);
+		looked = (await command(page, 'level_stats')).result.board;
+	}
+	check(looked !== null && looked.janitor.passes >= 1 && looked.janitor.repairs === 0,
+		'board: the janitor looked at the board at rest and found nothing to put right', looked && looked.janitor);
 	const nope = await command(page, 'swap 4 2 4 3', { refused: true });
 	check(nope.result.ok === false && nope.result.result === 'not_movable', 'board: the core refuses a swipe on a record box', nope.result);
 	await sleep(120);
@@ -424,8 +442,13 @@ async function debugChecks() {
 	await page.screenshot({ path: `${outDir}/client_board_result.png` });
 	check(true, 'board: win, final concert, skip and the results window run on the engine');
 	// nothing of the show stays on the finished board: every effect ran out or was dropped, none failed
-	const vfx = (await command(page, 'state')).result.board.vfx;
+	const finished = (await command(page, 'state')).result.board;
+	const vfx = finished.vfx;
 	check(vfx.active === 0 && vfx.pending === 0 && vfx.errors === 0, 'board: no effect stays on the board after the concert', vfx);
+	// ... and nothing had to be put right on the way: no effect was cut off by its life limit, no sprite was lost, no piece went
+	// without a sprite, and the janitor of the board never found a thing out of place
+	check(vfx.capped === 0 && vfx.repaired === 0 && finished.view.repaired === 0 && finished.view.overflow === 0 && finished.janitor.repairs === 0,
+		'board: nothing had to be taken back, cut off or put right', { vfx, view: finished.view, janitor: finished.janitor });
 	// the other end: a super hard level that the hint moves do not finish in time ends in the moves window and the defeat
 	await command(page, 'goto level 60');
 	await onScreen(page, 'level');

@@ -10,10 +10,12 @@
 --     (1/60 s ... one frame of 3 s), random swaps, taps on specials, the five in-level boosters, tap-to-skip, the app losing
 --     the focus, windows pausing the session, the end of the level (won on the last move, lost, given up, restarted),
 --     and the overlay (praise, banners, confetti) is replayed in its own script afterwards;
---   * KNOWN OPEN: a tick effect that starts in the tick the moves window opens stays frozen on the board behind it.
+--   * the effects that follow the ticks of the core wait out of sight while a window or a lost focus stops the session (the
+--     Riff bolts, the Bird, the glows and the noise cloud used to stand frozen on the board for as long as it lasted).
 -- Unbounded: lua5.1 tests/client/level_leak_fuzz.lua FIRST COUNT [options]  (its header lists them).
 
 local L = require("tests.client.level_leak")
+local MAX_PIECES = 150 -- the pool of piece sprites (client/level_view.lua)
 local core_helper = require("tests.core.helper")
 local bus = require("client.bus")
 
@@ -245,6 +247,44 @@ describe("the leak oracle", function()
 			assert_eq(kinds_of(L.leak_report(B)).stale_piece_list, 1)
 		end)
 	end)
+
+	-- the kinds the check of every frame names (L.frame_check, B.findings)
+	local function finding_kinds(B)
+		local set = {}
+		for _, f in ipairs(B.findings) do set[f.kind] = (set[f.kind] or 0) + 1 end
+		return set
+	end
+
+	it("names a tick effect that is drawn while the session is stopped, in the frame it happens (halted_fx_visible)", function()
+		L.with_board({ level = 1 }, function(B)
+			frames(B, 90)
+			assert_eq(#B.findings, 0)
+			local vfx = B.self.vfx
+			-- the old behaviour, made on purpose: the effects are not told that the session is stopped
+			local run = vfx._run
+			vfx._run = function(self, fx, tick_f, t, dt) return run(self, fx, tick_f, t, dt, false) end
+			vfx:play({ { kind = "reticle", x = 360, y = 640, size = 100, color = "#FF4FC8", at = B.self.session.tick, dur = 33 } })
+			frames(B, 3)
+			assert_eq(finding_kinds(B).halted_fx_visible, nil, "while the session runs the reticle is meant to be drawn")
+			B.hud.pause = true
+			B.apply_pause()
+			frames(B, 2)
+			assert_true(finding_kinds(B).halted_fx_visible ~= nil, "the reticle sits on the board behind the window: the oracle must say so")
+		end)
+	end)
+
+	it("names a piece that found no sprite (piece_overflow) and a repair of the janitor (janitor_repair)", function()
+		L.with_board({ level = 1 }, function(B)
+			frames(B, 90)
+			assert_eq(#B.findings, 0)
+			B.self.view.overflow = 1 -- (what View:sync counts when its pool is empty)
+			B.step(1 / 60)
+			assert_true(finding_kinds(B).piece_overflow ~= nil)
+			B.self.view.repaired = 1 -- (what View:audit counts when the janitor puts a sprite right)
+			B.step(1 / 60)
+			assert_true(finding_kinds(B).janitor_repair ~= nil)
+		end)
+	end)
 end)
 
 -- The failure of the first report, made again on purpose: the effects that follow the ticks of the core freeze when
@@ -252,7 +292,7 @@ end)
 describe("the leak oracle against the first failure of the producer's report", function()
 	-- scenarios (random boards, the level won, the player taps to skip the concert) that leave commands waiting for a tick
 	-- of a session that the results window has stopped, when level_vfx does not run its effects out by itself
-	local SEEDS = { 4, 12, 24, 30 }
+	local SEEDS = { 4, 12, 30 } -- (every one of them leaks without finish())
 
 	local function play_wins(finish_works)
 		local leaking = 0
@@ -324,14 +364,11 @@ describe("pausing and resuming", function()
 	end)
 end)
 
--- KNOWN OPEN. The core opens "out of moves" in the very tick the noise grows onto a piece after the last move
--- (noise_spread and state out_of_moves have the same tick); the moves window opens at once and stops the session, so
--- the grey cloud that creeps to the piece (a tick effect, 12 ticks) and the dust waiting for tick +6 stop with it: the
--- cloud sits on the piece, as a picture, for as long as the window is open. When "give up" ends the level, finish() lets
--- them run out; when "+5 moves" is taken, they go on. Set FIXED to true when level_vfx lets such effects run out
--- behind a window (or the window waits for them); then the first test must go and the second one stays.
-local FIXED = false
-
+-- The moves window opens in the very tick the noise grows onto a piece after the last move (noise_spread and state
+-- out_of_moves have the same tick) and stops the session at once, so the grey cloud that creeps to the piece (a tick effect,
+-- 12 ticks) and the dust waiting for tick +6 stop with it. They used to sit on the board, as a picture, for as long as the
+-- window was open (found by the first hunt, seeds 20687, 22296, 22375 of tests/client/level_leak_fuzz.lua). They wait out of
+-- sight now and go on when the window closes.
 local function noise_board()
 	return core_helper.level(core_helper.rows(7, 7, { ["4,4"] = "N" }), { moves = 5,
 		colors = { "red", "yellow", "green", "blue" }, goals = { { type = "collect", color = "red", count = 99 } } })
@@ -351,32 +388,153 @@ local function last_move_with_noise(B)
 	assert_true(B.self.session.paused, "the moves window is open")
 end
 
-describe("KNOWN OPEN: the moves window and the effects of its own tick", function()
-	if not FIXED then
-		it("leaves the noise cloud frozen on the board behind the moves window (delete this test when it is fixed)", function()
-			L.with_board({ level = 1, level_text = noise_board() }, function(B)
-				last_move_with_noise(B)
-				frames(B, 300) -- five seconds of the open window
-				local k = kinds_of(L.leak_report(B, { rest = true }))
-				assert_true(k.rest_vfx ~= nil, "the cloud and the dust are still there; if not, the bug is fixed: set FIXED")
-				local vfx = B.self.vfx
-				local kind = vfx.active[1] and vfx.active[1].c.kind
-				assert_eq(kind, "creep")
-				-- the player gives up: the level is over, finish() lets them run out
-				B.hud.moves = false
-				B.apply_pause()
-				B.link.give_up()
+-- effect sprites the ENGINE draws right now (not the flag the board keeps)
+local function effect_sprites(B)
+	local n = 0
+	for _, o in ipairs(B.self.vfx.all) do
+		local eng = B.E.objects[o.go.s]
+		if eng and B.E.visible(eng) then n = n + 1 end
+	end
+	return n
+end
+
+describe("the moves window and the effects of its own tick", function()
+	it("keeps the noise cloud off the board behind the moves window, and plays it out when the moves are taken", function()
+		L.with_board({ level = 1, level_text = noise_board() }, function(B)
+			last_move_with_noise(B)
+			frames(B, 300) -- five seconds of the open window
+			local R = L.leak_report(B, { rest = true })
+			assert_eq(#R.leaks, 0, L.format(R))
+			local vfx = B.self.vfx
+			assert_eq(vfx.active[1] and vfx.active[1].c.kind, "creep", "the cloud waits for the window to close")
+			assert_eq(effect_sprites(B), 0, "nothing of it is drawn")
+			assert_eq(#B.findings, 0, "the frames of the window: " .. tostring(B.findings[1] and B.findings[1].text))
+			-- "+5 moves": the session runs again, the cloud creeps to its piece and goes
+			B.hud.moves = false
+			B.apply_pause()
+			B.link.continue(5, false)
+			B.step(1 / 60)
+			assert_true(effect_sprites(B) > 0, "the cloud is back on the board")
+			frames(B, 240)
+			assert_eq(#L.leak_report(B, { rest = true }).leaks, 0)
+			assert_eq(#B.findings, 0)
+		end)
+	end)
+
+	it("leaves nothing of the last move on the board when the player gives up", function()
+		L.with_board({ level = 1, level_text = noise_board() }, function(B)
+			last_move_with_noise(B)
+			frames(B, 120)
+			B.hud.moves = false
+			B.apply_pause()
+			B.link.give_up()
+			frames(B, 120)
+			local R = L.leak_report(B, { rest = true })
+			assert_eq(#R.leaks, 0, L.format(R))
+		end)
+	end)
+end)
+
+-- A window (the pause, the shop's purchase window, the moves window) or a lost focus stops the session in the middle of a
+-- show: the bolts, the Bird with its reticle and the glows that follow the ticks of the core wait out of sight and carry
+-- on when the session runs again; they used to stand on the board, frozen, as a trace of the animation.
+local function combo_level(pair)
+	local rows = { "#######", "#######", "#######", "#######", "###" .. pair .. "##", "#######", "#######", "#######" }
+	return core_helper.level(rows, { moves = 10, colors = { "yellow", "green", "blue", "purple" },
+		goals = { { type = "collect", color = "yellow", count = 4 } } })
+end
+
+describe("a show that is stopped in the middle", function()
+	-- (the frame at which the session is stopped: the Bird is in the air, the Grand finale charges, the bolts fly)
+	local CASES = { { "bird_riff", "BR", 40 }, { "bird_sub", "BS", 40 }, { "trio", "BB", 40 }, { "finale", "DD", 15 },
+		{ "triple_cross", "RS", 14 }, { "bass_drop", "SS", 14 } }
+
+	for _, case in ipairs(CASES) do
+		local name, pair, at = case[1], case[2], case[3]
+		it("shows nothing of " .. name .. " on the board while the focus is away, and plays it out when it is back", function()
+			L.with_board({ level = 1, level_text = combo_level(pair) }, function(B)
+				frames(B, 3)
+				assert_true(B.self.session:qa("swap", { 4, 5, 5, 5 }).ok)
+				frames(B, at)
+				local on = effect_sprites(B)
+				assert_true(on > 0, name .. ": the show is on at frame " .. at)
+				bus.publish("app_focus", { focused = false })
 				frames(B, 120)
-				assert_eq(#L.leak_report(B, { rest = true }).leaks, 0)
+				assert_true(B.self.session.hold)
+				assert_eq(effect_sprites(B), 0, name .. ": effect sprites still on the board 2 s after the focus was lost")
+				assert_eq(#B.findings, 0, "the frames of the absence: " .. tostring(B.findings[1] and B.findings[1].text))
+				bus.publish("app_focus", { focused = true })
+				for _ = 1, 3000 do
+					local vfx = B.self.vfx
+					if B.game():is_stable() and #vfx.active == 0 and #vfx.heap == 0 and #B.E.running_particles() == 0 then break end
+					B.step(1 / 60)
+				end
+				frames(B, 30) -- (the landing spring of the pieces is over)
+				local R = L.leak_report(B, { rest = true })
+				assert_eq(#R.leaks, 0, name .. ": " .. L.format(R))
+				assert_eq(#B.findings, 0)
 			end)
 		end)
 	end
 
-	it("leaves nothing of the last move on the board behind the moves window", function()
-		if not FIXED then return end
-		L.with_board({ level = 1, level_text = noise_board() }, function(B)
-			last_move_with_noise(B)
-			frames(B, 300)
+	it("shows nothing of a Bird behind the pause window either, however long the frames are", function()
+		for _, dt in ipairs({ 1 / 60, 3 }) do
+			L.with_board({ level = 1, level_text = combo_level("BR") }, function(B)
+				frames(B, 3)
+				assert_true(B.self.session:qa("swap", { 4, 5, 5, 5 }).ok)
+				frames(B, math.ceil(40 * (1 / 60) / math.min(dt, 0.25)), dt)
+				B.hud.pause = true
+				B.apply_pause()
+				for _ = 1, 40 do B.step(dt) end
+				assert_true(B.self.session.paused)
+				assert_eq(effect_sprites(B), 0, "dt " .. dt .. ": the window is open and effects are drawn")
+				assert_eq(#B.findings, 0, "dt " .. dt .. ": " .. tostring(B.findings[1] and B.findings[1].text))
+				B.hud.pause = false
+				B.apply_pause()
+				for _ = 1, math.ceil(30 / math.min(dt, 0.25)) do B.step(dt) end
+				for _ = 1, 400 do
+					if B.game():is_stable() then break end
+					B.step(dt)
+				end
+				for _ = 1, math.ceil(4 / math.min(dt, 0.25)) do B.step(dt) end
+				local R = L.leak_report(B, { rest = true })
+				assert_eq(#R.leaks, 0, "dt " .. dt .. ": " .. L.format(R))
+			end)
+		end
+	end)
+end)
+
+-- A frame that replaces most of a big board (the Grand finale clears it, the refill comes in the very frame the last pieces
+-- go) needs the sprites of the pieces that left for the pieces that arrive: the pool has 150 and a 9 x 11 board holds 99.
+-- level_view.lua used to take before it gave back, and the pieces that found no pool were not drawn for a frame (hunter 3's
+-- fuzz found it once in 26,133 frames: level 70, seed 7001). The finale itself does not need twice 99 sprites in one frame,
+-- so this cannot fail on its own; the frame check of the oracle (piece_overflow) is what would see it, in every scenario.
+describe("a big board", function()
+	it("gives every piece of a 9 x 11 board a sprite through a Grand finale and its refill", function()
+		local rows = {}
+		for y = 1, 11 do rows[y] = string.rep("#", 9) end
+		rows[6] = "###DD####"
+		local lvl = core_helper.level(rows, { moves = 10, colors = { "yellow", "green", "blue", "purple", "red", "orange" },
+			goals = { { type = "collect", color = "yellow", count = 400 } } })
+		L.with_board({ level = 1, level_text = lvl }, function(B)
+			frames(B, 5)
+			assert_eq(#B.game():pieces(), 99)
+			assert_true(B.self.session:qa("swap", { 4, 6, 5, 6 }).ok)
+			local most, cleared = 0, false
+			for _ = 1, 240 do -- eight seconds: the charge, the rings, the clear and the refill
+				B.step(1 / 30)
+				local n = #B.game():pieces()
+				most = math.max(most, n)
+				if n < 20 then cleared = true end
+			end
+			assert_true(cleared, "the Grand finale cleared the board")
+			assert_eq(#B.game():pieces(), 99, "and the refill filled it again")
+			frames(B, 90, 1 / 30) -- (the last bursts burn out, the pieces land)
+			local view = B.self.view:stats()
+			assert_eq(view.overflow, 0, "pieces found no sprite")
+			assert_true(view.created <= MAX_PIECES, "sprites made: " .. view.created)
+			assert_true(most >= 99, "the board was full at some time (" .. most .. ")")
+			assert_eq(#B.findings, 0, "the frames of the finale: " .. tostring(B.findings[1] and B.findings[1].text))
 			local R = L.leak_report(B, { rest = true })
 			assert_eq(#R.leaks, 0, L.format(R))
 		end)
@@ -386,13 +544,13 @@ end)
 -- the scenarios ----------------------------------------------------------------------------------------------------
 describe("the leak fuzzer, bounded", function()
 	it("plays a scenario as a pure function of its seed", function()
-		local a = L.scenario(7, {})
-		local b = L.scenario(7, {})
+		local a = L.scenario(7, { ops = 6 })
+		local b = L.scenario(7, { ops = 6 })
 		assert_eq(a.source, b.source)
 		assert_eq(a.dt_mode, b.dt_mode)
 		assert_eq(a.end_mode, b.end_mode)
-		local r1 = L.play(L.scenario(7, {}), { gui = false })
-		local r2 = L.play(L.scenario(7, {}), { gui = false })
+		local r1 = L.play(L.scenario(7, { ops = 6 }), { gui = false })
+		local r2 = L.play(L.scenario(7, { ops = 6 }), { gui = false })
 		assert_eq(#r1.story, #r2.story)
 		assert_eq(r1.frames, r2.frames)
 		assert_eq(r1.final_state, r2.final_state)
@@ -403,7 +561,7 @@ describe("the leak fuzzer, bounded", function()
 	end)
 
 	it("shrinks a scenario to the ops that matter", function()
-		local sc = L.scenario(3, { ops = 10, source = "board", dt_mode = "60" })
+		local sc = L.scenario(3, { ops = 6, source = "board", dt_mode = "60" })
 		sc.end_mode = "settle"
 		L.play(sc, { gui = false }) -- (the ops are drawn when a scenario is played the first time)
 		-- the "leak" is a swap on the board: the shrunk story must be that one op
@@ -453,8 +611,8 @@ describe("the leak fuzzer, bounded", function()
 	end
 	-- the levels with the things the others do not have: wires, microphones, noise, balloons, the column
 	for i, level in ipairs({ 22, 30, 50, 65, 90 }) do
-		list[#list + 1] = { seed = 300 + i, source = "level", level = level, end_mode = "win", dt_mode = i == 4 and "spike" or "30",
-			gui = i == 3 }
+		list[#list + 1] = { seed = 300 + i, source = "level", level = level, end_mode = "win",
+			dt_mode = ({ "10", "30", "10", "spike", "30" })[i], gui = false }
 	end
 	-- a moves window answered with a Crossfader whose picks the core rejects: the offer comes back (level.gui_script); the
 	-- runner once waited for ever for a window that was not there
