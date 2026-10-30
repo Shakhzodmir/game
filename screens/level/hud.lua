@@ -31,7 +31,6 @@ local fx = require("client.fx")
 local M = {}
 
 local BOOSTER_STYLE = { stick = "pink", row_light = "gold", col_light = "blue", remix = "purple" }
-M.GOAL_ICON = { light = "ui/icons/goal_floor" }
 local BIT_SYNC_EVERY = 2.0 -- seconds between corrections of Bit's step to the music clock
 
 local Hud = {}
@@ -85,10 +84,6 @@ function Hud:_goals(info, status)
 		s:text(pill, i18n.t(tag), 0, 1, { font = "button", size = 19, color = "white", max_width = 148 })
 	end
 	local goals = levels.goals({ goals = info.goals })
-	for _, gdef in ipairs(goals) do
-		-- the dance floor has an icon of its own in the HUD
-		if gdef.kind == "light" then gdef.image = M.GOAL_ICON.light end
-	end
 	local n = math.max(1, #goals)
 	local slots = level_hud.goal_slots(n)
 	self.goal_nodes, self.goal_defs, self.goal_slots = {}, goals, slots

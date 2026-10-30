@@ -105,6 +105,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_floor_half"
+  images {
+    image: "/assets/images/blockers/floor_half.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_floor_lit"
   images {
     image: "/assets/images/blockers/floor_lit.png"

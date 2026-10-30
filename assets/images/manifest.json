@@ -12,7 +12,7 @@
     "blockers/mic_stand.png": "exit marker drawn under the bottom cell of an exit column",
     "blockers/column_*.png": "2x2 cells",
     "blockers/wires_*.png": "overlay drawn above the piece; the centre stays transparent",
-    "blockers/floor_*.png": "opaque dance-floor tiles drawn instead of the cell tile (lit tiles are gold edge to edge so neighbours join)",
+    "blockers/floor_*.png": "opaque dance-floor tiles drawn instead of the cell tile, edge to edge so neighbours join. VIOLET = still to light (floor_2 two layers: double outline; floor_1 one layer), floor_half = a two-layer tile after its first hit (violet frame, gold core), floor_lit = lit (gold)",
     "ui/button_*.png": "nine-slice [left, top, right, bottom]; the bottom border holds the darker shelf",
     "ui/button_small_*.png": "64px nine-slice [16, 16, 16, 22] for small buttons (smallest size 32x38), e.g. the 46px '+' button",
     "ui/badge_count.png": "booster count badge; print the number in white Rubik Black on top",
@@ -20,7 +20,7 @@
     "ui/bunting.png": "720px festive garland for the top edge of the level screen",
     "fx/*.png": "white / near-white, tint in the engine",
     "ui/icons/*.png": "96x96 glossy icons with a white sticker edge, all inside the central 88px",
-    "ui/icons/goal_floor.png": "goal icon for 'light the dance floor'",
+    "ui/icons/goal_floor.png": "goal icon for 'light the dance floor': the unlit (violet) tile as the board shows it, on the gold tile it turns into",
     "ui/icons/streak.png": "hit streak (Seriya hitov)",
     "backgrounds/level_bg.png": "720x1280, draw 1:1 behind the board",
     "districts/*/bg*.png": "720x1280, draw 1:1 under the items; bg_concert is the final-concert re-light (neon on #3B2A8F -> #6B4CE0) of the same scene",
@@ -152,19 +152,25 @@
       "w": 160,
       "h": 160,
       "alpha": false,
-      "bytes": 6454
+      "bytes": 7334
     },
     "blockers/floor_2.png": {
       "w": 160,
       "h": 160,
       "alpha": false,
-      "bytes": 8166
+      "bytes": 8936
+    },
+    "blockers/floor_half.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": false,
+      "bytes": 10003
     },
     "blockers/floor_lit.png": {
       "w": 160,
       "h": 160,
       "alpha": false,
-      "bytes": 9140
+      "bytes": 8980
     },
     "blockers/mic.png": {
       "w": 160,
@@ -1118,7 +1124,7 @@
       "w": 96,
       "h": 96,
       "alpha": true,
-      "bytes": 6155
+      "bytes": 6600
     },
     "ui/icons/hand.png": {
       "w": 96,
