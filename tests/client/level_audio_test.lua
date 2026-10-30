@@ -36,6 +36,26 @@ describe("client.level_audio", function()
 		assert_same(names(calls, "combo"), { 5 }) -- a deep wave ducks the music
 	end)
 
+	it("scratches for the Crossfader: two whooshes, high and fast then low and slow, a click at the landing, no riser", function()
+		local a, calls = fake_audio()
+		local la = level_audio.new({ audio = a, now = function() return 0 end })
+		la:events({
+			{ type = "booster", t = 5, booster = "swap", ok = true, at = { 1, 1 }, to = { 4, 4 } },
+			{ type = "exchange", t = 5, a = { 1, 1 }, b = { 4, 4 }, ids = { 1, 2 }, duration = 18 },
+		})
+		assert_same(names(calls, "sfx"), { "swap", "swap", "tap" })
+		local first, second, click = calls[1][3], calls[2][3], calls[3][3]
+		assert_true(first.speed > 1 and second.speed < 1, "forth fast, back slow")
+		assert_true((second.delay or 0) > 0 and (second.delay or 0) < 0.2, "the second whoosh follows at once")
+		assert_near(click.delay, level_audio.EXCHANGE_LAND, 1e-9)
+		assert_near(level_audio.EXCHANGE_LAND, 18 / 60, 1e-9, "the click is where T.exchange ends")
+		-- the other boosters keep their riser
+		local b, calls2 = fake_audio()
+		local lb = level_audio.new({ audio = b, now = function() return 0 end })
+		lb:events({ { type = "booster", t = 5, booster = "stick", ok = true, at = { 1, 1 } } })
+		assert_same(names(calls2, "sfx"), { "booster" })
+	end)
+
 	it("rate-limits landing ticks and repeated effects", function()
 		local a, calls = fake_audio()
 		local t = 0

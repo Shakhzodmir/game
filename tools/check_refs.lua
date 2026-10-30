@@ -984,7 +984,7 @@ local function check_i18n(repo, data)
 			end
 			used[key] = true
 			if prefix == "booster." and m ~= "mic" then
-				if not S[key .. "_desc"] and (m == "stick" or m == "row_light" or m == "col_light" or m == "remix" or m == "riff" or m == "sub" or m == "disco") then
+				if not S[key .. "_desc"] and (m == "stick" or m == "row_light" or m == "col_light" or m == "remix" or m == "swap" or m == "riff" or m == "sub" or m == "disco") then
 					problem(repo, "d", "client/i18n.lua", 0, "key \"" .. key .. "_desc\" is missing (the shop / gift windows show it)")
 				end
 				used[key .. "_desc"] = true
