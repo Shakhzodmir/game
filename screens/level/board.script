@@ -150,6 +150,9 @@ local function on_event(self, e)
 		end
 		if e.state == "complete" or e.state == "lost" then
 			bus.publish("level_result", { result = self.session.game:result() })
+			-- the result window opens now and stops the session for good: what is still playing on the
+			-- board (the tick effects follow the session) runs out by itself instead of freezing in place
+			self.vfx:finish()
 		end
 	elseif ty == "hit" then
 		if e.layer == "floor" then
@@ -270,6 +273,7 @@ function init(self)
 	msg.post(".", "acquire_input_focus")
 	self.t = 0
 	self.shake_x, self.shake_y = 0, 0
+	self.vfx_errors = 0 -- effects that failed so far (the vfx frees them and goes on; see run_vfx)
 	local params = app.params or {}
 	local hooks = {
 		first_move = function()
@@ -357,7 +361,7 @@ function init(self)
 		end,
 		on_qa = function(name, res)
 			-- the QA bridge runs in the main collection, where the id of an object of this one does not
-			-- resolve (go.set_position: "Instance (null) not found"): the next update clears the effects
+			-- resolve (go.set_position: "Instance (null) not found"): the next update skips the show
 			if name == "skip" and res and res.ok then self.clear_vfx = true end
 		end,
 	})
@@ -464,9 +468,17 @@ end
 local function run_vfx(self, dt, tick_f)
 	if self.clear_vfx then
 		self.clear_vfx = nil
-		self.vfx:clear()
+		self.vfx:skip()
 	end
-	self.shake_x, self.shake_y = self.vfx:update(dt, tick_f, self.t)
+	self.shake_x, self.shake_y = self.vfx:update(dt, tick_f, self.t, self.session:halted())
+	-- an effect that fails is freed by the vfx itself (and logged, the others go on); here it is counted, and in
+	-- the tests (self.strict) it is raised after the frame
+	local n = self.vfx.errors
+	if n ~= self.vfx_errors then
+		self.errors = (self.errors or 0) + n - self.vfx_errors
+		self.vfx_errors = n
+		if self.strict then error(self.vfx.last_error, 0) end
+	end
 end
 
 local function run_pieces(self, pieces, tick_f)
@@ -566,7 +578,7 @@ function on_input(self, action_id, action)
 			-- a tap during the final concert skips it (not the one that made the last move)
 			if self.won_at and self.t - self.won_at < SKIP_GUARD then return true end
 			local ok = command(self, { type = "skip" })
-			if ok then self.vfx:clear() end
+			if ok then self.vfx:skip() end
 			return true
 		end
 		local targeting = self.input.targeting
