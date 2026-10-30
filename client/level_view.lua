@@ -21,6 +21,7 @@ local M = {}
 M.MAX_PIECES = 150
 M.OFF = vmath.vector3(-10000, -10000, 0)
 M.NO_CLIP = 100000
+M.MIN_SCALE = 0.001  -- go.set_scale refuses a component <= 0
 M.Z_WIRES = 0.2
 M.Z_MARK = 0.05
 
@@ -104,6 +105,10 @@ function M.apply(o, image, x, y, z, sx, sy, rot, flash, clip, alpha, r, g, b)
 		o.image = image
 		sprite.play_flipbook(o.url, ah(image))
 	end
+	-- go.set_scale refuses a component <= 0 (an error in the log, the old scale stays): a piece that has
+	-- shrunk to nothing keeps a hair of size instead
+	if sx < M.MIN_SCALE then sx = M.MIN_SCALE end
+	if sy < M.MIN_SCALE then sy = M.MIN_SCALE end
 	local s = o.scl
 	if s.x ~= sx or s.y ~= sy then
 		s.x, s.y = sx, sy

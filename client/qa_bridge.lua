@@ -135,8 +135,12 @@ function M.execute(cmd)
 		if M.NOT_YET[name] then return { ok = false, error = "not_implemented: needs the board (the level screen is not on display)" } end
 		return { ok = false, error = "unknown command '" .. name .. "'" }
 	end
-	local ok, res = pcall(h, args, cmd)
-	if not ok then return { ok = false, error = tostring(res) } end
+	-- a debug bridge: the failure carries its traceback (what the first live runs needed to find a bug)
+	local ok, res = xpcall(function() return h(args, cmd) end, function(e)
+		local tb = type(debug) == "table" and debug.traceback
+		return tb and tb(tostring(e), 2) or tostring(e)
+	end)
+	if not ok then return { ok = false, error = tostring(res):sub(1, 1600) } end
 	if type(res) ~= "table" then res = { ok = res ~= false } end
 	if res.ok == nil then res.ok = true end
 	return res

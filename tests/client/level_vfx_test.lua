@@ -373,6 +373,23 @@ describe("client.level_view and level_anim in the hot loop", function()
 		if not ok then error(err, 0) end
 	end)
 
+	it("a piece that shrank to nothing keeps a hair of scale (go.set_scale refuses zero)", function()
+		local E = stub.install({})
+		local ok, err = pcall(function()
+			load_modules()
+			local V = level_view.new({})
+			-- found by the first live browser run: the end of a clear animation has scale 0
+			V:sync({ { id = 1, image = "pieces_red", x = 100, y = 100, z = 0.5, sx = 1, sy = 1, scale = 0, rot = 0,
+				flash = 0, alpha = 1 } }, 0, 0)
+			assert_eq(V:stats().pieces, 1)
+			local scl = E.by_factory("piece_factory")[1].scale
+			assert_true(scl.x > 0 and scl.y > 0, "the scale stays positive")
+			V:final()
+		end)
+		stub.restore()
+		if not ok then error(err, 0) end
+	end)
+
 	it("draws the marks of selection and hint from a pool", function()
 		local E = stub.install({})
 		local ok, err = pcall(function()
