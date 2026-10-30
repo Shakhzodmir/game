@@ -127,13 +127,27 @@ local function deal(cursor, n, reached)
 	return out, cursor
 end
 
+-- The highest level that has a chest, and the most chests a save may hold waiting. A chest is described by a
+-- walk over the rotation from chest 1 (O(level)) and a save is untrusted data (its checksum is a public hash), so
+-- a restore must not spend time on ids nobody can have: both numbers are far above any campaign. The level cap
+-- is not C.levels.count: progress from a build with more levels is kept.
+M.MAX_CHEST_LEVEL = 100000
+M.MAX_WAITING_CHESTS = 100
+
+-- True when beating `level_id` gives a chest: every `every`-th level up to MAX_CHEST_LEVEL. O(1): it never walks
+-- the rotation, so it is the test for an id that came from outside.
+function M.has_level_chest(level_id)
+	local every = C.level_chest.every
+	return util.is_int(level_id) and level_id >= every and level_id <= M.MAX_CHEST_LEVEL and level_id % every == 0
+end
+
 -- Content of the chest for beating `level_id`, or nil if that level has none:
 -- {k, coins, boosters = {ids}, infinite_minutes}. Levels are played in order,
 -- so chest j always opens when the player moves on to level j * every + 1;
 -- the walk over the rotation is replayed from chest 1 and needs no saved state.
 function M.level_chest(level_id)
 	local cfg = C.level_chest
-	if level_id < cfg.every or level_id % cfg.every ~= 0 then return nil end
+	if not M.has_level_chest(level_id) then return nil end
 	local k = level_id / cfg.every
 	local cursor, boosters = 0, nil
 	for j = 1, k do
@@ -149,17 +163,21 @@ function M.level_chest(level_id)
 end
 
 -- The level chests won but not claimed yet, from a save: the level ids that have a chest, once each, in
--- ascending order. Anything else in the list is dropped.
-function M.restore_chests(t)
+-- ascending order. A chest can only wait for a level the same save has beaten (`beaten`, when given), so
+-- everything above it is dropped, as is everything else in the list; no more than MAX_WAITING_CHESTS stay (the
+-- oldest). Linear in the length of the list: no id is ever described here.
+function M.restore_chests(t, beaten)
 	local out, seen = {}, {}
 	if type(t) ~= "table" then return out end
+	local limit = math.min(M.MAX_CHEST_LEVEL, beaten or M.MAX_CHEST_LEVEL)
 	for _, id in ipairs(t) do
-		if util.is_int(id) and id >= 1 and not seen[id] and M.level_chest(id) then
+		if util.is_int(id) and id <= limit and not seen[id] and M.has_level_chest(id) then
 			seen[id] = true
 			out[#out + 1] = id
 		end
 	end
 	table.sort(out)
+	for i = #out, M.MAX_WAITING_CHESTS + 1, -1 do out[i] = nil end
 	return out
 end
 

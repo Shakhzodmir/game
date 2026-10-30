@@ -84,6 +84,22 @@ function H.json_round_trip(t)
 	return json.decode(json.encode(t))
 end
 
+-- Runs fn(...) under a budget of VM instructions instead of seconds: a hang turns into a failure at the same
+-- place on every machine (a normal Meta.load takes about 5e4 instructions). Returns finished, results (the
+-- pcall results). LuaJIT runs compiled traces that never fire the count hook, so its JIT is off meanwhile.
+function H.within_budget(budget, fn, ...)
+	local hit = false
+	if jit then jit.off() end
+	debug.sethook(function()
+		hit = true
+		error("instruction budget", 0)
+	end, "", budget)
+	local res = { pcall(fn, ...) }
+	debug.sethook()
+	if jit then jit.on() end
+	return not hit, res
+end
+
 -- Difficulty sawtooth of plan v1 (4 easy, 3 medium, 2 hard, 1 super hard per
 -- ten levels; 1..20 easy; 21..50 without super hard). A test fixture only.
 local BLOCK = { "easy", "medium", "easy", "hard", "easy", "medium", "super_hard", "easy", "medium", "hard" }

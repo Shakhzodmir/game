@@ -275,7 +275,7 @@ local S = {
 	["win.chest_lives_on"] = { en = "Unlimited lives are on!", ru = "Бесконечные жизни включены!" },
 	["win.stars_note"] = {
 		en = "Stars depend on the level: easy and medium give 1, hard 2, super hard 3. Moves left give coins.",
-		ru = "Звёзды зависят от сложности: лёгкий и средний уровень даёт 1, сложный 2, самый сложный 3. Ходы в запасе дают монеты.",
+		ru = "Звёзды зависят от сложности: лёгкий и средний уровень даёт 1, сложный 2, суперсложный 3. Ходы в запасе дают монеты.",
 	},
 	["win.free_next"] = { en = "Free next start:", ru = "Бесплатно на старте:" },
 	["win.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },

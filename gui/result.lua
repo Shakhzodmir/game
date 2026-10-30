@@ -5,6 +5,9 @@
 -- its unlimited lives start; left unopened it is offered again by the next results window and the town),
 -- new boosters, boosters the core could not place and returned. "Next level" opens the start window of the next level (Play there starts it), "To town"
 -- goes back. Stars, coins and Bit are animated once; a rebuild (language) shows the final state.
+-- The window always fits the screen: the stars note is the one block that goes when the window would be too tall
+-- for it, and a window that is still too tall slides down and shrinks (kit.panel fit, popups Entry:fit), so the
+-- title ribbon and Bit never leave the design area.
 -- params = {view = level_windows.result(...), refund = {[id] = count} | nil, standalone}
 -- Result: "town" | {action = "next", level} (a debug level: no start window).
 
@@ -24,6 +27,10 @@ M.no_back = true
 
 local W = 640
 local GAP = 14
+local BIT_UP = 104       -- how far Bit's head sticks out above the panel (the ribbon: 50)
+local CHEST_H = 212      -- the chest strip: the picture, the title, the contents and an Open button of 88 px
+local OPEN_H = 88        -- the touch target of the kit
+local TAKEN_HOLD = 1.2   -- seconds a chest just taken stays on show while another one waits
 
 -- names of boosters as "Riff, Subwoofer"
 local function names(ids)
@@ -73,20 +80,31 @@ end
 
 -- "Open": the chest window shows the chest; the player taking it ("Collect") is the moment the meta pays it,
 -- so its unlimited lives run from there. A chest window closed any other way (the screen goes away) pays
--- nothing: the chest stays in the meta.
+-- nothing: the chest stays in the meta. This window deafens for a moment after a Collect: the second tap of
+-- a double tap lies where "Next level" is in a tall results window and must not press it.
 local function open_chest(e, chest)
 	e:open("chest", { kind = "level", level_id = chest.level_id, chest = chest, on_close = function(result)
 		if type(result) ~= "table" or result.action ~= "collect" then return end
+		e:deafen()
 		if app.claim_level_chest(chest.level_id) then
 			e.state.claimed = chest
 			e.state.pop_claimed = true
+			-- another chest waits: the one just taken stays on show for a moment (or a tap), then it is offered
+			if offered_chest(e.params.view) then e.state.taken_hold = TAKEN_HOLD end
 		end
 		e:rebuild()
 	end })
 end
 
--- the blocks, top to bottom: {h, draw = function(y)}
-local function blocks(e, body, v, animate, alive)
+-- An invisible button over a whole strip, under the buttons made after it: the taps of the picture and the text.
+local function strip_button(e, parent, w, h, on_click)
+	local hit = e.ui:button({ parent = parent, x = 0, y = 0, w = w, h = h, style = "white", on_click = on_click })
+	gui.set_color(hit.node, vmath.vector4(1, 1, 1, 0))
+	return hit
+end
+
+-- the blocks, top to bottom: {h, draw = function(y)}; `note`: the stars note is one of them
+local function blocks(e, body, v, animate, alive, note)
 	local s = e.ui
 	local list = {}
 	local function add(h, draw) list[#list + 1] = { h = h, draw = draw } end
@@ -106,14 +124,14 @@ local function blocks(e, body, v, animate, alive)
 					if not alive() then return end
 					gui.animate(node, "scale", base, gui.EASING_OUTBACK, 0.45)
 					kit.sfx("star", { speed = 1 + 0.12 * i })
-					local ax, ay = kit.abs(sx, y - 4)
+					local ax, ay = e:abs(sx, y - 4)
 					e.fx:burst(ax, ay, { count = 10, radius = 110, size = 32 })
 					e.fx:ring(ax, ay, { size = 90, scale = 2.4, dur = 0.45 })
 				end)
 			end
 		end
 	end)
-	if not v.standalone and n_stars < 3 then
+	if note and not v.standalone and n_stars < 3 then
 		add(104 + GAP, function(y)
 			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
 				text = { key = "win.stars_note" }, icon = "ui/icons/star", size = 22, h = 104, color = "text_soft", wrap = true,
@@ -179,23 +197,26 @@ local function blocks(e, body, v, animate, alive)
 		end)
 	end
 
-	-- the level chest: waiting to be opened here, or just taken
+	-- the level chest: waiting to be opened here (the whole strip is its button), or just taken
 	local chest = offered_chest(v)
-	local taken = (not chest) and e.state.claimed or nil
-	if chest then
-		add(196 + GAP, function(y)
+	local hold = e.state.taken_hold and e.state.claimed or nil -- a chest was just taken and another one waits
+	local taken = hold or ((not chest) and e.state.claimed or nil)
+	if chest and not hold then
+		add(CHEST_H + GAP, function(y)
 			local sw = W - 80
-			local strip = s:round(body, 0, y - GAP / 2, sw, 196, "#FFD84D", { radius = 34 })
-			local inner = s:round(strip, 0, 0, sw - 8, 188, "#FFF6D6", { radius = 30 })
-			local icon = kit.icon(e, inner, "ui/icons/chest_closed", -sw / 2 + 80, 22, 120, "gold")
+			local strip = s:round(body, 0, y - GAP / 2, sw, CHEST_H, "#FFD84D", { radius = 34 })
+			local inner = s:round(strip, 0, 0, sw - 8, CHEST_H - 8, "#FFF6D6", { radius = 30 })
+			-- the picture, the title and the row open the chest like the button, which is made later and so asked first
+			strip_button(e, strip, sw, CHEST_H, function() open_chest(e, chest) end)
+			local icon = kit.icon(e, inner, "ui/icons/chest_closed", -sw / 2 + 80, 6, 124, "gold")
 			if not kit.reduced() then kit.wiggle(icon, 0.05, 0.9) end
 			-- an older chest left unopened says which level it is from
 			local title = (chest.level_id == v.level_id) and i18n.t("win.chest") or i18n.t("reward.chest_level", { n = chest.level_id })
-			s:text(inner, title, 40, 62, { font = "title", size = 44, color = "gold", outline = "white", max_width = 360 })
-			chest_row(e, inner, chest, sw, 8)
-			s:button({ parent = inner, x = 40, y = -56, w = 260, h = 64, style = "green", text = i18n.t("win.chest_open"), text_size = 30,
+			s:text(inner, title, 40, 70, { font = "title", size = 44, color = "gold", outline = "white", max_width = 360 })
+			chest_row(e, inner, chest, sw, 22)
+			s:button({ parent = inner, x = 40, y = -48, w = 260, h = OPEN_H, style = "green", text = i18n.t("win.chest_open"), text_size = 36,
 				on_click = function() open_chest(e, chest) end })
-			e:target("chest", 40, y - GAP / 2 - 56)
+			e:target("chest", 40, y - GAP / 2 - 48)
 		end)
 	elseif taken then
 		add(150 + GAP, function(y)
@@ -207,6 +228,13 @@ local function blocks(e, body, v, animate, alive)
 			chest_row(e, inner, taken, sw, -6)
 			if (taken.infinite_minutes or 0) > 0 then
 				s:text(inner, i18n.t("win.chest_lives_on"), 40, -50, { font = "small", size = 22, color = "text_soft", max_width = 360 })
+			end
+			if hold then -- the next chest follows after a moment; a tap brings it at once
+				strip_button(e, strip, sw, 150, function()
+					e.state.taken_hold = nil
+					e:rebuild()
+				end)
+				e:target("taken", 0, y - GAP / 2)
 			end
 			if e.state.pop_claimed then
 				e.state.pop_claimed = nil
@@ -285,15 +313,26 @@ function M.build(e)
 	st.played = true
 	local alive = lkit.token(e)
 
-	local list = blocks(e, nil, v, false, alive) -- heights only: nothing is drawn yet
-	local h_blocks = 0
-	for _, b in ipairs(list) do h_blocks = h_blocks + b.h end
+	-- the heights first (nothing is drawn yet). The stars note is the block that goes when the window would be too
+	-- tall for the screen with it: by the time the streak, a chest and a new booster crowd the window the player
+	-- has read it many times. What is left and still too tall is shrunk by kit.panel (fit).
 	local has_next = v.next_level ~= nil
-	local h_buttons = has_next and 290 or 250
-	local H = 70 + h_blocks + h_buttons
-	local body, hh = kit.panel(e, W, H, { title = { key = "win.title" }, close = false })
+	local function height(list)
+		local h = 70 + (has_next and 290 or 250)
+		for _, b in ipairs(list) do h = h + b.h end
+		return h
+	end
+	local note = true
+	local list = blocks(e, nil, v, false, alive, note)
+	local H = height(list)
+	if H > e:room(BIT_UP) then
+		note = false
+		list = blocks(e, nil, v, false, alive, note)
+		H = height(list)
+	end
+	local body, hh = kit.panel(e, W, H, { title = { key = "win.title" }, close = false, fit = true, up = BIT_UP })
 
-	local list2 = blocks(e, body, v, animate, alive)
+	local list2 = blocks(e, body, v, animate, alive, note)
 	local y = hh - 70
 	for _, b in ipairs(list2) do
 		b.draw(y - b.h / 2)
@@ -331,6 +370,14 @@ end
 
 function M.update(e, dt)
 	kit.update_bit(e, dt)
+	local st = e.state
+	if st.taken_hold then -- the chest just taken has been on show long enough: the next one is offered
+		st.taken_hold = st.taken_hold - dt
+		if st.taken_hold <= 0 then
+			st.taken_hold = nil
+			e:rebuild()
+		end
+	end
 end
 
 return M

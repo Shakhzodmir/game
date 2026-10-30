@@ -445,3 +445,131 @@ describe("client.level_end", function()
 		assert_eq(level_end.continue(1, {}), nil)
 	end)
 end)
+
+-- A won level's chest waits in the meta until the player takes it: the town queue never carries it, the results
+-- offer the oldest one first, and app.claim_level_chest is the one place that pays it.
+describe("client level chest claim", function()
+	local function win_level(level_id, moves)
+		return level_end.win({ moves_at_win = moves or 1, score = 1, stars = 1, unplaced = {} }, { level_id = level_id, t0 = NOW })
+	end
+
+	it("queues the win of level 10 for the town without the chest: nothing of it is paid or held", function()
+		boot(10)
+		start({}, true)
+		local res = win_level(10, 4)
+		assert_true(res.chest ~= nil, "the result still describes the chest for the results window")
+		assert_eq(rewards.count(), 1)
+		local queued = rewards.peek()
+		assert_eq(queued.level_id, 10)
+		assert_eq(queued.coins, 25 + 4 * 5)
+		assert_eq(queued.chest, nil, "the chest waits in the meta: the town must not show it as paid")
+		assert_same(rewards.held(), { coins = 25 + 4 * 5, stars = 1, infinite = 0 })
+		assert_eq(#app.meta:pending_chests(), 1, "and it is still waiting")
+	end)
+
+	it("offers the oldest waiting chest first, then the next one", function()
+		boot(20) -- the chest of level 10 was never taken
+		start({}, true)
+		local res = win_level(20)
+		assert_eq(#app.meta:pending_chests(), 2)
+		local first = lw.chest(app.meta)
+		assert_eq(first.level_id, 10, "the oldest first")
+		assert_eq(first.k, 1)
+		assert_same(first.boosters, { "stick" })
+		assert_eq(first.infinite_minutes, 15)
+		assert_eq(lw.result(app.meta, res, { moves_at_win = 1 }, NOW).chest.level_id, 10)
+		assert_true(app.claim_level_chest(10))
+		local second = lw.chest(app.meta)
+		assert_eq(second.level_id, 20)
+		assert_eq(second.k, 2)
+		assert_eq(second.infinite_minutes, 30)
+		assert_true(app.claim_level_chest(20))
+		assert_eq(lw.chest(app.meta), nil)
+	end)
+
+	it("offers no chest to the stand-in results of a debug level", function()
+		boot(10)
+		start({}, true)
+		win_level(10)
+		local standalone = { won = true, standalone = true, level_id = 5, coins = 0, stars = 1, streak = 0, unlocked = {}, next_level = 6 }
+		assert_eq(lw.result(app.meta, standalone, { moves_at_win = 0 }, NOW).chest, nil)
+	end)
+
+	it("saves a claim at once, tells the screens, logs chest_open and pays only once", function()
+		boot(10)
+		start({}, true)
+		win_level(10, 4)
+		analytics.drain()
+		local sub = bus.subscribe("meta_changed")
+		local coins = app.meta:coins()
+		local chest = app.claim_level_chest(10)
+		assert_true(chest ~= nil, "the claim returns the chest")
+		assert_eq(chest.coins, 60)
+		assert_eq(app.meta:coins(), coins + 60)
+		assert_false(app.meta:dirty(), "the claim is on disk (app.commit)")
+		assert_true(sub:pending() >= 1, "meta_changed was published")
+		sub:close()
+		local open, economy = nil, 0
+		for _, e in ipairs(analytics.drain()) do
+			if e.name == "chest_open" then open = e.params end
+			if e.name == "economy" and e.params.reason == "level_chest" then economy = economy + 1 end
+		end
+		assert_true(open ~= nil, "chest_open is logged")
+		assert_eq(open.kind, "level")
+		assert_eq(open.level, 10)
+		assert_eq(open.coins, 60)
+		assert_true(economy > 0, "the ledger of the claim reached analytics")
+		local again, why = app.claim_level_chest(10)
+		assert_eq(again, nil)
+		assert_eq(why, "no_chest")
+		assert_eq(app.meta:coins(), coins + 60, "paid once")
+	end)
+
+	it("starts the full minutes at an app-level claim made ten minutes after the win", function()
+		-- ten minutes pass in the results window and nothing moves the meta's clock: the claim starts the time itself
+		boot(10)
+		start({}, true)
+		win_level(10)
+		NOW = NOW + 10 * 60
+		assert_true(app.claim_level_chest(10))
+		assert_eq(app.meta:lives(NOW).infinite_seconds, 900, "the full 15 minutes")
+		assert_eq(app.meta:lives(NOW + 100).infinite_seconds, 800)
+	end)
+
+	it("never raises: a bad level id comes back as nil and a reason", function()
+		boot(10)
+		start({}, true)
+		win_level(10)
+		local real_print = print
+		print = function() end -- the wrapper reports the error with a WARNING line
+		local ok, chest, why = pcall(app.claim_level_chest, "ten")
+		print = real_print
+		assert_true(ok, "app.claim_level_chest raised")
+		assert_eq(chest, nil)
+		assert_eq(why, "error")
+		assert_eq(#app.meta:pending_chests(), 1, "and the chest still waits")
+	end)
+
+	it("keeps a claim through a restart: no chest comes back and the minutes run on", function()
+		local backend = save_io.memory_backend()
+		analytics.init({ strict = true })
+		ads.init({ debug = false })
+		rewards.clear()
+		local function launch(now)
+			NOW = now
+			app.init({
+				districts = H.districts(), store = save_io.new(backend), seed = 42,
+				now = now, clock = function() return NOW end, sys_language = "en",
+			})
+		end
+		launch(H.T0)
+		H.advance_to(app.meta, 10, H.T0)
+		start({}, true)
+		win_level(10, 4)
+		assert_true(app.claim_level_chest(10))
+		launch(H.T0 + 300) -- the app is closed for five minutes
+		assert_eq(#app.meta:pending_chests(), 0, "the claim was saved")
+		local left = app.meta:lives(H.T0 + 300).infinite_seconds
+		assert_true(left > 600 - 5 and left <= 600, "15 minutes, five of them gone: " .. left)
+	end)
+end)

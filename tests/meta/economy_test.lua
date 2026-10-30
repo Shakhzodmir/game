@@ -3,6 +3,21 @@ local Meta = require("meta.meta")
 local economy = require("meta.economy")
 local H = require("tests.meta.helper")
 
+-- restore_chests under a budget of VM instructions: a hang is a failure, not a frozen test run
+local function restored(t, beaten)
+	local finished, res = H.within_budget(10000000, economy.restore_chests, t, beaten) -- about 1e6 for 20000 ids
+	assert_true(finished, "restore_chests did not finish within the budget")
+	assert_true(res[1], tostring(res[2]))
+	return res[2]
+end
+
+-- the levels whose chests wait in the meta, oldest first
+local function waiting(m)
+	local out = {}
+	for i, w in ipairs(m:pending_chests()) do out[i] = w.level_id end
+	return out
+end
+
 local function state(coins)
 	local s = { wallet = economy.restore_wallet(nil), stats = economy.restore_stats(nil) }
 	s.wallet.coins = coins or 0
@@ -194,6 +209,7 @@ describe("economy in the meta", function()
 	it("starts the unlimited lives of a chest when it is claimed, not when the level was won", function()
 		-- the producer's report: a chest won at level 10 was opened ten levels later and only 5 of its 15 minutes
 		-- were left, because the meta started the time at the win
+		-- (m:lives(later) below moves the clock itself: the next test is the one where the claim is the first call)
 		local m = H.new()
 		H.advance_to(m, 10)
 		H.win(m, H.T0)
@@ -203,6 +219,45 @@ describe("economy in the meta", function()
 		assert_eq(m:lives(later).infinite_seconds, 900, "the full 15 minutes")
 		assert_eq(m:lives(later + 100).infinite_seconds, 800)
 		assert_eq(m:lives(later + 900).infinite_seconds, 0)
+	end)
+
+	it("starts the full minutes at the claim even when nothing else moved the clock since the win", function()
+		-- claim_level_chest must move the lives clock to `now` BEFORE it adds the minutes: here the claim is the
+		-- first call that sees `later`, so a claim that forgets to tick starts the time at the stale clock of the win
+		local m = H.new()
+		H.advance_to(m, 10)
+		H.win(m, H.T0) -- the last time the meta has seen
+		local later = H.T0 + 10 * 60
+		assert_true(m:claim_level_chest(10, later))
+		assert_eq(m:lives(later).infinite_seconds, 900, "the full 15 minutes start at the claim")
+		assert_eq(m:lives(later + 100).infinite_seconds, 800)
+		assert_eq(m:lives(later + 900).infinite_seconds, 0)
+	end)
+
+	it("starts the minutes of a second chest at its own claim, on top of what still runs", function()
+		local m = H.new()
+		H.advance_to(m, 20)
+		H.win(m, H.T0) -- level 20: the chests of 10 and 20 wait
+		assert_same(waiting(m), { 10, 20 })
+		assert_true(m:claim_level_chest(10, H.T0 + 60))  -- 15 min from T0 + 60
+		assert_true(m:claim_level_chest(20, H.T0 + 600)) -- 30 min more, from T0 + 600
+		-- at T0 + 600: 15 min - 540 s = 360 s left, plus 1800
+		assert_eq(m:lives(H.T0 + 600).infinite_seconds, 900 - 540 + 1800)
+	end)
+
+	it("holds a chest once and keeps the waiting list in ascending order", function()
+		-- a level is won once and in order, so the public API cannot reach these rules (a replay mode could):
+		-- the private method is called on purpose
+		local m = H.new()
+		m:_hold_chest(20)
+		m:_hold_chest(10)
+		m:_hold_chest(10)
+		assert_same(waiting(m), { 10, 20 })
+		assert_true(m:claim_level_chest(10, H.T0))
+		assert_same(waiting(m), { 20 })
+		local ok, why = m:claim_level_chest(10, H.T0)
+		assert_false(ok)
+		assert_eq(why, "no_chest", "paid once")
 	end)
 
 	it("claims a chest once, and only a chest that was won", function()
@@ -240,6 +295,41 @@ describe("economy in the meta", function()
 		assert_same(economy.restore_chests({ 20, 10, 10, 7, 0, -10, 10.5, "30", 30 }), { 10, 20, 30 })
 		assert_same(economy.restore_chests(nil), {})
 		assert_same(economy.restore_chests("10"), {})
+	end)
+
+	it("tells a level with a chest in one step, without replaying the rotation", function()
+		for id = -20, 200 do
+			assert_eq(economy.has_level_chest(id), economy.level_chest(id) ~= nil, "level " .. id)
+		end
+		assert_true(economy.has_level_chest(10))
+		assert_true(economy.has_level_chest(economy.MAX_CHEST_LEVEL))
+		for _, id in ipairs({ 0, 5, 10.5, -10, economy.MAX_CHEST_LEVEL + 10, 1e9, 1e15, 1e300, 0 / 0, math.huge, "10", true }) do
+			assert_false(economy.has_level_chest(id), tostring(id))
+		end
+		-- the content of a chest is a walk over the rotation (O(level)): a level above the cap is refused at once
+		local finished, res = H.within_budget(2000, economy.level_chest, 1e15)
+		assert_true(finished, "level_chest(1e15) walked the rotation")
+		assert_eq(res[2], nil)
+	end)
+
+	it("keeps no waiting chest for a level the save has not beaten, nor above the hard cap", function()
+		assert_same(restored({ 10, 20, 30, 1e9, 1e15, 1e300 }, 25), { 10, 20 })
+		assert_same(restored({ 10, 1e15, 20 }), { 10, 20 }, "no progress given: the hard cap alone")
+		assert_same(restored({ 10, 1e15 }, 1e15), { 10 }, "a forged progress does not lift the hard cap")
+		local cap = economy.MAX_CHEST_LEVEL
+		assert_same(restored({ 10, cap, cap + 10 }, 1e9), { 10, cap })
+		assert_same(restored({ 10, 20 }, 9), {}, "nothing is beaten yet")
+		assert_same(restored({ 10, 20 }, 10), { 10 }, "a chest waits for a level the save has beaten")
+	end)
+
+	it("restores a hostile list of chests within a budget of instructions, the oldest chests first", function()
+		local list = {}
+		for i = 1, 20000 do list[i] = i * 10 end -- twice the levels the hard cap allows
+		list[#list + 1] = 1e15
+		local out = restored(list, 1e15)
+		assert_eq(#out, economy.MAX_WAITING_CHESTS, "no more chests wait than the limit")
+		assert_eq(out[1], 10)
+		assert_eq(out[#out], 10 * economy.MAX_WAITING_CHESTS, "the oldest are kept")
 	end)
 
 	it("stacks infinite lives from chests", function()
