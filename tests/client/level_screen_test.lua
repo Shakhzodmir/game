@@ -460,6 +460,31 @@ describe("level screen: boosters", function()
 		end)
 	end)
 
+	-- The pause button is blocked once the win is certain (leaving the finale would book a loss for a win); the purchase window
+	-- is a window too, and it stops the session just the same: opened in the middle of the finale it froze every effect that
+	-- follows the ticks of the core on the board. A tap on an empty booster answers "wait" there, as a ready one does.
+	for _, want in ipairs({ "won_wait", "concert" }) do
+		it("does not open the purchase window for an empty booster while the core is in " .. want, function()
+			G.with_level({ level = 26, ready = empty_stock }, function(c)
+				c.fb.session:autoplay(nil, { free_moves = true })
+				local state
+				for _ = 1, 60 * 120 do
+					c.step(1)
+					state = c.fb.session.game:status().state
+					if state == want then break end
+				end
+				assert_eq(state, want, "the real core got there")
+				tap_booster(c, "stick")
+				c.step(30)
+				assert_eq(top(c), nil, "no window over the finale")
+				assert_false(c.fb.session.paused, "the finale goes on")
+				assert_eq(ui(c).targeting, nil)
+				assert_eq(c.app.meta:booster_count("stick"), 0)
+				clean(c)
+			end)
+		end)
+	end
+
 	it("does not sell a pack for coins the player does not have: the price shakes, the way to the shop is open", function()
 		G.with_level({ level = 26, ready = function(app)
 			empty_stock(app)
