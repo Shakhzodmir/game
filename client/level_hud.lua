@@ -151,8 +151,10 @@ function M.booster_tap(id, st, ctx)
 	if ctx.allowed == false then return "blocked" end
 	if ctx.targeting == id then return "cancel" end
 	if st.mode == "locked" then return "locked" end
-	if st.mode == "empty" then return "buy" end
+	-- (before the empty stock is looked at: once the win is certain nothing is sold or started. The purchase window stops
+	-- the session like the pause window, which is blocked there on purpose, and froze the finale's effects on the board)
 	if not M.USABLE[ctx.state or "playing"] then return "wait" end
+	if st.mode == "empty" then return "buy" end
 	return "start"
 end
 

@@ -160,7 +160,33 @@ end
 -- vectors ------------------------------------------------------------------------------
 
 local V3, V4, QT = {}, {}, {}
-V3.__index, V4.__index, QT.__index = V3, V4, QT
+V4.__index, QT.__index = V4, QT
+
+-- Float32 mode (install{float32 = true}): the engine's vectors keep 32-bit floats, the stub's keep doubles. In this mode
+-- a vector3 reads back what the engine would hold (z = 0.1 reads back as 0.10000000149), which is what a script that
+-- compares a vector with the numbers of the next frame meets in the real engine (client/level_view.lua sent every sprite
+-- to the engine twice per frame because of it, and no test saw it). The components are kept apart from the table, so
+-- that every assignment goes through __newindex and is rounded; the ordinary vectors keep raw fields and cost nothing.
+local F32 = false
+
+local function f32(x)
+	if x == 0 or x ~= x or x == math.huge or x == -math.huge then return x end
+	local m, e = math.frexp(x)
+	return math.ldexp(math.floor(m * 16777216 + 0.5) / 16777216, e) -- (24 bits of mantissa)
+end
+
+V3.__index = function(t, k)
+	local d = rawget(t, "_d")
+	if d then
+		local v = d[k]
+		if v ~= nil then return v end
+	end
+	return V3[k]
+end
+V3.__newindex = function(t, k, v)
+	local d = rawget(t, "_d")
+	if d and (k == "x" or k == "y" or k == "z") then d[k] = f32(v) else rawset(t, k, v) end
+end
 
 local function num_or(v, d)
 	if type(v) == "number" then return v end
@@ -168,6 +194,13 @@ local function num_or(v, d)
 end
 
 local function vector3(x, y, z)
+	if F32 then
+		local a, b, c
+		if type(x) == "table" then a, b, c = x.x, x.y, x.z
+		elseif y == nil and z == nil and type(x) == "number" then a, b, c = x, x, x
+		else a, b, c = num_or(x, 0), num_or(y, 0), num_or(z, 0) end
+		return setmetatable({ _d = { x = f32(a), y = f32(b), z = f32(c) } }, V3)
+	end
 	if type(x) == "table" then return setmetatable({ x = x.x, y = x.y, z = x.z }, V3) end
 	if y == nil and z == nil and type(x) == "number" then return setmetatable({ x = x, y = x, z = x }, V3) end
 	return setmetatable({ x = num_or(x, 0), y = num_or(y, 0), z = num_or(z, 0) }, V3)
@@ -263,6 +296,7 @@ local saved = nil
 function M.install(opts)
 	opts = opts or {}
 	if saved then M.restore() end
+	F32 = opts.float32 and true or false
 	local root = opts.root or "."
 	local E = {
 		root = root,
@@ -304,8 +338,14 @@ function M.install(opts)
 			local text = read_file(root, path)
 			if not text then error("atlas not found: " .. tostring(path)) end
 			local doc = M.parse_proto(text)
-			a = { ids = {} }
-			for _, an in ipairs(doc.animations or {}) do a.ids[one(an, "id")] = true end
+			a = { ids = {}, file = {} }
+			for _, an in ipairs(doc.animations or {}) do
+				local id = one(an, "id")
+				a.ids[id] = true
+				-- the first image of the animation: its pixel size is read when a leak report asks (E.image_size)
+				local img = an.images and an.images[1] and one(an.images[1], "image")
+				a.file[id] = img
+			end
 			atlas_cache[path] = a
 		end
 		return a
@@ -424,6 +464,15 @@ function M.install(opts)
 		E.count("msg_post")
 		local rname = type(receiver) == "string" and receiver or tostring(receiver)
 		E.msgs[#E.msgs + 1] = { to = rname, id = name_of(id) or tostring(id), message = message }
+		-- "disable" / "enable" to a game object switch all of its components off / on (the leak report asks for
+		-- visible sprites: a disabled object draws nothing)
+		local mid = name_of(id)
+		if mid == "disable" or mid == "enable" then
+			local key
+			if type(receiver) == "table" and getmetatable(receiver) == URL then key = name_of(receiver.path) else key = name_of(receiver) end
+			local o = key and E.objects[key]
+			if o then o.disabled = (mid == "disable") end
+		end
 	end
 
 	-- go / factory / sprite / particlefx ------------------------------------------------------
@@ -971,6 +1020,14 @@ function M.install(opts)
 		if E.gui_advance then E.gui_advance(dt) end
 	end
 
+	-- A collection proxy unloads: every game object of the screen is deleted with its components and the particle
+	-- instances on them (the board script's final() does not delete them one by one, the engine does).
+	function E.unload()
+		E.objects = {}
+		E.n_objects, E.n_sprites, E.n_particlefx, E.n_emitters = 0, 0, 0, 0
+		E.batches = {}
+	end
+
 	-- helpers for tests -------------------------------------------------------------------------
 	-- A plain-data picture of the world sprites and live particle batches (tools that
 	-- render a frame of the board offline, tests): [{factory, x, y, z, sx, sy, rot (degrees),
@@ -1018,7 +1075,117 @@ function M.install(opts)
 		return o.proto.comps.sprite
 	end
 	function E.visible(o)
-		return o.pos.x > -5000 and o.pos.y > -5000
+		return o.pos.x > -5000 and o.pos.y > -5000 and not o.disabled
+	end
+
+	-- The visual-leak oracle (tests/client/level_leak.lua) -----------------------------------------------------
+	-- What the player could see right now, from the state the stub keeps. Nothing is rendered: these are the
+	-- same facts a renderer would use (enabled, scale, tint alpha, clip line, position on the screen).
+
+	-- Pixel size of the image an animation of an atlas shows (read from the PNG header), 160 x 160 if unknown.
+	local size_cache = {}
+	function E.image_size(atlas_path, anim)
+		local key = tostring(atlas_path) .. "#" .. tostring(anim)
+		local s = size_cache[key]
+		if s then return s[1], s[2] end
+		local w, h = 160, 160
+		local file = atlas_path and atlas(atlas_path).file[anim]
+		if file then
+			local f = io.open(root .. file, "rb")
+			if f then
+				local head = f:read(24)
+				f:close()
+				if head and #head >= 24 and head:sub(2, 4) == "PNG" then
+					local function be(i)
+						local a, b, c, d = head:byte(i, i + 3)
+						return ((a * 256 + b) * 256 + c) * 256 + d
+					end
+					w, h = be(17), be(21)
+				end
+			end
+		end
+		size_cache[key] = { w, h }
+		return w, h
+	end
+
+	-- Every sprite component that draws something: its game object is enabled, its scale makes the image at least
+	-- opts.min_px pixels (2), its tint alpha is above opts.min_alpha (0.02), it is not cut away by its clip line
+	-- (vfx.x: the fragment shader discards what lies above it) and it is on the screen (opts.screen {x0, y0, x1, y1}:
+	-- the logical 720 x 1280 screen with a margin; the board parks what it hides at (-10000, -10000)).
+	-- Returns [{key, go, factory, image, x, y, z, sx, sy, px, alpha, flash, clip, r, g, b, hflip, rot (degrees)}] (opts.sorted:
+	-- in the order the objects were made).
+	function E.visible_sprites(opts)
+		opts = opts or {}
+		local min_alpha, min_px = opts.min_alpha or 0.02, opts.min_px or 2
+		local sc = opts.screen or { x0 = -40, y0 = -40, x1 = 760, y1 = 1320 }
+		local out = {}
+		for key, o in pairs(E.objects) do -- order-independent (opts.sorted: by creation, for a stable listing)
+			local c = o.proto.comps.sprite
+			if c and not o.disabled then
+				local vc = c.props.vcolor or { x = 1, y = 1, z = 1, w = 1 }
+				local vf = c.props.vfx or { x = 100000, y = 0 }
+				local image = c.anim or "white"
+				local iw, ih = E.image_size(c.atlas, image)
+				local w, h = math.abs(o.scale.x) * iw, math.abs(o.scale.y) * ih
+				local px = math.max(w, h)
+				local cut = (o.pos.y - h / 2) > vf.x -- the lowest edge is above the clip line: all of it is discarded
+				if vc.w > min_alpha and px >= min_px and not cut and o.pos.x >= sc.x0 and o.pos.x <= sc.x1
+					and o.pos.y >= sc.y0 and o.pos.y <= sc.y1 then
+					out[#out + 1] = {
+						key = key, go = o.id, factory = o.factory, image = image, x = o.pos.x, y = o.pos.y, z = o.pos.z,
+						sx = o.scale.x, sy = o.scale.y, px = px, alpha = vc.w, flash = vf.y, clip = vf.x,
+						r = vc.x, g = vc.y, b = vc.z, hflip = c.hflip and true or false,
+						rot = math.deg(2 * math.atan2(o.rot.z, o.rot.w)),
+					}
+				end
+			end
+		end
+		if opts.sorted then
+			table.sort(out, function(a, b) return (tonumber(a.key:match("%d+$")) or 0) < (tonumber(b.key:match("%d+$")) or 0) end)
+		end
+		return out
+	end
+
+	-- The particle effects that are alive on an enabled game object: [{key, x, y, emitter, n, age, left, file}]
+	function E.running_particles()
+		local out = {}
+		for _, b in ipairs(E.batches) do
+			local o = E.objects[b.key]
+			if b.untilt > E.time and o and not o.disabled then
+				local comp = o.proto.comps[b.comp]
+				out[#out + 1] = { key = b.key, x = o.pos.x, y = o.pos.y, emitter = b.emitter, n = b.n,
+					age = E.time - b.from, left = b.untilt - E.time, file = comp and comp.file }
+			end
+		end
+		return out
+	end
+
+	-- The GUI nodes of the current scene that draw something: alive, enabled (and every parent too), a tint alpha
+	-- above opts.min_alpha (a child takes its parent's alpha only when it inherits it), a scale above zero, text
+	-- that is not empty, a box that has a size. Returns [{node, kind, id, text, x, y, alpha}].
+	function E.visible_gui_nodes(opts)
+		opts = opts or {}
+		local min_alpha = opts.min_alpha or 0.02
+		local out = {}
+		if not scene then return out end
+		for _, n in ipairs(scene.nodes) do
+			if not n.dead then
+				local alpha, sx, sy, on = n.color.w, math.abs(n.scale.x), math.abs(n.scale.y), n.enabled
+				local inherit, p = n.inherit_alpha, n.parent
+				while p do
+					if inherit then alpha = alpha * p.color.w end
+					inherit = p.inherit_alpha
+					sx, sy = sx * math.abs(p.scale.x), sy * math.abs(p.scale.y)
+					on = on and p.enabled
+					p = p.parent
+				end
+				local drawn = (n.kind == "text" and n.text ~= nil and n.text ~= "") or (n.kind == "box" and n.size.x > 0 and n.size.y > 0)
+				if on and drawn and alpha > min_alpha and sx > 0.01 and sy > 0.01 then
+					out[#out + 1] = { node = n, kind = n.kind, id = n.id, text = n.text, x = n.pos.x, y = n.pos.y, alpha = alpha }
+				end
+			end
+		end
+		return out
 	end
 
 	M.env = E
@@ -1030,6 +1197,7 @@ function M.restore()
 	for _, name in ipairs(GLOBALS) do rawset(_G, name, saved[name]) end
 	saved = nil
 	M.env = nil
+	F32 = false
 end
 
 -- Loads a Defold script file as a table of its global callbacks (init, update,

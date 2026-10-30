@@ -14,7 +14,9 @@
 --   X:play(commands)                       -- level_effects:drain()
 --   local sx, sy = X:update(dt, tick_f, t, halted) -- every frame; returns the shake offset (halted: the session is
 --                                          -- paused or held on purpose, the effects wait for it)
---   X:stats()                              -- {sprites, bursts, particles, pending, errors, repaired, muted, ...}
+--   X:stats()                              -- {sprites, bursts, particles, pending, errors, repaired, muted, capped, ...}
+--   X:idle()                               -- nothing runs, waits, burns or shakes
+--   X:audit()                              -- the janitor's look at the sprites in the engine (idle only)
 --   X:clear()                              -- everything gone at once
 --   X:skip()                               -- the player skipped the concert: clear() and from now on only the words
 --                                          -- (praise, banners) are played, no light, bolts, rings or bursts
@@ -35,8 +37,8 @@
 -- blended in a saturated colour: additive light would vanish on it.
 --
 -- Clocks: "tick" effects follow the display tick of the session (the core's
--- timings: bolts, flights; they slow down with the Grand finale's slow motion and
--- wait while a window pauses the session), "time" effects run on real seconds
+-- timings: bolts, flights, glows, the noise cloud; they slow down with the Grand finale's slow motion and
+-- wait, out of sight, while a window pauses the session or the app is away), "time" effects run on real seconds
 -- (flashes, rings, ghosts, dots).
 --
 -- Nothing may stay on the board (the producer's report: shock rings that stayed after a Disco ball +
@@ -49,8 +51,16 @@
 --     (the time spent in a deliberate pause does not count);
 --   * the tick effects of a finished level run on the real clock instead of freezing when the result window
 --     stops the session (finish()), and the pending commands of that clock start;
+--   * the tick effects of a level that goes on wait OUT OF SIGHT while a window or a lost focus stops the session: the
+--     tick they follow stands still, so stepping them again would draw the same picture over and over, a bolt, the Bird,
+--     a glow or the noise cloud sitting on the board for as long as the window is open. They carry on from where they
+--     were when the session runs again (the time effects, the particles and the words are on the real clock and end
+--     by themselves);
 --   * every SWEEP_EVERY frames the sprites are counted: one that no running effect holds and that is not in the
---     pool is taken back, a pooled one that is still on the screen is hidden (repaired in stats()).
+--     pool is taken back, a pooled one that is still on the screen is hidden (repaired in stats());
+--   * an effect cut off by the life limit is counted (stats().capped) and logged: it should have ended by itself;
+--   * the janitor of the board (idle(), audit()) asks the ENGINE where the pooled sprites are once the board has been
+--     calm for a while, since the counts above trust the flags kept here.
 -- A skipped concert plays no light at all (skip()): the turbo core compresses what is left of a long combo into
 -- a few ticks, and replaying all of it at once was a storm of up to 140 effects in one frame (a 9x9 board).
 
@@ -134,7 +144,9 @@ function M.new(opts)
 		played = 0,
 		muted = 0,       -- commands dropped because of a skip
 		errors = 0,      -- effects / starts that failed (each was freed, the rest went on)
-		repaired = 0,    -- sprites taken back or hidden by the count of the sprites
+		repaired = 0,    -- sprites taken back or hidden by the count of the sprites and by the janitor
+		capped = 0,      -- effects cut off by their life limit: they did not end by themselves (a stalled clock)
+		last_capped = nil,
 		last_error = nil,
 		toggle = false,
 	}, Vfx)
@@ -694,19 +706,35 @@ end
 
 -- One effect, one frame: true when it is over. Runs inside a pcall of its own (see update).
 function Vfx:_run(fx, tick_f, t, dt, halted)
+	local age
+	if fx.clock == "tick" then age = tick_f - fx.t0 else age = t - fx.t0 end
+	local k = age / fx.dur
 	-- nothing stays for good: the real time an effect has been alive (a pause on purpose does not count, a
 	-- finished level's does) is limited, whatever clock the effect follows and whatever happened to it
 	if not halted or self.finished then
 		fx.life = fx.life + dt
-		if fx.life > fx.cap then return true end
+		if fx.life > fx.cap then
+			-- Counted and logged (the first few): an effect ends by itself long before this, so one that did not is a
+			-- clock that stood still or a record that was lost, and the player saw it sit on the board.
+			self.capped = self.capped + 1
+			local kind = fx.c and fx.c.kind or "dot"
+			self.last_capped = kind .. " (" .. fx.clock .. " clock) after " .. string.format("%.1f s at %.2f of its length", fx.life, k)
+			if self.capped <= M.LOG_MAX then self.log("WARNING: level vfx: a " .. self.last_capped .. " did not end by itself, cut off") end
+			return true
+		end
 	end
-	local age
-	if fx.clock == "tick" then age = tick_f - fx.t0 else age = t - fx.t0 end
-	local k = age / fx.dur
 	if k < 0 then
 		for j = 1, fx.n do view.hide(fx[j]) end
 	elseif k <= 1 then
-		fx.step(self, fx, k, age)
+		if halted and fx.clock == "tick" and not self.finished then
+			-- A window or a lost focus has stopped the session, so the tick this effect follows stands still: stepping it
+			-- again would draw the same picture over and over (a bolt, the Bird, a glow, the noise cloud sitting on the
+			-- board for as long as the window is open). It waits out of sight and goes on from where it was; view.hide
+			-- costs the engine one call, in the first halted frame only. (A finished level runs on its own clock instead.)
+			for j = 1, fx.n do view.hide(fx[j]) end
+		else
+			fx.step(self, fx, k, age)
+		end
 	elseif fx.after then
 		fx.after_t0 = fx.after_t0 or t
 		local ak = (t - fx.after_t0) / fx.after
@@ -845,10 +873,34 @@ function Vfx:clear()
 	self.live = 0
 end
 
+-- Nothing runs and nothing waits: no effect, no command, no particle, no shake (the board counts its calm with this).
+function Vfx:idle()
+	return #self.active == 0 and #self.heap == 0 and self.live == 0 and #self.shakes == 0
+end
+
+-- The janitor's look (screens/level/board.script, called only when idle() and the board has been calm for a while):
+-- every sprite made here must be in the pool and out of sight, in the engine too. One that nobody holds is taken
+-- back, one the engine draws is hidden for real; each is counted in repaired. Returns the number of repairs.
+function Vfx:audit()
+	local fixed = 0
+	local all = self.all
+	for i = 1, #all do
+		local o = all[i]
+		if not o.pooled then
+			fixed = fixed + 1
+			self:_release(o)
+		end
+		fixed = fixed + view.audit_sprite(o, true)
+	end
+	self.repaired = self.repaired + fixed
+	return fixed
+end
+
 function Vfx:stats()
 	return { sprites = self.sprites, active = #self.active, pending = #self.heap, bursts = self.bursts_n,
 		particles = self.live, skipped = self.skipped, played = self.played, lite = self.lite,
-		errors = self.errors, repaired = self.repaired, muted = self.muted }
+		errors = self.errors, repaired = self.repaired, muted = self.muted, capped = self.capped,
+		last_capped = self.last_capped }
 end
 
 -- Quality controller (pure): feed it the frame time, it says when the device is

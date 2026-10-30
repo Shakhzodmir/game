@@ -218,6 +218,13 @@ describe("client.level_hud boosters", function()
 		assert_eq(hud.refusal_key(nil), "hud.booster_no")
 		assert_eq(hud.booster_tap("row_light", ready, { state = "playing", targeting = "stick" }), "start") -- switches
 		assert_eq(hud.booster_tap("stick", empty, { state = "playing" }), "buy")
+		assert_eq(hud.booster_tap("stick", empty, { state = "out_of_moves" }), "buy", "the moves window sells too")
+		-- once the win is certain (or the level is over) nothing is sold: the purchase window would stop the session in
+		-- the middle of the finale, as the pause button, which is blocked there for the same reason, would
+		for _, state in ipairs({ "won_wait", "concert", "complete", "lost" }) do
+			assert_eq(hud.booster_tap("stick", empty, { state = state }), "wait", state)
+			assert_eq(hud.booster_tap("stick", ready, { state = state }), "wait", state)
+		end
 		assert_eq(hud.booster_tap("stick", locked, { state = "playing" }), "locked")
 		assert_eq(hud.booster_tap("stick", ready, { state = "playing", allowed = false }), "blocked") -- the tutorial
 		assert_eq(hud.booster_tap("stick", empty, { state = "playing", allowed = false }), "blocked")
