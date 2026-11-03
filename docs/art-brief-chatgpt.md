@@ -37,7 +37,7 @@
 
 ## 3. Правила для любой картинки и приёмка
 
-**Фон.** Спрайты и листы: сплошной **розовый (маджента) #FF00FF** на весь холст, без градиента, без тени на фоне, без #FF00FF внутри самого рисунка; рисунок не касается краёв (поле не меньше 8%). Программа вырежет розовый в прозрачность. Непрозрачные сцены (фоны карты и комнат): весь холст занят картинкой.
+**Фон.** Спрайты и листы: сплошной **розовый (маджента) #FF00FF** на весь холст, без градиента, без тени на фоне, без #FF00FF внутри самого рисунка; рисунок не касается краёв (поле не меньше 8%). Программа вырежет розовый в прозрачность (если фон чуть другого оттенка розового или с шумом, она возьмёт цвет по краям картинки; если ChatGPT всё-таки отдал прозрачный PNG, он тоже подойдёт). Непрозрачные сцены (фоны карты и комнат): весь холст занят картинкой.
 **Листы кадров.** Холст делится на равные квадратные клетки (сетку я называю в таблице: 2×2 или 3×2 или 3×3). В клетке один кадр или предмет по центру, одного размера, у кадров одного героя **одна линия земли**, линий между клетками нет.
 **Размер холста.** Самый большой, какой даёт ChatGPT: 1024×1024 (сетка 2×2 и 3×3), 1536×1024 (3×2), 1024×1536 (портрет 2:3).
 **Чего нет на картинках.** Никакого текста, букв, цифр и логотипов (надписи рисует игра), чужих брендов и персонажей, реальных людей, тёмной мрачной гаммы.
@@ -106,7 +106,7 @@
 
 | № | Файл | Что нарисовать |
 |---|---|---|
-| B1.1–B1.5 | `room_<район>_day.png` (cafe, jazz, square, stadium, garage), папка `rooms` | комната района днём, портрет 2:3, без розового, как `bg.png` на листе `06_district_items.png` и на экране города: окно с видом на город наверху, стена, пол; предметы не рисовать (они отдельные), оставить свободный пол для 3–6 предметов |
+| B1.1–B1.5 | `room_<район>_day.png` (cafe, jazz, square, stadium, garage), папка `rooms` | комната района днём, портрет 2:3, без розового, как `bg.png` на листе `06_district_items.png` и на экране города: окно с видом на город наверху, стена, пол; предметы не рисовать (они отдельные), оставить свободный пол для 3–6 предметов; в игре комната уже (9:16), поэтому по бокам срежется по 8% ширины: окно и важное держи ближе к центру |
 | B1.6–B1.10 | `room_<район>_concert.png` | та же комната «в режиме концерт»: яркая неоновая ночь, сине-фиолетовый #3B2A8F → #6B4CE0 с розовыми, бирюзовыми и жёлтыми прожекторами; не тёмная |
 | B2.1–B2.5 | `btn_<цвет>.png` (green, blue, gold, pink, purple), папка `ui` | сетка 2×2: широкая кнопка-«таблетка» без текста: обычная, нажатая, выключенная (серая), с ободком-фокусом; глянец, тёмная «полка» снизу, как на `01_ui_buttons_panels.png`, но красивее |
 | B2.6 | `panels.png` | 2×2: окно-панель с лентой-заголовком, без ленты, панель-подложка (кремовая), «таблетка» вкладки (выбрана и нет) |
@@ -171,7 +171,7 @@ A4.3 bonus_gift, grid 2x2: a bonus gift: closed box, shaking, glowing before ope
 A4.4 bonus_spark, grid 3x2: 6 frames of a small spark-star pop.
 A4.5 super_star, grid 2x2: a golden super star with a rainbow glint and a tiny crown; the same star empty and grey; the star with a glow; a small simplified version for a score row.
 
-B1 Rooms (opaque, portrait 2:3, no magenta): room_cafe_day, room_jazz_day, room_square_day, room_stadium_day, room_garage_day, and room_<district>_concert for each. A room of the district as in the attached game screens: a window with a city view at the top, a wall, a floor; do NOT draw furniture or items, leave free floor space for 3 to 6 items. "day" = bright pastel daylight. "concert" = bright neon night with colored spotlights.
+B1 Rooms (opaque, portrait 2:3, no magenta): room_cafe_day, room_jazz_day, room_square_day, room_stadium_day, room_garage_day, and room_<district>_concert for each. A room of the district as in the attached game screens: a window with a city view at the top, a wall, a floor; do NOT draw furniture or items, leave free floor space for 3 to 6 items. "day" = bright pastel daylight. "concert" = bright neon night with colored spotlights. In the game a room is narrower (9:16) than the canvas, so about 8% of the width is cut from each side: keep the window and every important shape in the central 80%.
 
 B2 Interface (magenta background):
 B2.1-B2.5 btn_green, btn_blue, btn_gold, btn_pink, btn_purple: grid 2x2: a wide pill-shaped button without text: normal, pressed, disabled (grey), focused (glowing rim). Glossy with a dark "shelf" at the bottom, like the attached buttons but more beautiful.
@@ -187,7 +187,9 @@ B3.2 genres_b, grid 3x2: bossa nova, ambient, cinematic orchestra, chiptune, lat
 
 1. **Через чат:** прикрепи картинки (можно по несколько штук) и напиши группу и имена файлов, если они не совпадают с таблицей.
 2. **Через GitHub (если файлов много):** на странице репозитория кнопка Add file → Upload files, загрузи в папку `assets/art_incoming/<группа>/` и отправь в новую ветку `art-incoming` (не в основную). Напиши мне «залил».
-Я подключу картинки программой (`tools/art/import_incoming.py`, делается в задаче WP-8): вырежет розовый фон, нарежет листы на кадры, обрежет поля, приведёт к нужным размерам, проверит стиль и положит в игру. Всё, что не подошло, пришлю списком с причиной.
+Картинки обрабатывает готовая программа `tools/art/import_incoming.py` (проверена, в том числе на настоящих позах Бита): вырезает розовый фон без розовой каймы, режет листы на равные клетки, обрезает поля одной рамкой на весь лист кадров, ставит героя на одну линию земли, приводит к нужным размерам и собирает листы для просмотра. Что за картинка, она узнаёт по имени файла (`bit_dance_a.png`, `room_cafe_day.png`, имена из раздела 4; регистр, пробелы и «(1)» от повторного скачивания не страшны). Если картинка не подходит, программа пишет причину по-русски (фон не розовый, клетка пустая, рисунок упёрся в край, кадры разного размера, нет общей линии земли), и я пришлю тебе этот список, чтобы перерисовать только её.
+
+Для меня и рабочих: `python3 tools/art/import_incoming.py status` (что из 58 получено), `check` (только отчёт), без слова (обработать всё), `--only bit_dance_a,room_cafe_day` (выборочно), `selftest` (проверка самой программы на искусственных листах). Вход: любая вложенность под `assets/art_incoming/`. Выход: `assets/art_ready/<группа>/<имя>[_<кадр>].png`, `manifest.json` и листы для просмотра `assets/art_ready/_preview/<группа>.png`. В сборку это само не попадает (`gen_defold.py` смотрит только `assets/images/`): задачи WP-6…WP-9 берут картинки из `assets/art_ready/` и устанавливают в игру.
 
 ## 7. Примечания
 
