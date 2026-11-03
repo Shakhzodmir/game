@@ -39,6 +39,8 @@ python3 tools/agents/run_queue.py selftest             # проверка сам
 
 ## Что делает оркестратор (сессия)
 
+Подробная инструкция для сессии, которая ведёт очередь: `tools/agents/ORCHESTRATOR.md`. Короткая версия:
+
 1. `check-key`, затем `run` в фоне; следит за `status` и `reports/`.
 2. Когда задачи слиты: `final-check`, затем полный `tools/qa/web_screens.mjs` для задач, которые касаются экранов; сам смотрит снимки.
 3. Перенос `agent/integration` в ветку сессии, PR, CI, слияние, проверка деплоя (см. `docs/STATUS.md`, как публикуется сборка).
