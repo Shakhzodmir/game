@@ -122,10 +122,13 @@
   },
   {
    "id": "WP-12",
-   "wave": 0,
-   "title": "Арт-бриф для ChatGPT: список ассетов и один общий промпт",
+   "wave": 3,
+   "title": "Арт-бриф для ChatGPT: сверка с кодом, проверка импорта",
    "spec": "tasks/WP-12-art-brief.md",
-   "max_budget_usd": 8
+   "max_budget_usd": 6,
+   "depends_on": [
+    "WP-9"
+   ]
   }
  ]
 }
