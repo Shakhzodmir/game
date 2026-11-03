@@ -1,0 +1,131 @@
+{
+ "defaults": {
+  "model": "sonnet",
+  "max_budget_usd": 10,
+  "max_minutes": 120,
+  "retries": 1
+ },
+ "tasks": [
+  {
+   "id": "WP-0",
+   "wave": 0,
+   "title": "Сохранение прогресса, конец контента, код сохранения",
+   "spec": "tasks/WP-0-progress-safety.md",
+   "max_budget_usd": 12
+  },
+  {
+   "id": "WP-1",
+   "wave": 0,
+   "title": "Магазин и окна не обрезаются",
+   "spec": "tasks/WP-1-shop-fit.md",
+   "max_budget_usd": 8
+  },
+  {
+   "id": "WP-2",
+   "wave": 0,
+   "title": "Тексты и кнопки не съезжают (инструмент и исправления)",
+   "spec": "tasks/WP-2-text-fit.md",
+   "max_budget_usd": 12
+  },
+  {
+   "id": "WP-3",
+   "wave": 1,
+   "title": "Корейский язык",
+   "spec": "tasks/WP-3-korean.md",
+   "max_budget_usd": 18,
+   "depends_on": [
+    "WP-2"
+   ]
+  },
+  {
+   "id": "WP-4",
+   "wave": 1,
+   "title": "Звёзды по очкам, концерт и суперзвёзды",
+   "spec": "tasks/WP-4-stars-concert.md",
+   "model": "opus",
+   "max_budget_usd": 20
+  },
+  {
+   "id": "WP-5",
+   "wave": 1,
+   "title": "Бонус-шкала на всех уровнях",
+   "spec": "tasks/WP-5-bonus-meter.md",
+   "model": "opus",
+   "max_budget_usd": 20,
+   "depends_on": [
+    "WP-4"
+   ]
+  },
+  {
+   "id": "WP-6",
+   "wave": 2,
+   "title": "Музыка: у комнаты своя песня, песни не накладываются, новые жанры",
+   "spec": "tasks/WP-6-music.md",
+   "max_budget_usd": 20,
+   "depends_on": [
+    "WP-3"
+   ]
+  },
+  {
+   "id": "WP-7",
+   "wave": 2,
+   "title": "Карта игры",
+   "spec": "tasks/WP-7-map.md",
+   "model": "opus",
+   "max_budget_usd": 25,
+   "depends_on": [
+    "WP-4"
+   ]
+  },
+  {
+   "id": "WP-8",
+   "wave": 2,
+   "title": "Комнаты и анимации персонажа",
+   "spec": "tasks/WP-8-rooms-character.md",
+   "max_budget_usd": 20,
+   "depends_on": [
+    "WP-7"
+   ]
+  },
+  {
+   "id": "WP-9",
+   "wave": 3,
+   "title": "Песня-блокнот: персонаж пишет песню по ходу прохождения",
+   "spec": "tasks/WP-9-songbook.md",
+   "model": "opus",
+   "max_budget_usd": 25,
+   "depends_on": [
+    "WP-6",
+    "WP-8"
+   ]
+  },
+  {
+   "id": "WP-10",
+   "wave": 4,
+   "title": "Аккаунты и облачное сохранение",
+   "spec": "tasks/WP-10-accounts.md",
+   "model": "opus",
+   "max_budget_usd": 30,
+   "depends_on": [
+    "WP-0"
+   ]
+  },
+  {
+   "id": "WP-11",
+   "wave": 4,
+   "title": "Чарт и Группа",
+   "spec": "tasks/WP-11-chart-band.md",
+   "max_budget_usd": 20,
+   "depends_on": [
+    "WP-10"
+   ]
+  },
+  {
+   "id": "WP-12",
+   "wave": 0,
+   "title": "Арт-бриф для ChatGPT: список ассетов и один общий промпт",
+   "spec": "tasks/WP-12-art-brief.md",
+   "max_budget_usd": 8
+  }
+ ]
+}
