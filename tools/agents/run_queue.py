@@ -42,8 +42,20 @@ DROP_PREFIXES = ("ANTHROPIC_", "CLAUDE", "CCR_", "AI_AGENT", "GH_", "GITHUB_", "
 # Files that are generated from others: a merge conflict in them is solved by generating them again.
 GENERATED = ("client/assets_index.lua",)
 
+# The producer allows these two models and no others (03.11.2026). Short names are accepted and expanded.
+ALLOWED_MODELS = ("claude-sonnet-5-5", "claude-haiku-5-5")
+MODEL_ALIASES = {"sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-5-5"}
+
+
+def normalize_model(name):
+    name = MODEL_ALIASES.get(name, name)
+    if name not in ALLOWED_MODELS:
+        raise SystemExit("model %r is not allowed: only %s" % (name, " and ".join(ALLOWED_MODELS)))
+    return name
+
+
 DEFAULTS = {
-    "model": "sonnet",
+    "model": "claude-sonnet-5-5",
     "max_budget_usd": 10.0,
     "max_minutes": 90,
     "retries": 1,
@@ -80,6 +92,7 @@ def worker_env(key):
     env["ANTHROPIC_API_KEY"] = key
     env["IS_SANDBOX"] = "1"  # lets --dangerously-skip-permissions run as root inside the container
     env["DISABLE_AUTOUPDATER"] = "1"
+    env["CLAUDE_CODE_SUBAGENT_MODEL"] = "claude-sonnet-5-5"  # sub-agents of a worker are Sonnet too
     return env
 
 
@@ -111,6 +124,8 @@ class Runner:
         self.defaults = dict(DEFAULTS)
         self.defaults.update(self.queue.get("defaults", {}))
         self.tasks = self.queue["tasks"]
+        for t in self.tasks:  # a model outside the allowed two stops the runner before anything is spent
+            t["model"] = normalize_model(t.get("model", self.defaults["model"]))
         self.by_id = {t["id"]: t for t in self.tasks}
         self.state_dir = state_dir
         self.claude = claude_bin or os.environ.get("CLAUDE_BIN", "claude")
@@ -203,7 +218,7 @@ class Runner:
         return open(p, encoding="utf-8").read() if os.path.exists(p) else ""
 
     def run_worker(self, t, path, prompt, cap, log_name):
-        cmd = [self.claude, "-p", prompt, "--output-format", "json", "--model", self.conf(t, "model"),
+        cmd = [self.claude, "-p", prompt, "--output-format", "json", "--model", normalize_model(self.conf(t, "model")),
                "--dangerously-skip-permissions", "--max-budget-usd", "%.2f" % cap,
                "--append-system-prompt", self.rules()]
         if t.get("effort"):
@@ -430,9 +445,8 @@ class Runner:
         if not self.key:
             print("WORKER_API_KEY is not set in this session (add it to the environment settings and start a new session)")
             return False
-        t = {"id": "check-key", "model": "haiku"}
         proc = subprocess.run([self.claude, "-p", "Reply with the single word: ok", "--output-format", "json",
-                               "--model", "haiku", "--max-budget-usd", "0.05"], env=worker_env(self.key),
+                               "--model", "claude-haiku-5-5", "--max-budget-usd", "0.05"], env=worker_env(self.key),
                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=180)
         data = parse_result(proc.stdout)
         ok = proc.returncode == 0 and not data.get("is_error")
@@ -448,6 +462,9 @@ import json, os, subprocess, sys
 prompt = sys.argv[sys.argv.index("-p") + 1]
 tid = prompt.split("ЗАДАЧА: ", 1)[1].split(":", 1)[0] if "ЗАДАЧА: " in prompt else "fix"
 assert os.environ.get("ANTHROPIC_API_KEY") == "sk-test", "the worker must get the producer's key"
+model = sys.argv[sys.argv.index("--model") + 1]
+assert model in ("claude-sonnet-5-5", "claude-haiku-5-5"), "model outside the allowed two: " + model
+assert os.environ.get("CLAUDE_CODE_SUBAGENT_MODEL") == "claude-sonnet-5-5", "sub-agent model not pinned"
 assert "CLAUDE_CODE_REMOTE_SESSION_ID" not in os.environ and "GITHUB_TOKEN" not in os.environ, "session variables leaked"
 if tid == "T-bad":
     print(json.dumps({"type": "result", "is_error": True, "result": "could not do it", "total_cost_usd": 0.4}))
@@ -543,6 +560,17 @@ def selftest():
         r.run(parallel=2, budget=100, max_wave=2, only=["T-late"])
         if s("T-late") != "merged":
             problems.append("wave 2 did not run when asked for: %s" % s("T-late"))
+        bad = dict(queue)
+        bad["tasks"] = queue["tasks"] + [{"id": "T-opus", "title": "opus", "model": "opus",
+                                          "spec": os.path.join(repo, "specs", "T-a.md")}]
+        bq = os.path.join(tmp, "bad_queue.json")
+        with open(bq, "w") as f:
+            json.dump(bad, f)
+        try:
+            Runner(repo, bq, os.path.join(tmp, "state2"), claude_bin=fake, key="sk-test")
+            problems.append("a task with the model opus was accepted")
+        except SystemExit:
+            pass
         print("selftest:", "OK" if not problems else "FAILED")
         for p in problems:
             print("  -", p)
