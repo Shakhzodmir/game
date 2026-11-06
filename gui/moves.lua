@@ -164,7 +164,7 @@ function M.build(e)
 	if v.ad then
 		y = y - 46
 		local ad = s:button({ parent = body, x = 0, y = y, w = 540, h = 92, style = "green", icon = "ui/icons/play",
-			icon_size = 50, text = i18n.t("continue.ad"), text_size = 32, sfx = false, on_click = function() watch(e, v) end })
+			icon_size = 50, text = i18n.t("continue.ad"), text_size = 32, text_pad_right = 130, sfx = false, on_click = function() watch(e, v) end })
 		local pill = s:round(ad.node, 540 / 2 - 90, 0, 120, 52, "white", { radius = 24 })
 		s:text(pill, "+" .. i18n.number(v.ad_moves or 0), 0, 1, { font = "number", size = 32, color = "green", max_width = 100 })
 		e:target("ad", 0, y)
