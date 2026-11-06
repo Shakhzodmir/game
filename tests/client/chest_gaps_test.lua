@@ -56,23 +56,29 @@ describe("level chest: the cases the first test round left open", function()
 			local e = c.hud.self.l.popups:find("result")
 			assert_true(e.fit_dy < 0, "the case needs a window that slid: " .. tostring(e.fit_dy))
 			assert_true(#rings >= 1, "the star burst happened")
-			local star, w = nil, 0
+			-- every star of the results (the three big slots; the small marks of the score scale are not stars of the row)
+			local stars = {}
 			for _, node in ipairs(c.E.alive_nodes(c.E.scene("/screens/level/level.gui"))) do
-				if node.anim == "ui_icons_star" and c.E.visible(node) and node.size.x * node.scale.x > w then
-					star, w = node, node.size.x * node.scale.x
+				if node.anim == "ui_icons_star" and c.E.visible(node) and node.size.x * node.scale.x >= 80 then
+					local sx, sy = c.E.centre(node)
+					stars[#stars + 1] = { x = sx, y = sy }
 				end
 			end
-			assert_true(star ~= nil, "the star of the results")
-			local sx, sy = c.E.centre(star)
-			assert_near(rings[1].x, sx, 6, "the ring is on the star (x)")
-			assert_near(rings[1].y, sy, 6, "the ring is on the star (y), the window slid " .. tostring(e.fit_dy))
+			assert_true(#stars >= 1, "the stars of the results")
+			for i, ring in ipairs(rings) do
+				local on = false
+				for _, st in ipairs(stars) do
+					if math.abs(ring.x - st.x) <= 6 and math.abs(ring.y - st.y) <= 6 then on = true end
+				end
+				assert_true(on, "the ring " .. i .. " is on a star, the window slid " .. tostring(e.fit_dy))
+			end
 		end)
 	end)
 
-	it("X12: the Russian stars note names the top difficulty like the tag of the level button", function()
-		local tag = i18n.t("hud.super_hard", nil, "ru")  -- "Суперсложный" (a capital in the tag, lower case in a sentence)
-		local note = i18n.t("win.stars_note", nil, "ru")
-		assert_true(note:find(tag:sub(3), 1, true) ~= nil, "the note says something else than '" .. tag .. "': " .. note)
+	it("X12: the stars note says the stars come from the score, not from the difficulty", function()
+		local ru, en = i18n.t("win.stars_note", nil, "ru"), i18n.t("win.stars_note", nil, "en")
+		assert_true(ru:find("очк", 1, true) ~= nil and ru:find("сложност", 1, true) == nil, ru)
+		assert_true(en:find("score", 1, true) ~= nil and en:find("difficult", 1, true) == nil and en:find("hard", 1, true) == nil, en)
 	end)
 
 	it("N9: the whole-strip button is invisible", function()

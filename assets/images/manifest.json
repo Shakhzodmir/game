@@ -20,6 +20,7 @@
     "ui/moves_badge.png": "pink gradient badge; print the move count in white Rubik Black on top",
     "ui/bunting.png": "720px festive garland for the top edge of the level screen",
     "fx/*.png": "white / near-white, tint in the engine",
+    "ui/genres/*.png": "96x96 round genre icons of the jukebox (procedural placeholders of art brief B3)",
     "ui/icons/*.png": "96x96 glossy icons with a white sticker edge, all inside the central 88px",
     "ui/icons/goal_floor.png": "goal icon for 'light the dance floor': the unlit (violet) tile as the board shows it, on the gold tile it turns into",
     "ui/icons/streak.png": "hit streak (Seriya hitov)",
@@ -35,17 +36,125 @@
       "alpha": false,
       "bytes": 199371
     },
+    "bit/cheer_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54409
+    },
+    "bit/cheer_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54126
+    },
+    "bit/cheer_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58036
+    },
+    "bit/cheer_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 57961
+    },
+    "bit/cheer_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58056
+    },
+    "bit/cheer_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54392
+    },
     "bit/dance_a.png": {
       "w": 256,
       "h": 256,
       "alpha": true,
       "bytes": 62010
     },
+    "bit/dance_a_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62010
+    },
+    "bit/dance_a_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61503
+    },
+    "bit/dance_a_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 63267
+    },
+    "bit/dance_a_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62258
+    },
+    "bit/dance_a_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62107
+    },
+    "bit/dance_a_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61901
+    },
     "bit/dance_b.png": {
       "w": 256,
       "h": 256,
       "alpha": true,
       "bytes": 62625
+    },
+    "bit/dance_b_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62625
+    },
+    "bit/dance_b_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61354
+    },
+    "bit/dance_b_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 59785
+    },
+    "bit/dance_b_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 60552
+    },
+    "bit/dance_b_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61563
+    },
+    "bit/dance_b_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61130
     },
     "bit/happy.png": {
       "w": 256,
@@ -59,6 +168,78 @@
       "alpha": true,
       "bytes": 55500
     },
+    "bit/idle_breathe_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55500
+    },
+    "bit/idle_breathe_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55554
+    },
+    "bit/idle_breathe_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55193
+    },
+    "bit/idle_breathe_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55554
+    },
+    "bit/idle_look_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55471
+    },
+    "bit/idle_look_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55500
+    },
+    "bit/idle_look_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55660
+    },
+    "bit/idle_look_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54616
+    },
+    "bit/listen_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 60239
+    },
+    "bit/listen_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58050
+    },
+    "bit/listen_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 59625
+    },
+    "bit/listen_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58051
+    },
     "bit/sad.png": {
       "w": 256,
       "h": 256,
@@ -71,11 +252,119 @@
       "alpha": true,
       "bytes": 63498
     },
+    "bit/sleepy_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55336
+    },
+    "bit/sleepy_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 56953
+    },
+    "bit/sleepy_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55993
+    },
+    "bit/sleepy_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 57522
+    },
+    "bit/surprised_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55500
+    },
+    "bit/surprised_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54603
+    },
+    "bit/surprised_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55019
+    },
+    "bit/surprised_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 56400
+    },
+    "bit/wave_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54788
+    },
+    "bit/wave_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55285
+    },
+    "bit/wave_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55223
+    },
+    "bit/wave_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55285
+    },
     "bit/worried.png": {
       "w": 256,
       "h": 256,
       "alpha": true,
       "bytes": 58237
+    },
+    "bit/write_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 50876
+    },
+    "bit/write_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 51192
+    },
+    "bit/write_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 50586
+    },
+    "bit/write_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 51710
+    },
+    "bit/write_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 50710
+    },
+    "bit/write_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 51021
     },
     "blockers/balloon_blue.png": {
       "w": 160,
@@ -875,6 +1164,468 @@
       "alpha": true,
       "bytes": 141012
     },
+    "map/deco_cafe_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11902
+    },
+    "map/deco_cafe_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_cafe_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 4529
+    },
+    "map/deco_cafe_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8589
+    },
+    "map/deco_cafe_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8477
+    },
+    "map/deco_cafe_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 10369
+    },
+    "map/deco_garage_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11314
+    },
+    "map/deco_garage_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8202
+    },
+    "map/deco_garage_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_garage_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 7451
+    },
+    "map/deco_garage_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11910
+    },
+    "map/deco_garage_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8589
+    },
+    "map/deco_jazz_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_jazz_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8589
+    },
+    "map/deco_jazz_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8158
+    },
+    "map/deco_jazz_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 4529
+    },
+    "map/deco_jazz_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12214
+    },
+    "map/deco_jazz_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 6026
+    },
+    "map/deco_square_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11902
+    },
+    "map/deco_square_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 7451
+    },
+    "map/deco_square_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8173
+    },
+    "map/deco_square_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 4529
+    },
+    "map/deco_square_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8158
+    },
+    "map/deco_square_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_stadium_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12214
+    },
+    "map/deco_stadium_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11403
+    },
+    "map/deco_stadium_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 7451
+    },
+    "map/deco_stadium_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_stadium_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12369
+    },
+    "map/deco_stadium_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11902
+    },
+    "map/node_concert_current.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 46358
+    },
+    "map/node_concert_done.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 27079
+    },
+    "map/node_concert_locked.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 22864
+    },
+    "map/node_concert_open.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 28129
+    },
+    "map/node_day_current.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 35640
+    },
+    "map/node_day_done.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 18940
+    },
+    "map/node_day_locked.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 15122
+    },
+    "map/node_day_open.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 18338
+    },
+    "map/path_dot.png": {
+      "w": 48,
+      "h": 48,
+      "alpha": true,
+      "bytes": 2420
+    },
+    "map/path_dot_done.png": {
+      "w": 48,
+      "h": 48,
+      "alpha": true,
+      "bytes": 2553
+    },
+    "mapbg/bg_cafe.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 46683
+    },
+    "mapbg/bg_garage.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 52014
+    },
+    "mapbg/bg_jazz.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 47817
+    },
+    "mapbg/bg_square.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 49963
+    },
+    "mapbg/bg_stadium.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 43542
+    },
+    "mapbg/gate_cafe.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 45344
+    },
+    "mapbg/gate_garage.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 45415
+    },
+    "mapbg/gate_jazz.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 44992
+    },
+    "mapbg/gate_square.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 42351
+    },
+    "mapbg/gate_stadium.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 46037
+    },
+    "notebook/closed.png": {
+      "w": 384,
+      "h": 384,
+      "alpha": true,
+      "bytes": 15253
+    },
+    "notebook/doodle_1.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 2499
+    },
+    "notebook/doodle_2.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 2907
+    },
+    "notebook/doodle_3.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 3916
+    },
+    "notebook/doodle_4.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 2934
+    },
+    "notebook/doodle_5.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 5321
+    },
+    "notebook/doodle_6.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 5791
+    },
+    "notebook/doodle_7.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 4812
+    },
+    "notebook/doodle_8.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 4235
+    },
+    "notebook/doodle_9.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 3319
+    },
+    "notebook/paper_sheet.png": {
+      "w": 640,
+      "h": 900,
+      "alpha": true,
+      "bytes": 18294
+    },
+    "notebook/sparkle_1.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1487
+    },
+    "notebook/sparkle_2.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 3560
+    },
+    "notebook/sparkle_3.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 5084
+    },
+    "notebook/sparkle_4.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 5359
+    },
+    "notebook/sparkle_5.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 4864
+    },
+    "notebook/sparkle_6.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1288
+    },
+    "notebook/stamp_ready.png": {
+      "w": 192,
+      "h": 192,
+      "alpha": true,
+      "bytes": 17848
+    },
+    "notebook/stationery_1.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1793
+    },
+    "notebook/stationery_2.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1329
+    },
+    "notebook/stationery_3.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1411
+    },
+    "notebook/stationery_4.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 2758
+    },
+    "notebook/stationery_5.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1521
+    },
+    "notebook/stationery_6.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 3722
+    },
+    "notebook/stationery_7.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 4848
+    },
+    "notebook/stationery_8.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 2345
+    },
+    "notebook/stationery_9.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1049
+    },
     "pieces/blue.png": {
       "w": 160,
       "h": 160,
@@ -1067,6 +1818,96 @@
         22
       ]
     },
+    "ui/genres/ambient.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11032
+    },
+    "ui/genres/blues.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11515
+    },
+    "ui/genres/bossa.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 12195
+    },
+    "ui/genres/chiptune.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11762
+    },
+    "ui/genres/cinematic.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 10646
+    },
+    "ui/genres/classical.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11090
+    },
+    "ui/genres/country.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11342
+    },
+    "ui/genres/eastern.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11700
+    },
+    "ui/genres/edm.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11643
+    },
+    "ui/genres/folk.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 10850
+    },
+    "ui/genres/hiphop.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 12020
+    },
+    "ui/genres/latin.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11812
+    },
+    "ui/genres/pop.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11772
+    },
+    "ui/genres/reggae.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11230
+    },
+    "ui/genres/rnb.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11501
+    },
     "ui/icons/arrow.png": {
       "w": 96,
       "h": 96,
@@ -1175,6 +2016,12 @@
       "alpha": true,
       "bytes": 8879
     },
+    "ui/icons/map.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 8705
+    },
     "ui/icons/music_off.png": {
       "w": 96,
       "h": 96,
@@ -1282,6 +2129,12 @@
       "h": 96,
       "alpha": true,
       "bytes": 12282
+    },
+    "ui/icons/super_star.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11683
     },
     "ui/icons/swap.png": {
       "w": 96,

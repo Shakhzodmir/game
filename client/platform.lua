@@ -9,6 +9,9 @@
 --   platform.vibrate(ms)    haptic tick; on the web navigator.vibrate via
 --                           html5.run (Android browsers), guarded by pcall;
 --                           no-op when haptics are off or unsupported
+--   platform.copy_text(text, label)  copy to the clipboard: "clipboard" | "prompt" (web: the browser refused, the
+--                           text is shown in a prompt to copy by hand) | false
+--   platform.paste_text(label)  text from the clipboard (web: a prompt to paste into; label = its question) | nil
 --   platform.random_seed()  integer seed with |seed| < 2^53 for Meta.new/load
 
 local M = {}
@@ -42,7 +45,13 @@ function M.is_html5()
 	return M.system() == "HTML5" and html5 ~= nil
 end
 
+-- The language the player's device or browser asks for. In the browser navigator.language wins (it is what a
+-- portal or the browser settings say); anywhere else the system language of the device.
 function M.language()
+	if M.is_html5() then
+		local ok, code = pcall(html5.run, "(navigator.language || (navigator.languages && navigator.languages[0]) || '')")
+		if ok and type(code) == "string" and #code >= 2 then return code end
+	end
 	local info = sys_info()
 	return info.language or info.device_language or "en"
 end
@@ -59,6 +68,55 @@ function M.vibrate(ms)
 	end
 	-- iOS/Android: native haptics come with the native extension (client-architecture.md, 5)
 	return false
+end
+
+-- A JavaScript string literal for html5.run. Only ASCII-safe escapes: the label is player-language text.
+local function js_string(s)
+	s = tostring(s)
+	s = s:gsub("[%c\\\"']", function(c)
+		return string.format("\\u%04x", c:byte())
+	end)
+	s = s:gsub("\226\128([\168\169])", function(c) return c == "\168" and "\\u2028" or "\\u2029" end)
+	return '"' .. s .. '"'
+end
+M.js_string = js_string
+
+-- Copies `text` (a save code: letters, digits, "-" and "_" only) to the clipboard. On the web the clipboard
+-- API may be refused (no permission, an iframe, an old browser): the text then appears in a prompt, ready
+-- to copy by hand; `label` is the prompt's title. Desktop and mobile use Defold's clipboard module.
+function M.copy_text(text, label)
+	if type(text) ~= "string" or text == "" then return false end
+	if M.is_html5() then
+		if not text:match("^[%w_%-]+$") then return false end
+		local js = "(function(t,m){try{if(navigator.clipboard&&navigator.clipboard.writeText){"
+			.. "navigator.clipboard.writeText(t).catch(function(){window.prompt(m,t)});return 'clipboard';}}catch(e){}"
+			.. "window.prompt(m,t);return 'prompt';})(" .. js_string(text) .. "," .. js_string(label or "") .. ")"
+		local ok, res = pcall(html5.run, js)
+		if ok and res == "prompt" then return "prompt" end
+		return ok and "clipboard" or false
+	end
+	if clipboard and clipboard.copy then
+		local ok = pcall(clipboard.copy, text)
+		return ok and "clipboard" or false
+	end
+	return false
+end
+
+-- The text the player pastes. On the web a prompt asks for it (no way to read the clipboard without a
+-- permission); elsewhere the clipboard is read at once. Nil when nothing came.
+function M.paste_text(label)
+	if M.is_html5() then
+		local js = "(function(m){var r=window.prompt(m,'');return (r===null||r===undefined)?'':String(r);})("
+			.. js_string(label or "") .. ")"
+		local ok, res = pcall(html5.run, js)
+		if ok and type(res) == "string" and res ~= "" then return res end
+		return nil
+	end
+	if clipboard and clipboard.paste then
+		local ok, res = pcall(clipboard.paste)
+		if ok and type(res) == "string" and res ~= "" then return res end
+	end
+	return nil
 end
 
 -- Seed for the player's salt: time mixed with the Lua RNG, kept below 2^53.

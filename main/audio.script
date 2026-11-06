@@ -12,6 +12,14 @@
 -- the stems; only the track that plays has decoders running. A song plays in the key of its genre
 -- (self.semitones): notes and tonal effects follow the song that actually plays.
 --
+-- One song at a time: every request for another track is a crossfade (client/audio.lua TRACK_CROSSFADE). The
+-- track that gave way becomes the "outgoing deck" (self.old: its component ids and the stem gains at the switch)
+-- and fades out with an equal-power curve while the new one fades in (self.in_level); when the fade is done the
+-- deck is stopped. There is never more than one outgoing deck: a third request stops it at once. A deck that
+-- shares a sound component with the new track (A -> B -> A) is stopped first, since a component has one gain.
+-- Every path that starts music (town, districts, jukebox, levels, concert, return from the background, ...) posts
+-- the same `music` message, so this is the only place that has to keep the rule.
+--
 -- Music clock: wall time since the stems started. When the engine loop
 -- stalls (a hidden tab, the app in the background, a long frame) the mixer
 -- stops but the clock does not, so the stems restart at the clock position in
@@ -112,33 +120,67 @@ end
 -- The track a district id or a song id names (client/audio.lua resolve_track), from the registry.
 local function track_of(id)
 	return audio.resolve_track(id, {
-		district = app.district, song = app.song, stems = assets.music_stems, stem_id = assets.music_id,
+		district = app.genre, song = app.song, stems = assets.music_stems, stem_id = assets.music_id,
 		song_asset = assets.song, loop = assets.music_loop,
 	})
 end
 
-local function stop_stems(self, stems)
-	for _, stem in ipairs(stems) do
-		local id = self.track and self.track.ids[stem]
-		if id then sound.stop(comp(self, id)) end
-	end
+-- Stops the outgoing deck at once (nothing is left of it).
+local function release_old(self)
+	local o = self.old
+	if not o then return end
+	for i = 1, #o.ids do sound.stop(comp(self, o.ids[i])) end
+	self.old = nil
+	self.overlap = 0
 end
 
-local function stop_music(self)
+-- The track that plays steps down: it becomes the outgoing deck and fades out over `dur` seconds (the mixer forgets
+-- it: the notes and the clock follow the next track, or nothing). An older outgoing deck is cut first.
+local function retire_current(self, dur)
 	flush_notes(self, true)
-	if self.mixer:playing() then stop_stems(self, self.mixer:stop()) end
+	if self.mixer:playing() and self.track then
+		release_old(self)
+		local ids, base = {}, {}
+		for i, name in ipairs(self.mixer.order) do
+			ids[i] = self.track.ids[name]
+			base[i] = self.mixer:gain(name) or 0
+		end
+		self.old = { ids = ids, base = base, t = 0, dur = dur or audio.TRACK_CROSSFADE }
+		self.mixer:stop()
+	end
 	self.track = nil
 	self.sched:reset()
 end
 
--- Starts every stem of the track in this frame; locked stems at gain 0 (a song is one stem at gain 1).
--- party: false | true | nil, see client/audio.lua music().
+local function stop_music(self, dur)
+	retire_current(self, dur)
+	self.in_level, self.in_t = 1, 0
+end
+
+-- Starts the track as the incoming deck. Every stem starts in this frame; locked stems at gain 0 (a song is one
+-- stem at gain 1). With a track going out the new one comes in from silence (crossfade); with nothing playing it
+-- starts at once. party: false | true | nil, see client/audio.lua music().
 local function start_music(self, id, all, party)
-	stop_music(self)
 	local track = track_of(id)
-	if not track then return end
+	retire_current(self, audio.TRACK_CROSSFADE)
+	if not track then
+		self.in_level, self.in_t = 1, 0
+		return
+	end
+	if self.old then
+		-- a component cannot fade out and in at once (one gain per component)
+		local clash = false
+		for _, oid in ipairs(self.old.ids) do
+			for _, nid in pairs(track.ids) do
+				if oid == nid then clash = true end
+			end
+		end
+		if clash then release_old(self) end
+	end
 	self.track = track
 	self.all = all and true or false
+	self.in_t = 0
+	self.in_level = self.old and 0 or 1
 	local unmuted = {}
 	if track.single then
 		unmuted.mix = true
@@ -150,7 +192,52 @@ local function start_music(self, id, all, party)
 		all = all, party = party, loop = track.loop,
 	})
 	for _, st in ipairs(starts) do
-		sound.play(comp(self, track.ids[st.stem]), { gain = st.gain })
+		sound.play(comp(self, track.ids[st.stem]), { gain = st.gain * self.in_level })
+	end
+end
+
+-- The track that plays goes on and only its layers follow the request: `all` (every task stem, the finale and the
+-- jukebox) or the stems the meta has unmuted, and the party layer.
+local function retarget(self, all, party)
+	local track = self.track
+	if all ~= self.all then
+		self.all = all
+		local unmuted = {}
+		if not all and app.meta then
+			for _, s in ipairs(app.meta:unmuted_stems(track.district)) do unmuted[s] = true end
+		end
+		for _, name in ipairs(self.mixer.order) do
+			if not audio.LAYERS[name] then self.mixer:fade(name, (all or unmuted[name]) and 1 or 0, audio.CROSSFADE) end
+		end
+	end
+	-- the full song of a finished district chosen in the jukebox: with the layer in the town, without it in a level
+	local want = party
+	if want == nil then want = all end
+	if want ~= self.mixer.layers.party then self.mixer:set_layer("party", want) end
+end
+
+-- Moves the fades by dt: the outgoing deck goes down, the new track comes up. No garbage per frame.
+local function advance_fades(self, dt)
+	local o = self.old
+	if o then
+		o.t = o.t + dt
+		self.overlap = (self.overlap or 0) + dt
+		if self.overlap > (audio.status.max_overlap or 0) then audio.status.max_overlap = self.overlap end
+		if o.t >= o.dur then
+			release_old(self)
+		else
+			local _, out = audio.xfade_gains(o.t, o.dur)
+			for i = 1, #o.ids do sound.set_gain(comp(self, o.ids[i]), o.base[i] * out) end
+		end
+	end
+	if self.in_level < 1 then
+		self.in_t = self.in_t + dt
+		self.in_level = audio.xfade_gains(self.in_t, audio.TRACK_CROSSFADE)
+		if self.track then
+			for _, name in ipairs(self.mixer.order) do
+				sound.set_gain(comp(self, self.track.ids[name]), (self.mixer:gain(name) or 0) * self.in_level)
+			end
+		end
 	end
 end
 
@@ -158,6 +245,9 @@ end
 local function resync(self, reason)
 	if not self.mixer:playing() then return end
 	flush_notes(self, true)
+	-- after a stall the crossfade is over in any case: the outgoing deck goes, the new track is at full level
+	release_old(self)
+	self.in_level, self.in_t = 1, 0
 	local t0 = now()
 	for _, r in ipairs(self.mixer:resync(t0)) do
 		local url = comp(self, self.track.ids[r.stem])
@@ -216,6 +306,7 @@ local function update_status(self, dt)
 	st.district = self.track and self.track.district or nil
 	st.song = self.track and self.track.id or nil
 	st.single = self.track and self.track.single or false
+	st.bpm = self.track and self.track.bpm or nil
 	st.semitones = self.track and self.semitones or 0
 	st.playing = self.mixer:playing()
 	st.clock = self.mixer:clock(now()) or 0
@@ -229,6 +320,11 @@ local function update_status(self, dt)
 	end
 	st.stems_on = on
 	st.stems = #self.mixer.order
+	-- the one-song rule, for the QA bridge: tracks sounding now (0..2), the progress of the crossfade, the time the
+	-- two tracks have sounded together so far (max_overlap: the longest)
+	st.tracks = (self.track and 1 or 0) + (self.old and 1 or 0)
+	st.xfade = self.old and math.min(1, self.old.t / self.old.dur) or nil
+	st.overlap = self.overlap or 0
 	self.rms_t = (self.rms_t or 0) + dt
 	if self.rms_t >= 0.25 then
 		self.rms_t = 0
@@ -257,6 +353,8 @@ function init(self)
 	self.free_key = 1
 	self.semitones = 0
 	self.track = nil
+	self.old = nil
+	self.in_level, self.in_t, self.overlap = 1, 0, 0
 	self.html5 = platform.is_html5()
 	self.sub = bus.subscribe({ "settings_changed", "app_focus" }, "audio")
 	self.on_bus = function(topic, p) on_bus(self, topic, p) end
@@ -279,6 +377,11 @@ function update(self, dt)
 		audio.status.stalls = audio.status.stalls + 1
 		self.want_resync = self.want_resync or "stall"
 	end
+	if gap > STALL then
+		-- a long gap (hidden tab, background): the crossfade has run its time on the wall clock
+		release_old(self)
+		self.in_level, self.in_t = 1, 0
+	end
 	self.sub:drain(self.on_bus)
 	if app.meta and self.settings_rev ~= app.settings_rev then apply_volumes(self) end
 	if self.want_resync then
@@ -289,8 +392,9 @@ function update(self, dt)
 	for i = 1, #changed do
 		local ch = changed[i]
 		local id = self.track and self.track.ids[ch.stem]
-		if id then sound.set_gain(comp(self, id), ch.gain) end
+		if id then sound.set_gain(comp(self, id), ch.gain * self.in_level) end
 	end
+	advance_fades(self, dt)
 	local mg, sg, ng = self.mixer:music_group_gain(), self.mixer:sfx_group_gain(), self.mixer:notes_group_gain()
 	if mg ~= self.music_gain then
 		self.music_gain = mg
@@ -319,18 +423,14 @@ function on_message(self, message_id, message)
 	elseif message_id == MSG.music then
 		local all = message.all and true or false
 		local id = message.district
-		local playing = self.mixer:playing() and self.track
-		if id and (not playing or id ~= self.track.id or all ~= self.all) then
+		local cur = self.mixer:playing() and self.track
+		if id and (not cur or id ~= cur.id) then
 			start_music(self, id, all, message.party)
-		elseif id and not self.track.single then
-			-- the same track goes on; only its party layer follows the request (the full song of a finished
-			-- district chosen in the jukebox: with the layer in the town, without it in a level)
-			local want = message.party
-			if want == nil and all then want = true end
-			if want ~= nil and want ~= self.mixer.layers.party then self.mixer:set_layer("party", want) end
+		elseif id and not cur.single then
+			retarget(self, all, message.party)
 		end
 	elseif message_id == MSG.stop_music then
-		stop_music(self)
+		stop_music(self, message.fade)
 	elseif message_id == MSG.unlock_stem then
 		-- (a layer of another district, or of a song, is not part of what plays: nothing to do)
 		if self.track and not self.track.single and message.district == self.track.id then self.mixer:unlock(message.stem) end

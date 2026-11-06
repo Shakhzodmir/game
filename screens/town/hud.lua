@@ -33,9 +33,9 @@ M.BIT_X, M.BIT_Y = 660, 398
 
 M.NAV = {
 	{ id = "shop", icon = "ui/icons/shop", label = "nav.shop" },
-	{ id = "band", icon = "ui/icons/team", label = "nav.band", soon = true },
+	{ id = "band", icon = "ui/icons/team", label = "nav.band" },
 	{ id = "town", icon = "ui/icons/city", label = "nav.town", active = true },
-	{ id = "chart", icon = "ui/icons/chart", label = "nav.chart", soon = true },
+	{ id = "chart", icon = "ui/icons/chart", label = "nav.chart" },
 	{ id = "jukebox", icon = "ui/icons/jukebox", label = "nav.jukebox" },
 }
 
@@ -136,7 +136,12 @@ function Hud:build_top(parent)
 		font = "number", size = 34, color = "text", pivot = gui.PIVOT_W, max_width = 68,
 	})
 	hit(s, sp, 0, 0, 146, 100, function()
-		app.toast_key("town.stars_hint", nil, { color = "gold" })
+		local sup = app.meta:super_stars()
+		if sup.earned > 0 then
+			app.toast_key("town.super_stars_hint", { n = sup.balance }, { color = "gold" })
+		else
+			app.toast_key("town.stars_hint", nil, { color = "gold" })
+		end
 		town.fx:pop(self.star_icon, 0.3)
 	end)
 	self:target("stars", self:top(M.STARS_X, M.TOP_Y))
@@ -174,7 +179,7 @@ end
 function Hud:coins_pos() return self:top(M.COINS_X - 72, M.TOP_Y) end
 function Hud:stars_pos() return self:top(M.STARS_X - 40, M.TOP_Y) end
 function Hud:lives_pos() return self:top(M.LIVES_X - 64, M.TOP_Y) end
-function Hud:level_pos() return self:bottom(360, M.LEVEL_Y) end
+function Hud:level_pos() return self:bottom(M.LEVEL_X, M.LEVEL_Y) end
 
 -- ribbon ----------------------------------------------------------------------------------------
 
@@ -238,6 +243,25 @@ function Hud:build_ribbon(parent)
 	end
 	s:anchor(toggle.node, "top")
 	self:target("view", self:top(652, M.RIBBON_Y))
+	self:build_notebook_button(parent)
+end
+
+-- The songbook (WP-9): a small button under the day / concert toggle (the art keeps its zone free: UI_ZONES in
+-- tools/art/gen_art.py). A dot says a finished song is waiting to be looked at.
+M.NOTEBOOK_X, M.NOTEBOOK_Y = 680, 1028
+function Hud:build_notebook_button(parent)
+	local s, town = self.ui, self.town
+	local has_icon = assets.has_image("notebook/closed")
+	local b = s:button({ parent = parent, x = M.NOTEBOOK_X, y = M.NOTEBOOK_Y, w = 80, h = 80, style = "purple",
+		icon = has_icon and "notebook/closed" or "ui/icons/note_on", icon_size = 58, sfx = "button",
+		on_click = function() town:open_popup("notebook") end })
+	s:anchor(b.node, "top")
+	self.notebook_btn = b.node
+	if app.meta:songbook_pending() then
+		local dot = s:circle(b.node, 30, 26, 26, "pink")
+		if dot and not fx.reduced() then ui.pulse(dot, 0.15, 0.6) end
+	end
+	self:target("notebook", self:top(M.NOTEBOOK_X, M.NOTEBOOK_Y))
 end
 
 -- task card ---------------------------------------------------------------------------------------
@@ -380,44 +404,67 @@ end
 
 -- level button --------------------------------------------------------------------------------------
 
+-- The round "Map" button at the right end of the level row (the level button is narrower to make room).
+M.LEVEL_X, M.LEVEL_W, M.NOTE_X = 288, 470, 100
+M.MAP_X, M.MAP_W = 620, 150
+
+function Hud:build_map_button(parent)
+	local s = self.ui
+	local b = s:button({ parent = parent, x = M.MAP_X, y = M.LEVEL_Y, w = M.MAP_W, h = 130, style = "blue", icon = "ui/icons/map",
+		icon_size = 72, text = i18n.t("map.button"), text_size = 28, on_click = function()
+			if self.town.bit then self.town.bit:cheer(1.0, 1) end
+			app.show_screen("map", { from = "town" })
+		end })
+	s:anchor(b.node, "bottom")
+	if b.icon then gui.set_position(b.icon, vmath.vector3(0, 22, 0)) end
+	if b.label then
+		gui.set_position(b.label, vmath.vector3(0, -34, 0))
+		b.label_info.max_width = M.MAP_W - 24
+		s:_fit_text(b.label, b.label_info)
+	end
+	self:target("map", self:bottom(M.MAP_X, M.LEVEL_Y))
+	self.map_btn = b.node
+end
+
 function Hud:build_level(parent)
 	local s, town = self.ui, self.town
 	local v = views.level_button(app.meta, levels)
 	self.level_view = v
-	local x, y = 360, M.LEVEL_Y
+	local x, y = M.LEVEL_X, M.LEVEL_Y
+	self:build_map_button(parent)
 	self.notes, self.closed = {}, {}
 	if v.all_done then
-		local b = s:button({ parent = parent, x = x, y = y, w = 560, h = 128, style = "blue", text = i18n.t("town.all_done"),
+		local b = s:button({ parent = parent, x = x, y = y, w = M.LEVEL_W, h = 128, style = "blue", text = i18n.t("replay.button"),
 			text_size = 34, on_click = function()
-				app.toast_key("town.all_done", nil, { color = "blue" })
 				if town.bit then town.bit:cheer(1.2, 1) end
+				town:open_popup("replay") -- the beaten levels can be played again
 			end })
 		s:anchor(b.node, "bottom")
 		self:target("level", self:bottom(x, y))
 		self.level_btn = b.node
 		return
 	end
-	local b = s:button({ parent = parent, x = x, y = y, w = 560, h = 130, style = "green",
+	local b = s:button({ parent = parent, x = x, y = y, w = M.LEVEL_W, h = 130, style = "green",
 		text = i18n.t("town.level", { n = v.level }), text_size = 54,
 		on_click = function() town:open_popup("start", { level = v.level }) end })
 	s:anchor(b.node, "bottom")
 	self.level_btn = b.node
 	self:target("level", self:bottom(x, y))
 	if b.label then
-		gui.set_position(b.label, vmath.vector3(-62, 6, 0))
-		b.label_info.max_width = 320
+		gui.set_position(b.label, vmath.vector3(-82, 6, 0))
+		b.label_info.max_width = 270
 		s:_fit_text(b.label, b.label_info)
 	end
 	-- hit streak: three notes inside the button. Once the streak runs (level 12 on) the note of a booster that
 	-- is still locked is drawn closed; before that nothing runs and the notes are plain empty ones.
 	for i, note in ipairs(v.notes) do
 		local closed = v.streak_active and note.unlocked == false
-		self.notes[i] = kit.note({ ui = s }, b.node, 136 + (i - 1) * 46, 6, { lit = note.lit, unlocked = not closed }, 52, 0.55)
+		self.notes[i] = kit.note({ ui = s }, b.node, M.NOTE_X + (i - 1) * 42, 6, { lit = note.lit, unlocked = not closed }, 52, 0.55)
 		self.closed[i] = closed
 	end
 	if v.tag then
 		local hard = v.tag == "town.hard"
-		local tag = s:round(b.node, 188, 70, 196, 50, hard and "pink" or "purple", { radius = 24 })
+		local tag = s:round(b.node, 160, 70, 196, 50, hard and "pink" or "purple", { radius = 24 })
 		s:round(tag, 0, 0, 186, 40, hard and "#FF7EB6" or "#C18CFF", { radius = 20, alpha = 0.6 })
 		s:text(tag, i18n.t(v.tag), 0, 2, { font = "button", size = 24, color = "white", outline = hard and "#A8204F" or "#5220A6", max_width = 176 })
 		gui.set_euler(tag, vmath.vector3(0, 0, -5))
@@ -427,7 +474,7 @@ function Hud:build_level(parent)
 end
 
 function Hud:note_pos(i)
-	return self:bottom(360 + 136 + (i - 1) * 46, M.LEVEL_Y + 6)
+	return self:bottom(M.LEVEL_X + M.NOTE_X + (i - 1) * 42, M.LEVEL_Y + 6)
 end
 
 -- Is there a streak note `i` that can light up (its booster is unlocked)?

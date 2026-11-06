@@ -17,12 +17,12 @@ scanned as the source of truth, manifests only add metadata):
   assets/fonts/*.ttf            (a missing TTF falls back to another one, so
                                 every font name always exists)
   content/districts.json        (district ids)
-  client/i18n.lua, content/districts.json   (extra glyphs the fonts must contain)
+  client/i18n.lua, client/i18n_ko.lua, content/districts.json   (extra glyphs the fonts must contain)
 
 Writes (never edit these by hand, re-run the generator instead):
   assets/gen/*.atlas            game, ui, bit, logo, ... (see grouping)
   assets/gen/placeholder.png    8x8 white image present in every atlas ("white")
-  assets/gen/fonts/*.font       title, button, number, body, small
+  assets/gen/fonts/*.font       title, button, number, body, small (+ the same five with _ko: Korean)
   assets/gen/audio.go           audio game object: main/audio.script + one sound
                                 component per note (group "notes"), sfx (group
                                 "sfx"), music stem and jukebox song (group "music"; the
@@ -71,7 +71,7 @@ AUDIO_SCRIPT = "/main/audio.script"
 
 GAME_GROUPS = ("pieces", "specials", "blockers", "board", "fx")
 UI_GROUPS = ("ui", "icons")
-LOOSE_GROUPS = ("districts", "backgrounds", "bit", "logo")  # custom resources, loaded on demand
+LOOSE_GROUPS = ("districts", "backgrounds", "bit", "logo", "mapbg", "notebook")  # custom resources, loaded on demand
 LOOSE_DIRS = tuple("/assets/images/" + g for g in LOOSE_GROUPS)
 MIN_BG = (720, 1280)  # backgrounds below this look soft on 3x phones
 
@@ -99,6 +99,16 @@ FONT_SPECS = {
     "number": ("Rubik-Bold.ttf", 40, 3.0, 0.30, 2, -3.0),
     "body": ("Nunito-Bold.ttf", 32, 0.0, 0.0, 0, 0.0),
     "small": ("Nunito-Bold.ttf", 24, 0.0, 0.0, 0, 0.0),
+    # Korean (client/ui.lua picks "<name>_ko" for the ko language and for any text that holds Hangul), cut by
+    # tools/ko_fonts.py from assets/fonts/ko (SIL OFL). The HTML5 build pays for every glyph of every font, so the
+    # Korean set is small: title and button are ONE bank (same ttf and numbers: the build stores it once), body and
+    # small are one bank, and the number font holds no Hangul (a number text with Hangul uses the button font). The
+    # sizes are smaller than the Latin ones: the distance-field fonts scale up cleanly and a bank grows with size^2.
+    "title_ko": ("ko/Jua-KS1001.ttf", 48, 3.5, 0.33, 2, -3.5),
+    "button_ko": ("ko/Jua-KS1001.ttf", 48, 3.5, 0.33, 2, -3.5),
+    "number_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 32, 2.4, 0.30, 2, -2.4),
+    "body_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 28, 0.0, 0.0, 0, 0.0),
+    "small_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 28, 0.0, 0.0, 0, 0.0),
 }
 
 # Images copied into the "meta" atlas (fnmatch patterns over image keys of the
@@ -121,6 +131,8 @@ GUI_SPECS = {
     "screens/splash/splash.gui": ("/screens/splash/splash.gui_script", ["ui"], []),
     "screens/town/town.gui": ("/screens/town/town.gui_script", ["ui", "meta"], ["grey"], 2048),
     "screens/level/level.gui": ("/screens/level/level.gui_script", ["game", "ui"], []),
+    # the map pools its nodes (client/map_model.lua): a few hundred live at once; it hosts the start window
+    "screens/map/map.gui": ("/screens/map/map.gui_script", ["ui", "map", "meta"], []),
 }
 MATERIALS = {"grey": "render/gui_grey.material"}
 GUI_MAX_NODES = 1024
@@ -332,7 +344,8 @@ def check_loose(images, dids, warnings):
         if parts[0] == "districts" and parts[1] not in dids:
             warnings.append("image of a district that is not in content/districts.json: " + key)
         name = parts[-1]
-        if (parts[0] == "backgrounds" or name.startswith("bg")) and (e["w"] < MIN_BG[0] or e["h"] < MIN_BG[1]):
+        # the tiles of the map (mapbg/bg_*, 720 px wide, 1 logical px = 1 px) are drawn smaller than a full screen
+        if parts[0] != "mapbg" and (parts[0] == "backgrounds" or name.startswith("bg")) and (e["w"] < MIN_BG[0] or e["h"] < MIN_BG[1]):
             warnings.append("low-res background %s (%dx%d): drawn at up to %.1fx on a 3x phone, ask for %dx%d" % (
                 key, e["w"], e["h"], 1170 * 1280 / 720 / e["h"], MIN_BG[0], MIN_BG[1]))
 
@@ -371,16 +384,34 @@ def atlas_text(keys, images, anims):
 # ---------------------------------------------------------------------------
 # fonts
 # ---------------------------------------------------------------------------
-def content_chars():
-    """Non-ASCII characters used by the UI strings and the content names."""
+def is_hangul(c):
+    return 0xAC00 <= ord(c) <= 0xD7A3
+
+
+def _file_chars(paths):
     chars = set()
-    for p in (rel("client", "i18n.lua"), rel("content", "districts.json")):
+    for p in paths:
         try:
             with open(p, encoding="utf-8") as f:
                 chars |= {c for c in f.read() if ord(c) >= 0x80}
         except OSError:
             pass
-    return "".join(sorted(chars))
+    return chars
+
+
+def content_chars():
+    """Non-ASCII, non-Hangul characters used by the UI strings and the content names."""
+    chars = _file_chars((rel("client", "i18n.lua"), rel("content", "districts.json")))
+    return "".join(sorted(c for c in chars if not is_hangul(c)))
+
+
+def ko_content_chars():
+    """Hangul syllables of every text, plus the other non-ASCII marks of the Korean texts only: the glyphs the ko
+    fonts get (Latin accents and Cyrillic of the other languages are not in them)."""
+    hangul = {c for c in _file_chars((rel("client", "i18n.lua"), rel("client", "i18n_ko.lua"),
+                                       rel("content", "districts.json"), rel("content", "genres.json"))) if is_hangul(c)}
+    marks = {c for c in _file_chars((rel("client", "i18n_ko.lua"),)) if not is_hangul(c) and not 0x400 <= ord(c) <= 0x4FF}
+    return "".join(sorted(hangul | marks))
 
 
 def font_cmap(ttf):
@@ -438,11 +469,13 @@ def resolve_ttf(ttf, warnings):
 def plan_fonts(warnings):
     """Every font name of FONT_SPECS, always (gui.set_font must never fail)."""
     wanted = BASE_CHARS + CYRILLIC + LATIN1 + EXTRA_CHARS + content_chars()
+    wanted_ko = BASE_CHARS + "×−…‘’“”" + ko_content_chars()
+    wanted_ko_plain = "".join(c for c in wanted_ko if not is_hangul(c))  # number_ko: no syllables
     out = {}
     for name, spec in sorted(FONT_SPECS.items()):
         font_path, local = resolve_ttf(spec[0], warnings)
         cmap = font_cmap(local) if local else None
-        chars = sorted(set(wanted))
+        chars = sorted(set(wanted_ko_plain if name == "number_ko" else wanted_ko if name.endswith("_ko") else wanted))
         if cmap is not None:
             chars = [c for c in chars if ord(c) in cmap or c == " "]
         out[name] = (spec, "".join(chars), font_path)
@@ -501,10 +534,11 @@ def sounds_manifest(warnings):
 
 
 def song_catalogue():
-    """Ids of the jukebox songs named by content/districts.json (songs[] of every district)."""
+    """Ids of the jukebox songs named by content/districts.json and content/genres.json (songs[] of every genre)."""
     data = load_json(rel("content", "districts.json")) or {}
+    extra = load_json(rel("content", "genres.json")) or {}
     out = []
-    for d in data.get("districts", []):
+    for d in list(data.get("districts", [])) + list(extra.get("genres", [])):
         for s in (d.get("songs") or []) if isinstance(d, dict) else []:
             if isinstance(s, dict) and isinstance(s.get("id"), str):
                 out.append(s["id"])

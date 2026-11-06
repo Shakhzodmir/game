@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "note": "Animations as data (client/anim.lua plays them, client/bit.lua and screens/town/life.lua draw them). Frame pictures: `prefix` + n (loose images in assets/images/bit, 256x256, same ground line) or an explicit `images` list. The producer's drawings replace the procedural ones under the same names (tools/art/install_ready.py).",
+  "bit": {
+    "anims": {
+      "idle_breathe": { "prefix": "bit/idle_breathe_", "frames": 4, "rest": 1, "fps": 3, "mode": "pingpong", "sway": { "kind": "breathe", "amp": 0.025, "period": 2.4 } },
+      "idle_look":    { "prefix": "bit/idle_look_", "frames": 4, "rest": 2, "fps": 3, "mode": "once", "sway": { "kind": "breathe", "amp": 0.02, "period": 2.4 } },
+      "wave":         { "prefix": "bit/wave_", "frames": 4, "fps": 6, "mode": "pingpong", "sway": { "kind": "rock", "amp": 3, "period": 1.2 } },
+      "listen":       { "prefix": "bit/listen_", "frames": 4, "fps": 4, "mode": "loop", "sway": { "kind": "rock", "amp": 4, "period": 1.6 } },
+      "cheer":        { "prefix": "bit/cheer_", "frames": 6, "fps": 9, "mode": "once", "sway": { "kind": "none" },
+                        "events": [ { "frame": 6, "sfx": "land", "gain": 0.5 } ] },
+      "surprised":    { "prefix": "bit/surprised_", "frames": 4, "fps": 6, "mode": "once", "sway": { "kind": "none" },
+                        "events": [ { "frame": 2, "sfx": "tap", "gain": 0.6 } ] },
+      "sleepy":       { "prefix": "bit/sleepy_", "frames": 4, "fps": 1.6, "mode": "once", "loop_from": 3, "sway": { "kind": "breathe", "amp": 0.035, "period": 3.6 } },
+      "write":        { "prefix": "bit/write_", "frames": 6, "fps": 5, "mode": "loop", "sway": { "kind": "none" } },
+      "dance_a":      { "prefix": "bit/dance_a_", "frames": 6, "mode": "loop", "beats": 2, "sway": { "kind": "bounce", "amp": 0.07 } },
+      "dance_b":      { "prefix": "bit/dance_b_", "frames": 6, "mode": "loop", "beats": 2, "sway": { "kind": "bounce", "amp": 0.07 } },
+      "still_idle":   { "images": [ "bit/idle" ], "mode": "loop", "sway": { "kind": "breathe", "amp": 0.03, "period": 1.8 } },
+      "still_happy":  { "images": [ "bit/happy" ], "mode": "loop", "sway": { "kind": "none" } },
+      "still_sad":    { "images": [ "bit/sad" ], "mode": "loop", "sway": { "kind": "none" } },
+      "still_worried": { "images": [ "bit/worried" ], "mode": "loop", "sway": { "kind": "none" } },
+      "still_scratch": { "images": [ "bit/scratch" ], "mode": "loop", "sway": { "kind": "none" } }
+    },
+    "states": {
+      "idle":      { "anim": "idle_breathe" },
+      "look":      { "anim": "idle_look", "next": "idle" },
+      "wave":      { "anim": "wave", "loops": 2, "next": "idle" },
+      "listen":    { "anim": "listen", "loops": 3, "next": "idle" },
+      "happy":     { "anim": "cheer", "next": "idle", "priority": 2 },
+      "cheer":     { "anim": "cheer", "loops": 2, "next": "idle", "priority": 2 },
+      "surprised": { "anim": "surprised", "next": "idle", "priority": 3 },
+      "sleepy":    { "anim": "sleepy", "priority": 1 },
+      "write":     { "anim": "write", "priority": 2 },
+      "dance_a":   { "anim": "dance_a", "priority": 2 },
+      "dance_b":   { "anim": "dance_b", "priority": 2 },
+      "sad":       { "anim": "still_sad", "priority": 2 },
+      "worried":   { "anim": "still_worried", "priority": 2 },
+      "scratch":   { "anim": "still_scratch", "priority": 2 }
+    },
+    "idle": {
+      "base": "idle",
+      "gap": [3.0, 7.0],
+      "variants": [
+        { "state": "look", "weight": 5 },
+        { "state": "wave", "weight": 2 },
+        { "state": "listen", "weight": 2 }
+      ],
+      "bored_after": 45
+    },
+    "wake": "surprised",
+    "dance": { "states": [ "dance_a", "dance_b" ], "beats_per_state": 4 },
+    "events": {
+      "task_done":      { "pick": [ { "state": "cheer", "weight": 1 } ] },
+      "level_won":      { "pick": [ { "state": "cheer", "weight": 1 } ] },
+      "level_lost":     { "pick": [ { "state": "sad", "weight": 1 } ], "hold": 2.0 },
+      "refused":        { "pick": [ { "state": "worried", "weight": 1 } ], "hold": 1.4 },
+      "note_collected": { "pick": [ { "state": "listen", "weight": 1 } ] },
+      "tap":            { "pick": [ { "state": "surprised", "weight": 3 }, { "state": "wave", "weight": 2 }, { "state": "cheer", "weight": 2 } ] },
+      "notebook":       { "pick": [ { "state": "write", "weight": 1 } ], "until_released": true },
+      "headphones":     { "pick": [ { "state": "listen", "weight": 1 } ] },
+      "hello":          { "pick": [ { "state": "wave", "weight": 1 } ] }
+    }
+  },
+  "items": {
+    "note": "Sway of room items (kind: bob | sway | breathe | pulse | swing), screens/town/life.lua; a task id not listed gets `default`. amp: px (bob), degrees (sway, swing), share (breathe, pulse).",
+    "default": { "kind": "bob", "amp": 5, "period": 2.4 },
+    "tasks": {
+      "lamps":       { "kind": "swing", "amp": 2.5, "period": 3.2 },
+      "plants":      { "kind": "sway", "amp": 1.8, "period": 3.0 },
+      "cat":         { "kind": "breathe", "amp": 0.03, "period": 2.8 },
+      "turntable":   { "kind": "pulse", "amp": 0.025, "period": 0.667 },
+      "neon":        { "kind": "pulse", "amp": 0.03, "period": 1.9 },
+      "stage_light": { "kind": "swing", "amp": 3.0, "period": 2.6 },
+      "sax":         { "kind": "sway", "amp": 2.0, "period": 2.5 },
+      "garlands":    { "kind": "sway", "amp": 1.5, "period": 2.7 },
+      "lanterns":    { "kind": "swing", "amp": 3.0, "period": 3.0 },
+      "confetti":    { "kind": "bob", "amp": 7, "period": 2.0 },
+      "fog":         { "kind": "breathe", "amp": 0.05, "period": 3.4 },
+      "lasers":      { "kind": "swing", "amp": 3.5, "period": 2.2 },
+      "lightsticks": { "kind": "sway", "amp": 3.0, "period": 0.545 },
+      "dancers":     { "kind": "bounce", "amp": 6, "period": 0.545 },
+      "strings":     { "kind": "sway", "amp": 1.2, "period": 2.2 },
+      "posters":     { "kind": "sway", "amp": 1.0, "period": 3.6 },
+      "drum_kit":    { "kind": "breathe", "amp": 0.02, "period": 0.6 }
+    }
+  }
+}

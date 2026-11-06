@@ -6,11 +6,13 @@
       "id": "cafe",
       "name": {
         "ru": "Lo-fi-кафе",
-        "en": "Lo-fi Café"
+        "en": "Lo-fi Café",
+        "ko": "로파이 카페"
       },
       "genre": {
         "ru": "Лоу-фай",
-        "en": "Lo-fi"
+        "en": "Lo-fi",
+        "ko": "로파이"
       },
       "bpm": 90,
       "key": "F",
@@ -22,7 +24,8 @@
           "id": "rainy_window",
           "name": {
             "ru": "Дождь за окном",
-            "en": "Rainy Window"
+            "en": "Rainy Window",
+            "ko": "창밖의 빗소리"
           },
           "bpm": 72,
           "bars": 8,
@@ -32,7 +35,8 @@
           "id": "pancake_sunday",
           "name": {
             "ru": "Блинчики в воскресенье",
-            "en": "Pancake Sunday"
+            "en": "Pancake Sunday",
+            "ko": "일요일의 팬케이크"
           },
           "bpm": 84,
           "bars": 8,
@@ -42,7 +46,8 @@
           "id": "pixel_cafe",
           "name": {
             "ru": "Пиксельное кафе",
-            "en": "Pixel Café"
+            "en": "Pixel Café",
+            "ko": "픽셀 카페"
           },
           "bpm": 98,
           "bars": 8,
@@ -52,7 +57,8 @@
           "id": "sleepy_cat",
           "name": {
             "ru": "Сонный кот",
-            "en": "Sleepy Cat"
+            "en": "Sleepy Cat",
+            "ko": "졸린 고양이"
           },
           "bpm": 68,
           "bars": 8,
@@ -71,7 +77,8 @@
           "id": "turntable",
           "name": {
             "ru": "Проигрыватель",
-            "en": "Turntable"
+            "en": "Turntable",
+            "ko": "턴테이블"
           },
           "cost": 1,
           "stem": "beat",
@@ -81,7 +88,8 @@
           "id": "lamps",
           "name": {
             "ru": "Тёплые лампы",
-            "en": "Warm lamps"
+            "en": "Warm lamps",
+            "ko": "따뜻한 조명"
           },
           "cost": 1,
           "stem": "vinyl",
@@ -91,7 +99,8 @@
           "id": "piano",
           "name": {
             "ru": "Пианино",
-            "en": "Upright piano"
+            "en": "Upright piano",
+            "ko": "업라이트 피아노"
           },
           "cost": 2,
           "stem": "keys",
@@ -101,7 +110,8 @@
           "id": "plants",
           "name": {
             "ru": "Растения",
-            "en": "Plants"
+            "en": "Plants",
+            "ko": "화분"
           },
           "cost": 2,
           "stem": "bass",
@@ -111,7 +121,8 @@
           "id": "cat",
           "name": {
             "ru": "Кот на подоконнике",
-            "en": "Cat on the sill"
+            "en": "Cat on the sill",
+            "ko": "창턱 위 고양이"
           },
           "cost": 2,
           "stem": "lead",
@@ -121,7 +132,8 @@
           "id": "sign",
           "name": {
             "ru": "Вывеска кафе",
-            "en": "Café sign"
+            "en": "Café sign",
+            "ko": "카페 간판"
           },
           "cost": 3,
           "stem": "pad",
@@ -133,11 +145,13 @@
       "id": "jazz",
       "name": {
         "ru": "Джаз-бар",
-        "en": "Jazz Bar"
+        "en": "Jazz Bar",
+        "ko": "재즈 바"
       },
       "genre": {
         "ru": "Джаз",
-        "en": "Jazz"
+        "en": "Jazz",
+        "ko": "재즈"
       },
       "bpm": 96,
       "key": "Bb",
@@ -149,7 +163,8 @@
           "id": "bossa_breeze",
           "name": {
             "ru": "Босса-бриз",
-            "en": "Bossa Breeze"
+            "en": "Bossa Breeze",
+            "ko": "보사 브리즈"
           },
           "bpm": 112,
           "bars": 8,
@@ -159,7 +174,8 @@
           "id": "moonlight_ballad",
           "name": {
             "ru": "Лунная баллада",
-            "en": "Moonlight Ballad"
+            "en": "Moonlight Ballad",
+            "ko": "달빛 발라드"
           },
           "bpm": 66,
           "bars": 8,
@@ -169,7 +185,8 @@
           "id": "scat_parade",
           "name": {
             "ru": "Скэт-парад",
-            "en": "Scat Parade"
+            "en": "Scat Parade",
+            "ko": "스캣 퍼레이드"
           },
           "bpm": 152,
           "bars": 12,
@@ -179,7 +196,8 @@
           "id": "boogie_mouse",
           "name": {
             "ru": "Мышонок-буги",
-            "en": "Boogie Mouse"
+            "en": "Boogie Mouse",
+            "ko": "부기 생쥐"
           },
           "bpm": 132,
           "bars": 12,
@@ -198,7 +216,8 @@
           "id": "stage_light",
           "name": {
             "ru": "Свет на сцене",
-            "en": "Stage light"
+            "en": "Stage light",
+            "ko": "무대 조명"
           },
           "cost": 1,
           "stem": "brushes",
@@ -208,7 +227,8 @@
           "id": "grand_piano",
           "name": {
             "ru": "Рояль",
-            "en": "Grand piano"
+            "en": "Grand piano",
+            "ko": "그랜드 피아노"
           },
           "cost": 2,
           "stem": "piano",
@@ -218,7 +238,8 @@
           "id": "double_bass",
           "name": {
             "ru": "Контрабас",
-            "en": "Double bass"
+            "en": "Double bass",
+            "ko": "더블 베이스"
           },
           "cost": 2,
           "stem": "bass",
@@ -228,7 +249,8 @@
           "id": "neon",
           "name": {
             "ru": "Неоновая вывеска",
-            "en": "Neon sign"
+            "en": "Neon sign",
+            "ko": "네온 간판"
           },
           "cost": 3,
           "stem": "organ",
@@ -238,7 +260,8 @@
           "id": "sax",
           "name": {
             "ru": "Саксофон",
-            "en": "Saxophone"
+            "en": "Saxophone",
+            "ko": "색소폰"
           },
           "cost": 3,
           "stem": "sax",
@@ -248,7 +271,8 @@
           "id": "vibes",
           "name": {
             "ru": "Вибрафон у стойки",
-            "en": "Vibraphone"
+            "en": "Vibraphone",
+            "ko": "바 옆 비브라폰"
           },
           "cost": 4,
           "stem": "vibes",
@@ -258,7 +282,8 @@
           "id": "trumpet",
           "name": {
             "ru": "Труба с сурдиной",
-            "en": "Muted trumpet"
+            "en": "Muted trumpet",
+            "ko": "약음기 트럼펫"
           },
           "cost": 5,
           "stem": "trumpet",
@@ -270,11 +295,13 @@
       "id": "square",
       "name": {
         "ru": "Площадь уличного оркестра",
-        "en": "Street Band Square"
+        "en": "Street Band Square",
+        "ko": "거리 악단 광장"
       },
       "genre": {
         "ru": "Парад",
-        "en": "Parade"
+        "en": "Parade",
+        "ko": "퍼레이드"
       },
       "bpm": 104,
       "key": "G",
@@ -286,7 +313,8 @@
           "id": "carnival_samba",
           "name": {
             "ru": "Карнавальная самба",
-            "en": "Carnival Samba"
+            "en": "Carnival Samba",
+            "ko": "카니발 삼바"
           },
           "bpm": 100,
           "bars": 8,
@@ -296,7 +324,8 @@
           "id": "oompah_polka",
           "name": {
             "ru": "Полька Умпа-Па",
-            "en": "Oom-Pah Polka"
+            "en": "Oom-Pah Polka",
+            "ko": "움파 폴카"
           },
           "bpm": 124,
           "bars": 12,
@@ -306,7 +335,8 @@
           "id": "marching_ducks",
           "name": {
             "ru": "Марш утят",
-            "en": "Marching Ducks"
+            "en": "Marching Ducks",
+            "ko": "오리 행진"
           },
           "bpm": 112,
           "bars": 12,
@@ -316,7 +346,8 @@
           "id": "calypso_sun",
           "name": {
             "ru": "Калипсо-солнце",
-            "en": "Calypso Sun"
+            "en": "Calypso Sun",
+            "ko": "칼립소 태양"
           },
           "bpm": 108,
           "bars": 8,
@@ -335,7 +366,8 @@
           "id": "fountain",
           "name": {
             "ru": "Фонтан",
-            "en": "Fountain"
+            "en": "Fountain",
+            "ko": "분수"
           },
           "cost": 1,
           "stem": "drums",
@@ -345,7 +377,8 @@
           "id": "garlands",
           "name": {
             "ru": "Гирлянды",
-            "en": "Garlands"
+            "en": "Garlands",
+            "ko": "가랜드 전구"
           },
           "cost": 3,
           "stem": "shaker",
@@ -355,7 +388,8 @@
           "id": "truck_stage",
           "name": {
             "ru": "Сцена-грузовик",
-            "en": "Truck stage"
+            "en": "Truck stage",
+            "ko": "트럭 무대"
           },
           "cost": 3,
           "stem": "guitar",
@@ -365,7 +399,8 @@
           "id": "tuba",
           "name": {
             "ru": "Туба",
-            "en": "Tuba"
+            "en": "Tuba",
+            "ko": "튜바"
           },
           "cost": 4,
           "stem": "tuba",
@@ -375,7 +410,8 @@
           "id": "trumpets",
           "name": {
             "ru": "Трубы",
-            "en": "Trumpets"
+            "en": "Trumpets",
+            "ko": "트럼펫 합주"
           },
           "cost": 4,
           "stem": "brass",
@@ -385,7 +421,8 @@
           "id": "clarinet",
           "name": {
             "ru": "Кларнет",
-            "en": "Clarinet"
+            "en": "Clarinet",
+            "ko": "클라리넷"
           },
           "cost": 4,
           "stem": "clarinet",
@@ -395,7 +432,8 @@
           "id": "lanterns",
           "name": {
             "ru": "Фонари",
-            "en": "Lanterns"
+            "en": "Lanterns",
+            "ko": "등불"
           },
           "cost": 4,
           "stem": "claps",
@@ -405,7 +443,8 @@
           "id": "confetti",
           "name": {
             "ru": "Конфетти-пушка",
-            "en": "Confetti cannon"
+            "en": "Confetti cannon",
+            "ko": "콘페티 대포"
           },
           "cost": 5,
           "stem": "whistle",
@@ -417,11 +456,13 @@
       "id": "stadium",
       "name": {
         "ru": "K-pop-стадион",
-        "en": "K-pop Stadium"
+        "en": "K-pop Stadium",
+        "ko": "K-pop 스타디움"
       },
       "genre": {
         "ru": "К-поп",
-        "en": "K-pop"
+        "en": "K-pop",
+        "ko": "K-pop"
       },
       "bpm": 110,
       "key": "A",
@@ -433,7 +474,8 @@
           "id": "neon_heartbeat",
           "name": {
             "ru": "Неоновое сердце",
-            "en": "Neon Heartbeat"
+            "en": "Neon Heartbeat",
+            "ko": "네온 하트비트"
           },
           "bpm": 124,
           "bars": 12,
@@ -443,7 +485,8 @@
           "id": "idol_ballad",
           "name": {
             "ru": "Баллада кумира",
-            "en": "Idol Ballad"
+            "en": "Idol Ballad",
+            "ko": "아이돌 발라드"
           },
           "bpm": 70,
           "bars": 8,
@@ -453,7 +496,8 @@
           "id": "candy_rush",
           "name": {
             "ru": "Конфетный бум",
-            "en": "Candy Rush"
+            "en": "Candy Rush",
+            "ko": "캔디 러시"
           },
           "bpm": 140,
           "bars": 12,
@@ -463,7 +507,8 @@
           "id": "lightstick_wave",
           "name": {
             "ru": "Волна лайтстиков",
-            "en": "Lightstick Wave"
+            "en": "Lightstick Wave",
+            "ko": "응원봉 물결"
           },
           "bpm": 96,
           "bars": 8,
@@ -483,7 +528,8 @@
           "id": "stage",
           "name": {
             "ru": "Главная сцена",
-            "en": "Main stage"
+            "en": "Main stage",
+            "ko": "메인 무대"
           },
           "cost": 1,
           "stem": "beat",
@@ -493,7 +539,8 @@
           "id": "screens",
           "name": {
             "ru": "Экраны",
-            "en": "Big screens"
+            "en": "Big screens",
+            "ko": "대형 스크린"
           },
           "cost": 4,
           "stem": "bass",
@@ -503,7 +550,8 @@
           "id": "lightsticks",
           "name": {
             "ru": "Лайтстики в зале",
-            "en": "Lightsticks"
+            "en": "Lightsticks",
+            "ko": "객석의 응원봉"
           },
           "cost": 4,
           "stem": "chords",
@@ -513,7 +561,8 @@
           "id": "lasers",
           "name": {
             "ru": "Лазеры",
-            "en": "Lasers"
+            "en": "Lasers",
+            "ko": "레이저"
           },
           "cost": 5,
           "stem": "arp",
@@ -523,7 +572,8 @@
           "id": "choir",
           "name": {
             "ru": "Хор на подиуме",
-            "en": "Choir riser"
+            "en": "Choir riser",
+            "ko": "합창 단상"
           },
           "cost": 5,
           "stem": "choir",
@@ -533,7 +583,8 @@
           "id": "fog",
           "name": {
             "ru": "Дым-машина",
-            "en": "Fog machine"
+            "en": "Fog machine",
+            "ko": "안개 머신"
           },
           "cost": 5,
           "stem": "fx",
@@ -543,7 +594,8 @@
           "id": "dancers",
           "name": {
             "ru": "Танцоры",
-            "en": "Dancers"
+            "en": "Dancers",
+            "ko": "댄서"
           },
           "cost": 5,
           "stem": "hook",
@@ -553,7 +605,8 @@
           "id": "fireworks",
           "name": {
             "ru": "Фейерверк",
-            "en": "Fireworks"
+            "en": "Fireworks",
+            "ko": "불꽃놀이"
           },
           "cost": 5,
           "stem": "snaps",
@@ -565,11 +618,13 @@
       "id": "garage",
       "name": {
         "ru": "Рок-гараж",
-        "en": "Rock Garage"
+        "en": "Rock Garage",
+        "ko": "록 개러지"
       },
       "genre": {
         "ru": "Рок",
-        "en": "Rock"
+        "en": "Rock",
+        "ko": "록"
       },
       "bpm": 100,
       "key": "E",
@@ -581,7 +636,8 @@
           "id": "surf_splash",
           "name": {
             "ru": "Сёрф-всплеск",
-            "en": "Surf Splash"
+            "en": "Surf Splash",
+            "ko": "서프 스플래시"
           },
           "bpm": 148,
           "bars": 12,
@@ -591,7 +647,8 @@
           "id": "skate_sprint",
           "name": {
             "ru": "Скейт-спринт",
-            "en": "Skate Sprint"
+            "en": "Skate Sprint",
+            "ko": "스케이트 스프린트"
           },
           "bpm": 168,
           "bars": 16,
@@ -601,7 +658,8 @@
           "id": "sunrise_ballad",
           "name": {
             "ru": "Рассвет рок-баллады",
-            "en": "Sunrise Ballad"
+            "en": "Sunrise Ballad",
+            "ko": "록 발라드의 새벽"
           },
           "bpm": 72,
           "bars": 8,
@@ -611,7 +669,8 @@
           "id": "stomp_clap",
           "name": {
             "ru": "Топ-топ-хлоп",
-            "en": "Stomp & Clap"
+            "en": "Stomp & Clap",
+            "ko": "쿵쿵 짝"
           },
           "bpm": 92,
           "bars": 8,
@@ -631,7 +690,8 @@
           "id": "drum_kit",
           "name": {
             "ru": "Ударная установка",
-            "en": "Drum kit"
+            "en": "Drum kit",
+            "ko": "드럼 세트"
           },
           "cost": 1,
           "stem": "drums",
@@ -641,7 +701,8 @@
           "id": "amp",
           "name": {
             "ru": "Усилитель",
-            "en": "Amp stack"
+            "en": "Amp stack",
+            "ko": "앰프"
           },
           "cost": 3,
           "stem": "rhythm",
@@ -651,7 +712,8 @@
           "id": "bass_guitar",
           "name": {
             "ru": "Бас-гитара",
-            "en": "Bass guitar"
+            "en": "Bass guitar",
+            "ko": "베이스 기타"
           },
           "cost": 3,
           "stem": "bass",
@@ -661,7 +723,8 @@
           "id": "posters",
           "name": {
             "ru": "Стена постеров",
-            "en": "Poster wall"
+            "en": "Poster wall",
+            "ko": "포스터 벽"
           },
           "cost": 4,
           "stem": "lead",
@@ -671,7 +734,8 @@
           "id": "keyboard",
           "name": {
             "ru": "Клавишные",
-            "en": "Keyboard"
+            "en": "Keyboard",
+            "ko": "키보드"
           },
           "cost": 4,
           "stem": "organ",
@@ -681,7 +745,8 @@
           "id": "tambourine",
           "name": {
             "ru": "Бубен на гвозде",
-            "en": "Tambourine"
+            "en": "Tambourine",
+            "ko": "벽에 걸린 탬버린"
           },
           "cost": 4,
           "stem": "tamb",
@@ -691,7 +756,8 @@
           "id": "garage_door",
           "name": {
             "ru": "Гаражные ворота",
-            "en": "Garage door"
+            "en": "Garage door",
+            "ko": "개러지 문"
           },
           "cost": 4,
           "stem": "toms",
@@ -701,7 +767,8 @@
           "id": "strings",
           "name": {
             "ru": "Гирлянда из ламп",
-            "en": "Bulb string"
+            "en": "Bulb string",
+            "ko": "전구 줄"
           },
           "cost": 4,
           "stem": "strings",
@@ -711,7 +778,8 @@
           "id": "mic_stand",
           "name": {
             "ru": "Микрофон вокалиста",
-            "en": "Singer's mic"
+            "en": "Singer's mic",
+            "ko": "보컬의 마이크"
           },
           "cost": 4,
           "stem": "gang",

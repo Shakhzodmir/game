@@ -32,6 +32,8 @@
 local layout = require("client.layout")
 local gfx = require("client.gfx")
 local assets = require("client.assets")
+local gui_qa = require("client.gui_qa")
+local i18n = require("client.i18n")
 
 local M = {}
 
@@ -67,6 +69,19 @@ M.STYLES = {
 }
 
 M.FONT_FALLBACK = "body"
+
+-- Korean fonts: every font name has a "<name>_ko" twin (tools/gen_defold.py) with the same size. The twin is used when
+-- the language is Korean and for any text that holds Hangul (the "한국어" button of the language switch in the other
+-- languages); a text with Cyrillic ("Русский" in the Korean UI) keeps the plain font. The test is a plain find, no allocation.
+local HANGUL = "[\234-\237][\128-\191][\128-\191]" -- UTF-8 lead bytes EA..ED: U+AC00..U+D7A3 and neighbours
+
+local CYRILLIC = "[\208\209][\128-\191]" -- U+0400..U+047F: "Русский" on the language switch stays in the Latin/Cyrillic font
+
+function M.font_for(font, str)
+	if str and string.find(str, HANGUL) then return (font == "number" and "button" or font) .. "_ko" end -- number_ko has no syllables
+	if i18n.language() == "ko" and not (str and string.find(str, CYRILLIC)) then return font .. "_ko" end
+	return font
+end
 M.EDGE_BANDS = 48      -- colour bands along a background edge (backdrop)
 M.EDGE_STEPS = 16      -- texels from the image edge outwards
 M.EDGE_HAZE = "#FFFFFF"
@@ -214,6 +229,69 @@ end
 
 function Scene:update(dt)
 	self:refit(false)
+	if gui_qa.want > 0 and self.qa_seen ~= gui_qa.want then
+		self.qa_seen = gui_qa.want
+		gui_qa.out[self.gui_path or "?"] = self:_qa_bounds()
+	end
+end
+
+-- QA only (the debug bridge command gui_bounds sets client/gui_qa.lua `track` before a window is built and `want`/`out` to
+-- ask for the answer): the texts this scene made, with the window-pixel rectangle of each and of the box it sits
+-- on. The release build never sets `track`, so nothing is recorded there.
+function Scene:_qa_bounds()
+	local out = {}
+	for _, rec in ipairs(self.qa_texts or {}) do
+		pcall(function()
+			local n, fontname = rec[1], rec[2]
+			local str = gui.get_text(n)
+			if str == "" or not gui.is_enabled(n, true) then return end
+			if gui.get_color(n).w < 0.05 then return end
+			local sx, p = 1, n
+			while p do
+				sx = sx * gui.get_scale(p).x
+				p = gui.get_parent(p)
+			end
+			local fres = gui.get_font_resource(gui.get_font(n))
+			local m
+			if gui.get_line_break(n) then
+				m = resource.get_text_metrics(fres, str, { width = gui.get_size(n).x, line_break = true })
+			else
+				m = resource.get_text_metrics(fres, str) -- the engine rejects an explicit nil options argument
+			end
+			local pos = gui.get_screen_position(n)
+			local pv = gui.get_pivot(n)
+			local fx = (pv == gui.PIVOT_W or pv == gui.PIVOT_NW or pv == gui.PIVOT_SW) and 0
+				or (pv == gui.PIVOT_E or pv == gui.PIVOT_NE or pv == gui.PIVOT_SE) and -1 or -0.5
+			local fy = (pv == gui.PIVOT_N or pv == gui.PIVOT_NE or pv == gui.PIVOT_NW) and -1
+				or (pv == gui.PIVOT_S or pv == gui.PIVOT_SE or pv == gui.PIVOT_SW) and 0 or -0.5
+			local w, h = m.width * sx, m.height * sx
+			local row = { t = str, x0 = pos.x + fx * w, y0 = pos.y + fy * h, w = w, h = h, px = assets.font_size(fontname) * sx }
+			local box = gui.get_parent(n)
+			while box do
+				if gui.get_type(box) == gui.TYPE_BOX and gui.is_enabled(box, true) then
+					local size = gui.get_size(box)
+					if size.x > 0 and size.y > 0 then
+						local bsx, q = 1, box
+						while q do
+							bsx = bsx * gui.get_scale(q).x
+							q = gui.get_parent(q)
+						end
+						local bp, bv = gui.get_screen_position(box), gui.get_pivot(box)
+						local bw, bh = size.x * bsx, size.y * bsx
+						local bfx = (bv == gui.PIVOT_W or bv == gui.PIVOT_NW or bv == gui.PIVOT_SW) and 0
+							or (bv == gui.PIVOT_E or bv == gui.PIVOT_NE or bv == gui.PIVOT_SE) and -1 or -0.5
+						local bfy = (bv == gui.PIVOT_N or bv == gui.PIVOT_NE or bv == gui.PIVOT_NW) and -1
+							or (bv == gui.PIVOT_S or bv == gui.PIVOT_SE or bv == gui.PIVOT_SW) and 0 or -0.5
+						row.bx0, row.by0, row.bw, row.bh = bp.x + bfx * bw, bp.y + bfy * bh, bw, bh
+						break
+					end
+				end
+				box = gui.get_parent(box)
+			end
+			out[#out + 1] = row
+		end)
+	end
+	return out
 end
 
 function Scene:final()
@@ -502,7 +580,8 @@ end
 -- Returns node, info (pass info to Scene:set_text).
 function Scene:text(parent, str, x, y, opts)
 	opts = opts or {}
-	local font = opts.font or "body"
+	local base_font = opts.font or "body"
+	local font = M.font_for(base_font, str)
 	local n = gui.new_text_node(v3(x, y), str or "")
 	gui.set_parent(n, parent or self.root)
 	if not pcall(gui.set_font, n, font) then
@@ -526,8 +605,12 @@ function Scene:text(parent, str, x, y, opts)
 		gui.set_size(n, v3(opts.width / scale, (opts.height or 400) / scale))
 	end
 	gui.set_scale(n, vmath.vector3(scale, scale, 1))
-	local info = { scale = scale, max_width = opts.max_width, font = font }
+	local info = { scale = scale, max_width = opts.max_width, font = font, base_font = base_font }
 	self:_fit_text(n, info)
+	if gui_qa.track then
+		self.qa_texts = self.qa_texts or {}
+		self.qa_texts[#self.qa_texts + 1] = { n, font }
+	end
 	return n, info
 end
 
@@ -544,9 +627,29 @@ function Scene:_fit_text(n, info)
 	gui.set_scale(n, vmath.vector3(s, s, 1))
 end
 
+-- How many lines `str` takes at `size` px when it is wrapped at `width` logical px (an estimate with a margin for the
+-- words that do not break where the width does), to size a block before the text is made.
+function Scene:text_lines(str, font, size, width)
+	local f = M.font_for(font or "body", str)
+	local ok, w = pcall(function()
+		local node = gui.new_text_node(v3(0, 0), str)
+		gui.set_font(node, f)
+		local m = resource.get_text_metrics(gui.get_font_resource(gui.get_font(node)), str)
+		gui.delete_node(node)
+		return m.width
+	end)
+	if not ok or not w then w = #str * assets.font_size(f) * 0.55 end
+	local px = w * size / assets.font_size(f)
+	return math.max(1, math.ceil(px / (width * 0.9)))
+end
+
 -- Changes the text of a node made by Scene:text; pass the info it returned
 -- to keep the shrink-to-fit behaviour.
 function Scene:set_text(n, str, info)
+	if info and info.base_font then
+		local f = M.font_for(info.base_font, str)
+		if f ~= info.font and pcall(gui.set_font, n, f) then info.font = f end
+	end
 	gui.set_text(n, str)
 	if info and info.max_width then self:_fit_text(n, info) end
 end
@@ -658,13 +761,13 @@ function Scene:button(spec)
 	if spec.text then
 		local st = M.STYLES[style] or M.STYLES.green
 		local dark = style == "white"
-		btn.label, btn.label_info = self:text(node, spec.text, label_dx, 6, {
+		btn.label, btn.label_info = self:text(node, spec.text, label_dx - (spec.text_pad_right or 0) / 2, 6, {
 			font = spec.font or "button",
 			size = spec.text_size or math.min(46, h * 0.42),
 			color = dark and "text" or "white",
 			outline = dark and false or st[4],
 			shadow = not dark and st[4] or false,
-			max_width = math.max(10, w - (w >= 120 and 40 or 12) - (label_dx * 2)),
+			max_width = math.max(10, w - (w >= 120 and 40 or 12) - (label_dx * 2) - (spec.text_pad_right or 0)),
 		})
 		gui.set_inherit_alpha(btn.label, true)
 	end

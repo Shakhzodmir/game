@@ -56,8 +56,10 @@ local REGISTRY = {
 	lives = require("gui.lives"),
 	shop = require("gui.shop"),
 	settings = require("gui.settings"),
+	account = require("gui.account"), -- opened from the settings
 	confirm = require("gui.confirm"),
 	chest = require("gui.chest"), -- the results window opens the level chest
+	notebook = require("gui.notebook"), -- ... and the song that was just finished
 }
 
 local Level = {}
@@ -194,12 +196,12 @@ function Level:on_result(result)
 		if not res then return self:fail_end() end
 		local view = level_windows.result(app.meta, res, result, app.now())
 		self:open("result", {
-			view = view, refund = res.refund, standalone = res.standalone,
+			view = view, refund = res.refund, standalone = res.standalone, back = self.back,
 			on_close = function(r)
 				if r == "town" then
 					self:go_town(0)
 				elseif type(r) == "table" and r.action == "next" then
-					app.show_screen("level", { level = r.level, from = "level" })
+					app.show_screen("level", { level = r.level, from = "level", back = self.back })
 				end
 			end,
 		})
@@ -210,13 +212,13 @@ function Level:on_result(result)
 		local st = link.status() or {}
 		local view = level_windows.defeat(app.meta, res, st, self.hud.goal_defs, self.hud.goals and self.hud.goals.total, app.now())
 		self:open("defeat", {
-			view = view, level_id = self.ctx.level_id, standalone = res.standalone,
+			view = view, level_id = self.ctx.level_id, standalone = res.standalone, back = self.back,
 			on_close = function(r)
 				if r == "town" then
 					if not res.standalone then app.push_reward(res) end -- the town shows the life and the streak
 					self:go_town(0)
 				elseif type(r) == "table" and r.action == "retry" then
-					app.show_screen("level", { level = self.ctx.level_id, from = "level" })
+					app.show_screen("level", { level = self.ctx.level_id, from = "level", back = self.back })
 				end
 			end,
 		})
@@ -479,7 +481,7 @@ function Level:update(dt)
 		self.leave_in = self.leave_in - dt
 		if self.leave_in <= 0 then
 			self.leave_in = nil
-			app.show_screen("town", { from = "level" })
+			app.show_screen(self.back or "town", { from = "level" })
 		end
 	end
 	self:publish()
@@ -533,16 +535,22 @@ local function new_level()
 	t.tutv = tutorial_view.new(t.ui, { parent = t.c_tut, fx = t.fx, hud = t.hud, on_skip = function() t:skip_tutorial() end })
 	t.popups = popups.new(t.ui, t.c_popups, {
 		registry = REGISTRY, fx = t.fx,
-		release = function() t.ui:release_images(bit.images()) end,
+		release = function()
+			local keep = bit.images()
+			if t.popups and (t.popups:find("notebook") or t.popups:find("result")) then REGISTRY.notebook.images(keep) end
+			t.ui:release_images(keep)
+		end,
 		on_change = function() t:on_popups() end,
 	})
 	t.sub = bus.subscribe({
 		"level_ready", "level_moves", "level_goal", "level_score", "level_state", "level_result", "level_booster",
 		"level_special", "level_noise", "level_praise", "level_bonus", "level_bonus_gift", "meta_changed", "language_changed", "settings_changed",
-		"screen_leaving", "lives_tick", "popup_request",
+		"screen_leaving", "lives_tick", "popup_request", "cloud_status", "auth_changed",
 	}, "level_hud")
 	t.bus_cb = function(topic, p) t:on_bus(topic, p) end
 	t.state, t.dirty, t.paused, t.ended = "playing", false, false, false
+	-- the screen to go back to when the level is done: the map when the level was started from it
+	t.back = app.params and app.params.back == "map" and "map" or nil
 	return t
 end
 

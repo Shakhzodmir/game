@@ -487,14 +487,20 @@ describe("screens/town/town.gui_script", function()
 		end)
 	end)
 
-	it("says 'coming soon' for the band and chart tabs and opens the shop and the jukebox", function()
+	it("opens the band and chart windows (no server: they say so) and the shop and the jukebox", function()
 		G.with_town({}, function(c)
 			tap_target(c, "nav_band")
 			c.run(0.7)
-			assert_eq(c.app.overlay.toast, "Coming soon!")
-			assert_eq(c.app.ui.popup, nil)
+			assert_eq(c.app.ui.popup, "band")
+			assert_eq(c.app.ui.band.stage, "unavailable")
+			c.app.close_popup()
+			c.run(0.6)
 			tap_target(c, "nav_chart")
-			c.run(0.2)
+			c.run(0.7)
+			assert_eq(c.app.ui.popup, "chart")
+			assert_eq(c.app.ui.chart.stage, "unavailable")
+			c.app.close_popup()
+			c.run(0.6)
 			tap_target(c, "nav_shop")
 			c.run(0.6)
 			assert_eq(c.app.ui.popup, "shop")
@@ -651,12 +657,14 @@ describe("screens/town/town.gui_script", function()
 			local concert = district_pictures()
 			assert_eq(#concert, #jazz)
 			only_of(concert, "jazz")
-			-- Bit has one picture per mood, at most
+			-- Bit has the pictures of its animations (loaded when first shown), at most
 			local bits = 0
 			for _, key in ipairs(c.town:loose_images()) do
 				if string.sub(key, 1, 4) == "bit/" then bits = bits + 1 end
 			end
-			assert_true(bits >= 1 and bits <= #require("client.bit").MOODS, "Bit pictures: " .. bits)
+			local all = 0
+			for _ in pairs(require("client.bit").images()) do all = all + 1 end -- order-free: a count
+			assert_true(bits >= 1 and bits <= all, "Bit pictures: " .. bits .. " of " .. all)
 		end)
 	end)
 end)

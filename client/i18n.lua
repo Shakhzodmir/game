@@ -1,4 +1,4 @@
--- UI strings in English and Russian + formatting helpers (pure Lua).
+-- UI strings in English, Russian and Korean + formatting helpers (pure Lua).
 --
 --   local i18n = require("client.i18n")
 --   i18n.set_language("auto", sys.get_sys_info().language)  -- setting from the meta
@@ -8,8 +8,8 @@
 --   i18n.duration(125)                          --> "2:05"
 --   i18n.name({en = "Jazz Bar", ru = "Джаз-бар"}) --> by current language
 --
--- Every entry holds both languages side by side, so a missing translation is
--- visible in review and caught by tests/client/i18n_test.lua. A value is a
+-- Every entry holds en and ru side by side; the Korean text of the same key lives in client/i18n_ko.lua and is merged
+-- in below as `ko` (one plural form: a plain string). A missing translation is caught by tests/client/i18n_test.lua. A value is a
 -- string with {placeholders} or, for counted phrases, a plural table:
 -- en {one, other}; ru {one, few, many} (1 звезда, 2 звезды, 5 звёзд).
 -- Glyphs used here must exist in the generated fonts (tools/gen_defold.py
@@ -17,7 +17,7 @@
 
 local M = {}
 
-M.LANGUAGES = { "en", "ru" }
+M.LANGUAGES = { "en", "ru", "ko" }
 M.FALLBACK = "en"
 
 local S = {
@@ -274,14 +274,21 @@ local S = {
 	["win.chest_open"] = { en = "Open", ru = "Открыть" },
 	["win.chest_got"] = { en = "Chest collected!", ru = "Сундук получен!" },
 	["win.chest_lives_on"] = { en = "Unlimited lives are on!", ru = "Бесконечные жизни включены!" },
+	-- the stars note of the results window: what decides the stars (score thresholds of the level)
 	["win.stars_note"] = {
-		en = "Stars depend on the level: easy and medium give 1, hard 2, super hard 3. Moves left give coins.",
-		ru = "Звёзды зависят от сложности: лёгкий и средний уровень даёт 1, сложный 2, суперсложный 3. Ходы в запасе дают монеты.",
+		en = "Stars come from your score: the more points, the more stars. Moves left give coins.",
+		ru = "Звёзды зависят от очков: чем больше очков, тем больше звёзд. Ходы в запасе дают монеты.",
 	},
+	["win.next_star"] = { en = "{n} more points for the next star", ru = "До следующей звезды: {n}" },
+	["win.max_stars"] = { en = "All 3 stars!", ru = "Все 3 звезды!" },
+	["win.stars_new"] = { en = "+{n} to your stars", ru = "+{n} к твоим звёздам" },
+	["win.stars_kept"] = { en = "Best on this level: {n} of 3 (stars never go down)", ru = "Лучший результат уровня: {n} из 3 (звёзды не отнимаются)" },
+	["win.new_record"] = { en = "New score record!", ru = "Новый рекорд очков!" },
+	["win.super_new"] = { en = "+{n} super stars", ru = "+{n} суперзвёзд" },
+	["win.super_have"] = { en = "Super stars: {n}", ru = "Суперзвёзды: {n}" },
 	["win.free_next"] = { en = "Free next start:", ru = "Бесплатно на старте:" },
 	["win.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
 	["win.refund"] = { en = "Returned to you: {names}", ru = "Возвращено тебе: {names}" },
-	["win.debug"] = { en = "Test level: no reward", ru = "Тестовый уровень: без награды" },
 
 	-- tutorial -----------------------------------------------------------------------------------------------------
 	-- Two lines at most in the bubble (screens/level/tutorial_view.lua): a third one runs under its Skip tab.
@@ -395,6 +402,103 @@ local S = {
 	["stem.gang"] = { en = "Gang vocals", ru = "Хор группы" },
 
 	-- ============================================================================================================
+	-- accounts and the cloud save (WP-10) ---------------------------------------------------------------------------
+	["account.title"] = { en = "Account", ru = "Аккаунт" },
+	["account.choice_title"] = { en = "Save your progress?", ru = "Сохранить прогресс?" },
+	["account.choice_text"] = { en = "Sign in to keep your progress and continue on any device.", ru = "Войдите, чтобы прогресс сохранился и переносился между устройствами." },
+	["account.privacy"] = { en = "We store only your sign-in and your save. You can delete both in Settings at any time.", ru = "Мы храним только ваш вход и сохранение игры. Удалить их можно в любой момент в Настройках." },
+	["account.guest"] = { en = "Play as guest", ru = "Играть как гость" },
+	["account.guest_note"] = { en = "A guest's progress stays on this device only.", ru = "Гостю прогресс сохраняется только на этом устройстве." },
+	["account.google"] = { en = "Sign in with Google", ru = "Войти через Google" },
+	["account.id_login"] = { en = "Sign in with ID and password", ru = "Войти по ID и паролю" },
+	["account.create"] = { en = "Create account", ru = "Создать аккаунт" },
+	["account.unavailable"] = { en = "Sign-in is not available yet.", ru = "Вход пока недоступен." },
+	["account.as_guest"] = { en = "You are playing as a guest. Progress is saved on this device only.", ru = "Вы играете как гость. Прогресс хранится только на этом устройстве." },
+	["account.signed_as"] = { en = "Signed in: {name}", ru = "Вы вошли: {name}" },
+	["account.kind_google"] = { en = "Google account", ru = "Аккаунт Google" },
+	["account.kind_id"] = { en = "ID and password account", ru = "Аккаунт с ID и паролем" },
+	["account.no_mail_warn"] = { en = "No e-mail is linked: a forgotten password cannot be restored. Link an e-mail.", ru = "Почта не привязана: забытый пароль восстановить нельзя. Привяжите почту." },
+	["account.pending_mail"] = { en = "Waiting for confirmation: {email}. Open the letter and tap the link.", ru = "Ждём подтверждения: {email}. Откройте письмо и нажмите на ссылку." },
+	["account.link_google"] = { en = "Link Google", ru = "Привязать Google" },
+	["account.link_email"] = { en = "Link e-mail", ru = "Привязать почту" },
+	["account.check_mail"] = { en = "I confirmed the e-mail", ru = "Я подтвердил(а) почту" },
+	["account.sync_now"] = { en = "Save to cloud now", ru = "Сохранить в облако сейчас" },
+	["account.sign_out"] = { en = "Sign out", ru = "Выйти" },
+	["account.delete"] = { en = "Delete account and data", ru = "Удалить аккаунт и данные" },
+	["account.signout_title"] = { en = "Sign out?", ru = "Выйти из аккаунта?" },
+	["account.signout_text"] = { en = "Your progress stays on this device. Another account will not get it.", ru = "Прогресс останется на этом устройстве. Другой аккаунт его не получит." },
+	["account.signout_unsynced"] = { en = "Latest progress is not in the cloud yet. It stays on this device. Sign out anyway?", ru = "Последний прогресс ещё не в облаке. Он останется на этом устройстве. Всё равно выйти?" },
+	["account.delete_title"] = { en = "Delete account?", ru = "Удалить аккаунт?" },
+	["account.delete_text"] = { en = "The account and its cloud save will be deleted for good. Progress on this device stays.", ru = "Аккаунт и его облачное сохранение будут удалены навсегда. Прогресс на этом устройстве останется." },
+	["account.delete_do"] = { en = "Delete", ru = "Удалить" },
+	["account.signed_in"] = { en = "Signed in", ru = "Вход выполнен" },
+	["account.signed_out"] = { en = "Signed out", ru = "Вы вышли из аккаунта" },
+	["account.deleted"] = { en = "Account deleted", ru = "Аккаунт удалён" },
+	["account.linked"] = { en = "Google linked", ru = "Google привязан" },
+	["account.mail_sent"] = { en = "Letter sent to {email}", ru = "Письмо отправлено на {email}" },
+	["account.mail_confirmed"] = { en = "E-mail confirmed", ru = "Почта подтверждена" },
+	["account.mail_not_yet"] = { en = "Not confirmed yet: open the letter and tap the link", ru = "Пока не подтверждено: откройте письмо и нажмите на ссылку" },
+	["account.reminder"] = { en = "Playing as a guest: progress will not move to another device. Sign in under Settings, Account.", ru = "Вы играете как гость: прогресс не сохранится на другом устройстве. Войти можно в Настройках, раздел «Аккаунт»." },
+	["account.form_id"] = { en = "ID (3-20: letters, digits, _)", ru = "ID (3-20: буквы, цифры, _)" },
+	["account.form_password"] = { en = "Password (8 or more characters)", ru = "Пароль (от 8 символов)" },
+	["account.form_password2"] = { en = "Repeat the password", ru = "Повторите пароль" },
+	["account.form_email"] = { en = "E-mail", ru = "Почта" },
+	["account.form_err_id"] = { en = "ID: 3-20 characters, a letter first, then letters, digits or _", ru = "ID: 3-20 знаков, первая буква, дальше буквы, цифры или _" },
+	["account.form_err_pw"] = { en = "The password needs 8 or more characters", ru = "Пароль должен быть не короче 8 символов" },
+	["account.form_err_pw2"] = { en = "The passwords do not match", ru = "Пароли не совпадают" },
+	["account.form_err_email"] = { en = "This does not look like an e-mail address", ru = "Это не похоже на адрес почты" },
+	["account.form_register_note"] = { en = "No e-mail needed. If you forget the password it cannot be restored. Link an e-mail later in Settings, Account.", ru = "Почта не нужна. Если забудете пароль, восстановить его будет нельзя. Почту можно привязать позже: Настройки, «Аккаунт»." },
+	["account.form_mail_note"] = { en = "We will send a letter to confirm this address.", ru = "Мы отправим письмо, чтобы подтвердить этот адрес." },
+	["auth.err.unavailable"] = { en = "Sign-in is not available yet", ru = "Вход пока недоступен" },
+	["auth.err.busy"] = { en = "One moment, still working", ru = "Минутку, ещё выполняется" },
+	["auth.err.offline"] = { en = "No connection. Try again later", ru = "Нет соединения. Попробуйте позже" },
+	["auth.err.timeout"] = { en = "The server did not answer. Try again later", ru = "Сервер не ответил. Попробуйте позже" },
+	["auth.err.popup_blocked"] = { en = "The browser blocked the sign-in window. Allow pop-ups", ru = "Браузер заблокировал окно входа. Разрешите всплывающие окна" },
+	["auth.err.bad_credentials"] = { en = "Wrong ID or password", ru = "Неверный ID или пароль" },
+	["auth.err.id_taken"] = { en = "This ID is taken. Choose another", ru = "Этот ID занят. Выберите другой" },
+	["auth.err.email_in_use"] = { en = "This e-mail belongs to another account", ru = "Эта почта принадлежит другому аккаунту" },
+	["auth.err.weak_password"] = { en = "The password is too weak", ru = "Слишком простой пароль" },
+	["auth.err.bad_id"] = { en = "This ID is not allowed", ru = "Такой ID нельзя" },
+	["auth.err.bad_email"] = { en = "This e-mail address is not valid", ru = "Неверный адрес почты" },
+	["auth.err.need_recent_login"] = { en = "For safety, sign in again first, then repeat", ru = "Для безопасности войдите заново и повторите" },
+	["auth.err.already_linked"] = { en = "This account is already linked to another player", ru = "Этот аккаунт уже привязан к другому игроку" },
+	["auth.err.too_many"] = { en = "Too many attempts. Wait a little", ru = "Слишком много попыток. Подождите" },
+	["auth.err.not_enabled"] = { en = "This way of signing in is not turned on yet", ru = "Этот способ входа ещё не включён" },
+	["auth.err.bad_domain"] = { en = "Sign-in is not set up for this site yet", ru = "Вход для этого сайта ещё не настроен" },
+	["auth.err.denied"] = { en = "The server refused the request", ru = "Сервер отклонил запрос" },
+	["auth.err.no_user"] = { en = "You are not signed in", ru = "Вы не вошли в аккаунт" },
+	["auth.err.error"] = { en = "Something went wrong. Try again later", ru = "Что-то пошло не так. Попробуйте позже" },
+	["cloud.status.off"] = { en = "Not signed in", ru = "Вход не выполнен" },
+	["cloud.status.synced"] = { en = "Saved in the cloud", ru = "Сохранено в облаке" },
+	["cloud.status.syncing"] = { en = "Saving to the cloud...", ru = "Сохраняем в облако..." },
+	["cloud.status.offline"] = { en = "No connection: will try again", ru = "Нет соединения: повторим позже" },
+	["cloud.status.error"] = { en = "Cloud error: will try again", ru = "Ошибка облака: повторим позже" },
+	["cloud.status.paused"] = { en = "Cloud saving is paused", ru = "Сохранение в облако приостановлено" },
+	["cloud.status.decision"] = { en = "Choose which save to keep", ru = "Выберите, какое сохранение оставить" },
+	["cloud.sum"] = { en = "Levels {n}, coins {coins}, stars {stars}", ru = "Уровней {n}, монет {coins}, звёзд {stars}" },
+	["cloud.this_device"] = { en = "This device", ru = "Это устройство" },
+	["cloud.account"] = { en = "Your account", ru = "Ваш аккаунт" },
+	["cloud.more_progress"] = { en = "More progress", ru = "Прогресс больше" },
+	["cloud.title.offer_upload"] = { en = "Save this progress?", ru = "Сохранить этот прогресс?" },
+	["cloud.text.offer_upload"] = { en = "This device is further along than your account. Upload it to the cloud?", ru = "На этом устройстве прогресс больше, чем в аккаунте. Загрузить его в облако?" },
+	["cloud.title.offer_download"] = { en = "Use the cloud save?", ru = "Взять облачное сохранение?" },
+	["cloud.text.offer_download"] = { en = "Your account has more progress than this device. Take it? Progress here is kept as a backup.", ru = "В аккаунте прогресс больше, чем на этом устройстве. Взять его? Прогресс здесь останется в запасе." },
+	["cloud.title.choose"] = { en = "Which game to keep?", ru = "Какую игру оставить?" },
+	["cloud.text.choose"] = { en = "This device and your account hold different games. The one you do not choose is kept as a backup.", ru = "На устройстве и в аккаунте разные игры. Та, что не выбрана, останется в запасе." },
+	["cloud.title.foreign"] = { en = "Another account's save", ru = "Сохранение другого аккаунта" },
+	["cloud.text.foreign"] = { en = "The save on this device belongs to another account and is not mixed with this one.", ru = "Сохранение на этом устройстве принадлежит другому аккаунту и не смешивается с этим." },
+	["cloud.text.damaged"] = { en = "The save in the cloud is damaged and was not used. Upload the progress from this device?", ru = "Сохранение в облаке повреждено, его не использовали. Загрузить прогресс с этого устройства?" },
+	["cloud.do_upload"] = { en = "Save to the cloud", ru = "Сохранить в облако" },
+	["cloud.do_download"] = { en = "Use cloud save", ru = "Взять из облака" },
+	["cloud.keep_device"] = { en = "Keep this device", ru = "Оставить это устройство" },
+	["cloud.keep_cloud"] = { en = "Use the cloud save", ru = "Взять облачное" },
+	["cloud.start_new"] = { en = "Start a new game", ru = "Начать новую игру" },
+	["cloud.bring_device"] = { en = "Bring this device's progress", ru = "Перенести прогресс с устройства" },
+	["cloud.later"] = { en = "Not now", ru = "Не сейчас" },
+	["cloud.loaded"] = { en = "Progress loaded", ru = "Прогресс загружен" },
+	["cloud.uploading"] = { en = "Saving to the cloud...", ru = "Сохраняем в облако..." },
+	["cloud.err_write"] = { en = "Could not write the save on this device. Nothing was changed", ru = "Не удалось записать сохранение на устройстве. Ничего не изменено" },
+
 	-- META SCREENS: splash, town, start window, lives, shop, settings, jukebox, chests and gifts, the
 	-- district concert, toasts. Owner: screens/town, screens/splash, gui/*.lua, main/overlay.gui_script.
 	-- Strings of those screens are added here and nowhere else (the level screen has its own block).
@@ -426,6 +530,25 @@ local S = {
 	["splash.gift"] = { en = "Gift: {name} boosters!", ru = "Подарок: бустеры «{name}»!" },
 	["splash.chest"] = { en = "{name}: the district chest is yours!", ru = "{name}: сундук района твой!" },
 
+	-- map (screens/map) ------------------------------------------------------------------------------------------------
+	["map.title"] = { en = "Map", ru = "Карта" },
+	["map.button"] = { en = "Map", ru = "Карта" },
+	["map.back"] = { en = "Town", ru = "Город" },
+	["map.to_current"] = { en = "My level", ru = "К моему уровню" },
+	["map.locked"] = { en = "Opens after level {n}", ru = "Откроется после уровня {n}" },
+	["map.soon"] = { en = "New levels soon!", ru = "Скоро новые уровни!" },
+	["map.soon_text"] = {
+		en = "Play the beaten levels again to win more stars.",
+		ru = "Пройденные уровни можно сыграть снова ради звёзд.",
+	},
+	["win.map"] = { en = "To the map", ru = "На карту" },
+	["start.replay"] = { en = "Play again", ru = "Играть снова" },
+	["start.replay_text"] = {
+		en = "Beat your best for more stars. No coins or lives are spent.",
+		ru = "Побей свой рекорд ради звёзд. Монеты и жизни не тратятся.",
+	},
+	["start.best_score"] = { en = "Best score: {n}", ru = "Рекорд: {n}" },
+
 	-- town: top bar, task card, level button, navigation, hints --------------------------------------------------------
 	["town.level"] = { en = "Level {n}", ru = "Уровень {n}" },
 	["town.hard"] = { en = "Hard", ru = "Сложный" },
@@ -445,6 +568,10 @@ local S = {
 	["town.task_adds"] = { en = "Adds {stem} to the track", ru = "Добавит в трек: {stem}" },
 	["town.layer_added"] = { en = "+ {stem}!", ru = "+ {stem}!" },
 	["town.stars_hint"] = { en = "Win levels to earn stars", ru = "Звёзды дают за победы в уровнях" },
+	["town.super_stars_hint"] = {
+		en = "Super stars: {n}. Concert levels give them. What they buy comes soon.",
+		ru = "Суперзвёзды: {n}. Их дают уровни-концерты. На что их тратить, скоро узнаем.",
+	},
 	["town.item_wait"] = { en = "{item}: coming soon to the track", ru = "{item}: скоро зазвучит в треке" },
 	["town.back_to"] = { en = "Back to {name}", ru = "Назад: {name}" },
 	["nav.shop"] = { en = "Shop", ru = "Магазин" },
@@ -552,6 +679,8 @@ local S = {
 	["shop.infinite_on"] = { en = "Unlimited lives are on", ru = "Жизни бесконечны" },
 
 	-- settings ---------------------------------------------------------------------------------------------------------
+	["settings.account_guest"] = { en = "Guest", ru = "Гость" },
+	["settings.account_user"] = { en = "Account: {name}", ru = "Аккаунт: {name}" },
 	["settings.title"] = { en = "Settings", ru = "Настройки" },
 	["settings.music"] = { en = "Music", ru = "Музыка" },
 	["settings.sfx"] = { en = "Sounds", ru = "Звуки" },
@@ -564,6 +693,7 @@ local S = {
 	["settings.lang_auto"] = { en = "Auto", ru = "Авто" },
 	["settings.lang_en"] = { en = "English", ru = "English" },
 	["settings.lang_ru"] = { en = "Русский", ru = "Русский" },
+	["settings.lang_ko"] = { en = "한국어", ru = "한국어" },
 	["settings.version"] = { en = "Version {v}", ru = "Версия {v}" },
 	["settings.reset"] = { en = "Reset progress", ru = "Сбросить прогресс" },
 	["settings.reset_title"] = { en = "Reset progress?", ru = "Сбросить прогресс?" },
@@ -573,6 +703,50 @@ local S = {
 	},
 	["settings.reset_do"] = { en = "Reset", ru = "Сбросить" },
 	["settings.reset_done"] = { en = "Progress reset. Let's start again!", ru = "Прогресс сброшен. Начнём заново!" },
+	["settings.code_section"] = { en = "Move your progress", ru = "Перенос прогресса" },
+	["settings.code_copy"] = { en = "Copy save code", ru = "Скопировать код сохранения" },
+	["settings.code_enter"] = { en = "Enter save code", ru = "Ввести код сохранения" },
+	-- save code (meta/savecode.lua, client/app.lua) ------------------------------------
+	["code.prompt_copy"] = {
+		en = "Your save code. Copy it (Ctrl+C) and keep it safe:",
+		ru = "Ваш код сохранения. Скопируйте его (Ctrl+C) и сохраните:",
+	},
+	["code.prompt_paste"] = { en = "Paste your save code here:", ru = "Вставьте сюда код сохранения:" },
+	["code.copied"] = { en = "Save code copied", ru = "Код сохранения скопирован" },
+	["code.shown"] = { en = "Copy the code from the box", ru = "Скопируйте код из окошка" },
+	["code.copy_failed"] = { en = "Could not copy the code", ru = "Не удалось скопировать код" },
+	["code.empty"] = { en = "No code received", ru = "Код не получен" },
+	["code.err_prefix"] = { en = "This is not a GLOW save code", ru = "Это не код сохранения GLOW" },
+	["code.err_version"] = { en = "The code is from another version of the game", ru = "Код от другой версии игры" },
+	["code.err_damaged"] = {
+		en = "The code is damaged or cut. Copy it again in full",
+		ru = "Код испорчен или обрезан. Скопируйте его заново целиком",
+	},
+	["code.err_bad_save"] = { en = "The save inside the code is not valid", ru = "Сохранение внутри кода не подходит" },
+	["code.confirm_title"] = { en = "Load this save?", ru = "Загрузить сохранение?" },
+	["code.confirm_levels"] = { en = "Levels beaten: {n}", ru = "Пройдено уровней: {n}" },
+	["code.confirm_coins"] = { en = "Coins: {n}", ru = "Монеты: {n}" },
+	["code.confirm_stars"] = { en = "Stars: {n}", ru = "Звёзды: {n}" },
+	["code.confirm_behind"] = {
+		en = "Careful: this code holds LESS progress than you have now (levels {n}).",
+		ru = "Осторожно: в коде МЕНЬШЕ прогресса, чем сейчас (уровней: {n}).",
+	},
+	["code.confirm_keep"] = {
+		en = "Your current save is kept as a backup.",
+		ru = "Текущее сохранение останется запасным.",
+	},
+	["code.confirm_do"] = { en = "Load", ru = "Загрузить" },
+	["code.done"] = { en = "Progress loaded", ru = "Прогресс загружен" },
+	["code.write_failed"] = { en = "Could not write the save. Nothing changed", ru = "Не удалось записать. Ничего не изменилось" },
+	-- replay of beaten levels after the last one ---------------------------------------
+	["replay.button"] = { en = "Play beaten levels", ru = "Пройденные уровни" },
+	["replay.title"] = { en = "Play again", ru = "Играть снова" },
+	["replay.text"] = {
+		en = "More levels are coming soon! Replay any level: no coins and no lives are spent.",
+		ru = "Скоро новые уровни! Пройдите любой уровень ещё раз: монеты и жизни не тратятся.",
+	},
+	["replay.page"] = { en = "{a}-{b}", ru = "{a}-{b}" },
+	["win.practice"] = { en = "Practice: nothing is paid", ru = "Тренировка: награды нет" },
 	["settings.sound"] = { en = "Sound", ru = "Звук" },
 	["settings.game"] = { en = "Game", ru = "Игра" },
 
@@ -602,11 +776,147 @@ local S = {
 	["toast.language"] = { en = "Language: English", ru = "Язык: русский" },
 	["toast.debug_coins"] = { en = "+{n} coins (debug)", ru = "+{n} монет (отладка)" },
 	["toast.debug_reset"] = { en = "Save reset (debug)", ru = "Сохранение сброшено (отладка)" },
-
 	-- ============================================================================================================
+	-- songbook (WP-9): the notebook window, its button in the town and the line in the results ----------------------------
+	["notebook.title"] = { en = "Songbook", ru = "Блокнот песен" },
+	["notebook.levels"] = { en = "Levels {first}-{last}", ru = "Уровни {first}–{last}" },
+	["notebook.verse"] = { en = "Verse {n}", ru = "Куплет {n}" },
+	["notebook.chorus"] = { en = "Chorus", ru = "Припев" },
+	["notebook.play"] = { en = "Listen", ru = "Прослушать" },
+	["notebook.stop"] = { en = "Stop", ru = "Остановить" },
+	["notebook.progress"] = { en = "Lines written: {n} of {total}", ru = "Записано строк: {n} из {total}" },
+	["notebook.hint"] = { en = "Beat a level and Bit writes the next line", ru = "Пройди уровень, и Бит запишет следующую строку" },
+	["win.song_line"] = { en = "Bit wrote a new line", ru = "Бит записал новую строку" },
+	["win.song_ready"] = { en = "Your song is ready!", ru = "Твоя песня готова!" },
+	["win.song_open"] = { en = "Listen", ru = "Слушать" },
 	-- end of META SCREENS
 	-- ============================================================================================================
+
+	-- ============================================================================================================
+	-- chart and band (WP-11): the nouns and adjectives of the game names are in social.adj.* / social.noun.*
+	-- ============================================================================================================
+	["social.adj.1"] = { en = "Bright", ru = "Светлый" },
+	["social.adj.2"] = { en = "Loud", ru = "Громкий" },
+	["social.adj.3"] = { en = "Night", ru = "Ночной" },
+	["social.adj.4"] = { en = "Happy", ru = "Весёлый" },
+	["social.adj.5"] = { en = "Quick", ru = "Быстрый" },
+	["social.adj.6"] = { en = "Golden", ru = "Золотой" },
+	["social.adj.7"] = { en = "Quiet", ru = "Тихий" },
+	["social.adj.8"] = { en = "Vivid", ru = "Яркий" },
+	["social.adj.9"] = { en = "Dancing", ru = "Танцующий" },
+	["social.adj.10"] = { en = "Starry", ru = "Звёздный" },
+	["social.adj.11"] = { en = "Neon", ru = "Неоновый" },
+	["social.adj.12"] = { en = "Soft", ru = "Мягкий" },
+	["social.adj.13"] = { en = "Brave", ru = "Смелый" },
+	["social.adj.14"] = { en = "Friendly", ru = "Дружный" },
+	["social.adj.15"] = { en = "Sunny", ru = "Солнечный" },
+	["social.adj.16"] = { en = "Cosmic", ru = "Космический" },
+	["social.noun.1"] = { en = "Beat", ru = "Бит" },
+	["social.noun.2"] = { en = "Rhythm", ru = "Ритм" },
+	["social.noun.3"] = { en = "Bass", ru = "Бас" },
+	["social.noun.4"] = { en = "Hit", ru = "Хит" },
+	["social.noun.5"] = { en = "Sound", ru = "Звук" },
+	["social.noun.6"] = { en = "Dance", ru = "Танец" },
+	["social.noun.7"] = { en = "Tone", ru = "Тон" },
+	["social.noun.8"] = { en = "Melody", ru = "Мотив" },
+	["social.noun.9"] = { en = "Clip", ru = "Клип" },
+	["social.noun.10"] = { en = "Vibe", ru = "Вайб" },
+	["social.noun.11"] = { en = "DJ", ru = "Диджей" },
+	["social.noun.12"] = { en = "Spotlight", ru = "Прожектор" },
+	["social.noun.13"] = { en = "Boombox", ru = "Бумбокс" },
+	["social.noun.14"] = { en = "Synth", ru = "Синтезатор" },
+	["social.noun.15"] = { en = "Groove", ru = "Грув" },
+	["social.noun.16"] = { en = "Band", ru = "Ансамбль" },
+	["chart.title"] = { en = "Chart", ru = "Чарт" },
+	["chart.week"] = { en = "Week", ru = "Неделя" },
+	["chart.all"] = { en = "All time", ru = "Всё время" },
+	["chart.band"] = { en = "My band", ru = "Группа" },
+	["chart.loading"] = { en = "Loading the chart…", ru = "Загружаем чарт…" },
+	["chart.unavailable"] = { en = "The chart is not connected yet. Your stars are safe and will count when it opens.", ru = "Чарт ещё не подключён. Твои звёзды сохранены и пойдут в зачёт, когда он откроется." },
+	["chart.signin"] = { en = "Sign in to see the chart and play with other players.", ru = "Войди, чтобы увидеть чарт и играть вместе с другими." },
+	["chart.signin_button"] = { en = "Sign in", ru = "Войти" },
+	["chart.offline"] = { en = "No connection. Try again when you are online.", ru = "Нет связи. Попробуй ещё раз, когда появится сеть." },
+	["chart.error"] = { en = "Something went wrong. Try again in a minute.", ru = "Что-то пошло не так. Попробуй ещё раз через минуту." },
+	["chart.empty"] = { en = "Nobody here yet.", ru = "Здесь пока никого нет." },
+	["chart.no_band"] = { en = "Join a band to see your friends here.", ru = "Вступи в группу, чтобы видеть здесь друзей." },
+	["chart.checking"] = { en = "We are checking your result. It is hidden from others for now.", ru = "Проверяем твой результат. Пока другие его не видят." },
+	["chart.players"] = { en = "Players: {n}", ru = "Игроков: {n}" },
+	["chart.week_left"] = { en = "The week ends in {time}", ru = "До конца недели: {time}" },
+	["chart.rename"] = { en = "Change name", ru = "Сменить имя" },
+	["social.profile_text"] = { en = "Pick your game name and avatar. Other players see only these.", ru = "Выбери игровое имя и аватар. Другие игроки видят только их." },
+	["social.other_name"] = { en = "Another name", ru = "Другое имя" },
+	["social.pick_avatar"] = { en = "Avatar", ru = "Аватар" },
+	["social.profile_privacy"] = { en = "No real name, no e-mail: they are never shown.", ru = "Настоящее имя и почта никому не показываются." },
+	["social.left_dh"] = { en = "{d}d {h}h", ru = "{d} дн {h} ч" },
+	["social.left_hm"] = { en = "{h}h {m}m", ru = "{h} ч {m} мин" },
+	["social.err.bad_name"] = { en = "Pick a name from the list.", ru = "Выбери имя из списка." },
+	["social.err.bad_avatar"] = { en = "Pick an avatar from the set.", ru = "Выбери аватар из набора." },
+	["social.err.bad_code"] = { en = "That code does not look right. It has 6 letters and digits.", ru = "Код не похож на настоящий: в нём 6 букв и цифр." },
+	["social.err.no_such_band"] = { en = "No band with this code.", ru = "Нет группы с таким кодом." },
+	["social.err.full"] = { en = "This band is full.", ru = "В группе нет мест." },
+	["social.err.already_in_band"] = { en = "You are already in a band.", ru = "Ты уже в группе." },
+	["social.err.no_band"] = { en = "You are not in a band.", ru = "Ты не в группе." },
+	["social.err.not_leader"] = { en = "Only the leader can do this.", ru = "Это может только лидер." },
+	["social.err.bad_target"] = { en = "That does not work for this player.", ru = "С этим игроком так нельзя." },
+	["social.err.not_member"] = { en = "This player has left the band.", ru = "Этот игрок уже вышел из группы." },
+	["social.err.no_profile"] = { en = "Pick a game name first.", ru = "Сначала выбери игровое имя." },
+	["social.err.limit"] = { en = "That is enough for today. Try tomorrow.", ru = "На сегодня хватит. Попробуй завтра." },
+	["social.err.not_requested"] = { en = "This player did not ask for help.", ru = "Этот игрок не просил помощи." },
+	["social.err.already_sent"] = { en = "You already helped this player.", ru = "Ты уже помог этому игроку." },
+	["social.err.denied"] = { en = "The server said no.", ru = "Сервер отказал." },
+	["social.err.offline"] = { en = "No connection.", ru = "Нет связи." },
+	["social.err.timeout"] = { en = "The server is slow. Try again.", ru = "Сервер отвечает долго. Попробуй ещё раз." },
+	["social.err.signin"] = { en = "Sign in first.", ru = "Сначала войди в аккаунт." },
+	["social.err.unavailable"] = { en = "Not available yet.", ru = "Пока недоступно." },
+	["social.err.busy"] = { en = "One moment…", ru = "Секунду…" },
+	["social.err.error"] = { en = "Something went wrong.", ru = "Что-то пошло не так." },
+	["band.title"] = { en = "Band", ru = "Группа" },
+	["band.loading"] = { en = "Loading your band…", ru = "Загружаем группу…" },
+	["band.unavailable"] = { en = "Bands are not connected yet. They will open together with the chart.", ru = "Группы ещё не подключены. Они откроются вместе с чартом." },
+	["band.signin"] = { en = "Sign in to make a band or join one.", ru = "Войди, чтобы создать группу или вступить в неё." },
+	["band.none"] = { en = "You are not in a band yet. Make one or join with a code from a friend.", ru = "Ты пока не в группе. Создай свою или вступи по коду друга." },
+	["band.create"] = { en = "Make a band", ru = "Создать группу" },
+	["band.join"] = { en = "Join with a code", ru = "Вступить по коду" },
+	["band.join_hint"] = { en = "Up to 20 players. Together you collect stars for a weekly goal.", ru = "До 20 игроков. Вместе вы копите звёзды на недельную цель." },
+	["band.create_text"] = { en = "Pick a name for your band. You can change it with the button.", ru = "Выбери название группы. Его можно сменить кнопкой." },
+	["band.other_name"] = { en = "Another name", ru = "Другое название" },
+	["band.create_do"] = { en = "Make it!", ru = "Создать!" },
+	["band.code"] = { en = "Code: {code}", ru = "Код: {code}" },
+	["band.members"] = { en = "{n} of {max}", ru = "{n} из {max}" },
+	["band.goal"] = { en = "Weekly goal: {n} of {goal} stars", ru = "Цель недели: {n} из {goal} звёзд" },
+	["band.goal_done"] = { en = "Goal reached: {n} stars!", ru = "Цель выполнена: {n} звёзд!" },
+	["band.leader"] = { en = "Leader", ru = "Лидер" },
+	["band.member"] = { en = "Member", ru = "Участник" },
+	["band.needs_life"] = { en = "Asks for a life", ru = "Просит жизнь" },
+	["band.waiting_help"] = { en = "You asked for a life. Waiting for a mate.", ru = "Ты попросил жизнь. Ждём, пока кто-то поможет." },
+	["band.ask_life"] = { en = "Ask for a life", ru = "Попросить жизнь" },
+	["band.invite"] = { en = "Invite", ru = "Пригласить" },
+	["band.leave"] = { en = "Leave", ru = "Выйти" },
+	["band.leave_title"] = { en = "Leave the band?", ru = "Выйти из группы?" },
+	["band.leave_text"] = { en = "Your stars stay yours. You can join again with the code.", ru = "Твои звёзды останутся с тобой. Вернуться можно по коду." },
+	["band.leave_leader"] = { en = "You are the leader. The member who joined first becomes the leader.", ru = "Ты лидер. Лидером станет тот, кто вступил раньше всех." },
+	["band.kick_title"] = { en = "Remove the member?", ru = "Исключить участника?" },
+	["band.kick_text"] = { en = "They can join again with the code.", ru = "Он сможет вернуться по коду." },
+	["band.kick_do"] = { en = "Remove", ru = "Исключить" },
+	["band.invite_text"] = { en = "Join my band in GLOW! Code: {code}", ru = "Вступай в мою группу в GLOW! Код: {code}" },
+	["band.prompt_copy"] = { en = "Copy the invitation:", ru = "Скопируй приглашение:" },
+	["band.prompt_code"] = { en = "Paste the band code:", ru = "Вставь код группы:" },
+	["band.copied"] = { en = "Invitation copied", ru = "Приглашение скопировано" },
+	["band.shown"] = { en = "Copy the invitation from the box", ru = "Скопируй приглашение из окошка" },
+	["band.copy_failed"] = { en = "Could not copy the invitation", ru = "Не удалось скопировать приглашение" },
+	["band.lives_got"] = { en = "Band mates sent you {n} lives", ru = "Друзья из группы прислали жизней: {n}" },
+
 }
+
+-- The songbook lines and titles (meta/songbook.lua): entries with en, ru and ko already in them.
+for key, entry in pairs(require("client.i18n_songbook")) do
+	S[key] = entry
+end
+
+-- Korean texts: same keys, merged as the `ko` field (key order does not matter).
+for key, text in pairs(require("client.i18n_ko")) do
+	if S[key] then S[key].ko = text end
+end
 
 M.STRINGS = S
 

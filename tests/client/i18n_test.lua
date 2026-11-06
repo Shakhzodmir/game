@@ -17,10 +17,12 @@ end
 describe("client.i18n", function()
 	before_each(function() i18n.set_language("en") end)
 
-	it("has every key in both languages with the same placeholders", function()
+	it("has every key in en, ru and ko with the same placeholders", function()
+		assert_same(i18n.LANGUAGES, { "en", "ru", "ko" })
 		for key, entry in pairs(i18n.STRINGS) do
 			assert_true(entry.en ~= nil, key .. " has no en")
 			assert_true(entry.ru ~= nil, key .. " has no ru")
+			assert_true(entry.ko ~= nil, key .. " has no ko")
 			local ref = placeholders(values(entry.en)[1])
 			for _, lang in ipairs(i18n.LANGUAGES) do
 				for _, s in ipairs(values(entry[lang])) do
@@ -38,7 +40,43 @@ describe("client.i18n", function()
 			else
 				assert_eq(type(entry.ru), "string", key .. " ru must be a string like en")
 			end
+			assert_eq(type(entry.ko), "string", key .. " ko has one plural form: a plain string")
 		end
+	end)
+
+	it("has no Korean key without an entry, and no empty or Latin-only Korean sentence by accident", function()
+		local ko = require("client.i18n_ko")
+		local n = 0
+		for key, text in pairs(ko) do
+			n = n + 1
+			assert_true(i18n.STRINGS[key] ~= nil, key .. " is in i18n_ko.lua only")
+			assert_true(#text > 0, key .. " is empty")
+		end
+		local total = 0
+		for _ in pairs(i18n.STRINGS) do total = total + 1 end
+		assert_eq(n, total)
+	end)
+
+	it("names districts, genres, songs and tasks in ko", function()
+		local f = assert(io.open("content/districts.json", "r"))
+		local data = json.decode(f:read("*a"))
+		f:close()
+		for _, d in ipairs(data.districts) do
+			assert_true(d.name.ko and d.genre.ko, d.id)
+			for _, song in ipairs(d.songs) do assert_true(song.name.ko, song.id) end
+			for _, t in ipairs(d.tasks) do assert_true(t.name.ko, t.id) end
+		end
+	end)
+
+	it("picks Korean from the system language and keeps the explicit choice", function()
+		assert_eq(i18n.detect("ko"), "ko")
+		assert_eq(i18n.detect("ko-KR"), "ko")
+		assert_eq(i18n.detect("de"), "en")
+		assert_eq(i18n.set_language("auto", "ko-KR"), "ko")
+		assert_eq(i18n.set_language("ru", "ko-KR"), "ru")
+		assert_eq(i18n.set_language("ko", "en"), "ko")
+		assert_eq(i18n.t("common.coins", { n = 5 }), "코인 5개")
+		assert_eq(i18n.number(1050, "ko"), "1,050")
 	end)
 
 	it("names every stem and booster of the content", function()
@@ -180,4 +218,17 @@ describe("client.i18n", function()
 		assert_true(seen > 20, "found the keys")
 		assert_same(missing, {})
 	end)
+
+	-- the stars come from the score (WP-4), not from the difficulty of the level: the note of the results window says so
+	it("the stars note of the results window speaks of the score in every language", function()
+		local words = { en = "score", ru = "очк", ko = "점수" }
+		local old_rule = { en = "difficulty", ru = "сложност", ko = "난이도" }
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			i18n.set_language(lang)
+			local text = i18n.t("win.stars_note")
+			assert_true(string.find(string.lower(text), words[lang], 1, true) ~= nil, lang .. ": " .. text)
+			assert_true(string.find(string.lower(text), old_rule[lang], 1, true) == nil, lang .. " still states the old rule: " .. text)
+		end
+	end)
+
 end)

@@ -39,6 +39,8 @@ local rewards = require("client.rewards")
 local popups = require("client.popups")
 local flow = require("client.flow")
 local analytics = require("client.services.analytics")
+local auth = require("client.services.auth")
+local cloud = require("client.cloud")
 local scene_mod = require("screens.town.scene")
 local hud_mod = require("screens.town.hud")
 local show_mod = require("screens.town.show")
@@ -53,11 +55,17 @@ local REGISTRY = {
 	lives = require("gui.lives"),
 	shop = require("gui.shop"),
 	settings = require("gui.settings"),
+	account = require("gui.account"),
+	cloud_choice = require("gui.cloud_choice"),
 	jukebox = require("gui.jukebox"),
 	concert = require("gui.concert"),
 	chest = require("gui.chest"),
 	gift = require("gui.gift"),
 	confirm = require("gui.confirm"),
+	replay = require("gui.replay"),
+	notebook = require("gui.notebook"),
+	chart = require("gui.chart"),
+	band = require("gui.band"),
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
@@ -107,6 +115,7 @@ function Town:keep_images()
 	for k in pairs(bit.images()) do keep[k] = true end -- order-free: a set
 	local c = self.popups and self.popups:find("concert")
 	if c then REGISTRY.concert.images(c.params.district or self.district, keep) end
+	if self.popups and self.popups:find("notebook") then REGISTRY.notebook.images(keep) end
 	return keep
 end
 
@@ -133,6 +142,42 @@ function Town:open_popup(name, params)
 	return self.popups:open(name, params)
 end
 
+-- A song finished at the end of a stretch of levels is offered once: the notebook opens on it with the seal and the
+-- confetti. Never over another window, a reward on show or an account prompt (those come first); a song the player
+-- already saw, or one that was finished before the songbook existed, is never offered.
+function Town:songbook_offer()
+	if self.show:busy() or self.sliding or app.ui.popup or self.leaving or self.pending_open then return end
+	if rewards.count() > 0 or #app.meta:pending_chests() > 0 then return end
+	local id = app.meta:songbook_pending()
+	if not id or self.offered_song == id then return end
+	self.offered_song = id
+	self:open_popup("notebook", { district = id, celebrate = true })
+end
+
+-- Account prompts, never over another window and never while a reward is on show: the sync question (a
+-- decision of client/cloud.lua, asked again after "not now" only when a sync finds one), the first-launch
+-- sign-in window (when sign-in is available and the player was not asked yet) and the guest reminder.
+function Town:account_prompts()
+	if self.show:busy() or self.sliding or app.ui.popup or self.leaving then return end
+	local d = cloud.decision()
+	if d and self.asked ~= d then
+		self.asked = d
+		self:open_popup("cloud_choice")
+		return
+	end
+	if self.prompted then return end
+	self.prompted = true
+	if auth.available() and not cloud.welcomed() then
+		self:open_popup("account", { mode = "choice" })
+		return
+	end
+	local n = app.beaten_count()
+	if cloud.guest_reminder_due(n) then
+		cloud.mark_reminded(n)
+		app.toast_key("account.reminder", nil, { color = "blue", duration = 5 })
+	end
+end
+
 -- actions -----------------------------------------------------------------------------------------
 
 function Town:toggle_view()
@@ -143,9 +188,21 @@ function Town:toggle_view()
 	if not ok then return end
 	audio.sfx("button")
 	self.fx:flash(360, 760, { size = 1500, dur = 0.45, color = view == "day" and "#C9A7FF" or "#FFF4C9" })
-	self.scene:build(self.district)
+	self.scene:crossfade(self.district)
+	self:bit_follow_view()
 	self.hud:build()
 	self:publish()
+end
+
+-- In the concert look Bit dances to the song that plays (the frames follow the track's clock); in the day look it
+-- goes back to its idle life.
+function Town:bit_follow_view()
+	if app.meta:view(self.district) == "concert" then
+		local d = app.meta:district(self.district)
+		self.bit:dance(audio.status.bpm or (d and d.bpm) or 100)
+	else
+		self.bit:stop()
+	end
 end
 
 -- district switching -------------------------------------------------------------------------------
@@ -267,6 +324,7 @@ function Town:tap_scene(action)
 	if e.done then
 		self.fx:pop(e.node, 0.12, 0.35)
 		self.fx:burst(lx, ly, { count = 6, radius = 60, size = 24 })
+		self.bit:event("note_collected") -- Bit puts the headphones to its ears and listens
 		self.note_i = (self.note_i or 0) % 6 + 1
 		audio.play_note(NOTE_COLORS[self.note_i], ((self.note_i * 3) % 7) + 1, { quantize = true })
 	elseif task and task.id == id and task.district == self.district and task.affordable then
@@ -355,7 +413,7 @@ end
 local function new_town()
 	local t = setmetatable({}, Town)
 	t.sub = bus.subscribe({ "meta_changed", "lives_tick", "language_changed", "settings_changed", "save_reset",
-		"screen_leaving", "popup_request", "reward_pushed", "meta_qa" }, "town")
+		"screen_leaving", "popup_request", "reward_pushed", "meta_qa", "cloud_status", "cloud_decision", "auth_changed" }, "town")
 	t.on_bus = function(topic, p) on_bus(t, topic, p) end
 	t.ui = ui.scene({ gui = GUI })
 	t.disp = { coins = 0, stars = 0 }
@@ -389,6 +447,7 @@ local function new_town()
 	t.scene:build(t.district)
 	t.hud:build()
 	t:sync_disp()
+	if app.meta:view(t.district) == "concert" then t:bit_follow_view() else t.bit:event("hello") end
 
 	audio.level_duck(false)
 	audio.layer("tension", false)
@@ -412,6 +471,10 @@ function Town:update(dt)
 		self.rewards_started = true
 		if rewards.count() > 0 then self:queue_rewards() end
 		self:queue_pending_chests()
+	end
+	if self.enter_t > 1.0 then
+		self:account_prompts()
+		self:songbook_offer()
 	end
 	if self.pending_open and self.enter_t > 0.5 and not self.show:busy() then
 		local want = self.pending_open
@@ -461,6 +524,7 @@ function Town:update(dt)
 end
 
 function Town:on_input(action_id, action)
+	if action_id == TOUCH and action.pressed then self.bit:touch() end -- Bit stays awake (a sleeper wakes up)
 	if self.popups:on_input(action_id, action) then return true end
 	if action_id == TOUCH and action.pressed and self.show:skippable() then
 		self.show:skip()

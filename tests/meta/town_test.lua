@@ -179,7 +179,7 @@ describe("town with the real districts", function()
 		assert_same(stems, { "beat", "vinyl", "keys", "bass", "lead", "pad" })
 		assert_same(m:unmuted_stems("cafe"), stems)
 		assert_eq(m:stars(), 0)
-		assert_same(m:next_task(), { district = "jazz", id = "stage_light", name = { ru = "Свет на сцене", en = "Stage light" },
+		assert_same(m:next_task(), { district = "jazz", id = "stage_light", name = { ru = "Свет на сцене", en = "Stage light", ko = "무대 조명" },
 			cost = 1, stem = "brushes", affordable = false })
 	end)
 end)

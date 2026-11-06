@@ -39,7 +39,7 @@ function M.build(e)
 	local note_h = 56
 	local box_h = 28 + #lines * (note_h + 8)
 	local H = 560 + box_h
-	local body, hh = kit.panel(e, W, H, { title = { key = "pause.title" } })
+	local body, hh = kit.panel(e, W, H, { title = { key = "pause.title" }, fit = true, up = 104 })
 	kit.bit(e, body, -W / 2 + 62, hh + 38, 124, "idle")
 
 	if e.params.level_id then

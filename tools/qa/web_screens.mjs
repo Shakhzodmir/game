@@ -4,6 +4,7 @@
 //   python3 -m http.server 8765 -d dist/GLOW &
 //   node tools/qa/web_screens.mjs http://localhost:8765/index.html docs/media
 //   node tools/qa/web_screens.mjs http://localhost:8765/index.html /tmp --release   # a release build
+//   node tools/qa/web_screens.mjs http://localhost:8765/index.html docs/media --ko-only # just the Korean screens
 //
 // Env: PLAYWRIGHT = path to the playwright module (default: "playwright").
 // Exits with 1 when a check fails or the page logs a Lua error or a page error.
@@ -28,14 +29,20 @@
 // tutorials|level") appears in the console.
 // Every command the script sends exists in the bridge and every field it reads
 // is published by the game: tests/client/qa_script_test.lua keeps them in step.
+// Korean (section 4): town, shop, jukebox, settings, level and results in `lang ko`, every Hangul text checked for a
+// missing glyph (width from `gui_bounds`, ink in the screenshot); snapshots client_*_ko.png.
 // Release: the QA bridge is absent.
 
 const pwPath = process.env.PLAYWRIGHT || 'playwright';
-const { chromium } = await import(pwPath);
+const pwModule = await import(pwPath);
+const chromium = pwModule.chromium || pwModule.default.chromium; // a path to playwright/index.js gives the CommonJS exports as `default`
 
 const url = process.argv[2] || 'http://localhost:8765/index.html';
 const outDir = process.argv[3] || 'docs/media';
 const releaseMode = process.argv.includes('--release');
+const koOnly = process.argv.includes('--ko-only'); // only section 4 (Korean): a few minutes instead of ten
+const roomsOnly = process.argv.includes('--rooms-only'); // only section 5 (rooms of the town)
+const songbookOnly = process.argv.includes('--songbook-only'); // only section 6 (the songbook, WP-9)
 
 const errors = [];
 const consoleLines = [];
@@ -163,6 +170,245 @@ const browser = await chromium.launch({
 	args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'],
 });
 
+// Korean: no glyph may be missing. The engine draws nothing for a character a font lacks, so a text that is
+// "tofu" shows up as a rectangle (from `gui_bounds`) far narrower than its syllables should be, or as a clip of the
+// screenshot with no ink. Every text with Hangul is checked both ways. Returns the number of Hangul texts seen.
+const HANGUL = /[\uAC00-\uD7A3]/g;
+// texts of the town itself: with a window open they sit behind its opaque panel or dimmer, so only their width is checked
+const koTownTexts = new Set();
+const koLevelTexts = new Set();
+async function koGlyphCheck(page, tag) {
+	await command(page, 'gui_bounds');
+	await sleep(500);
+	const s = await state(page);
+	const scenes = (s.app.ui && s.app.ui.bounds) || {};
+	const vp = page.viewportSize();
+	let seen = 0;
+	const thin = [], blank = [];
+	for (const rows of Object.values(scenes)) {
+		if (!Array.isArray(rows)) continue; // a scene with no text rows is an empty Lua table
+		for (const r of rows) {
+			const n = (r.t.match(HANGUL) || []).length;
+			if (n === 0) continue;
+			seen++;
+			// a Hangul syllable is about one em wide; tofu (nothing drawn) has no advance
+			if (r.w < r.px * 0.45 * n) thin.push(`${r.t.slice(0, 30)} (w ${r.w.toFixed(0)}, ${n} syllables, em ${r.px.toFixed(0)})`);
+			const top = vp.height - (r.y0 + r.h);
+			if (tag === 'town') koTownTexts.add(r.t);
+			if (tag === 'level') koLevelTexts.add(r.t);
+			if (tag !== 'town' && koTownTexts.has(r.t) && tag !== 'level' && tag !== 'results') continue; // behind the window
+			if (tag === 'results' && koLevelTexts.has(r.t)) continue; // a label of the level screen under the window ("Moves"): the opaque plate hides it
+			if (r.w >= 4 && r.h >= 4 && r.x0 >= 0 && top >= 0 && r.x0 + r.w <= vp.width && top + r.h <= vp.height) {
+				const buf = await page.screenshot({ clip: { x: r.x0, y: top, width: r.w, height: r.h } });
+				const colours = await page.evaluate(async b64 => {
+					const img = new Image();
+					await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = 'data:image/png;base64,' + b64; });
+					const c = document.createElement('canvas');
+					c.width = img.width; c.height = img.height;
+					const g = c.getContext('2d');
+					g.drawImage(img, 0, 0);
+					const d = g.getImageData(0, 0, c.width, c.height).data;
+					const seen = new Set();
+					for (let i = 0; i < d.length; i += 4) seen.add((d[i] >> 3) * 1024 + (d[i + 1] >> 3) * 32 + (d[i + 2] >> 3)); // 32 levels per channel: a text under a dimmed window is low in contrast
+					return seen.size;
+				}, buf.toString('base64'));
+				if (colours < 2) blank.push(`${r.t.slice(0, 30)} (${colours} colours)`);
+			}
+		}
+	}
+	check(seen > 0, `ko ${tag}: gui_bounds reports Hangul texts`, seen);
+	check(thin.length === 0, `ko ${tag}: every Hangul text is as wide as its syllables (no missing glyph)`, thin.slice(0, 5));
+	check(blank.length === 0, `ko ${tag}: every Hangul text has ink on the screen (no tofu)`, blank.slice(0, 5));
+	return seen;
+}
+
+async function koChecks(browser) {
+	const p = await openPage(browser, { width: 540, height: 960 });
+	await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (ko)', 30000);
+	await command(p, 'goto town');
+	await onScreen(p, 'town');
+	await command(p, 'gui_bounds'); // switches the text tracking on before the Korean windows are built
+	const r = await command(p, 'lang ko');
+	check(r.result.language === 'ko', 'ko: the language command switches to Korean', r.result);
+	await sleep(900);
+	await p.screenshot({ path: `${outDir}/client_town_ko.png` });
+	await koGlyphCheck(p, 'town');
+	for (const [popup, params, shot] of [
+		['shop', '{"tab":"boosters"}', 'client_shop_ko'], ['jukebox', '', 'client_jukebox_ko'], ['settings', '', 'client_settings_ko'],
+	]) {
+		await command(p, 'open ' + popup + (params ? ' ' + params : ''));
+		await waitFor(p, st => st.app.ui && st.app.ui.popup === popup, 'the ' + popup + ' window (ko)', 8000);
+		await sleep(1000);
+		await p.screenshot({ path: `${outDir}/${shot}.png` });
+		await koGlyphCheck(p, popup);
+		await command(p, 'close');
+		await waitFor(p, st => !st.app.ui.popup, popup + ' closed (ko)', 5000);
+	}
+	await startLevelFromTown(p);
+	await sleep(1300);
+	await p.screenshot({ path: `${outDir}/client_level_ko.png` });
+	await koGlyphCheck(p, 'level');
+	await command(p, 'win');
+	await waitFor(p, s => s.app.ui.level && ['concert', 'complete'].includes(s.app.ui.level.state), 'the final concert (ko)', 150000);
+	await command(p, 'skip');
+	await waitFor(p, s => s.app.ui.popup === 'result', 'the results (ko)', 60000);
+	await sleep(1800);
+	await p.screenshot({ path: `${outDir}/client_results_ko.png` });
+	await koGlyphCheck(p, 'results');
+	const fin = await state(p);
+	if (fin.errors && fin.errors.length) errors.push(...fin.errors.map(e => 'bridge: ' + e));
+	await p.context().close();
+}
+
+// Rooms of the town (WP-8): every district in the day and the concert look, the living details on, a snapshot of each
+// (room_<district>_day.png, room_<district>_concert.png) and the facts the strict stub cannot know: the look switches by a
+// cross-fade that leaves one room behind, the page keeps drawing frames and logs no error.
+async function roomChecks(browser) {
+	const p = await openPage(browser, { width: 540, height: 960 });
+	await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (rooms)', 30000);
+	await command(p, 'goto town');
+	await onScreen(p, 'town');
+	await command(p, 'add_stars 3000');
+	// every task of every district through the card (the full animation), until the street has five districts
+	for (let i = 0; i < 45; i++) {
+		const st = await state(p);
+		if (st.app.ui && st.app.ui.nav && st.app.ui.nav.count >= 5 && st.app.next_task == null) break; // (no task left: the field is absent, not null)
+		await command(p, 'complete_task');
+		await waitFor(p, s => !s.app.ui.busy || s.app.ui.popup, 'a task done (rooms)', 30000).catch(() => null);
+		await command(p, 'town_skip').catch(() => null);
+		// the last task of a district: its concert (skippable once it plays), then the chest window, which a skip cannot
+		// close (steps.lua: skippable = false): tap the chest, then Collect
+		let guard = 0;
+		for (;;) {
+			const st2 = await state(p);
+			const pop = st2.app.ui && st2.app.ui.popup;
+			if (!pop && !st2.app.ui.busy) break;
+			if (++guard > 60) throw new Error('rooms: the town does not settle: ' + JSON.stringify(st2.app.ui));
+			if (pop === 'chest') {
+				const t = st2.app.ui.popup_targets || {};
+				if (t.collect) await tapTarget(p, 'collect', 'popup'); else if (t.chest) await tapTarget(p, 'chest', 'popup');
+				await sleep(1500);
+			} else {
+				await sleep(700);
+				await command(p, 'town_skip').catch(() => null);
+			}
+		}
+	}
+	for (const did of ['cafe', 'jazz', 'square', 'stadium', 'garage']) {
+		await command(p, 'browse ' + did);
+		await waitFor(p, s => s.app.ui.district === did && !s.app.ui.sliding, 'the room ' + did, 8000);
+		for (const view of ['day', 'concert']) {
+			await command(p, 'view ' + view);
+			await sleep(1100); // the cross-fade takes 0.6 s
+			const st = await state(p);
+			check(st.app.ui.view === view && st.app.ui.district === did, `room ${did}/${view}: shown`, st.app.ui);
+			await p.screenshot({ path: `${outDir}/room_${did}_${view}.png` });
+		}
+		await command(p, 'view day');
+		await sleep(900);
+	}
+	const final = await state(p);
+	if (final.errors && final.errors.length) errors.push(...final.errors.map(e => 'bridge: ' + e));
+	await p.context().close();
+}
+
+// Songbook (WP-9): a level won on the engine writes a line (the results window says so), the notebook lists it, the
+// last level of a stretch finishes the song (the results announce it, the town offers it once), "Listen" plays the
+// song of the district through the one music slot and lights the lines in turn, "Stop" gives the music back.
+// Snapshots: songbook_result_line.png, songbook_page.png, songbook_result_ready.png, songbook_ready.png,
+// songbook_playing.png.
+async function songbookChecks(browser) {
+	const p = await openPage(browser, { width: 540, height: 960 });
+	await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (songbook)', 30000);
+	await command(p, 'goto town');
+	await onScreen(p, 'town');
+	await command(p, 'advance 5'); // level 5 is the one to play (`advance N` beats the levels before N)
+	await command(p, 'goto town');
+	await sleep(1200);
+	// level 5 on the engine: the results write the line of the level
+	await startLevelFromTown(p);
+	await sleep(1300);
+	await command(p, 'win');
+	await waitFor(p, s => s.app.ui.level && ['concert', 'complete'].includes(s.app.ui.level.state), 'the final concert of level 5', 150000);
+	await command(p, 'skip');
+	const r5 = await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 5', 60000);
+	await sleep(2600); // the writing takes about two seconds
+	await p.screenshot({ path: `${outDir}/songbook_result_line.png` });
+	const sg = (await state(p)).app.ui.result.song;
+	check(sg && sg.district === 'cafe' && sg.pos === 5 && sg.total === 20 && sg.ready === false,
+		'songbook: the results of level 5 write line 5 of 20 of the cafe song', sg);
+	await tapTarget(p, 'town', 'popup');
+	await onScreen(p, 'town', 20000);
+	await sleep(1500);
+	check((await state(p)).app.ui.popup === null || (await state(p)).app.ui.popup === undefined,
+		'songbook: an unfinished song is not offered', (await state(p)).app.ui.popup);
+	// the notebook from the town button: five lines on the page (the town swallows taps while the stars of the win still fly in)
+	await waitFor(p, s => !s.app.ui.busy, 'the town settles after the win', 20000);
+	await tapTarget(p, 'notebook');
+	await waitFor(p, s => s.app.ui.popup === 'notebook', 'the notebook', 8000);
+	await sleep(900);
+	await p.screenshot({ path: `${outDir}/songbook_page.png` });
+	const nb = (await state(p)).app.ui.notebook;
+	check(nb && nb.district === 'cafe' && nb.count === 5 && nb.total === 20 && nb.ready === false,
+		'songbook: the notebook lists the five lines written so far', nb);
+	await command(p, 'close');
+	await waitFor(p, s => !s.app.ui.popup, 'the notebook closed', 8000);
+	// the last level of the stretch (19 levels by shortcut, the 20th on the engine) finishes the song
+	await command(p, 'advance 20');
+	await command(p, 'goto town');
+	await sleep(1200);
+	await startLevelFromTown(p);
+	await sleep(1300);
+	await command(p, 'win');
+	await waitFor(p, s => s.app.ui.level && ['concert', 'complete'].includes(s.app.ui.level.state), 'the final concert of level 20', 150000);
+	await command(p, 'skip');
+	await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 20', 60000);
+	await sleep(2600);
+	await p.screenshot({ path: `${outDir}/songbook_result_ready.png` });
+	const sr = (await state(p)).app.ui.result.song;
+	check(sr && sr.district === 'cafe' && sr.pos === 20 && sr.ready === true, 'songbook: the results of level 20 announce the finished song', sr);
+	// "To town": the chest waiting from level 20 goes first, then the finished song is offered once
+	await tapTarget(p, 'town', 'popup');
+	await onScreen(p, 'town', 20000);
+	let offered = null;
+	for (let i = 0; i < 12 && !offered; i++) {
+		const st = await state(p);
+		if (st.app.ui.popup === 'notebook') offered = st;
+		else if (st.app.ui.popup) {
+			// the unlock gift and the chest of the level come first: taken with real taps (a `close` skips the offer of the song)
+			const t = st.app.ui.popup_targets || {};
+			const name = t.collect ? 'collect' : t.chest ? 'chest' : t.gift ? 'gift' : Object.keys(t)[0];
+			if (name) await tapTarget(p, name, 'popup'); else await command(p, 'close');
+			await sleep(900);
+		}
+		else await sleep(800);
+	}
+	check(!!offered && offered.app.ui.notebook.ready === true && offered.app.ui.notebook.district === 'cafe',
+		'songbook: the town offers the finished song once', offered && offered.app.ui.notebook);
+	await sleep(1500);
+	await p.screenshot({ path: `${outDir}/songbook_ready.png` });
+	// Listen: the song of the district on the one music slot, the lines are lit one after another
+	await tapTarget(p, 'play', 'popup');
+	const playing = await waitFor(p, s => s.app.audio.song === 'cafe' && s.app.ui.notebook && s.app.ui.notebook.playing, 'the song plays', 8000);
+	check(playing.app.audio.playing === true, 'songbook: Listen plays the song of the district', { song: playing.app.audio.song });
+	const seen = new Set();
+	for (let i = 0; i < 14; i++) {
+		const st = await state(p);
+		if (st.app.ui.notebook && st.app.ui.notebook.active) seen.add(st.app.ui.notebook.active);
+		if (i === 4) await p.screenshot({ path: `${outDir}/songbook_playing.png` });
+		await sleep(1000);
+	}
+	check(seen.size >= 3, 'songbook: the lit line moves with the song', [...seen]);
+	await tapTarget(p, 'play', 'popup');
+	const stopped = await waitFor(p, s => s.app.ui.notebook && !s.app.ui.notebook.playing, 'Stop', 8000);
+	check(stopped.app.song === null || stopped.app.song === undefined, 'songbook: Stop leaves the jukebox pick alone', stopped.app.song);
+	await command(p, 'close');
+	await waitFor(p, s => !s.app.ui.popup, 'the notebook closed (end)', 8000);
+	const final = await state(p);
+	if (final.errors && final.errors.length) errors.push(...final.errors.map(e => 'bridge: ' + e));
+	await p.context().close();
+}
+
 async function releaseChecks() {
 	const page = await openPage(browser, { width: 540, height: 960 });
 	await sleep(9000);
@@ -230,6 +476,24 @@ async function debugChecks() {
 		'audio: the stems resync after a stall', { resyncs: a5.resyncs - r0, stalls: a5.stalls, pos: a5.last_resync_pos });
 	await command(page, 'music cafe');
 
+	// one song at a time: quick switches between a theme and songs; the engine holds at most two tracks (the one
+	// going out and the one coming in) and a pair sounds together for one crossfade at most
+	const quick = async (id) => {
+		await sleep(250);
+		const s = (await state(page)).app.audio;
+		check(s.tracks >= 1 && s.tracks <= 2, 'audio: at most two tracks while switching (' + id + ')', s.tracks);
+	};
+	await command(page, 'music rainy_window'); await quick('rainy_window');
+	await command(page, 'music bossa_breeze'); await quick('bossa_breeze');
+	await command(page, 'music neon_heartbeat'); await quick('neon_heartbeat');
+	await command(page, 'music cafe'); await quick('cafe');
+	await command(page, 'music sleepy_cat'); await quick('sleepy_cat');
+	await sleep(1500);
+	const a6 = (await state(page)).app.audio;
+	check(a6.tracks === 1 && a6.song === 'sleepy_cat' && a6.xfade == null, 'audio: one song after the crossfade', { tracks: a6.tracks, song: a6.song });
+	check(a6.max_overlap <= 0.8 + 0.25, 'audio: two tracks never sounded together longer than a crossfade', a6.max_overlap);
+	await command(page, 'music cafe');
+
 	// the saved volumes reach the mixer (whatever the script init order), and a
 	// save reset applies the defaults again
 	await command(page, 'volume 0.3');
@@ -250,6 +514,27 @@ async function debugChecks() {
 	await sleep(300);
 	check(Math.abs((await state(page)).app.audio.music_gain - 0.8) < 1e-6, 'audio: a save reset applies the default volume again',
 		(await state(page)).app.audio.music_gain);
+
+	// the save code: export, wipe the save, import: the progress is the same as before
+	await command(page, 'meta_win 5');
+	await command(page, 'meta_win 5');
+	await sleep(300);
+	const beforeCode = (await state(page)).app;
+	const exported = (await command(page, 'save_code')).result;
+	check(typeof exported.code === 'string' && exported.code.startsWith('GLOW1-') && /^[A-Za-z0-9_-]+$/.test(exported.code),
+		'save code: exported as one url-safe line', exported.code && exported.code.slice(0, 12));
+	await command(page, 'reset_save');
+	await sleep(300);
+	check((await state(page)).app.level === 1, 'save code: the wiped save starts again', (await state(page)).app.level);
+	const bad = await command(page, 'save_import ' + exported.code.slice(0, -3), { refused: true });
+	check(bad.result.ok === false, 'save code: a cut code is refused', bad.result.error);
+	check((await state(page)).app.level === 1, 'save code: a refused code changes nothing');
+	const imp = (await command(page, 'save_import ' + exported.code)).result;
+	await sleep(400);
+	const afterCode = (await state(page)).app;
+	check(imp.ok === true && afterCode.level === beforeCode.level && afterCode.coins === beforeCode.coins && afterCode.stars === beforeCode.stars,
+		'save code: the imported progress matches the exported one',
+		{ before: [beforeCode.level, beforeCode.coins, beforeCode.stars], after: [afterCode.level, afterCode.coins, afterCode.stars] });
 
 	// a task: a (meta) win gives a star, the task card restores the item in
 	// full colour with a gold glow and unlocks its stem
@@ -678,12 +963,178 @@ async function debugChecks() {
 		await waitFor(p, s => s.app.ui.popup_targets && s.app.ui.popup_targets.collect, 'the open chest (level 20)', 8000);
 		await sleep(1800);
 		await tapTarget(p, 'collect', 'popup');
-		await waitFor(p, s => !s.app.ui.busy && !s.app.ui.popup, 'the flights of the chest', 20000);
+		// the cafe song finished with level 20: once the chest is paid the town offers it (the notebook), which this check closes
+		await waitFor(p, s => !s.app.ui.busy && (!s.app.ui.popup || s.app.ui.popup === 'notebook'), 'the flights of the chest', 20000);
+		if ((await state(p)).app.ui.popup === 'notebook') {
+			await command(p, 'close');
+			await waitFor(p, s => !s.app.ui.popup, 'the offered song closed', 8000);
+		}
 		const after20 = await state(p);
 		check(after20.app.infinite_seconds - before20.app.infinite_seconds > 1700,
 			'chest: an unopened chest is offered in the town, its 30 minutes start at "Collect"',
 			{ before: before20.app.infinite_seconds, after: after20.app.infinite_seconds });
 		if (after20.errors && after20.errors.length) errors.push(...after20.errors.map(e => 'bridge: ' + e));
+		await p.context().close();
+	}
+
+	// 1b2. stars by score: the same level won with 1, 2 and 3 stars (`qa_stars` rates the win as if the score had reached
+	// that many), the results say so and the wallet follows; a worse replay never takes a star away ---------------
+	{
+		const p = await openPage(browser, { width: 540, height: 960 });
+		await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (stars)', 30000);
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await command(p, 'advance 3');
+		await command(p, 'goto town');
+		await sleep(1200);
+		const base = (await state(p)).app.stars;
+		const SL = 3; // `advance 3` leaves level 3 to play: the first win beats it, the replays are of the same level (a replay of an unbeaten level pays and records nothing)
+		const winResult = async (what) => {
+			await command(p, 'win');
+			await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert (' + what + ')', 150000);
+			await command(p, 'skip');
+			const r = await waitFor(p, s => s.app.ui.popup === 'result' && s.app.ui.result, 'the results (' + what + ')', 60000);
+			await sleep(1800);
+			return r;
+		};
+		const leave = async () => {
+			await tapTarget(p, 'town', 'popup');
+			await onScreen(p, 'town', 20000);
+		};
+		const replay = async (n) => {
+			await command(p, 'level ' + n);
+			await waitFor(p, s => s.app.screen === 'level' && !s.app.transitioning, 'the replay of level ' + n, 30000);
+			await sleep(1300);
+		};
+		await command(p, 'qa_stars 1');
+		await startLevelFromTown(p);
+		await sleep(1300);
+		const w1 = await winResult('level ' + SL + ', 1 star');
+		await p.screenshot({ path: `${outDir}/client_stars_1.png` });
+		check(w1.app.ui.result.stars === 1 && w1.app.ui.result.gained === 1 && w1.app.stars === base + 1,
+			'stars: a win with a low score gives 1 star and the wallet follows', { result: w1.app.ui.result, stars: w1.app.stars, base });
+		// (the window shows the score the autoplay really made, not the `qa_stars` one: a good run leaves nothing to the last star, 0)
+		check(typeof w1.app.ui.result.to_next === 'number' && w1.app.ui.result.to_next >= 0,
+			'stars: the results say how far the next star is', w1.app.ui.result);
+		await leave();
+		for (const n of [2, 3]) {
+			await command(p, 'qa_stars ' + n);
+			await replay(SL);
+			const w = await winResult('level ' + SL + ' replay, ' + n + ' stars');
+			await p.screenshot({ path: `${outDir}/client_stars_${n}.png` });
+			check(w.app.ui.result.stars === n && w.app.ui.result.best === n && w.app.stars === base + n,
+				'stars: a replay with a better score raises the stars to ' + n + ' and pays only the difference',
+				{ result: w.app.ui.result, stars: w.app.stars, base });
+			await leave();
+		}
+		await command(p, 'qa_stars 1');
+		await replay(SL);
+		const worse = await winResult('level ' + SL + ' replay, worse');
+		check(worse.app.ui.result.stars === 1 && worse.app.ui.result.best === 3 && worse.app.stars === base + 3,
+			'stars: a worse replay keeps the 3 stars of the level and takes nothing from the wallet', { result: worse.app.ui.result, stars: worse.app.stars, base });
+		await leave();
+		await command(p, 'qa_stars off');
+		const kept = await state(p);
+		check(kept.app.stars === base + 3, 'stars: back in the town the wallet still holds them', { stars: kept.app.stars, base });
+		if (kept.errors && kept.errors.length) errors.push(...kept.errors.map(e => 'bridge: ' + e));
+		await p.context().close();
+	}
+
+	// 1b3. the map (WP-7): the town's Map button, scrolling by drag and wheel, a tap on a closed level, on a beaten one (replay)
+	// and on the level to play (it starts, the map is the way back), Bit walks to the new level after the win ----------
+	{
+		const p = await openPage(browser, { width: 540, height: 960 });
+		await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (map)', 30000);
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await command(p, 'advance 6');
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await sleep(1200);
+		await tapTarget(p, 'map');
+		let m = await onScreen(p, 'map', 20000);
+		await sleep(1500);
+		check(m.app.ui.map && m.app.ui.map.next === 6 && !m.app.ui.map.walking, 'map: opens on the level to play (6)', m.app.ui.map);
+		const n6 = m.app.ui.targets.node_6;
+		check(n6 && n6.y > 300 && n6.y < 900, 'map: level 6 is in the middle of the window', n6);
+		await p.screenshot({ path: `${outDir}/client_map.png` });
+		// a drag with the finger down the screen shows what is higher on the map
+		const off0 = m.app.ui.map.off;
+		const a = await logicalToPage(p, 360, 900), b = await logicalToPage(p, 360, 300);
+		await p.mouse.move(a.x, a.y);
+		await p.mouse.down();
+		for (let i = 1; i <= 12; i++) { await p.mouse.move(a.x + (b.x - a.x) * i / 12, a.y + (b.y - a.y) * i / 12); await sleep(40); }
+		await p.mouse.up();
+		await sleep(1800);
+		m = await state(p);
+		check(m.app.ui.map.off > off0 + 500, 'map: a drag scrolls the map with inertia', { before: off0, after: m.app.ui.map.off });
+		check(!m.app.ui.popup, 'map: a drag that started on the map opens nothing', m.app.ui.popup);
+		await p.screenshot({ path: `${outDir}/client_map_scrolled.png` });
+		const off1 = m.app.ui.map.off;
+		await p.mouse.move(270, 480);
+		// The engine's web runtime (Defold 1.13.1 library_glfw.js) listens for the legacy `mousewheel` / `DOMMouseScroll` events
+		// only; Chromium sends the standard `wheel` event alone, so a real wheel never reaches the game there. The check sends
+		// the legacy event by hand: what the game does with a wheel notch is what is tested.
+		await p.evaluate(() => {
+			const c = document.querySelector('canvas');
+			for (let k = 0; k < 3; k++) {
+				const e = new WheelEvent('mousewheel', { deltaY: 120, clientX: 270, clientY: 480, bubbles: true, cancelable: true });
+				Object.defineProperty(e, 'wheelDelta', { value: -120 });
+				c.dispatchEvent(e);
+			}
+		});
+		await sleep(1500);
+		m = await state(p);
+		check(m.app.ui.map.off < off1 - 100, 'map: the wheel scrolls it back', { before: off1, after: m.app.ui.map.off });
+		// one notch of the real engine carries the map ~950 px, which can leave the level to play inside the window (its "to my
+		// level" button is hidden then): go far from it first
+		await command(p, 'map goto 14');
+		await sleep(1800);
+		await tapTarget(p, 'to_current');
+		await waitFor(p, s => Math.abs(s.app.ui.map.off - off0) < 3, 'the glide back to the level to play', 6000);
+		// a closed level: no window
+		await tapTarget(p, 'node_8');
+		await sleep(900);
+		check(!(await state(p)).app.ui.popup, 'map: a closed level opens no window');
+		// a beaten level opens as a replay (no boosters, practice run)
+		await command(p, 'map goto 4');
+		await sleep(900);
+		await tapTarget(p, 'node_4');
+		await waitFor(p, s => s.app.ui.popup === 'start', 'the replay window', 8000);
+		await sleep(900);
+		await p.screenshot({ path: `${outDir}/client_map_replay.png` });
+		await command(p, 'close');
+		await waitFor(p, s => !s.app.ui.popup, 'the replay window closed', 8000);
+		// the level to play: Play starts it and the map is the way back
+		await command(p, 'map goto 6');
+		await sleep(900);
+		await tapTarget(p, 'node_6');
+		await waitFor(p, s => s.app.ui.popup === 'start', 'the start window of level 6', 8000);
+		await sleep(900);
+		await tapTarget(p, 'play', 'popup');
+		const lv = await onScreen(p, 'level', 20000);
+		check(lv.app.params && lv.app.params.from === 'map' && lv.app.params.back === 'map' && lv.app.run === true,
+			'map: a tap on the level to play starts it (from the map, way back = map)', lv.app.params);
+		await sleep(1300);
+		await command(p, 'win');
+		await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert (map)', 150000);
+		await command(p, 'skip');
+		await waitFor(p, s => s.app.ui.popup === 'result' && s.app.ui.result, 'the results (map)', 60000);
+		await sleep(1800);
+		await tapTarget(p, 'town', 'popup'); // "To the map"
+		await onScreen(p, 'map', 20000);
+		const w = await waitFor(p, s => s.app.ui.map && s.app.ui.map.next === 7, 'the map after the win', 10000);
+		check(w.app.ui.map.walking || w.app.ui.map.bit_u >= 6, 'map: after the win Bit walks on', w.app.ui.map);
+		await sleep(1200);
+		await p.screenshot({ path: `${outDir}/client_map_walk.png` });
+		const arrived = await waitFor(p, s => s.app.ui.map && !s.app.ui.map.walking && s.app.ui.map.shown === 7, 'Bit on level 7', 20000);
+		check(Math.abs(arrived.app.ui.map.bit_u - 7) < 0.01, 'map: Bit stands on the next level (7)', arrived.app.ui.map);
+		await sleep(1000);
+		await p.screenshot({ path: `${outDir}/client_map_arrived.png` });
+		await tapTarget(p, 'back');
+		await onScreen(p, 'town', 20000);
+		const fin = await state(p);
+		if (fin.errors && fin.errors.length) errors.push(...fin.errors.map(e => 'bridge: ' + e));
 		await p.context().close();
 	}
 
@@ -784,10 +1235,19 @@ async function debugChecks() {
 	const final = await state(tall);
 	if (final.errors && final.errors.length) errors.push(...final.errors.map(e => 'bridge: ' + e));
 	await tall.context().close();
+
+	// 4. Korean: the same screens, no missing glyph (WP-3)
+	await koChecks(browser);
+
+	// 5. the rooms of the town in both looks (WP-8)
+	await roomChecks(browser);
+
+	// 6. the songbook (WP-9)
+	await songbookChecks(browser);
 }
 
 try {
-	if (releaseMode) await releaseChecks(); else await debugChecks();
+	if (releaseMode) await releaseChecks(); else if (koOnly) await koChecks(browser); else if (roomsOnly) await roomChecks(browser); else if (songbookOnly) await songbookChecks(browser); else await debugChecks();
 } catch (e) {
 	errors.push('qa: ' + e.message);
 } finally {

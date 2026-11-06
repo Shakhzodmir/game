@@ -136,7 +136,7 @@ function M.install(opts)
 	E.receivers = {}       -- url text -> script (messages posted to it are delivered by E.pump)
 	E.input_stack = {}     -- scripts that took input focus, the last one is asked first
 	E.unrouted = {}        -- messages nobody receives (main:/app, main:/audio#audio, ...)
-	E.sounds = { played = {}, stopped = {}, gains = {}, group_gains = {} }
+	E.sounds = { played = {}, stopped = {}, gains = {}, group_gains = {}, live = {} }
 	E.limits.animations = tonumber(E.project["gui.max_animation_count"]) or 1024
 	E.limits.characters = tonumber(E.project["graphics.max_characters"]) or 8192
 	E.custom_resources = parse_custom_resources(E.project)
@@ -188,9 +188,22 @@ function M.install(opts)
 
 	-- sound: recorded, no mixing ---------------------------------------------------------------------------
 	local sound = {}
-	function sound.play(url, props, cb) E.sounds.played[#E.sounds.played + 1] = { url = tostring(url), props = props } end
-	function sound.stop(url) E.sounds.stopped[#E.sounds.stopped + 1] = tostring(url) end
-	function sound.set_gain(url, g) E.sounds.gains[tostring(url)] = g end
+	-- `live`: the components that sound now (played and not stopped) with their gain: a component is one voice
+	-- group, set_gain and stop act on all of its voices (like Defold)
+	function sound.play(url, props, cb)
+		local u = tostring(url)
+		E.sounds.played[#E.sounds.played + 1] = { url = u, props = props }
+		E.sounds.live[u] = { gain = props and props.gain or 1 }
+	end
+	function sound.stop(url)
+		E.sounds.stopped[#E.sounds.stopped + 1] = tostring(url)
+		E.sounds.live[tostring(url)] = nil
+	end
+	function sound.set_gain(url, g)
+		E.sounds.gains[tostring(url)] = g
+		local l = E.sounds.live[tostring(url)]
+		if l then l.gain = g end
+	end
 	function sound.set_group_gain(group, g) E.sounds.group_gains[name_of(group) or tostring(group)] = g end
 	function sound.get_rms(group, window_s) return 0, 0 end
 	rawset(_G, "sound", sound)
@@ -412,6 +425,9 @@ function M.install(opts)
 		if parent then parent.children[#parent.children + 1] = n end
 	end
 	function gui.get_parent(n) return live(n).parent end
+	gui.TYPE_BOX, gui.TYPE_TEXT = "box", "text"
+	function gui.get_type(n) return live(n).kind end
+	function gui.get_line_break(n) return live(n).line_break and true or false end
 	function gui.set_position(n, v) live(n).pos = vmath.vector3(vec_arg(v, "set_position").x, v.y, v.z or 0) end
 	function gui.get_position(n) return vmath.vector3(live(n).pos) end
 	function gui.set_scale(n, v) live(n).scale = vmath.vector3(vec_arg(v, "set_scale").x, v.y, v.z or 1) end
@@ -595,6 +611,12 @@ function M.install(opts)
 		return px + n.pos.x * psx, py + n.pos.y * psy, psx * n.scale.x, psy * n.scale.y
 	end
 	E.world = world
+	-- the engine's screen position of a node: its pivot point in window px (y up)
+	function gui.get_screen_position(n)
+		live(n)
+		local wx, wy = world(n)
+		return vmath.vector3(wx, wy, 0)
+	end
 
 	-- Window-pixel rectangle of a node: x0, y0, x1, y1 (the node's own size; text nodes without a size
 	-- use their measured text).
@@ -613,6 +635,11 @@ function M.install(opts)
 		return x0, y0, x0 + w * sx, y0 + h * sy
 	end
 	E.rect = rect
+
+	-- the pivot of a node as a fraction of its size (x, y), for the layout audit
+	function E.pivot_fraction(n) return PIVOT_FRACTION[PIVOT_NAME[n.pivot]] end
+	-- the scale the scene root is fitted with (logical px -> window px)
+	function E.fit_scale() return require("client.layout").fit(E.window.w, E.window.h).scale end
 
 	function gui.pick_node(n, x, y)
 		live(n)
@@ -840,10 +867,39 @@ function M.install(opts)
 
 	-- the engine side of resource.get_text_metrics: a font resource handle and a string
 	local resource = rawget(_G, "resource")
-	resource.get_text_metrics = function(font_res, text, options)
+	resource.get_text_metrics = function(...)
+		local font_res, text, options = ...
+		-- the real engine checks the third argument as soon as it is passed: an explicit nil is an error
+		if select("#", ...) >= 3 and type(options) ~= "table" then
+			error("bad argument #3 to 'get_text_metrics' (table expected, got " .. type(options) .. ")", 2)
+		end
 		local name = type(font_res) == "table" and font_res.font or nil
 		local f = name and font_for(name)
 		if not f then error("resource.get_text_metrics: a font resource was expected, got " .. tostring(font_res), 2) end
+		if type(options) == "table" and options.line_break and (options.width or 0) > 0 then
+			-- greedy word wrap at options.width, like the engine
+			local function adv(str)
+				local w = 0
+				for _, cp in ipairs(utf8_codepoints(str)) do w = w + (f.advances[cp] or f.size * 0.55) end
+				return w
+			end
+			local space, lines, longest = adv(" "), 0, 0
+			for para in (tostring(text or "") .. "\n"):gmatch("(.-)\n") do
+				local cur, curw = nil, 0
+				for word in para:gmatch("%S+") do
+					local w = adv(word)
+					if cur and curw + space + w <= options.width then
+						curw = curw + space + w
+					else
+						if cur then lines = lines + 1; longest = math.max(longest, curw) end
+						cur, curw = word, w
+					end
+				end
+				lines = lines + 1
+				longest = math.max(longest, curw)
+			end
+			return { width = longest, height = lines * f.size * 1.25, max_ascent = f.size * 0.95, max_descent = f.size * 0.3 }
+		end
 		local width = 0
 		local longest = 0
 		for _, cp in ipairs(utf8_codepoints(tostring(text or ""))) do
@@ -1378,6 +1434,9 @@ function M.boot(opts)
 		local f = assert(io.open("content/districts.json", "r"))
 		local districts = json.decode(f:read("*a"))
 		f:close()
+		local g = assert(io.open("content/genres.json", "r"))
+		districts.genres = json.decode(g:read("*a")).genres
+		g:close()
 		analytics.init({ strict = true })
 		rewards.clear()
 		E.backend = opts.backend or save_io.memory_backend()
