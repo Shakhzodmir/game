@@ -126,7 +126,7 @@ function M.build(e)
 	local h_boost = #boosters > 0 and (190 + gap) or 0
 	local h_give = 34 + give_lines * 64 + 100
 	local H = h_head + h_offer + h_ad + h_boost + h_give
-	local body, hh = kit.panel(e, W, H, { title = { key = "continue.title" }, close = false })
+	local body, hh = kit.panel(e, W, H, { title = { key = "continue.title" }, close = false, fit = true })
 
 	-- Bit is worried, and says what can still be done
 	kit.bit(e, body, 0, hh - 160, 190, "worried")

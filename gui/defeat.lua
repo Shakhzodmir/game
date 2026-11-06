@@ -53,7 +53,7 @@ function M.build(e)
 	local h_goals = tiles > 0 and 214 or 0
 	local h_lines = #lines > 0 and (#lines * 64 + 16) or 0
 	local H = 600 + h_goals + h_lines
-	local body, hh = kit.panel(e, W, H, { title = { key = "lose.title" }, close = false })
+	local body, hh = kit.panel(e, W, H, { title = { key = "lose.title" }, close = false, fit = true })
 
 	-- Bit, sad, with a word for the player
 	kit.bit(e, body, 0, hh - 150, 190, "sad")

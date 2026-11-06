@@ -58,7 +58,7 @@ function M.build(e)
 		e:close("close")
 		return
 	end
-	local body, hh = kit.panel(e, W, H, { title = { key = "booster." .. id }, ribbon_w = 520 })
+	local body, hh = kit.panel(e, W, H, { title = { key = "booster." .. id }, ribbon_w = 520, fit = true, up = 94 })
 	kit.bit(e, body, -W / 2 + 60, hh + 34, 120, "idle")
 
 	kit.glow(e, body, 0, hh - 200, 300, "#E3D0FF", 0.7)
