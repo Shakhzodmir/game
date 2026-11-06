@@ -59,7 +59,7 @@ UI_ZONES = {
     "top_bar": (20, 20, 600, 120), "settings": (612, 22, 708, 118),
     "district_ribbon": (125, 136, 595, 224), "concert_toggle": (580, 148, 700, 212),
     "task_card": (60, 798, 660, 922), "streak_notes": (269, 908, 451, 962),
-    "level_button": (125, 967, 595, 1103), "hard_tag": (445, 944, 615, 994),
+    "level_button": (53, 967, 523, 1103), "map_button": (545, 967, 695, 1103), "hard_tag": (350, 944, 546, 994),
     "bottom_nav": (0, 1147, 720, 1280),
 }
 ZONE_ALPHA = 16       # alpha (0..255) above which an item pixel counts as "touching"
@@ -69,8 +69,8 @@ EDGE_EXEMPT = ("board/cell_", "board/edge_", "blockers/wires_", "ui/bunting", "/
                "/garage_door")   # ... except art meant to tile or to run off the edge
 GHOST_ALPHA = 0.75
 BG_DITHER = 0.5       # ordered dither on the opaque backgrounds (breaks gradient banding)
-BUDGET_MB = 9.0
-GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts"]
+BUDGET_MB = 10.0
+GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts", "map", "mapbg"]
 
 
 # ==========================================================================
@@ -143,6 +143,9 @@ def build_jobs():
                 raise SystemExit(f"no item drawing for task {did}/{t['id']}")
             J.append(("districts", f"districts/{did}/{t['id']}.png", "items", "ITEM_FUNCS", t["id"],
                       {"trim": t["id"] not in items.NO_TRIM, "ghost": True}))
+    import map_art
+    for group, rel, attr, args, opts in map_art.jobs():
+        J.append((group, rel, "map_art", attr, args, opts))
     return J
 
 
@@ -171,7 +174,7 @@ def run_job(job):
             cv = fn[key]()
     else:
         cv = fn(*key)
-    img = cv.image(opaque=opts.get("opaque", False), dither=opts.get("dither", 0.0))
+    img = cv if opts.get("pil") else cv.image(opaque=opts.get("opaque", False), dither=opts.get("dither", 0.0))
     if opts.get("trim"):
         a = np.asarray(img)[..., 3]
         ys, xs = np.nonzero(a > 2)
@@ -732,7 +735,7 @@ def main():
         jobs = []
     full = not groups and not args.match and not args.layout_only
     os.makedirs(OUT, exist_ok=True)
-    heavy = ("districts", "backgrounds", "bit", "blockers", "logo")
+    heavy = ("districts", "backgrounds", "bit", "blockers", "logo", "mapbg")
     jobs.sort(key=lambda j: (j[0] not in heavy, "/bg" not in j[1], j[1]))
     t0 = time.time()
     results = []

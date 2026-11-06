@@ -86,7 +86,7 @@ function M.build(e)
 	lkit.pulse(rb.node, 0.03, 0.9)
 	local ty = -hh + 78
 	s:button({ parent = body, x = 0, y = ty, w = 360, h = 96, style = "blue", icon = "ui/icons/home", icon_size = 52,
-		text = i18n.t("lose.town"), text_size = 36, on_click = function() e:close("town") end })
+		text = i18n.t(e.params.back == "map" and "win.map" or "lose.town"), text_size = 36, on_click = function() e:close("town") end })
 	e:target("town", 0, ty)
 end
 

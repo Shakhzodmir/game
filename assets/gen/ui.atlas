@@ -217,6 +217,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "ui_icons_map"
+  images {
+    image: "/assets/images/ui/icons/map.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "ui_icons_music_off"
   images {
     image: "/assets/images/ui/icons/music_off.png"
