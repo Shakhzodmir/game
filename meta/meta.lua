@@ -30,6 +30,7 @@ local inventory = require("meta.inventory")
 local lives = require("meta.lives")
 local progress = require("meta.progress")
 local record = require("meta.record")
+local songbook = require("meta.songbook")
 local town = require("meta.town")
 local prefs = require("meta.prefs")
 local save = require("meta.save")
@@ -92,6 +93,9 @@ function Meta.load(districts, current, previous, seed, now)
 	if state then
 		self = wrap(state, data)
 		if info.source ~= "current" or info.migrated then self:_touch() end
+		-- a save from before the songbook: the lines filled in now are written with the next save
+		local slot = info.source == "current" and current or previous
+		if type(slot) == "table" and slot.songbook == nil then self:_touch() end
 	else
 		self = fresh(data, salt)
 	end
@@ -406,6 +410,8 @@ function Meta:_win(result)
 	self:_touch()
 	self:_change("level_win", { { "coins", coins }, { "stars", rec.gained } })
 	local unlocked = self:_give_unlock_gifts()
+	-- the character writes a line of the song of this stretch of levels (decoration: nothing is paid)
+	local song = self:_write_song_line(run.level_id)
 	-- a level chest is not paid here: it waits until the player claims it (claim_level_chest)
 	local chest = economy.level_chest(run.level_id)
 	if chest then self:_hold_chest(run.level_id) end
@@ -421,9 +427,56 @@ function Meta:_win(result)
 		new_best_score = rec.new_best_score,
 		chest = chest,
 		unlocked = unlocked,
+		song = song,
 		streak = p.streak,
 		next_level = progress.level_to_play(p),
 	}
+end
+
+-- Fills the songbook up to the progress and returns what the beaten level wrote: {district, pos, line, total, ready}
+-- or nil (a level outside every stretch). Lines of older levels that were still missing are added silently.
+function Meta:_write_song_line(level_id)
+	local added = songbook.sync(self.s.songbook, self.s.salt, self.s.progress.beaten)
+	if #added > 0 then self:_touch() end
+	for _, a in ipairs(added) do
+		if a.level == level_id then
+			return { district = a.district, pos = a.pos, line = a.line, total = songbook.total(a.district),
+				ready = songbook.is_ready(self.s.songbook, a.district) }
+		end
+	end
+	return nil
+end
+
+-- songbook ---------------------------------------------------------------------------------
+
+-- The songs of the districts, in order: {{id, first, last, total, count, ready, seen, lines = {pool numbers},
+-- groups = {{kind, from, to}}, title = number | nil}}. Texts: client/songbook.lua.
+function Meta:songbook()
+	local out = {}
+	for i, d in ipairs(C.songbook.districts) do out[i] = songbook.song(self.s.songbook, d.id) end
+	return out
+end
+
+-- One song or nil (unknown district).
+function Meta:song_of(district_id)
+	return songbook.song(self.s.songbook, district_id)
+end
+
+-- The ready song the player was not offered yet (the first in order), or nil.
+function Meta:songbook_pending()
+	for _, d in ipairs(C.songbook.districts) do
+		if songbook.is_ready(self.s.songbook, d.id) and not util.index_of(self.s.songbook.seen, d.id) then return d.id end
+	end
+	return nil
+end
+
+-- The player was offered the ready song of the district. true when it changed.
+function Meta:songbook_seen(district_id)
+	if songbook.mark_seen(self.s.songbook, district_id) then
+		self:_touch()
+		return true
+	end
+	return false
 end
 
 -- A win of a level the player has already beaten (a replay): no coins, no life, no streak; only the

@@ -199,6 +199,19 @@ local function stars_scale(level_id, score)
 	return { t = info.t, max = info.t[3], stars = pr.stars, to = pr.to, frac = pr.frac, left = pr.to and math.max(0, pr.to - score) or 0 }
 end
 
+-- The songbook line this win wrote: {district, pos, total, ready, line (pool number), title (number, a ready song)}
+-- or nil (a debug level, a level outside every song, a result without it). The window writes it on a sheet of paper.
+local function song_view(meta, song)
+	if type(song) ~= "table" or not song.district then return nil end
+	local out = { district = song.district, pos = song.pos, total = song.total, ready = song.ready and true or false,
+		line = song.line }
+	if out.ready and meta and meta.song_of then
+		local sg = meta:song_of(song.district)
+		out.title = sg and sg.title or nil
+	end
+	return out
+end
+
 function M.result(meta, res, core_result, now)
 	core_result = core_result or {}
 	local sv = meta:streak()
@@ -225,6 +238,7 @@ function M.result(meta, res, core_result, now)
 		chest = chest,
 		progress = M.chest_progress(res.level_id or 0),
 		unlocked = res.unlocked or {},
+		song = (not res.standalone) and song_view(meta, res.song) or nil,
 		next_level = res.next_level,
 		all_done = res.next_level == nil,
 		standalone = res.standalone and true or false,

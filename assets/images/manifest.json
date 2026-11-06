@@ -1464,6 +1464,168 @@
       "alpha": true,
       "bytes": 46037
     },
+    "notebook/closed.png": {
+      "w": 384,
+      "h": 384,
+      "alpha": true,
+      "bytes": 15253
+    },
+    "notebook/doodle_1.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 2499
+    },
+    "notebook/doodle_2.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 2907
+    },
+    "notebook/doodle_3.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 3916
+    },
+    "notebook/doodle_4.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 2934
+    },
+    "notebook/doodle_5.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 5321
+    },
+    "notebook/doodle_6.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 5791
+    },
+    "notebook/doodle_7.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 4812
+    },
+    "notebook/doodle_8.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 4235
+    },
+    "notebook/doodle_9.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 3319
+    },
+    "notebook/paper_sheet.png": {
+      "w": 640,
+      "h": 900,
+      "alpha": true,
+      "bytes": 18294
+    },
+    "notebook/sparkle_1.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1487
+    },
+    "notebook/sparkle_2.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 3560
+    },
+    "notebook/sparkle_3.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 5084
+    },
+    "notebook/sparkle_4.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 5359
+    },
+    "notebook/sparkle_5.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 4864
+    },
+    "notebook/sparkle_6.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1288
+    },
+    "notebook/stamp_ready.png": {
+      "w": 192,
+      "h": 192,
+      "alpha": true,
+      "bytes": 17848
+    },
+    "notebook/stationery_1.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1793
+    },
+    "notebook/stationery_2.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1329
+    },
+    "notebook/stationery_3.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1411
+    },
+    "notebook/stationery_4.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 2758
+    },
+    "notebook/stationery_5.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1521
+    },
+    "notebook/stationery_6.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 3722
+    },
+    "notebook/stationery_7.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 4848
+    },
+    "notebook/stationery_8.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 2345
+    },
+    "notebook/stationery_9.png": {
+      "w": 128,
+      "h": 128,
+      "alpha": true,
+      "bytes": 1049
+    },
     "pieces/blue.png": {
       "w": 160,
       "h": 160,
