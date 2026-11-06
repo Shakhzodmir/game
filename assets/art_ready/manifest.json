@@ -1,0 +1,721 @@
+{
+ "bit_cheer": {
+  "group": "bit",
+  "source": "bit_cheer.png",
+  "files": [
+   "bit/bit_cheer_1.png",
+   "bit/bit_cheer_2.png",
+   "bit/bit_cheer_3.png",
+   "bit/bit_cheer_4.png",
+   "bit/bit_cheer_5.png",
+   "bit/bit_cheer_6.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (54 точек): нет ли в картинке чистого #FF00FF?",
+   "у кадров нет общей линии земли (ноги на разной высоте)"
+  ],
+  "errors": []
+ },
+ "bit_dance_a": {
+  "group": "bit",
+  "source": "bit_dance_a.png",
+  "files": [
+   "bit/bit_dance_a_1.png",
+   "bit/bit_dance_a_2.png",
+   "bit/bit_dance_a_3.png",
+   "bit/bit_dance_a_4.png",
+   "bit/bit_dance_a_5.png",
+   "bit/bit_dance_a_6.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (104 точек): нет ли в картинке чистого #FF00FF?",
+   "у кадров нет общей линии земли (ноги на разной высоте)"
+  ],
+  "errors": []
+ },
+ "bit_dance_b": {
+  "group": "bit",
+  "source": "bit_dance_b.png",
+  "files": [
+   "bit/bit_dance_b_1.png",
+   "bit/bit_dance_b_2.png",
+   "bit/bit_dance_b_3.png",
+   "bit/bit_dance_b_4.png",
+   "bit/bit_dance_b_5.png",
+   "bit/bit_dance_b_6.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (110 точек): нет ли в картинке чистого #FF00FF?",
+   "у кадров нет общей линии земли (ноги на разной высоте)"
+  ],
+  "errors": []
+ },
+ "bit_idle_look": {
+  "group": "bit",
+  "source": "bit_idle_look.png",
+  "files": [
+   "bit/bit_idle_look_1.png",
+   "bit/bit_idle_look_2.png",
+   "bit/bit_idle_look_3.png",
+   "bit/bit_idle_look_4.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (106 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ },
+ "bit_listen": {
+  "group": "bit",
+  "source": "bit_listen.png",
+  "files": [
+   "bit/bit_listen_1.png",
+   "bit/bit_listen_2.png",
+   "bit/bit_listen_3.png",
+   "bit/bit_listen_4.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (106 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ },
+ "bit_sleepy": {
+  "group": "bit",
+  "source": "bit_sleepy.png",
+  "files": [
+   "bit/bit_sleepy_1.png",
+   "bit/bit_sleepy_2.png",
+   "bit/bit_sleepy_3.png",
+   "bit/bit_sleepy_4.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (54 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ },
+ "bit_surprised": {
+  "group": "bit",
+  "source": "bit_surprised.png",
+  "files": [
+   "bit/bit_surprised_1.png",
+   "bit/bit_surprised_2.png",
+   "bit/bit_surprised_3.png",
+   "bit/bit_surprised_4.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "bit_wave": {
+  "group": "bit",
+  "source": "bit_wave.png",
+  "files": [
+   "bit/bit_wave_1.png",
+   "bit/bit_wave_2.png",
+   "bit/bit_wave_3.png",
+   "bit/bit_wave_4.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (65 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ },
+ "bit_write": {
+  "group": "bit",
+  "source": "bit_write.png",
+  "files": [
+   "bit/bit_write_1.png",
+   "bit/bit_write_2.png",
+   "bit/bit_write_3.png",
+   "bit/bit_write_4.png",
+   "bit/bit_write_5.png",
+   "bit/bit_write_6.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (78 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ },
+ "bonus_bar_fill": {
+  "group": "bonus",
+  "source": "bonus_bar_fill.png",
+  "files": [
+   "bonus/bonus_bar_fill.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "bonus_bar_frame": {
+  "group": "bonus",
+  "source": "bonus_bar_frame.png",
+  "files": [
+   "bonus/bonus_bar_frame.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "bonus_gift": {
+  "group": "bonus",
+  "source": "bonus_gift.png",
+  "files": [
+   "bonus/bonus_gift_closed.png",
+   "bonus/bonus_gift_shake.png",
+   "bonus/bonus_gift_glow.png",
+   "bonus/bonus_gift_open.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (52 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ },
+ "bonus_spark": {
+  "group": "bonus",
+  "source": "bonus_spark.png",
+  "files": [
+   "bonus/bonus_spark_1.png",
+   "bonus/bonus_spark_2.png",
+   "bonus/bonus_spark_3.png",
+   "bonus/bonus_spark_4.png",
+   "bonus/bonus_spark_5.png",
+   "bonus/bonus_spark_6.png"
+  ],
+  "warnings": [
+   "кадры очень разного размера (наибольший в 104.9 раза больше наименьшего): герой должен быть одного размера"
+  ],
+  "errors": []
+ },
+ "btn_blue": {
+  "group": "ui",
+  "source": "btn_blue.png",
+  "files": [
+   "ui/btn_blue_normal.png",
+   "ui/btn_blue_pressed.png",
+   "ui/btn_blue_disabled.png",
+   "ui/btn_blue_focus.png"
+  ],
+  "warnings": [
+   "рисунок в клетке 4 (focus) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны"
+  ],
+  "errors": []
+ },
+ "btn_gold": {
+  "group": "ui",
+  "source": "btn_gold.png",
+  "files": [
+   "ui/btn_gold_normal.png",
+   "ui/btn_gold_pressed.png",
+   "ui/btn_gold_disabled.png",
+   "ui/btn_gold_focus.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "btn_green": {
+  "group": "ui",
+  "source": "btn_green.png",
+  "files": [
+   "ui/btn_green_normal.png",
+   "ui/btn_green_pressed.png",
+   "ui/btn_green_disabled.png",
+   "ui/btn_green_focus.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "btn_pink": {
+  "group": "ui",
+  "source": "btn_pink.png",
+  "files": [
+   "ui/btn_pink_normal.png",
+   "ui/btn_pink_pressed.png",
+   "ui/btn_pink_disabled.png",
+   "ui/btn_pink_focus.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "btn_purple": {
+  "group": "ui",
+  "source": "btn_purple.png",
+  "files": [
+   "ui/btn_purple_normal.png",
+   "ui/btn_purple_pressed.png",
+   "ui/btn_purple_disabled.png",
+   "ui/btn_purple_focus.png"
+  ],
+  "warnings": [
+   "рисунок в клетке 4 (focus) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны"
+  ],
+  "errors": []
+ },
+ "deco_cafe": {
+  "group": "map",
+  "source": "deco_cafe.png",
+  "files": [
+   "map/deco_cafe_d1.png",
+   "map/deco_cafe_d2.png",
+   "map/deco_cafe_d3.png",
+   "map/deco_cafe_d4.png",
+   "map/deco_cafe_d5.png",
+   "map/deco_cafe_d6.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "deco_garage": {
+  "group": "map",
+  "source": "deco_garage.png",
+  "files": [
+   "map/deco_garage_d1.png",
+   "map/deco_garage_d2.png",
+   "map/deco_garage_d3.png",
+   "map/deco_garage_d4.png",
+   "map/deco_garage_d5.png",
+   "map/deco_garage_d6.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "deco_jazz": {
+  "group": "map",
+  "source": "deco_jazz.png",
+  "files": [
+   "map/deco_jazz_d1.png",
+   "map/deco_jazz_d2.png",
+   "map/deco_jazz_d3.png",
+   "map/deco_jazz_d4.png",
+   "map/deco_jazz_d5.png",
+   "map/deco_jazz_d6.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "deco_square": {
+  "group": "map",
+  "source": "deco_square.png",
+  "files": [
+   "map/deco_square_d1.png",
+   "map/deco_square_d2.png",
+   "map/deco_square_d3.png",
+   "map/deco_square_d4.png",
+   "map/deco_square_d5.png",
+   "map/deco_square_d6.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "deco_stadium": {
+  "group": "map",
+  "source": "deco_stadium.png",
+  "files": [
+   "map/deco_stadium_d1.png",
+   "map/deco_stadium_d2.png",
+   "map/deco_stadium_d3.png",
+   "map/deco_stadium_d4.png",
+   "map/deco_stadium_d5.png",
+   "map/deco_stadium_d6.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (52 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ },
+ "doodles": {
+  "group": "notebook",
+  "source": "doodles.png",
+  "files": [
+   "notebook/doodles_note.png",
+   "notebook/doodles_note2.png",
+   "notebook/doodles_clef.png",
+   "notebook/doodles_heart.png",
+   "notebook/doodles_star.png",
+   "notebook/doodles_flower.png",
+   "notebook/doodles_sun.png",
+   "notebook/doodles_cloud.png",
+   "notebook/doodles_bolt.png"
+  ],
+  "warnings": [
+   "рисунок в клетке 3 (clef) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 7 (sun) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны"
+  ],
+  "errors": []
+ },
+ "gate_cafe": {
+  "group": "map",
+  "source": "gate_cafe.png",
+  "files": [
+   "map/gate_cafe.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "gate_garage": {
+  "group": "map",
+  "source": "gate_garage.png",
+  "files": [
+   "map/gate_garage.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "gate_jazz": {
+  "group": "map",
+  "source": "gate_jazz.png",
+  "files": [
+   "map/gate_jazz.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "gate_square": {
+  "group": "map",
+  "source": "gate_square.png",
+  "files": [
+   "map/gate_square.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "gate_stadium": {
+  "group": "map",
+  "source": "gate_stadium.png",
+  "files": [
+   "map/gate_stadium.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "genres_a": {
+  "group": "genres",
+  "source": "genres_a.png",
+  "files": [
+   "genres/genres_a_classical.png",
+   "genres/genres_a_folk.png",
+   "genres/genres_a_pop.png",
+   "genres/genres_a_hiphop.png",
+   "genres/genres_a_edm.png",
+   "genres/genres_a_rnb.png",
+   "genres/genres_a_reggae.png",
+   "genres/genres_a_country.png",
+   "genres/genres_a_blues.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (209 точек): нет ли в картинке чистого #FF00FF?",
+   "рисунок в клетке 1 (classical) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 2 (folk) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 3 (pop) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 4 (hiphop) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 5 (edm) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 6 (rnb) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 7 (reggae) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 8 (country) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 9 (blues) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны"
+  ],
+  "errors": []
+ },
+ "genres_b": {
+  "group": "genres",
+  "source": "genres_b.png",
+  "files": [
+   "genres/genres_b_bossa.png",
+   "genres/genres_b_ambient.png",
+   "genres/genres_b_cinematic.png",
+   "genres/genres_b_chiptune.png",
+   "genres/genres_b_latin.png",
+   "genres/genres_b_eastern.png"
+  ],
+  "warnings": [
+   "рисунок в клетке 3 (cinematic) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 4 (chiptune) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 5 (latin) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны",
+   "рисунок в клетке 6 (eastern) упёрся в край (нужно поле не меньше 8%): края могут быть обрезаны"
+  ],
+  "errors": []
+ },
+ "map_bg_cafe": {
+  "group": "map",
+  "source": "map_bg_cafe.png",
+  "files": [
+   "map/map_bg_cafe.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "map_bg_garage": {
+  "group": "map",
+  "source": "map_bg_garage.png",
+  "files": [
+   "map/map_bg_garage.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "map_bg_jazz": {
+  "group": "map",
+  "source": "map_bg_jazz.png",
+  "files": [
+   "map/map_bg_jazz.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "map_bg_square": {
+  "group": "map",
+  "source": "map_bg_square.png",
+  "files": [
+   "map/map_bg_square.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "map_bg_stadium": {
+  "group": "map",
+  "source": "map_bg_stadium.png",
+  "files": [
+   "map/map_bg_stadium.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "map_path": {
+  "group": "map",
+  "source": "map_path.png",
+  "files": [
+   "map/map_path_straight.png",
+   "map/map_path_curve_l.png",
+   "map/map_path_curve_r.png",
+   "map/map_path_end.png"
+  ],
+  "warnings": [
+   "кадры очень разного размера (наибольший в 2.4 раза больше наименьшего): герой должен быть одного размера"
+  ],
+  "errors": []
+ },
+ "node_concert": {
+  "group": "map",
+  "source": "node_concert.png",
+  "files": [
+   "map/node_concert_locked.png",
+   "map/node_concert_available.png",
+   "map/node_concert_current.png",
+   "map/node_concert_done.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "node_day": {
+  "group": "map",
+  "source": "node_day.png",
+  "files": [
+   "map/node_day_locked.png",
+   "map/node_day_available.png",
+   "map/node_day_current.png",
+   "map/node_day_done.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "notebook_closed": {
+  "group": "notebook",
+  "source": "notebook_closed.png",
+  "files": [
+   "notebook/notebook_closed.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "panels": {
+  "group": "ui",
+  "source": "panels.png",
+  "files": [
+   "ui/panels_window.png",
+   "ui/panels_plain.png",
+   "ui/panels_tint.png",
+   "ui/panels_tab.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "paper_sheet": {
+  "group": "notebook",
+  "source": "paper_sheet.png",
+  "files": [
+   "notebook/paper_sheet.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_cafe_concert": {
+  "group": "rooms",
+  "source": "room_cafe_concert.png",
+  "files": [
+   "rooms/room_cafe_concert.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_cafe_day": {
+  "group": "rooms",
+  "source": "room_cafe_day.png",
+  "files": [
+   "rooms/room_cafe_day.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_garage_concert": {
+  "group": "rooms",
+  "source": "room_garage_concert.png",
+  "files": [
+   "rooms/room_garage_concert.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_garage_day": {
+  "group": "rooms",
+  "source": "room_garage_day.png",
+  "files": [
+   "rooms/room_garage_day.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_jazz_concert": {
+  "group": "rooms",
+  "source": "room_jazz_concert.png",
+  "files": [
+   "rooms/room_jazz_concert.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_jazz_day": {
+  "group": "rooms",
+  "source": "room_jazz_day.png",
+  "files": [
+   "rooms/room_jazz_day.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_square_concert": {
+  "group": "rooms",
+  "source": "room_square_concert.png",
+  "files": [
+   "rooms/room_square_concert.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_square_day": {
+  "group": "rooms",
+  "source": "room_square_day.png",
+  "files": [
+   "rooms/room_square_day.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_stadium_concert": {
+  "group": "rooms",
+  "source": "room_stadium_concert.png",
+  "files": [
+   "rooms/room_stadium_concert.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "room_stadium_day": {
+  "group": "rooms",
+  "source": "room_stadium_day.png",
+  "files": [
+   "rooms/room_stadium_day.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "sparkle_burst": {
+  "group": "notebook",
+  "source": "sparkle_burst.png",
+  "files": [
+   "notebook/sparkle_burst_1.png",
+   "notebook/sparkle_burst_2.png",
+   "notebook/sparkle_burst_3.png",
+   "notebook/sparkle_burst_4.png",
+   "notebook/sparkle_burst_5.png",
+   "notebook/sparkle_burst_6.png"
+  ],
+  "warnings": [
+   "кадры очень разного размера (наибольший в 51.3 раза больше наименьшего): герой должен быть одного размера"
+  ],
+  "errors": []
+ },
+ "stamp_ready": {
+  "group": "notebook",
+  "source": "stamp_ready.png",
+  "files": [
+   "notebook/stamp_ready.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "stationery": {
+  "group": "notebook",
+  "source": "stationery.png",
+  "files": [
+   "notebook/stationery_pencil.png",
+   "notebook/stationery_pencil_big.png",
+   "notebook/stationery_eraser.png",
+   "notebook/stationery_pen.png",
+   "notebook/stationery_highlighter.png",
+   "notebook/stationery_sticker_star.png",
+   "notebook/stationery_clip.png",
+   "notebook/stationery_tape.png",
+   "notebook/stationery_bookmark.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "super_star": {
+  "group": "bonus",
+  "source": "super_star.png",
+  "files": [
+   "bonus/super_star_full.png",
+   "bonus/super_star_empty.png",
+   "bonus/super_star_glow.png",
+   "bonus/super_star_small.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "widgets": {
+  "group": "ui",
+  "source": "widgets.png",
+  "files": [
+   "ui/widgets_close.png",
+   "ui/widgets_back.png",
+   "ui/widgets_toggle_on.png",
+   "ui/widgets_toggle_off.png",
+   "ui/widgets_slider.png",
+   "ui/widgets_check_on.png",
+   "ui/widgets_check_off.png",
+   "ui/widgets_bar_frame.png",
+   "ui/widgets_bar_fill.png"
+  ],
+  "warnings": [],
+  "errors": []
+ },
+ "bit_idle_breathe": {
+  "group": "bit",
+  "source": "bit_idle_breathe.png",
+  "files": [
+   "bit/bit_idle_breathe_1.png",
+   "bit/bit_idle_breathe_2.png",
+   "bit/bit_idle_breathe_3.png",
+   "bit/bit_idle_breathe_4.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (107 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
+ }
+}

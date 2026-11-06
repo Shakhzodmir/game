@@ -10,7 +10,7 @@
 --   link.active()                  -- true while a board is on display
 --   link.status()                  -- game:status() {state, moves_left, score, goals, ...}
 --   link.info()                    -- {level_id, W, H, goals, moves, difficulty, colors (level JSON),
---                                  --  run, standalone}
+--                                  --  run, standalone, meter = {enabled, threshold, points}}
 --   link.booster("stick" | "row_light" | "col_light")  -- enter target mode (the next tap on the board)
 --   link.booster("remix")          -- applied at once
 --       -> true | false, reason ("no_board" | "busy" | core reason)
@@ -47,6 +47,8 @@
 --                  when a remix had nothing to shuffle)
 --   level_result   {result = game:result()}                  complete or lost
 --   level_special  {special, combo, lx, ly}                  a special fired (Bit scratches)
+--   level_bonus    {adds = {{n, total, fill, special, combo, x, y, id}, ...}}  the bonus bar got points (client/bonus_meter.lua)
+--   level_bonus_gift {special, lx, ly}                       the core put the bar's gift on the board (the HUD flies it there)
 --   level_flash    {color, alpha, dur}                       the whole screen flashes (fx GUI)
 --   level_floor    {x, y, lx, ly}                            a dance-floor tile was lit
 --   level_noise    {x, y, lx, ly}                            noise grew onto a piece (Bit covers his ears)
@@ -97,6 +99,7 @@ function M.info()
 		level_id = s.info.level_id, W = s.W, H = s.H,
 		goals = d.goals or {}, moves = d.moves, difficulty = d.difficulty, colors = d.colors or {},
 		run = s.info.run, standalone = s.info.standalone,
+		meter = s.meter and { enabled = s.meter.enabled, threshold = s.meter.threshold, points = s.meter.points } or nil,
 	}
 end
 

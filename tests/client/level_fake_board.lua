@@ -83,7 +83,10 @@ function M.new(opts)
 		on_booster = function(id, phase) bus.publish("level_booster", { booster = id, phase = phase }) end,
 	}
 	link.attach(self.board)
-	self.on_tick = function(events) self:_events(events) end
+	self.on_tick = function(events, _, adds)
+		if adds and #adds > 0 then bus.publish("level_bonus", { adds = adds }) end -- as screens/level/board.script does
+		self:_events(events)
+	end
 	return self
 end
 
@@ -143,6 +146,9 @@ function FB:_events(events)
 			bus.publish("level_praise", { word = e.word, index = PRAISE_INDEX[e.word], wave = e.wave })
 		elseif ty == "booster" then
 			bus.publish("level_booster", { booster = e.booster, phase = "done", ok = e.ok })
+		elseif ty == "bonus" then
+			local lx, ly = self.geom:center(e.x, e.y)
+			bus.publish("level_bonus_gift", { special = e.special, lx = lx, ly = ly })
 		end
 	end
 end

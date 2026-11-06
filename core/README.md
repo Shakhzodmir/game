@@ -48,7 +48,7 @@ Bots: `game:clone{reseed = k}`, `clone:set_timing("turbo")`,
 | `board.lua` | state construction, objects and ids (§1.4), pins, labels (§1.3), goal lookup, `mf()` |
 | `start.lua` | start board (§4): fills, checks, start shuffle, ids, pre-level boosters |
 | `sched.lua` | scheduler queue of plain records ordered by `(due, seq)` (§15.1, §15.2) |
-| `input.lua` | commands (§5): validation order, swap/fail/swipe-as-tap, tap, boosters, continue, give_up, skip, turbo switch |
+| `input.lua` | commands (§5): validation order, swap/fail/swipe-as-tap, tap, boosters, `bonus` (the bonus meter's gift: a random free regular piece becomes a Riff, Sabwoofer, Bird or Disco ball, at rest, no move spent, event `bonus`; refusals bad_cmd, bad_state, not_rest, no_candidates; not in the spec, the client's meter asks for it: `client/bonus_meter.lua`), continue, give_up, skip, turbo switch |
 | `tick.lua` | `step()`: the 8 steps of §15, swap timers and refunds (§5.1.3), record dispatch |
 | `match.lua` | colour map, union-find groups, classification (§6.1), special cell (§6.2), resolution (§6.3), praise |
 | `hits.lua` | sources, the hit (§7.1), blockers (§7.3), scores and goals (§7.4), chain launch |

@@ -12,6 +12,9 @@
 --   hud:refresh_boosters()                 -- counts changed (the meta), the state changed
 --   hud:set_target(booster id | nil)       -- target mode on / off
 --   hud:set_pick(step)                     -- the Crossfader's prompt: 0 pick two pieces, 1 now the second
+--   hud:on_bonus(p)                        -- level_bonus {adds = {{n, total, fill, special, ...}, ...}}: the bonus bar grows
+--   hud:on_gift(p)                         -- level_bonus_gift {special, lx, ly}: the gift flies from the bar to its piece
+--   hud:meter_rect()                       -- the bonus bar's logical rectangle (the tutorial, the flights)
 --   hud:bit_event(topic, payload)          -- the board's topics for Bit
 --   hud:update(dt)
 --   hud:booster_rect(id), hud:goal_pos(k)  -- logical rectangles / positions (the tutorial, the flights)
@@ -204,6 +207,7 @@ function Hud:build(info, status, rect)
 	self:_goals(info, status)
 	self:_moves(status)
 	self:_bar()
+	self:_meter()
 	self:_bit()
 	if self.target then
 		local id, step = self.target, self.pick_step
@@ -442,6 +446,134 @@ function Hud:pick_bit(action)
 		return true
 	end
 	return false
+end
+
+-- the bonus bar ------------------------------------------------------------------------------------------------
+-- Above the booster bar (client/level_hud.lua METER): a capsule that fills while specials fire (client/bonus_meter.lua
+-- counts), a note at its start, the gift at its end. Each addition: the fill grows with a pulse, sparks at its tip, a
+-- "+n" and a note that climbs the scale; at 8 and 9 of 10 the gift trembles and the capsule glows ("will it fill?");
+-- at 10 a flash and a ring at the gift, a fanfare, and the gift flies to the piece the core chose (on_gift).
+
+local METER_EDGE, METER_BACK = "#7B5CD6", "#EADFFF"
+local meter_hinted = false -- the first addition of a session says what the bar is for (a toast)
+local METER_GIFT_ICON = "ui/icons/gift"
+
+function Hud:_meter()
+	local s = self.ui
+	self.mtr, self.m_tense = nil, false
+	local mi = self.info and self.info.meter
+	if not (mi and mi.enabled) then return end
+	local m = self.l.meter
+	self.m_thr = mi.threshold or 10
+	if self.m_pts == nil then self.m_pts = mi.points or 0 end
+	local root = s:layer(self.layer, "bonus")
+	local inner_w, inner_h = m.w - 24, m.h - 12
+	local x0 = m.cx - inner_w / 2
+	s:round(root, m.cx, m.cy, m.w + 6, m.h + 6, METER_EDGE, { alpha = 0.95 })
+	local back = s:round(root, m.cx, m.cy, m.w, m.h, METER_BACK, { alpha = 0.97 })
+	local fill = s:round(root, x0, m.cy, inner_h, inner_h, "#FF5FA2", { pivot = gui.PIVOT_W })
+	for i = 1, self.m_thr - 1 do
+		s:box(root, x0 + inner_w * i / self.m_thr, m.cy, 2, inner_h - 8, { color = "#FFFFFF", alpha = 0.6 })
+	end
+	local nx = m.cx - m.w / 2 + 4
+	local gx, gy = m.cx + m.w / 2 + 2, m.cy + 4
+	local note = s:image(root, "ui/icons/note_on", nx, m.cy, { w = 34, h = 34 })
+	if not note then s:circle(root, nx, m.cy, 28, "#FFD84D") end
+	local gift = s:image(root, METER_GIFT_ICON, gx, gy, { w = 54, h = 54 }) or s:circle(root, gx, gy, 44, "#FFB020")
+	local label, linfo = s:text(root, "", m.cx, m.cy, { font = "number", size = 22, color = "white", outline = METER_EDGE, max_width = 110 })
+	self.mtr = { root = root, back = back, fill = fill, gift = gift, label = label, linfo = linfo,
+		x0 = x0, w = inner_w, h = inner_h, cy = m.cy, gx = gx, gy = gy }
+	self:_meter_set(self.m_pts, false)
+end
+
+function Hud:meter_rect()
+	return self.l and self.l.meter or nil
+end
+
+-- The fill and the label for `points`; animated when the bar grows in front of the player.
+function Hud:_meter_set(points, animate)
+	local mt = self.mtr
+	if not mt then return end
+	local st = level_hud.meter_state(points, self.m_thr)
+	local w = math.max(mt.h, st.frac * mt.w)
+	local col = ui.color(level_hud.meter_color(st.frac))
+	gui.set_enabled(mt.fill, points > 0)
+	gui.cancel_animations(mt.fill, "size.x")
+	if animate and not app.reduced_motion() then
+		gui.animate(mt.fill, "size.x", w, gui.EASING_OUTQUAD, 0.35)
+		gui.animate(mt.fill, "color", col, gui.EASING_LINEAR, 0.35)
+	else
+		gui.set_size(mt.fill, vmath.vector3(w, mt.h, 0))
+		gui.set_color(mt.fill, col)
+	end
+	self.ui:set_text(mt.label, st.label, mt.linfo)
+	self:_meter_tense(st.tense)
+end
+
+-- The tremble of the gift and the glow of the capsule while 8 or 9 of 10 are in.
+function Hud:_meter_tense(on)
+	local mt = self.mtr
+	if not mt or on == self.m_tense then return end
+	self.m_tense = on
+	gui.cancel_animations(mt.gift, "euler.z")
+	gui.cancel_animations(mt.back, "color.w")
+	if on and not app.reduced_motion() then
+		gui.set_euler(mt.gift, vmath.vector3(0, 0, -9))
+		gui.animate(mt.gift, "euler.z", 9, gui.EASING_INOUTSINE, 0.16, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+		gui.animate(mt.back, "color.w", 0.65, gui.EASING_INOUTSINE, 0.35, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+	else
+		gui.set_euler(mt.gift, vmath.vector3(0, 0, 0))
+		gui.set_color(mt.back, ui.color(METER_BACK, 0.97))
+	end
+end
+
+local METER_TIP_COLORS = { "#FFFFFF", "#FFF3A6", "#FF9A3D", "#FF5FA2" }
+
+-- level_bonus: the additions of one tick, in order.
+function Hud:on_bonus(p)
+	local mt = self.mtr
+	if not mt or not p or not p.adds then return end
+	local thr = self.m_thr
+	for _, a in ipairs(p.adds) do
+		local shown = a.fill and thr or (a.total or 0)
+		self.m_pts = a.fill and (a.total - thr) or a.total
+		local tipx = mt.x0 + mt.w * math.min(shown, thr) / thr
+		self:_meter_set(math.min(shown, thr), true)
+		self.fx:pop(mt.back, 0.06, 0.25)
+		self.fx:burst(tipx, mt.cy, { count = 5 + 3 * (a.n or 1), radius = 34 + 14 * (a.n or 1), size = 22, dur = 0.5,
+			colors = METER_TIP_COLORS })
+		self.fx:float_text("+" .. tostring(a.n or 1), tipx, mt.cy + 26, { size = 34, color = "#FFF3A6", outline = METER_EDGE,
+			dur = 0.7, rise = 50, max_width = 120 })
+		-- a note of the scale that climbs with the bar
+		pcall(audio.play_note, "yellow", math.max(1, math.min(shown, 9)))
+		if not meter_hinted then -- once per session: what the bar is for
+			meter_hinted = true
+			pcall(app.toast_key, "hud.bonus_hint", nil, { color = "purple", duration = 3 })
+		end
+		if a.fill then
+			-- full: flash and ring at the gift, the fanfare, then the bar drains to what was carried over
+			self.fx:flash(mt.gx, mt.gy, { size = 220, color = "#FFF3A6", dur = 0.5 })
+			self.fx:ring(mt.gx, mt.gy, { size = 110, scale = 3, dur = 0.6, color = "#FFD84D" })
+			self.fx:burst(mt.gx, mt.gy, { count = 16, radius = 110, size = 30, dur = 0.7 })
+			self.fx:shake(mt.gift, 8, 0.4)
+			pcall(audio.sfx, "star")
+			self.fx:after(0.55, function()
+				if self.mtr == mt then self:_meter_set(self.m_pts, true) end
+			end)
+		end
+	end
+end
+
+-- level_bonus_gift: the core put the gift on the board; it flies from the bar to the new special and blooms there.
+function Hud:on_gift(p)
+	local mt = self.mtr
+	if not mt or not p then return end
+	self.fx:fly({ image = METER_GIFT_ICON, size = 64, from = { mt.gx, mt.gy }, to = { p.lx, p.ly }, dur = 0.55, arc = 160,
+		spin = 360, trail = "#FFD84D", on_land = function(x, y)
+			self.fx:flash(x, y, { size = 200, color = "#FFF3A6", dur = 0.4 })
+			self.fx:burst(x, y, { count = 12, radius = 90, size = 30, dur = 0.6 })
+			pcall(audio.sfx, "special_create")
+		end })
 end
 
 -- score pops ------------------------------------------------------------------------------------------------
