@@ -66,6 +66,7 @@ DIR_MUSIC = ROOT / "assets" / "music"
 DIR_SONGS = DIR_MUSIC / "songs"
 MANIFEST = ROOT / "assets" / "sounds" / "manifest.json"
 REPORT = ROOT / "docs" / "media" / "audio_report.md"
+GENRES = ROOT / "content" / "genres.json"
 DISTRICTS = ROOT / "content" / "districts.json"
 
 Q_NOTES, Q_SFX, Q_MUSIC = 0.6, 0.5, 0.3  # Vorbis quality (0..1)
@@ -87,7 +88,7 @@ FEEDBACK_SFX = ("tap", "swap", "swap_fail", "land", "clear", "box_hit", "concret
 PITCHED_SFX_MIN_IN_KEY = 75.0  # % of tonal energy on the C major scale for the short pitched cues
 PITCHED_CUES = ("tap", "swap_fail", "bird", "moves_low", "coin", "star", "floor_light")
 SIZE_BUDGET = 7 * 1024 * 1024        # notes + sfx + the district music
-SONG_BUDGET = 6 * 1024 * 1024        # the jukebox songs (the new audio of the genres)
+SONG_BUDGET = 14 * 1024 * 1024       # the jukebox songs: 6 MB of the district genres + 8 MB of the extra genres (WP-6)
 SONG_LUFS = -20.0     # integrated loudness of every song (the district full songs sit at -19.0 ... -20.0; in a level the song is a music bed: see the headroom check)
 SONG_TOL = 1.0
 SONG_GR_MAX = 5.0     # dB the loop limiter may take at one peak (a crash, a snare)
@@ -122,7 +123,10 @@ MIXER = {
 # ------------------------------------------------------------------ I/O
 
 def rel(p):
-    return str(Path(p).relative_to(ROOT)).replace("\\", "/")
+    try:
+        return str(Path(p).relative_to(ROOT)).replace("\\", "/")
+    except ValueError:  # --preview writes outside the repository
+        return str(p)
 
 
 def write_bytes(path, data):
@@ -889,6 +893,53 @@ def run_checks(man):
     return out, ok
 
 
+def song_problems(v):
+    """The per-song checks of run_checks (same limits) as a list of what fails."""
+    bad = []
+    exact = v["samples"] == v["loop_samples"] == int(round(v["bars"] * 4 * 60.0 / v["bpm"] * music.SR))
+    if not exact:
+        bad.append("loop length is not bars x 4 x 60 / bpm")
+    if not SONG_SECONDS[0] <= v["loop_seconds"] <= SONG_SECONDS[1]:
+        bad.append("length %.1f s outside %s" % (v["loop_seconds"], SONG_SECONDS))
+    if max(v["true_peak_dbtp"], v["peak_dbfs"]) > MIX_TP_MAX:
+        bad.append("peak too high")
+    if abs(v["lufs"] - SONG_LUFS) > SONG_TOL:
+        bad.append("loudness %.1f" % v["lufs"])
+    if -v["limiter_gr_db"] > SONG_GR_MAX:
+        bad.append("limiter takes %.1f dB at a peak" % -v["limiter_gr_db"])
+    if -v["limiter_energy_gr_db"] > SONG_EGR_MAX:
+        bad.append("limiter takes %.2f dB of the energy" % -v["limiter_energy_gr_db"])
+    if v["harmony_in_scale_pct"] < SONG_KEY_MIN:
+        bad.append("only %s %% in the key (need %.0f)" % (v["harmony_in_scale_pct"], SONG_KEY_MIN))
+    s = v["seam"]
+    if not (s["step_vs_beats"] <= 1.5 and s["click_vs_beats"] <= 1.5 and s["codec_edge"] <= 1.5):
+        bad.append("seam not clean %s" % s)
+    return bad
+
+
+def preview_songs(ids, out):
+    """Renders the named songs of the catalogue into `out` and prints what the real run would check."""
+    global DIR_SONGS
+    districts = json.loads(DISTRICTS.read_text(encoding="utf-8"))["districts"]
+    genres = json.loads(GENRES.read_text(encoding="utf-8"))["genres"]
+    jobs = [(e, d) for d in districts + genres for e in d.get("songs", []) if e["id"] in ids]
+    missing = set(ids) - {e["id"] for e, _ in jobs}
+    if missing:
+        print("not in the catalogue:", ", ".join(sorted(missing)))
+        return 2
+    out.mkdir(parents=True, exist_ok=True)
+    DIR_SONGS = out
+    code = 0
+    for job in jobs:
+        v = build_song(job)
+        bad = song_problems(v)
+        code |= 1 if bad else 0
+        print("%-20s %5.1fs %4d KB lufs %.1f key %s%% parts %s  %s" % (
+            v["id"], v["loop_seconds"], v["bytes"] // 1024, v["lufs"], v["harmony_in_scale_pct"],
+            ",".join(v["parts"]), "OK" if not bad else "FAIL: " + "; ".join(bad)))
+    return code
+
+
 # ------------------------------------------------------------------ main
 
 def load_decoded(rows):
@@ -899,13 +950,19 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--only", default="notes,sfx,music,songs", help="comma list of notes,sfx,music,songs")
     ap.add_argument("--jobs", type=int, default=min(5, mp.cpu_count()))
+    ap.add_argument("--preview", default="", help="comma list of song ids: render only these to --out, print their "
+                    "measurements and checks, touch nothing in assets/ (for writing songs)")
+    ap.add_argument("--out", default="/tmp/glow_song_preview", help="folder of --preview")
     args = ap.parse_args()
+    if args.preview:
+        return preview_songs([x for x in args.preview.split(",") if x], Path(args.out))
     parts = set(args.only.split(","))
     t0 = time.time()
     districts = json.loads(DISTRICTS.read_text(encoding="utf-8"))["districts"]
     prev = json.loads(MANIFEST.read_text(encoding="utf-8")) if MANIFEST.exists() else {}
 
-    catalogue = [(e, d) for d in districts for e in d.get("songs", [])]
+    genres = json.loads(GENRES.read_text(encoding="utf-8"))["genres"]
+    catalogue = [(e, d) for d in districts + genres for e in d.get("songs", [])]
     pool = None
     if ("music" in parts or "songs" in parts) and args.jobs > 1:
         pool = mp.get_context("fork").Pool(args.jobs)
