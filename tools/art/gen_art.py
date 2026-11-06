@@ -59,7 +59,7 @@ UI_ZONES = {
     "top_bar": (20, 20, 600, 120), "settings": (612, 22, 708, 118),
     "district_ribbon": (125, 136, 595, 224), "concert_toggle": (580, 148, 700, 212),
     "task_card": (60, 798, 660, 922), "streak_notes": (269, 908, 451, 962),
-    "level_button": (53, 967, 523, 1103), "map_button": (545, 967, 695, 1103), "hard_tag": (350, 944, 546, 994),
+    "level_button": (53, 967, 523, 1103), "map_button": (545, 967, 695, 1103), "hard_tag": (350, 944, 546, 994), "notebook_button": (638, 214, 720, 290),
     "bottom_nav": (0, 1147, 720, 1280),
 }
 ZONE_ALPHA = 16       # alpha (0..255) above which an item pixel counts as "touching"
@@ -71,7 +71,7 @@ EDGE_EXEMPT = ("board/cell_", "board/edge_", "blockers/wires_", "ui/bunting", "/
 GHOST_ALPHA = 0.75
 BG_DITHER = 0.5       # ordered dither on the opaque backgrounds (breaks gradient banding)
 BUDGET_MB = 12.5   # 10 until the 48 flipbook frames of Bit (WP-8) joined: ~55 KB each
-GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts", "map", "mapbg"]
+GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts", "map", "mapbg", "notebook"]
 
 
 # ==========================================================================
@@ -153,6 +153,9 @@ def build_jobs():
     import map_art
     for group, rel, attr, args, opts in map_art.jobs():
         J.append((group, rel, "map_art", attr, args, opts))
+    import notebook_art
+    for group, rel, attr, args, opts in notebook_art.jobs():
+        J.append((group, rel, "notebook_art", attr, args, opts))
     return J
 
 

@@ -243,6 +243,25 @@ function Hud:build_ribbon(parent)
 	end
 	s:anchor(toggle.node, "top")
 	self:target("view", self:top(652, M.RIBBON_Y))
+	self:build_notebook_button(parent)
+end
+
+-- The songbook (WP-9): a small button under the day / concert toggle (the art keeps its zone free: UI_ZONES in
+-- tools/art/gen_art.py). A dot says a finished song is waiting to be looked at.
+M.NOTEBOOK_X, M.NOTEBOOK_Y = 680, 1028
+function Hud:build_notebook_button(parent)
+	local s, town = self.ui, self.town
+	local has_icon = assets.has_image("notebook/closed")
+	local b = s:button({ parent = parent, x = M.NOTEBOOK_X, y = M.NOTEBOOK_Y, w = 80, h = 80, style = "purple",
+		icon = has_icon and "notebook/closed" or "ui/icons/note_on", icon_size = 58, sfx = "button",
+		on_click = function() town:open_popup("notebook") end })
+	s:anchor(b.node, "top")
+	self.notebook_btn = b.node
+	if app.meta:songbook_pending() then
+		local dot = s:circle(b.node, 30, 26, 26, "pink")
+		if dot and not fx.reduced() then ui.pulse(dot, 0.15, 0.6) end
+	end
+	self:target("notebook", self:top(M.NOTEBOOK_X, M.NOTEBOOK_Y))
 end
 
 -- task card ---------------------------------------------------------------------------------------

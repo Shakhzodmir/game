@@ -41,6 +41,7 @@ const outDir = process.argv[3] || 'docs/media';
 const releaseMode = process.argv.includes('--release');
 const koOnly = process.argv.includes('--ko-only'); // only section 4 (Korean): a few minutes instead of ten
 const roomsOnly = process.argv.includes('--rooms-only'); // only section 5 (rooms of the town)
+const songbookOnly = process.argv.includes('--songbook-only'); // only section 6 (the songbook, WP-9)
 
 const errors = [];
 const consoleLines = [];
@@ -285,6 +286,96 @@ async function roomChecks(browser) {
 		await command(p, 'view day');
 		await sleep(900);
 	}
+	const final = await state(p);
+	if (final.errors && final.errors.length) errors.push(...final.errors.map(e => 'bridge: ' + e));
+	await p.context().close();
+}
+
+// Songbook (WP-9): a level won on the engine writes a line (the results window says so), the notebook lists it, the
+// last level of a stretch finishes the song (the results announce it, the town offers it once), "Listen" plays the
+// song of the district through the one music slot and lights the lines in turn, "Stop" gives the music back.
+// Snapshots: songbook_result_line.png, songbook_page.png, songbook_result_ready.png, songbook_ready.png,
+// songbook_playing.png.
+async function songbookChecks(browser) {
+	const p = await openPage(browser, { width: 540, height: 960 });
+	await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (songbook)', 30000);
+	await command(p, 'goto town');
+	await onScreen(p, 'town');
+	await command(p, 'advance 4');
+	await command(p, 'goto town');
+	await sleep(1200);
+	// level 5 on the engine: the results write the line of the level
+	await startLevelFromTown(p);
+	await sleep(1300);
+	await command(p, 'win');
+	await waitFor(p, s => s.app.ui.level && ['concert', 'complete'].includes(s.app.ui.level.state), 'the final concert of level 5', 150000);
+	await command(p, 'skip');
+	const r5 = await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 5', 60000);
+	await sleep(2600); // the writing takes about two seconds
+	await p.screenshot({ path: `${outDir}/songbook_result_line.png` });
+	const sg = (await state(p)).app.ui.result.song;
+	check(sg && sg.district === 'cafe' && sg.pos === 5 && sg.total === 20 && sg.ready === false,
+		'songbook: the results of level 5 write line 5 of 20 of the cafe song', sg);
+	await tapTarget(p, 'town', 'popup');
+	await onScreen(p, 'town', 20000);
+	await sleep(1500);
+	check((await state(p)).app.ui.popup === null || (await state(p)).app.ui.popup === undefined,
+		'songbook: an unfinished song is not offered', (await state(p)).app.ui.popup);
+	// the notebook from the town button: five lines on the page
+	await tapTarget(p, 'notebook');
+	await waitFor(p, s => s.app.ui.popup === 'notebook', 'the notebook', 8000);
+	await sleep(900);
+	await p.screenshot({ path: `${outDir}/songbook_page.png` });
+	const nb = (await state(p)).app.ui.notebook;
+	check(nb && nb.district === 'cafe' && nb.count === 5 && nb.total === 20 && nb.ready === false,
+		'songbook: the notebook lists the five lines written so far', nb);
+	await command(p, 'close');
+	await waitFor(p, s => !s.app.ui.popup, 'the notebook closed', 8000);
+	// the last level of the stretch (19 levels by shortcut, the 20th on the engine) finishes the song
+	await command(p, 'advance 20');
+	await command(p, 'goto town');
+	await sleep(1200);
+	await startLevelFromTown(p);
+	await sleep(1300);
+	await command(p, 'win');
+	await waitFor(p, s => s.app.ui.level && ['concert', 'complete'].includes(s.app.ui.level.state), 'the final concert of level 20', 150000);
+	await command(p, 'skip');
+	await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 20', 60000);
+	await sleep(2600);
+	await p.screenshot({ path: `${outDir}/songbook_result_ready.png` });
+	const sr = (await state(p)).app.ui.result.song;
+	check(sr && sr.district === 'cafe' && sr.pos === 20 && sr.ready === true, 'songbook: the results of level 20 announce the finished song', sr);
+	// "To town": the chest waiting from level 20 goes first, then the finished song is offered once
+	await tapTarget(p, 'town', 'popup');
+	await onScreen(p, 'town', 20000);
+	let offered = null;
+	for (let i = 0; i < 12 && !offered; i++) {
+		const st = await state(p);
+		if (st.app.ui.popup === 'notebook') offered = st;
+		else if (st.app.ui.popup === 'chest' || (st.app.ui.popup_targets && st.app.ui.popup_targets.collect)) await command(p, 'close');
+		else await sleep(800);
+	}
+	check(!!offered && offered.app.ui.notebook.ready === true && offered.app.ui.notebook.district === 'cafe',
+		'songbook: the town offers the finished song once', offered && offered.app.ui.notebook);
+	await sleep(1500);
+	await p.screenshot({ path: `${outDir}/songbook_ready.png` });
+	// Listen: the song of the district on the one music slot, the lines are lit one after another
+	await tapTarget(p, 'play', 'popup');
+	const playing = await waitFor(p, s => s.app.audio.song === 'cafe' && s.app.ui.notebook && s.app.ui.notebook.playing, 'the song plays', 8000);
+	check(playing.app.audio.playing === true, 'songbook: Listen plays the song of the district', { song: playing.app.audio.song });
+	const seen = new Set();
+	for (let i = 0; i < 14; i++) {
+		const st = await state(p);
+		if (st.app.ui.notebook && st.app.ui.notebook.active) seen.add(st.app.ui.notebook.active);
+		if (i === 4) await p.screenshot({ path: `${outDir}/songbook_playing.png` });
+		await sleep(1000);
+	}
+	check(seen.size >= 3, 'songbook: the lit line moves with the song', [...seen]);
+	await tapTarget(p, 'play', 'popup');
+	const stopped = await waitFor(p, s => s.app.ui.notebook && !s.app.ui.notebook.playing, 'Stop', 8000);
+	check(stopped.app.song === null || stopped.app.song === undefined, 'songbook: Stop leaves the jukebox pick alone', stopped.app.song);
+	await command(p, 'close');
+	await waitFor(p, s => !s.app.ui.popup, 'the notebook closed (end)', 8000);
 	const final = await state(p);
 	if (final.errors && final.errors.length) errors.push(...final.errors.map(e => 'bridge: ' + e));
 	await p.context().close();
@@ -826,7 +917,12 @@ async function debugChecks() {
 		await waitFor(p, s => s.app.ui.popup_targets && s.app.ui.popup_targets.collect, 'the open chest (level 20)', 8000);
 		await sleep(1800);
 		await tapTarget(p, 'collect', 'popup');
-		await waitFor(p, s => !s.app.ui.busy && !s.app.ui.popup, 'the flights of the chest', 20000);
+		// the cafe song finished with level 20: once the chest is paid the town offers it (the notebook), which this check closes
+		await waitFor(p, s => !s.app.ui.busy && (!s.app.ui.popup || s.app.ui.popup === 'notebook'), 'the flights of the chest', 20000);
+		if ((await state(p)).app.ui.popup === 'notebook') {
+			await command(p, 'close');
+			await waitFor(p, s => !s.app.ui.popup, 'the offered song closed', 8000);
+		}
 		const after20 = await state(p);
 		check(after20.app.infinite_seconds - before20.app.infinite_seconds > 1700,
 			'chest: an unopened chest is offered in the town, its 30 minutes start at "Collect"',
@@ -1083,10 +1179,13 @@ async function debugChecks() {
 
 	// 5. the rooms of the town in both looks (WP-8)
 	await roomChecks(browser);
+
+	// 6. the songbook (WP-9)
+	await songbookChecks(browser);
 }
 
 try {
-	if (releaseMode) await releaseChecks(); else if (koOnly) await koChecks(browser); else if (roomsOnly) await roomChecks(browser); else await debugChecks();
+	if (releaseMode) await releaseChecks(); else if (koOnly) await koChecks(browser); else if (roomsOnly) await roomChecks(browser); else if (songbookOnly) await songbookChecks(browser); else await debugChecks();
 } catch (e) {
 	errors.push('qa: ' + e.message);
 } finally {

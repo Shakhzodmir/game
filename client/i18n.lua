@@ -777,9 +777,26 @@ local S = {
 	["toast.debug_reset"] = { en = "Save reset (debug)", ru = "Сохранение сброшено (отладка)" },
 
 	-- ============================================================================================================
+	-- songbook (WP-9): the notebook window, its button in the town and the line in the results ----------------------------
+	["notebook.title"] = { en = "Songbook", ru = "Блокнот песен" },
+	["notebook.levels"] = { en = "Levels {first}-{last}", ru = "Уровни {first}–{last}" },
+	["notebook.verse"] = { en = "Verse {n}", ru = "Куплет {n}" },
+	["notebook.chorus"] = { en = "Chorus", ru = "Припев" },
+	["notebook.play"] = { en = "Listen", ru = "Прослушать" },
+	["notebook.stop"] = { en = "Stop", ru = "Остановить" },
+	["notebook.progress"] = { en = "Lines written: {n} of {total}", ru = "Записано строк: {n} из {total}" },
+	["notebook.hint"] = { en = "Beat a level and Bit writes the next line", ru = "Пройди уровень, и Бит запишет следующую строку" },
+	["win.song_line"] = { en = "Bit wrote a new line", ru = "Бит записал новую строку" },
+	["win.song_ready"] = { en = "Your song is ready!", ru = "Твоя песня готова!" },
+	["win.song_open"] = { en = "Listen", ru = "Слушать" },
 	-- end of META SCREENS
 	-- ============================================================================================================
 }
+
+-- The songbook lines and titles (meta/songbook.lua): entries with en, ru and ko already in them.
+for key, entry in pairs(require("client.i18n_songbook")) do
+	S[key] = entry
+end
 
 -- Korean texts: same keys, merged as the `ko` field (key order does not matter).
 for key, text in pairs(require("client.i18n_ko")) do

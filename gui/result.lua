@@ -19,6 +19,7 @@ local config = require("meta.config")
 local fx = require("client.fx")
 local kit = require("gui.kit")
 local lkit = require("gui.level_kit")
+local songbook = require("client.songbook")
 
 local M = {}
 
@@ -28,6 +29,7 @@ M.no_back = true
 local W = 640
 local GAP = 14
 local BIT_UP = 104       -- how far Bit's head sticks out above the panel (the ribbon: 50)
+local SONG_H = 100       -- the songbook strip: the line written, or the finished song
 local CHEST_H = 212      -- the chest strip: the picture, the title, the contents and an Open button of 88 px
 local OPEN_H = 88        -- the touch target of the kit
 local TAKEN_HOLD = 1.2   -- seconds a chest just taken stays on show while another one waits
@@ -213,6 +215,63 @@ local function blocks(e, body, v, animate, alive, note)
 		})
 	end)
 
+	-- the songbook: Bit writes the line of this level on a sheet; a finished song is announced with a way to hear it
+	if v.song then
+		add(SONG_H + GAP, function(y)
+			local sw = W - 80
+			local cy = y - GAP / 2
+			if v.song.ready then
+				local card = s:round(body, 0, cy, sw, SONG_H, "#FFD84D", { radius = 32 })
+				local inner = s:round(card, 0, 0, sw - 8, SONG_H - 8, "#FFF6D6", { radius = 28 })
+				kit.icon(e, inner, "notebook/stamp_ready", -sw / 2 + 58, 0, 84, "gold")
+				s:text(inner, i18n.t("win.song_ready"), -28, 24, { font = "title", size = 30, color = "gold", outline = "white", max_width = 270 })
+				kit.label(e, inner, songbook.title(v.song.district, v.song.title or 1), -28, -20, {
+					font = "button", size = 24, color = "purple", max_width = 270, lines = 1 })
+				s:button({ parent = inner, x = sw / 2 - 98, y = 0, w = 160, h = 88, style = "green", icon = "ui/icons/play", icon_size = 40,
+					text = i18n.t("win.song_open"), text_size = 24, on_click = function()
+						e:open("notebook", { district = v.song.district, celebrate = true })
+					end })
+				e:target("song_open", sw / 2 - 98, cy)
+				if animate and not kit.reduced() then
+					kit.pop_in(card, 1.6, 0.45)
+					e.fx:after(1.6, function() if alive() then e.fx:burst(e:abs(-sw / 2 + 58, cy)) end end)
+				end
+				return
+			end
+			-- the line: paper, a staff, Bit's pencil, the letters appearing one by one; a tap writes it at once
+			local sheet = s:round(body, 0, cy, sw, SONG_H, "#EAD9AE", { radius = 26 })
+			local paper = s:round(sheet, 0, 0, sw - 8, 92, "#FFF6DD", { radius = 22 })
+			for k = 1, 5 do s:round(paper, 40, -34 + k * 8 + 8, sw - 150, 2, "#D8C99D", { radius = 1 }) end
+			kit.icon(e, paper, "notebook/stationery_1", -sw / 2 + 52, -6, 60, "yellow")
+			s:text(paper, i18n.t("win.song_line"), 40, 32, { font = "small", size = 19, color = "text_soft", max_width = sw - 150 })
+			local text = songbook.line(v.song.district, v.song.line)
+			local n = songbook.length(text)
+			local node, info = s:text(paper, animate and "" or text, -sw / 2 + 96, -8, {
+				font = "body", size = 25, color = "#3B3355", pivot = gui.PIVOT_W, max_width = sw - 120 })
+			local done = false
+			local function finish()
+				if done then return end
+				done = true
+				s:set_text(node, text, info)
+				if animate and not kit.reduced() then
+					e.fx:pop(sheet, 0.08, 0.3)
+					e.fx:burst(e:abs(sw / 2 - 60, cy))
+				end
+			end
+			if animate and not kit.reduced() then
+				e.fx:count(0, n, math.min(1.4, 0.35 + n * 0.04), function(val)
+					if done or not alive() then return end
+					local k = math.floor(val + 0.5)
+					if k >= n then finish() else s:set_text(node, songbook.prefix(text, k), info) end
+				end, 0.5)
+				-- a tap on the sheet writes it at once
+				strip_button(e, sheet, sw, SONG_H, finish)
+			elseif animate then
+				finish()
+			end
+		end)
+	end
+
 	-- the hit streak
 	if v.streak.active and v.streak.count > 0 then
 		add(104 + GAP, function(y)
@@ -364,7 +423,8 @@ function M.build(e)
 	-- what QA reads from the state snapshot (tools/qa/web_screens.mjs)
 	app.ui.result = { level = v.level_id, stars = v.stars, best = v.best, gained = v.gained, score = v.score,
 		concert = v.concert, super_gained = v.super_gained, super_total = v.super_total,
-		to_next = v.scale and v.scale.left or nil, standalone = v.standalone }
+		to_next = v.scale and v.scale.left or nil, standalone = v.standalone,
+		song = v.song and { district = v.song.district, pos = v.song.pos, total = v.song.total, ready = v.song.ready } or nil }
 	local st = e.state
 	local animate = e.first and not st.played
 	st.played = true
