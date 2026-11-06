@@ -545,7 +545,7 @@ def icon_star_empty():
 
 
 def icon_super_star():
-    """Placeholder of the super star (art brief A4.5): a violet-pink star with a gold rim and a small crown dot."""
+    """Placeholder of the super star (art brief B4.5, icons_5): a violet-pink star with a gold rim and a small crown dot."""
     cv = Canvas(96, 96)
     d = _star_shape(cv.X, cv.Y)
     obj(cv, d, PIECES["purple"], depth=20, rim=0.4)
