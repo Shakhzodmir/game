@@ -66,10 +66,11 @@ ZONE_ALPHA = 16       # alpha (0..255) above which an item pixel counts as "touc
 OVERLAP_ALPHA = 64    # two items overlap if both are above this alpha at the same scene pixel
 EDGE_ALPHA = 30       # no sprite may have alpha above this on its outer 1 px ring ...
 EDGE_EXEMPT = ("board/cell_", "board/edge_", "blockers/wires_", "ui/bunting", "/garlands", "/strings", "/lamps", "/sign",
-               "/garage_door")   # ... except art meant to tile or to run off the edge
+               "/garage_door", "/bg.png", "/bg_concert.png")   # ... except art meant to tile or to run off the edge, and the
+# opaque room pictures (the producer's come as RGBA)
 GHOST_ALPHA = 0.75
 BG_DITHER = 0.5       # ordered dither on the opaque backgrounds (breaks gradient banding)
-BUDGET_MB = 10.0
+BUDGET_MB = 12.5   # 10 until the 48 flipbook frames of Bit (WP-8) joined: ~55 KB each
 GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts", "map", "mapbg"]
 
 
@@ -134,6 +135,9 @@ def build_jobs():
         J.append(("icons", f"ui/genres/{k}.png", "genres", "GENRE_FUNCS", k, {}))
     for p in bit.POSE_ORDER:
         J.append(("bit", f"bit/{p}.png", "bit", "draw_bit", (p,), {}))
+    for a in bit.FRAME_ANIMS:
+        for n in range(1, len(bit.FRAMES[a]) + 1):
+            J.append(("bit", f"bit/{a}_{n}.png", "bit", "draw_frame", (a, n), {}))
     J.append(("logo", "logo/logo.png", "logo", "draw_logo", (), {}))
     bg = {"opaque": True, "dither": BG_DITHER}
     J.append(("backgrounds", "backgrounds/level_bg.png", "districts", "bg_level", (), bg))
@@ -735,6 +739,10 @@ def main():
     if unknown:
         raise SystemExit(f"unknown groups: {sorted(unknown)}")
     jobs = [j for j in build_jobs() if (not groups or j[0] in groups) and args.match in j[1]]
+    # pictures the producer's drawings were installed as (tools/art/install_ready.py) are never redrawn or deleted
+    import installed
+    kept = installed.load()
+    jobs = [j for j in jobs if j[1] not in kept]
     if args.layout_only:
         jobs = []
     full = not groups and not args.match and not args.layout_only
@@ -751,7 +759,7 @@ def main():
         results = [run_job(j) for j in jobs]
     if full:
         # full run: remove stale files afterwards (the folder is never emptied while rendering)
-        keep = {j[1] for j in jobs} | {j[1][:-4] + "_ghost.png" for j in jobs if j[5].get("ghost")}
+        keep = {j[1] for j in jobs} | {j[1][:-4] + "_ghost.png" for j in jobs if j[5].get("ghost")} | kept
         for dp, _, fns in os.walk(OUT):
             for fn in fns:
                 rel = os.path.relpath(os.path.join(dp, fn), OUT).replace(os.sep, "/")
@@ -782,6 +790,11 @@ def main():
     for rel, w, h, size, dt in results:
         print(f"{rel:52s} {w:4d}x{h:<4d} {size:8d}")
     total = sum(os.path.getsize(os.path.join(OUT, r)) for r in MANIFEST)
+    own = sum(os.path.getsize(os.path.join(OUT, r)) for r in MANIFEST if r not in kept)
+    if kept:
+        print(f"of them {(total - own) / 1024 / 1024:.2f} MB are the producer's installed pictures "
+              f"(assets/art_ready/installed.json): the budget below counts only the generated {own / 1024 / 1024:.2f} MB")
+        total = own
     print("-" * 72)
     for g, (n, size) in sorted(by_group.items()):
         print(f"{g:14s} {n:4d} files {size / 1024:9.1f} KB")
