@@ -1,6 +1,6 @@
 # WP-6: таблица новых песен (49 штук, 15 жанров)
 
-Размер — Ogg 22,05 кГц моно, длина — петля. Сумма: 5.65 МБ (лимит задачи +8 МБ), все по −20 LUFS, тональность жанра, шов чистый. Музыку никто не слушал ушами: проверки по метрикам (`gen_audio.py`).
+Размер — Ogg 22,05 кГц моно, длина — петля. Сумма: 5.61 МБ (лимит задачи +8 МБ), все по −20 LUFS, тональность жанра, шов чистый. Музыку никто не слушал ушами: проверки по метрикам (`gen_audio.py`).
 
 | Жанр | Песня (ru / en) | id | Темп | Длина, с | Размер, КБ |
 |---|---|---|---|---|---|
@@ -20,15 +20,15 @@
 | Восточная | Ночи оазиса / Oasis Nights | `oasis_nights` | 84 | 22.9 | 107 |
 | Восточная | Бамбуковый сад / Bamboo Garden | `bamboo_garden` | 88 | 21.8 | 107 |
 | Восточная | Шёлковый путь / Silk Road Caravan | `silk_road_caravan` | 100 | 28.8 | 130 |
-| Поп | Солнечный хук / Sunny Hook | `sunny_hook` | 118 | 20.3 | 105 |
-| Поп | Огни города / City Lights | `city_lights_pop` | 104 | 18.5 | 99 |
-| Поп | Летняя влюблённость / Summer Crush | `summer_crush` | 124 | 23.2 | 126 |
+| Поп | Солнечный хук / Sunny Hook | `sunny_hook` | 118 | 20.3 | 112 |
+| Поп | Огни города / City Lights | `city_lights_pop` | 104 | 18.5 | 102 |
+| Поп | Летняя влюблённость / Summer Crush | `summer_crush` | 124 | 23.2 | 114 |
 | Хип-хоп | Бум-бэп на рассвете / Boom-bap Sunrise | `boom_bap_sunrise` | 88 | 21.8 | 102 |
-| Хип-хоп | Трэп-площадка / Trap Playground | `trap_playground` | 140 | 20.6 | 94 |
+| Хип-хоп | Трэп-площадка / Trap Playground | `trap_playground` | 140 | 20.6 | 99 |
 | Хип-хоп | Уличный шифр / Street Cipher | `street_cipher` | 94 | 20.4 | 97 |
-| EDM и хаус | Дроп фестиваля / Festival Drop | `festival_drop` | 128 | 30.0 | 145 |
-| EDM и хаус | Хаус на закате / Sunset House | `deep_house_sunset` | 122 | 23.6 | 132 |
-| EDM и хаус | Лазерный транс / Laser Trance | `laser_trance` | 138 | 27.8 | 151 |
+| EDM и хаус | Дроп фестиваля / Festival Drop | `festival_drop` | 128 | 30.0 | 129 |
+| EDM и хаус | Хаус на закате / Sunset House | `deep_house_sunset` | 122 | 23.6 | 125 |
+| EDM и хаус | Лазерный транс / Laser Trance | `laser_trance` | 138 | 27.8 | 127 |
 | R&B | Бархатный вечер / Velvet Evening | `velvet_evening` | 74 | 25.9 | 119 |
 | R&B | Медленный джем / Slow Jam in the Rain | `slow_jam_rain` | 68 | 28.2 | 122 |
 | R&B | Шелковый грув / Silky Groove | `silky_groove` | 92 | 20.9 | 112 |

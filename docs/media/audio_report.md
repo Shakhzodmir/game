@@ -8,7 +8,7 @@ Meters (`tools/audio/analysis.py`): **LUFS** = ITU-R BS.1770-4 loudness; **M-max
 **dBTP** = 4x oversampled true peak (what a resampling mixer can reach). SFX loudness targets use the
 generator's gated K-weighted meter with 50 ms windows (`dsp.loudness`).
 
-**Total size:** 13.94 MB: 5.87 MB of 7 MB budget (66 notes, 40 SFX, 48 music stems) + 8.07 MB of 14 MB for the 69 jukebox songs.
+**Total size:** 13.90 MB: 5.87 MB of 7 MB budget (66 notes, 40 SFX, 48 music stems) + 8.02 MB of 14 MB for the 69 jukebox songs.
 
 ## 1. Piece notes (synesthesia core)
 
@@ -49,7 +49,7 @@ each district's in-level bed (task stems + tension, i.e. on the kick and snare t
 |---|---|---|---|
 | 1 | -3.66 dBTP | -4.04 dBTP | -0.01 dBTP (`porch_pickin` beat 23, step 8, orange) |
 | 2 | -0.06 dBTP | -3.23 dBTP | -0.38 dBTP (`bossa_breeze` beat 29, step 4, blue+green) |
-| 3 | +1.81 dBTP | -2.52 dBTP | -0.06 dBTP (`city_lights_pop` beat 1, step 1, green+orange+blue) |
+| 3 | +1.81 dBTP | -2.52 dBTP | -0.12 dBTP (`rainy_window` beat 1, step 1, green+orange+blue) |
 
 ## 2. Sound effects
 
@@ -363,15 +363,15 @@ the engine's layer calls are silent for it.
 | eastern | `oasis_nights` | 84 | 8 | 22.9 | D | -20.0 | -1.31 | -0.6 | 98.9 | 385 | 108 | D Bm Em A |
 | eastern | `bamboo_garden` | 88 | 8 | 21.8 | D | -20.0 | -2.94 | 0.0 | 99.9 | 534 | 107 | D Bm A Em |
 | eastern | `silk_road_caravan` | 100 | 12 | 28.8 | D | -20.0 | -1.39 | -0.7 | 95.8 | 435 | 130 | Bm D A Em |
-| pop | `sunny_hook` | 118 | 10 | 20.3 | C | -20.0 | -1.56 | -3.8 | 99.4 | 547 | 106 | C G Am F |
-| pop | `city_lights_pop` | 104 | 8 | 18.5 | C | -20.0 | -1.29 | -3.0 | 98.2 | 699 | 100 | C Em F G Dm |
-| pop | `summer_crush` | 124 | 12 | 23.2 | C | -20.0 | -2.71 | 0.0 | 99.7 | 397 | 126 | C Em F G Am Dm |
+| pop | `sunny_hook` | 118 | 10 | 20.3 | C | -20.0 | -1.13 | -2.7 | 99.3 | 531 | 112 | C G Am F |
+| pop | `city_lights_pop` | 104 | 8 | 18.5 | C | -19.9 | -1.32 | -3.6 | 98.2 | 690 | 102 | C Em F G Dm |
+| pop | `summer_crush` | 124 | 12 | 23.2 | C | -20.0 | -2.80 | 0.0 | 99.7 | 399 | 115 | C Em F G Am Dm |
 | hiphop | `boom_bap_sunrise` | 88 | 8 | 21.8 | Eb | -20.0 | -1.19 | -2.7 | 97.8 | 492 | 103 | Cm7 Fm7 Bb7 Ebmaj7 |
-| hiphop | `trap_playground` | 140 | 12 | 20.6 | Eb | -20.0 | -5.60 | 0.0 | 91.7 | 260 | 94 | Cm Ab Eb Bb |
+| hiphop | `trap_playground` | 140 | 12 | 20.6 | Eb | -20.0 | -5.31 | 0.0 | 91.7 | 258 | 100 | Cm Ab Eb Bb |
 | hiphop | `street_cipher` | 94 | 8 | 20.4 | Eb | -20.0 | -1.34 | -2.5 | 90.9 | 267 | 98 | Cm Bb Ab Eb |
-| edm | `festival_drop` | 128 | 16 | 30.0 | Ab | -19.9 | -5.09 | 0.0 | 99.9 | 443 | 145 | Fm Db Eb Cm |
-| edm | `deep_house_sunset` | 122 | 12 | 23.6 | Ab | -20.0 | -3.10 | 0.0 | 99.9 | 304 | 133 | Fm7 Bbm7 Dbmaj7 Abmaj7 |
-| edm | `laser_trance` | 138 | 16 | 27.8 | Ab | -20.0 | -3.43 | 0.0 | 98.0 | 350 | 151 | Fm Eb Db |
+| edm | `festival_drop` | 128 | 16 | 30.0 | Ab | -20.0 | -4.03 | 0.0 | 99.9 | 356 | 130 | Fm Db Eb Cm |
+| edm | `deep_house_sunset` | 122 | 12 | 23.6 | Ab | -20.0 | -3.50 | 0.0 | 99.9 | 286 | 126 | Fm7 Bbm7 Dbmaj7 Abmaj7 |
+| edm | `laser_trance` | 138 | 16 | 27.8 | Ab | -20.0 | -4.51 | 0.0 | 98.2 | 307 | 128 | Fm Eb Db |
 | rnb | `velvet_evening` | 74 | 8 | 25.9 | Db | -20.0 | -1.51 | -3.2 | 87.0 | 366 | 120 | Dbmaj9 Bbm9 Ebm9 Ab7sus4 Ab7 F#maj7 Fm7 Bbm7 |
 | rnb | `slow_jam_rain` | 68 | 8 | 28.2 | Db | -20.0 | -3.19 | 0.0 | 89.3 | 214 | 122 | Dbmaj7 Fm7 Bbm7 Ebm7 Ab7sus4 F#maj7 Ebm9 Ab7 |
 | rnb | `silky_groove` | 92 | 8 | 20.9 | Db | -19.9 | -1.68 | -2.1 | 93.5 | 573 | 113 | Ebm9 Ab7 Dbmaj9 Bbm9 F#maj7 Ab7sus4 |
@@ -435,15 +435,15 @@ the engine's layer calls are silent for it.
 | `oasis_nights` | drums, pad, lead, bass, fx | 0.80 / 0.49 (D maj) | 0.151 | 0.619 | 1.3 |
 | `bamboo_garden` | drums, lead, arp, pad, fx | 0.77 / 0.47 (F# min) | 0.083 | 0.988 | 1.2 |
 | `silk_road_caravan` | drums, lead, strings, bass, pad | 0.86 / 0.59 (D maj) | 0.079 | 0.226 | 0.9 |
-| `sunny_hook` | drums, bass, keys, lead, pad | 0.80 / 0.74 (C maj) | 0.066 | 0.301 | 0.57 |
-| `city_lights_pop` | drums, guitar, bass, lead, pad | 0.61 / 0.47 (G maj) | 0.088 | 0.707 | 0.78 |
-| `summer_crush` | drums, keys, bass, voice, lead | 0.70 / 0.67 (C maj) | 0.02 | 0.426 | 0.73 |
+| `sunny_hook` | drums, bass, keys, lead, pad | 0.81 / 0.75 (C maj) | 0.067 | 0.31 | 0.63 |
+| `city_lights_pop` | drums, guitar, bass, lead, pad | 0.62 / 0.49 (G maj) | 0.077 | 0.593 | 0.72 |
+| `summer_crush` | drums, keys, bass, voice, lead | 0.71 / 0.68 (C maj) | 0.049 | 0.374 | 0.63 |
 | `boom_bap_sunrise` | drums, keys, bass, lead | 0.22 / 0.24 (D min) | 0.031 | 0.041 | 0.56 |
-| `trap_playground` | drums, bass, lead, pad | 0.41 / 0.58 (C min) | 0.043 | 0.586 | 0.7 |
+| `trap_playground` | drums, bass, lead, pad | 0.42 / 0.57 (C min) | 0.021 | 0.597 | 0.43 |
 | `street_cipher` | drums, keys, bass, lead | -0.18 / -0.22 (D min) | 0.063 | 0.237 | 0.61 |
-| `festival_drop` | drums, keys, pad, bass, lead, fx | 0.46 / 0.67 (F min) | 0.04 | 0.208 | 0.28 |
-| `deep_house_sunset` | drums, bass, keys, lead, pad | 0.62 / 0.79 (F min) | 0.172 | 0.514 | 0.81 |
-| `laser_trance` | drums, bass, arp, pad, lead, fx | 0.30 / 0.50 (D min) | 0.06 | 0.307 | 0.82 |
+| `festival_drop` | drums, keys, pad, bass, lead, fx | 0.52 / 0.70 (F min) | 0.029 | 0.164 | 0.24 |
+| `deep_house_sunset` | drums, bass, keys, lead, pad | 0.65 / 0.80 (F min) | 0.303 | 0.465 | 0.49 |
+| `laser_trance` | drums, bass, arp, pad, lead, fx | 0.39 / 0.54 (F min) | 0.062 | 0.68 | 0.81 |
 | `velvet_evening` | drums, keys, bass, pad, lead | 0.72 / 0.45 (C# maj) | 0.008 | 0.053 | 0.48 |
 | `slow_jam_rain` | drums, pad, bass, keys, lead | 0.63 / 0.46 (C# maj) | 0.027 | 0.002 | 0.38 |
 | `silky_groove` | drums, guitar, keys, bass, lead | 0.68 / 0.33 (C# maj) | 0.089 | 0.421 | 0.61 |
@@ -488,9 +488,9 @@ the engine's layer calls are silent for it.
 - Songs `folk`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.22 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.7) and ≤ 1 dB of the energy (max 0.08): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Songs `latin`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 24.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.15 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.6 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.4) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 91.2): PASS; seams clean: PASS.
 - Songs `eastern`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 21.8 … 28.8 s within 16–32: PASS; worst mix -1.31 dBTP / -1.34 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.3) and ≤ 1 dB of the energy (max 0.14): PASS; in the key of the genre ≥ 85 % (min 89.6): PASS; seams clean: PASS.
-- Songs `pop`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 18.5 … 23.2 s within 16–32: PASS; worst mix -1.29 dBTP / -1.47 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.8) and ≤ 1 dB of the energy (max 0.59): PASS; in the key of the genre ≥ 85 % (min 98.2): PASS; seams clean: PASS.
+- Songs `pop`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 18.5 … 23.2 s within 16–32: PASS; worst mix -1.13 dBTP / -1.13 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.6) and ≤ 1 dB of the energy (max 0.40): PASS; in the key of the genre ≥ 85 % (min 98.2): PASS; seams clean: PASS.
 - Songs `hiphop`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.4 … 21.8 s within 16–32: PASS; worst mix -1.19 dBTP / -1.32 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.18): PASS; in the key of the genre ≥ 85 % (min 90.9): PASS; seams clean: PASS.
-- Songs `edm`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 23.6 … 30.0 s within 16–32: PASS; worst mix -3.10 dBTP / -3.14 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 98.0): PASS; seams clean: PASS.
+- Songs `edm`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 23.6 … 30.0 s within 16–32: PASS; worst mix -3.50 dBTP / -3.51 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 98.2): PASS; seams clean: PASS.
 - Songs `rnb`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 28.2 s within 16–32: PASS; worst mix -1.51 dBTP / -1.80 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.2) and ≤ 1 dB of the energy (max 0.12): PASS; in the key of the genre ≥ 85 % (min 87.0): PASS; seams clean: PASS.
 - Songs `reggae`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.6 … 27.4 s within 16–32: PASS; worst mix -1.26 dBTP / -1.29 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 4.9) and ≤ 1 dB of the energy (max 0.40): PASS; in the key of the genre ≥ 85 % (min 90.8): PASS; seams clean: PASS.
 - Songs `country`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.2 … 25.7 s within 16–32: PASS; worst mix -1.03 dBTP / -1.40 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 4.0) and ≤ 1 dB of the energy (max 0.89): PASS; in the key of the genre ≥ 85 % (min 93.9): PASS; seams clean: PASS.
@@ -500,7 +500,7 @@ the engine's layer calls are silent for it.
 - Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.
 - Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Notes, SFX and district music 5.87 MB ≤ 7 MB: PASS.
-- Songs 69 files, 8.07 MB ≤ 14 MB: PASS.
+- Songs 69 files, 8.02 MB ≤ 14 MB: PASS.
 
 ## 5. Engine requirements and known limitations
 
