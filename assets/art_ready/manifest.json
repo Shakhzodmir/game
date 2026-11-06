@@ -703,5 +703,19 @@
   ],
   "warnings": [],
   "errors": []
+ },
+ "bit_idle_breathe": {
+  "group": "bit",
+  "source": "bit_idle_breathe.png",
+  "files": [
+   "bit/bit_idle_breathe_1.png",
+   "bit/bit_idle_breathe_2.png",
+   "bit/bit_idle_breathe_3.png",
+   "bit/bit_idle_breathe_4.png"
+  ],
+  "warnings": [
+   "внутри рисунка остались розовые пятна (107 точек): нет ли в картинке чистого #FF00FF?"
+  ],
+  "errors": []
  }
 }
