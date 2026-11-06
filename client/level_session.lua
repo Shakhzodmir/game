@@ -9,7 +9,8 @@
 --       read_level = function(n) return text end,  -- standalone: reads level_%04d.json
 --       hooks = {first_move = fn(), booster_used = fn(id), rejected = fn(cmd, reason)},
 --   })
---   s:advance(dt, function(events, tick) ... end)  -- in update(): 1/60 s ticks, at most 6
+--   s:advance(dt, function(events, tick, adds) ... end)  -- in update(): 1/60 s ticks, at most 6; adds = the meter's
+--                             -- additions of this tick (client/bonus_meter.lua feed) or nil
 --   s:display_tick()          -- tick + fraction of the next one (for animations)
 --   s:command(cmd)            -- game:input with the move / booster hooks; a command the core refuses is
 --                             -- handed to hooks.rejected(cmd, reason) (reason = the core's: not_movable, bad_cell, ...)
@@ -18,6 +19,8 @@
 --   s:set_hold(on)            -- the app lost the focus: no ticks until it is back
 --   s:halted()                -- paused or held: nothing runs
 --   s:autoplay(n, opts)       -- QA: play hint moves by itself (n moves, opts.free_moves: buy "+5 moves")
+--   s.meter                   -- the bonus meter (client/bonus_meter.lua): fed with every tick's events, its gift is put
+--                             -- on the board with the core command `bonus` at the first rest
 --   s.game                    -- the core game (queries: pieces, cells, status, hint, ...)
 --   s.rev                     -- grows with every tick that had events and every accepted command: a board that
 --                             -- is at rest and has the same rev as before looks the same (screens/level/board.script)
@@ -31,6 +34,7 @@
 
 local core = require("core.game")
 local json_strict = require("core.json_strict")
+local bonus_meter = require("client.bonus_meter")
 
 local M = {}
 
@@ -120,6 +124,8 @@ function M.new(opts)
 		auto = nil,       -- QA autoplay: {left, free_moves, played}
 		slow_left = 0,
 		slow_scale = 1,
+		meter = bonus_meter.new({ seed = seed, level_id = info.level_id }),
+		bonus_wait = 0,   -- ticks to wait before the next try to put a gift on the board
 		moved = false,
 		rev = 0,          -- grows with every tick that had events and every accepted command (see the header)
 		frames = 0,
@@ -168,7 +174,17 @@ function Session:advance(dt, on_tick)
 			self.status = self.game:status()
 			self.rev = self.rev + 1
 		end
-		if on_tick then on_tick(events, self.tick) end
+		local adds = #events > 0 and self.meter:feed(events) or nil
+		if self.qa_adds then -- the QA command "meter": additions made by hand, shown with this tick
+			if adds then
+				for i = 1, #self.qa_adds do adds[#adds + 1] = self.qa_adds[i] end
+			else
+				adds = self.qa_adds
+			end
+			self.qa_adds = nil
+		end
+		if on_tick then on_tick(events, self.tick, adds) end
+		self:bonus_step()
 	end
 	if self.acc >= M.DT then
 		self.dropped = self.dropped + math.floor(self.acc / M.DT)
@@ -176,6 +192,26 @@ function Session:advance(dt, on_tick)
 	end
 	self.ticks_run = self.ticks_run + n
 	return n
+end
+
+-- The meter's gift goes onto the board at the first rest of a playing game (core command `bonus`). A refusal for
+-- lack of a free piece is tried again after half a second; "not at rest" costs nothing to try again.
+function Session:bonus_step()
+	local m = self.meter
+	if not m or not m:gift() then return end
+	if self.bonus_wait > 0 then
+		self.bonus_wait = self.bonus_wait - 1
+		return
+	end
+	if self.status.state ~= "playing" or not self.game:is_stable() then return end
+	local ok, res = self:command({ type = "bonus", special = m:gift() })
+	if ok then
+		m:given()
+	elseif res == "no_candidates" then
+		self.bonus_wait = 30
+	elseif res == "bad_cmd" or res == "bad_state" then
+		m:given() -- never going to work: drop it
+	end
 end
 
 -- Tick + the fraction of the next one: the clock of the animations that
@@ -334,15 +370,15 @@ function Session:snapshot()
 		stable = self.game:is_stable(), paused = self.paused, hold = self.hold, seed = self.seed,
 		auto = self.auto and self.auto.played or nil,
 		attempt = self.info.attempt, standalone = self.info.standalone,
-		result = self.game:result(), picture = self:picture(),
+		result = self.game:result(), picture = self:picture(), meter = self.meter:snapshot(),
 	}
 end
 
 -- QA bridge commands on this session (client/qa_bridge.lua):
 --   hint_move | swap x1 y1 x2 y2 | tap x y | skip | state |
 --   booster <stick|row_light|col_light|remix|swap> [x y | row | col | x1 y1 x2 y2] | continue [n] [riff] | give_up |
---   autoplay [n] [free] | win | hold [0|1]
---   (autoplay plays n hint moves by itself, "free" takes "+5 moves" for nothing; win = autoplay
+--   autoplay [n] [free] | win | hold [0|1] | meter [points] [bird|riff|sub|disco]
+--   (meter adds points to the bonus bar by hand; autoplay plays n hint moves by itself, "free" takes "+5 moves" for nothing; win = autoplay
 --   to the end of the level with free moves; hold 1 / 0 = the app loses / regains the focus)
 -- Returns a result table {ok, ...}.
 function Session:qa(name, args)
@@ -388,10 +424,27 @@ function Session:qa(name, args)
 	elseif name == "hold" then
 		self:set_hold(args[1] ~= "0")
 		return { ok = true, state = self:snapshot() }
+	elseif name == "meter" then
+		-- meter [points] [special]: the bar gets points as if specials had fired (default 1 point, a Bird); a fill
+		-- makes a gift that goes onto the board at the next rest. A meter that is switched off (level < MIN_LEVEL) is
+		-- switched on for the QA run.
+		self.meter.enabled = true
+		local n = math.max(1, math.floor(num(1) or 1))
+		local special = args[2] or "bird"
+		if not bonus_meter.POINTS[special] then return { ok = false, error = "meter [points] [bird|riff|sub|disco]" } end
+		local evs = {}
+		for _ = 1, n do
+			self.qa_serial = (self.qa_serial or 0) + 1
+			evs[#evs + 1] = { type = "activate", id = -self.qa_serial, special = special, x = 1, y = 1 }
+		end
+		local adds = self.meter:feed(evs)
+		self.qa_adds = self.qa_adds or {}
+		for i = 1, #(adds or {}) do self.qa_adds[#self.qa_adds + 1] = adds[i] end
+		return { ok = true, state = self:snapshot() }
 	end
 	return { ok = false, error = "unknown level command '" .. tostring(name) .. "'" }
 end
 
-M.QA_COMMANDS = { "hint_move", "swap", "tap", "skip", "state", "booster", "continue", "give_up", "autoplay", "win", "hold" }
+M.QA_COMMANDS = { "hint_move", "swap", "tap", "skip", "state", "booster", "continue", "give_up", "autoplay", "win", "hold", "meter" }
 
 return M

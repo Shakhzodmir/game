@@ -1866,3 +1866,64 @@ describe("level screen: QA requests for windows that need the game", function()
 		end)
 	end)
 end)
+
+
+describe("level screen: the bonus bar", function()
+	it("is not on the first two levels", function()
+		G.with_level({ level = 1 }, function(c)
+			assert_false(c.has("0/10"))
+			assert_eq(c.hud.self.l.hud.mtr, nil)
+			clean(c)
+		end)
+	end)
+
+	it("grows with the points, trembles at 8 and 9, makes a gift at 10 that flies to a new special, and drains", function()
+		G.with_level({ level = 12 }, function(c)
+			local hud = c.hud.self.l.hud
+			assert_true(c.has("0/10"), "the bar is there from the start")
+			assert_true(hud.mtr ~= nil)
+			assert_false(hud.m_tense)
+			settle(c)
+			local function specials()
+				local n = 0
+				for _, p in ipairs(c.fb.session.game:pieces()) do
+					if p.kind == "special" then n = n + 1 end
+				end
+				return n
+			end
+			local before = specials()
+			c.fb.session:qa("meter", { "3", "riff" })
+			c.step(20)
+			assert_true(c.has("3/10"))
+			assert_false(hud.m_tense)
+			c.fb.session:qa("meter", { "5", "riff" })
+			c.step(20)
+			assert_true(c.has("8/10"))
+			assert_true(hud.m_tense, "8 of 10: the gift trembles")
+			clean(c)
+			c.fb.session:qa("meter", { "2", "riff" }) -- 10: full
+			c.step(15)
+			assert_true(c.has("10/10"), "full for a moment")
+			c.step(120)
+			assert_true(c.has("0/10"), "drained after the gift")
+			assert_false(hud.m_tense)
+			assert_eq(specials(), before + 1, "the core put the gift on the board")
+			clean(c)
+		end)
+	end)
+
+	it("keeps what it had across a window change", function()
+		G.with_level({ level = 12 }, function(c)
+			settle(c)
+			c.fb.session:qa("meter", { "4", "bird" })
+			c.step(20)
+			assert_true(c.has("4/10"))
+			c.E.set_window(1920, 1080) -- a resize rebuilds the HUD
+			c.step(10)
+			assert_true(c.has("4/10"), "the bar is rebuilt with what it had")
+			local m, w = c.hud.self.l.hud:meter_rect(), c.hud.self.l.hud.l.safe
+			assert_true(m.x0 >= w.x0 and m.x1 <= w.x1, "inside the safe area of the new window")
+			clean(c)
+		end)
+	end)
+end)

@@ -50,17 +50,6 @@
    "max_budget_usd": 20
   },
   {
-   "id": "WP-5",
-   "wave": 1,
-   "title": "Бонус-шкала на всех уровнях",
-   "spec": "tasks/WP-5-bonus-meter.md",
-   "model": "claude-sonnet-5-5",
-   "max_budget_usd": 20,
-   "depends_on": [
-    "WP-4"
-   ]
-  },
-  {
    "id": "WP-6",
    "wave": 2,
    "title": "Музыка: у комнаты своя песня, песни не накладываются, новые жанры",

@@ -73,6 +73,7 @@ local S = {
 	["hud.shuffle"] = { en = "No moves — shuffling!", ru = "Ходов нет — перемешиваем!" },
 	["hud.tap_skip"] = { en = "Tap to skip", ru = "Нажми, чтобы пропустить" },
 	["hud.booster_locked"] = { en = "Opens at level {n}", ru = "Откроется на уровне {n}" },
+	["hud.bonus_hint"] = { en = "Specials fill the bar. Fill it and get a free special!", ru = "Спецфишки заполняют шкалу. Наполни её и получи бонус!" },
 	["hud.wait_board"] = { en = "Wait until the board settles", ru = "Подожди, пока поле успокоится" },
 	["hud.booster_no"] = { en = "Nothing to do there: pick another spot", ru = "Тут нечего делать — выбери другое место" },
 	["hud.remix_no"] = { en = "Nothing to shuffle", ru = "Нечего перемешивать" },
