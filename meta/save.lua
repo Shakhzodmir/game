@@ -32,6 +32,7 @@ local lives = require("meta.lives")
 local progress = require("meta.progress")
 local town = require("meta.town")
 local prefs = require("meta.prefs")
+local record = require("meta.record")
 
 local M = {}
 
@@ -106,7 +107,8 @@ function M.checksum(t)
 end
 
 -- Top-level fields of the state, i.e. of a save of this version.
-M.fields = { "salt", "wallet", "stats", "lives", "progress", "unlock_gifts", "town", "prefs", "chests" }
+M.fields = { "salt", "wallet", "stats", "lives", "progress", "unlock_gifts", "town", "prefs", "chests",
+	"level_stars", "level_scores", "super_stars" }
 
 local function is_known(k)
 	return k == "version" or k == "checksum" or util.index_of(M.fields, k) ~= nil
@@ -170,6 +172,10 @@ function M.restore(raw, districts)
 		town = town.restore(raw.town, districts),
 		prefs = prefs.restore(raw.prefs),
 		chests = economy.restore_chests(raw.chests, p.beaten),
+		-- added after the first release (the version stays 1): a save without them reads as empty records
+		level_stars = record.restore_stars(raw.level_stars),
+		level_scores = record.restore_scores(raw.level_scores),
+		super_stars = record.restore_super(raw.super_stars),
 		extra = extra,
 	}
 end

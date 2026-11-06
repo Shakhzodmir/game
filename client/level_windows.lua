@@ -15,6 +15,8 @@
 -- A meta without an attempt (a debug level) has nothing at stake.
 
 local config = require("meta.config")
+local levels = require("client.levels")
+local stars = require("meta.stars")
 
 local M = {}
 
@@ -188,6 +190,15 @@ end
 -- The results window. res = the meta's finish_level win result {coins, stars, unlocked, streak, next_level}
 -- (its `chest` is not read: the chest on offer is the oldest one waiting in the meta, M.chest above);
 -- core_result = the core's game:result() {score, moves_at_win, stars}.
+-- The score scale of the results: thresholds of the level and where the score stands (meta/stars.lua), or nil
+-- when the level has no thresholds.
+local function stars_scale(level_id, score)
+	local info = levels.stars(level_id or 0)
+	if not info then return nil end
+	local pr = stars.progress(info.t, score)
+	return { t = info.t, max = info.t[3], stars = pr.stars, to = pr.to, frac = pr.frac, left = pr.to and math.max(0, pr.to - score) or 0 }
+end
+
 function M.result(meta, res, core_result, now)
 	core_result = core_result or {}
 	local sv = meta:streak()
@@ -199,6 +210,13 @@ function M.result(meta, res, core_result, now)
 	return {
 		level_id = res.level_id,
 		stars = res.stars or core_result.stars or 0,
+		best = res.best or res.stars or 0,       -- best stars of the level now
+		gained = res.gained or 0,                -- stars new to the wallet
+		scale = stars_scale(res.level_id, core_result.score or 0),
+		concert = res.concert and true or false,
+		super_gained = res.super_gained or 0,
+		super_total = meta.super_stars and meta:super_stars().balance or 0,
+		new_best_score = res.new_best_score and true or false,
 		coins = res.coins or 0,
 		score = core_result.score or 0,
 		moves_left = core_result.moves_at_win or 0,

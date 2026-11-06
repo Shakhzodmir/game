@@ -26,6 +26,7 @@
 --   remaining[k] -- goal-remaining fraction after move k (mean over goals of
 --                   left/total; 0 = all goals met)
 --   specials[k], waves[k] -- specials created / max cascade wave of move k
+--   score, moves_left -- (opts.finish, a win) score of the completed game, moves left at the win
 --   ticks[k]     -- game tick when move k came to rest (or won)
 --   ticks_to_win -- tick of the win (won_wait) or nil
 --   duration     -- ticks of the first attempt (to the win or to move `limit`)
@@ -62,7 +63,8 @@ end
 Run.remaining_fraction = remaining_fraction
 
 -- opts: seed (1), bot ("greedy"), bot_seed (= seed), budget (200),
--- turbo (false), limit (level moves).
+-- turbo (false), limit (level moves), finish (false: a win plays the final concert out and
+-- records `score` and `moves_left`; use it with budget = limit for the game a player has).
 function Run.play(entry, opts)
 	local core = require("core.game")
 	opts = opts or {}
@@ -99,6 +101,17 @@ function Run.play(entry, opts)
 			rec.ending = "won"
 			rec.moves_to_win = given - st.moves_left
 			rec.ticks_to_win = rec.ticks[#rec.ticks] or st.tick
+			if opts.finish then
+				-- play the final concert out: the score of the finished game (the star thresholds)
+				local guard = st.tick + Run.MAX_SETTLE_TICKS
+				local cur = st
+				while cur.state ~= "complete" and cur.tick < guard do
+					game:step()
+					game:drain_events()
+					cur = game:status()
+				end
+				if cur.state == "complete" then rec.score, rec.moves_left = cur.score, st.moves_left end
+			end
 			break
 		elseif st.state == "out_of_moves" then
 			if given >= budget then

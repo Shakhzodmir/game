@@ -29,6 +29,7 @@ local economy = require("meta.economy")
 local inventory = require("meta.inventory")
 local lives = require("meta.lives")
 local progress = require("meta.progress")
+local record = require("meta.record")
 local town = require("meta.town")
 local prefs = require("meta.prefs")
 local save = require("meta.save")
@@ -342,6 +343,20 @@ end
 -- Loss: {won = false, level_id, reason = "out_of_moves"|"quit", life_lost,
 --        streak_lost = streak before the loss, fails}
 -- or false, "no_run".
+-- Optional fields of a win by score: stars (1..3, from meta/stars.lua), score (>= 0), concert (boolean).
+local function check_stars_fields(result, level)
+	local st = result.stars
+	if st ~= nil and not (util.is_int(st) and st >= 1 and st <= 3) then
+		error("meta: result.stars must be 1, 2 or 3, got " .. tostring(st), level + 1)
+	end
+	if result.score ~= nil and not (util.is_int(result.score) and result.score >= 0) then
+		error("meta: result.score must be a non-negative integer", level + 1)
+	end
+	if result.concert ~= nil and type(result.concert) ~= "boolean" then
+		error("meta: result.concert must be a boolean", level + 1)
+	end
+end
+
 function Meta:finish_level(result, now)
 	if type(result) ~= "table" then error("meta: finish_level needs a result table", 2) end
 	if type(result.won) ~= "boolean" then
@@ -356,6 +371,7 @@ function Meta:finish_level(result, now)
 		if not util.is_int(result.moves_at_win) or result.moves_at_win < 0 then
 			error("meta: result.moves_at_win must be a non-negative integer for a win", 2)
 		end
+		check_stars_fields(result, 3)
 	end
 	self:_tick(now)
 	local run = self.s.progress.run
@@ -367,7 +383,7 @@ function Meta:finish_level(result, now)
 		error("meta: finish_level difficulty differs from the one the level started with", 2)
 	end
 	if result.won then
-		local r = self:_win(result.moves_at_win)
+		local r = self:_win(result)
 		return r
 	end
 	if quit then run.moved = true end
@@ -378,13 +394,17 @@ function Meta:finish_level(result, now)
 	return r
 end
 
-function Meta:_win(moves_at_win)
+function Meta:_win(result)
 	local p = self.s.progress
-	local coins, stars = economy.win_reward(p.run.difficulty, moves_at_win)
+	local coins, legacy_stars = economy.win_reward(p.run.difficulty, result.moves_at_win)
+	-- stars by score; a caller that sends none gets what the old rule paid
+	local stars = result.stars or legacy_stars
+	-- the records first: they read `beaten` as it was before this win
+	local rec = record.gain(self.s, p.run.level_id, p.run.difficulty, stars, result.score, result.concert)
 	local run = progress.finish(p, true)
 	self.s.stats.wins = self.s.stats.wins + 1
 	self:_touch()
-	self:_change("level_win", { { "coins", coins }, { "stars", stars } })
+	self:_change("level_win", { { "coins", coins }, { "stars", rec.gained } })
 	local unlocked = self:_give_unlock_gifts()
 	-- a level chest is not paid here: it waits until the player claims it (claim_level_chest)
 	local chest = economy.level_chest(run.level_id)
@@ -393,12 +413,71 @@ function Meta:_win(moves_at_win)
 		won = true,
 		level_id = run.level_id,
 		coins = coins,
-		stars = stars,
+		stars = stars,         -- stars of this win
+		gained = rec.gained,   -- stars new to the wallet (the record rose by this much)
+		best = rec.best,       -- best stars of the level now
+		super_gained = rec.super_gained,
+		concert = result.concert and true or false,
+		new_best_score = rec.new_best_score,
 		chest = chest,
 		unlocked = unlocked,
 		streak = p.streak,
 		next_level = progress.level_to_play(p),
 	}
+end
+
+-- A win of a level the player has already beaten (a replay): no coins, no life, no streak; only the
+-- records rise. result = {level_id, difficulty, stars (1..3), score, concert}. Returns {stars, gained,
+-- best, super_gained, new_best_score} or false, "not_beaten" | "running".
+function Meta:record_replay(result)
+	if type(result) ~= "table" or not util.is_int(result.level_id) then
+		error("meta: record_replay needs {level_id, difficulty, stars}", 2)
+	end
+	if not util.index_of(C.difficulties, result.difficulty) then error("meta: record_replay needs the level's difficulty", 2) end
+	if not util.is_int(result.stars) then error("meta: record_replay needs stars", 2) end
+	check_stars_fields(result, 2)
+	local p = self.s.progress
+	if result.level_id < 1 or result.level_id > p.beaten then return false, "not_beaten" end
+	if p.run then return false, "running" end
+	local rec = record.gain(self.s, result.level_id, result.difficulty, result.stars, result.score, result.concert)
+	if rec.gained > 0 or rec.super_gained > 0 or rec.new_best_score then self:_touch() end
+	if rec.gained > 0 then self:_change("level_stars_up", { { "stars", rec.gained } }) end
+	return { stars = result.stars, gained = rec.gained, best = rec.best, super_gained = rec.super_gained,
+		new_best_score = rec.new_best_score }
+end
+
+-- Best stars of a level (0 when never won). Pass the level's difficulty to also count a level won before
+-- the stars by score (it is worth what the old rule paid).
+function Meta:level_stars(level_id, difficulty)
+	return record.best(self.s, level_id, difficulty)
+end
+
+-- Best score of a level (0 when never won).
+function Meta:level_score(level_id)
+	return self.s.level_scores[tostring(level_id)] or 0
+end
+
+-- Super stars: {balance, earned, spent, levels = {[level id] = stars}}.
+function Meta:super_stars()
+	local balance, earned = record.super_balance(self.s)
+	local levels = {}
+	for key, n in pairs(self.s.super_stars.levels) do levels[tonumber(key)] = n end -- order-free: keyed by id
+	return { balance = balance, earned = earned, spent = self.s.super_stars.spent, levels = levels }
+end
+
+-- Spends super stars on a sink of C.super_stars.sinks ({id, price}). Nothing is on sale yet (the list is
+-- empty), so this answers false, "unknown_sink". false, "not_enough_super_stars" when short.
+function Meta:spend_super_stars(sink_id)
+	local sink
+	for _, def in ipairs(C.super_stars.sinks) do
+		if def.id == sink_id then sink = def end
+	end
+	if not sink then return false, "unknown_sink" end
+	local balance = record.super_balance(self.s)
+	if balance < sink.price then return false, "not_enough_super_stars" end
+	self.s.super_stars.spent = self.s.super_stars.spent + sink.price
+	self:_touch()
+	return true
 end
 
 function Meta:_lose(reason)

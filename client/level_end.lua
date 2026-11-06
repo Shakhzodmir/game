@@ -23,6 +23,8 @@ local app = require("client.app")
 local analytics = require("client.services.analytics")
 local config = require("meta.config")
 local ads = require("client.services.ads")
+local levels = require("client.levels")
+local stars = require("meta.stars")
 
 local M = {}
 
@@ -83,10 +85,48 @@ local function next_replay(id)
 end
 
 -- the stand-in result of a level without a meta attempt
+-- Stars by score of a win: {stars, concert, score} from the level's thresholds (1 star when it has none).
+-- QA only (the `qa_stars` command): the next wins are rated as if the score had just reached this many stars.
+M.qa_stars = nil
+
+local function rate(level_id, core_result)
+	local score = core_result and core_result.score
+	if type(score) ~= "number" or score < 0 or score ~= math.floor(score) then score = 0 end
+	local info = levels.stars(level_id)
+	if M.qa_stars and info then score = M.qa_stars <= 1 and 1 or info.t[M.qa_stars] end
+	return { stars = stars.rate(info and info.t, score), concert = info ~= nil and info.kind == "concert",
+		score = score, t = info and info.t or nil }
+end
+M.rate = rate
+
+-- A win of an already beaten level (the practice run, "Replay"): the records rise, nothing is paid.
+-- Returns the meta's record_replay result or nil (a level not beaten yet, a debug start).
+local function record_replay(level_id, r)
+	local meta = app.meta
+	local difficulty = levels.difficulty(level_id)
+	if not (meta and meta.record_replay and difficulty) then return nil end
+	local ok, res = pcall(meta.record_replay, meta, {
+		level_id = level_id, difficulty = difficulty, stars = r.stars, score = r.score, concert = r.concert,
+	})
+	if not ok then
+		print("WARNING: level_end: record_replay failed: " .. tostring(res))
+		return nil
+	end
+	if res then app.commit("level_replay") end
+	return res or nil
+end
+
 local function standalone(won, core_result, ctx)
+	local r, rec
+	if won then
+		r = rate(ctx and ctx.level_id or 0, core_result)
+		rec = record_replay(ctx and ctx.level_id or 0, r)
+	end
 	return {
 		won = won, standalone = true, level_id = ctx and ctx.level_id or 0,
-		coins = 0, stars = won and (core_result and core_result.stars or 0) or 0, streak = 0, unlocked = {},
+		coins = 0, stars = won and r.stars or 0, streak = 0, unlocked = {},
+		gained = rec and rec.gained or 0, best = rec and rec.best or nil, super_gained = rec and rec.super_gained or 0,
+		concert = won and r.concert or false, new_best_score = rec and rec.new_best_score or false,
 		next_level = won and next_replay(ctx and ctx.level_id or 0) or nil,
 		life_lost = false, streak_lost = 0, fails = 0, reason = "out_of_moves",
 	}
@@ -97,8 +137,10 @@ function M.win(core_result, ctx)
 	local meta = app.meta
 	local run = meta and meta:run() or nil
 	if not run then return standalone(true, core_result, ctx) end
+	local r = rate(run.level_id, core_result)
 	local ok, res = pcall(meta.finish_level, meta, {
 		won = true, level_id = run.level_id, moves_at_win = core_result.moves_at_win or 0,
+		stars = r.stars, score = r.score, concert = r.concert,
 	}, app.now())
 	if not ok or not res then
 		print("WARNING: level_end: finish_level (win) failed: " .. tostring(res))
@@ -112,6 +154,7 @@ function M.win(core_result, ctx)
 	local queued = {}
 	for k, v in pairs(res) do queued[k] = v end -- order-free: a shallow copy
 	queued.chest = nil
+	queued.stars = res.gained or 0 -- the town flies in the stars that are new to the wallet
 	app.push_reward(queued)
 	log("level_win", {
 		level = res.level_id, attempt = run.attempt, moves_left = core_result.moves_at_win or 0,

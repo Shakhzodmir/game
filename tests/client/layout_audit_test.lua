@@ -104,7 +104,11 @@ local function open_level(c, name, extra)
 		return l:open("defeat", { view = view, level_id = 99 })
 	elseif name == "result" then
 		local res = { level_id = 100, stars = 3, coins = 9999999, streak = 12, unlocked = { "crossfader", "remix" }, next_level = 101 }
-		local view = lw.result(meta, res, { score = 99999999, moves_at_win = 99, stars = 3 }, c.app.now())
+		if extra == "concert" then -- the longest lines: a concert paying super stars on a new record, with a better one kept
+			res.stars, res.best, res.gained, res.concert, res.super_gained, res.new_best_score = 2, 3, 1, true, 99, true
+		end
+		local view = lw.result(meta, res, { score = extra == "concert" and 21000 or 99999999, moves_at_win = 99, stars = 3 }, c.app.now())
+		if extra == "concert" then assert_true(view.scale ~= nil and view.concert, "the audit must draw the score scale and the super stars") end
 		local refund
 		if extra ~= "norefund" then
 			refund = {}
@@ -119,7 +123,7 @@ end
 
 local LEVEL_CASES = {
 	{ "pause" }, { "moves" }, { "defeat" }, { "defeat", "nolives" },
-	{ "result", "four" }, { "result", "norefund" },
+	{ "result", "four" }, { "result", "norefund" }, { "result", "concert" },
 	{ "booster_buy", "first" }, { "booster_buy", "last" }, { "shop" },
 }
 

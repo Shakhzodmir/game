@@ -573,3 +573,114 @@ describe("client level chest claim", function()
 		assert_true(left > 600 - 5 and left <= 600, "15 minutes, five of them gone: " .. left)
 	end)
 end)
+
+describe("client.level_end stars by score", function()
+	local levels = require("client.levels")
+
+	-- the real level files and stars.json, read from the repository
+	before_each(function()
+		levels._reset()
+		levels.read = function(path)
+			local f = io.open(path:gsub("^/", ""), "rb")
+			if not f then return nil end
+			local text = f:read("*a")
+			f:close()
+			return text
+		end
+		levels.decode = require("tools.lib.json").decode
+	end)
+
+	local function thresholds(id)
+		return levels.stars(id).t
+	end
+
+	it("rates a win by the score thresholds of the level and pays the stars of the record", function()
+		for _, case in ipairs({ { 1, 1 }, { 2, 2 }, { 3, 3 } }) do
+			boot(4)
+			local base = app.meta:stars() -- levels 1-3 were won by the old rule
+			local _, id = start({}, true)
+			local t = thresholds(id)
+			local score = ({ 1, t[2], t[3] })[case[1]]
+			local res = level_end.win({ moves_at_win = 3, score = score }, { level_id = id })
+			assert_eq(res.stars, case[2], "score " .. score)
+			assert_eq(res.gained, case[2])
+			assert_eq(app.meta:stars(), base + case[2])
+			local queued = rewards.pop and rewards.pop() or nil
+			if queued then assert_eq(queued.stars, case[2], "the town flies in the new stars") end
+			local v = lw.result(app.meta, res, { moves_at_win = 3, score = score }, NOW)
+			assert_eq(v.stars, case[2])
+			assert_true(v.scale ~= nil)
+			assert_eq(v.scale.stars, case[2])
+			assert_eq(v.scale.max, t[3])
+			assert_eq(v.concert, false)
+		end
+	end)
+
+	it("keeps the stars of a beaten level when it is replayed worse, and raises them when better", function()
+		boot(4)
+		local base = app.meta:stars()
+		local _, id = start({}, true)
+		local t = thresholds(id)
+		level_end.win({ moves_at_win = 3, score = t[3] }, { level_id = id }) -- 3 stars
+		assert_eq(app.meta:stars(), base + 3)
+		local worse = level_end.win({ moves_at_win = 0, score = 1 }, { level_id = id })
+		assert_true(worse.standalone)
+		assert_eq(worse.stars, 1)
+		assert_eq(worse.gained, 0)
+		assert_eq(worse.best, 3)
+		assert_eq(app.meta:stars(), base + 3, "stars never go down")
+		assert_eq(app.meta:level_stars(id), 3)
+		-- a level never won stays unrecorded: the practice of a level not beaten yet pays nothing
+		local ahead = level_end.win({ moves_at_win = 0, score = 10 ^ 7 }, { level_id = id + 5 })
+		assert_eq(ahead.gained, 0)
+		assert_eq(app.meta:level_stars(id + 5), 0)
+		assert_eq(app.meta:stars(), base + 3)
+	end)
+
+	it("a replay that beats the record adds only the new stars", function()
+		boot(4)
+		local base = app.meta:stars()
+		local _, id = start({}, true)
+		local t = thresholds(id)
+		level_end.win({ moves_at_win = 3, score = 1 }, { level_id = id }) -- 1 star
+		assert_eq(app.meta:stars(), base + 1)
+		local coins = app.meta:coins()
+		local better = level_end.win({ moves_at_win = 5, score = t[3] }, { level_id = id })
+		assert_eq(better.gained, 2)
+		assert_eq(better.best, 3)
+		assert_eq(app.meta:stars(), base + 3)
+		assert_eq(app.meta:coins(), coins, "no coins for a replay")
+	end)
+
+	it("pays super stars for the concert level 60 and shows them in the results", function()
+		boot(60)
+		local meta = app.meta
+		assert_true(levels.is_concert(60))
+		assert_false(levels.is_concert(59))
+		assert_true(meta:start_level({ id = 60, difficulty = "super_hard" }, {}, NOW))
+		meta:note_move()
+		local t = thresholds(60)
+		local res = level_end.win({ moves_at_win = 2, score = t[2] }, { level_id = 60 })
+		assert_eq(res.stars, 2)
+		assert_true(res.concert)
+		assert_eq(res.super_gained, 2)
+		assert_eq(meta:super_stars().balance, 2)
+		local v = lw.result(meta, res, { moves_at_win = 2, score = t[2] }, NOW)
+		assert_true(v.concert)
+		assert_eq(v.super_gained, 2)
+		assert_eq(v.super_total, 2)
+		-- the replay with 3 stars adds one more super star, a worse one nothing
+		local up = level_end.win({ moves_at_win = 2, score = t[3] }, { level_id = 60 })
+		assert_eq(up.super_gained, 1)
+		local down = level_end.win({ moves_at_win = 2, score = 1 }, { level_id = 60 })
+		assert_eq(down.super_gained, 0)
+		assert_eq(meta:super_stars().balance, 3)
+	end)
+
+	it("says 1 star for a level the thresholds do not know", function()
+		boot()
+		local r = level_end.rate(777, { score = 10 ^ 6 })
+		assert_eq(r.stars, 1)
+		assert_false(r.concert)
+	end)
+end)
