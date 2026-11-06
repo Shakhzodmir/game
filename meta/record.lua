@@ -62,10 +62,12 @@ function M.gain(state, level_id, difficulty, stars, score, concert)
 	local prev = M.best(state, level_id, difficulty)
 	local best = math.max(prev, stars)
 	state.level_stars[key] = best
+	-- a "new record" is a score above an earlier one: the first win of a level is not a record to cheer
 	local new_best = false
-	if score and score > (state.level_scores[key] or 0) then
+	local before_score = state.level_scores[key] or 0
+	if score and score > before_score then
 		state.level_scores[key] = math.min(score, 2 ^ 31)
-		new_best = true
+		new_best = before_score > 0
 	end
 	local super_gained = 0
 	if concert then

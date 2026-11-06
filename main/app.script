@@ -284,6 +284,15 @@ local function qa_handlers(self)
 			if not res then return { ok = false, error = why } end
 			return { ok = true, level = res.level_id, stars = app.meta:stars(), coins = app.meta:coins() }
 		end,
+		-- the next wins are rated with 1, 2 or 3 stars whatever the board scored; `off` goes back to the real score
+		qa_stars = function(args)
+			local n = tonumber(args[1])
+			if args[1] == "off" then n = nil elseif not (n and n >= 1 and n <= 3 and n == math.floor(n)) then
+				return { ok = false, error = "stars_1_2_3_or_off" }
+			end
+			require("client.level_end").qa_stars = n
+			return { ok = true, stars = n }
+		end,
 		music_stop = function()
 			audio.stop_music()
 			return { ok = true }

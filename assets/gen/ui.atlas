@@ -343,6 +343,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "ui_icons_super_star"
+  images {
+    image: "/assets/images/ui/icons/super_star.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "ui_icons_swap"
   images {
     image: "/assets/images/ui/icons/swap.png"

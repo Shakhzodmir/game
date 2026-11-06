@@ -503,6 +503,7 @@ function M.snapshot(now)
 		out.all_done = meta:all_done()
 		out.coins = meta:coins()
 		out.stars = meta:stars()
+		out.super_stars = meta:super_stars().balance
 		out.lives = lives.count
 		out.lives_next_in = lives.next_in_seconds
 		out.infinite_seconds = lives.infinite_seconds

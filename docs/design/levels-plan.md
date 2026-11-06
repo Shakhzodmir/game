@@ -74,6 +74,7 @@ E — `easy`, M — `medium`, H — `hard`, SH — `super_hard`. После сл
 ## 4. Файлы
 - Уровни: `content/levels/level_0001.json` … `level_0100.json`, строго по схеме 2.0, без лишних полей.
 - Таблица уровней: `docs/levels/README.md` (не в `content/`: вся папка `/content` входит в сборку игры) — номер, сложность, размер, цвета, элементы, цели, идея уровня, стартовые ходы.
+- Пороги звёзд и концерты: `content/levels/stars.json` (по уровню: `kind` normal или concert, три порога очков, лучший счёт бота и его сид); считает `tools/stars.lua gen`, проверяет `levels.lua validate`. Концертные уровни — супер-сложные 60, 70, 80, 90, 100; `meta-economy.md`, раздел 15.
 - Обучение: `content/tutorials.json` — для уровней 1, 2, 4, 6, 9, 11 и уровней с новым элементом:
   - `{"<id>": {"steps": [{"kind": "swap"|"tap"|"booster"|"tip", "from": [x,y], "to": [x,y], "at": [x,y], "booster": "...", "text": "<i18n key>"}]}}`;
   - координаты — как в `at` уровня;

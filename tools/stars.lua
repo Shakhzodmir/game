@@ -59,6 +59,14 @@ local function round100(v, down)
 	return math.floor(v / 100 + 0.5) * 100
 end
 
+-- The score of the first game of `bot` with seed g that wins the level, or nil.
+local function Run_play_first_win(entry, g, bot)
+	local Run = require("tools.bot.run")
+	local seed = Stars.SEED_BASE + 1000 + g
+	local r = Run.play(entry, { seed = seed, bot = bot, bot_seed = seed, budget = entry.moves, finish = true })
+	return r.won and r.score or nil
+end
+
 -- The thresholds of sorted winning scores for a kind: {t1, t2, t3}.
 function Stars.thresholds(sorted, kind)
 	local q = Stars.QUANTILES[kind]
@@ -202,7 +210,7 @@ end
 
 function Stars.main(argv)
 	local flags = { replay = true, worker = true }
-	local values = { jobs = true, out = true, dir = true, stars = true, ids = true }
+	local values = { n = true, bot = true, jobs = true, out = true, dir = true, stars = true, ids = true }
 	local opts, pos, perr = common.parse_args(argv, flags, values)
 	if perr or #pos == 0 then
 		io.stderr:write((perr or "") .. "\n" .. USAGE .. "\n")
@@ -225,6 +233,47 @@ function Stars.main(argv)
 		for _, m in ipairs(errs) do print("FAIL " .. m) end
 		print(#errs == 0 and "stars: ok" or ("stars: " .. #errs .. " problem(s)"))
 		return #errs == 0 and 0 or 1
+	end
+	if cmd == "economy" then
+		-- stars a bot collects level by level (first win of each level, N greedy games per level) against
+		-- the cumulative price of the districts
+		local data = common.decode(common.read_file(dir .. "/stars.json"))
+		local n = tonumber(opts.n) or 6
+		local bot = opts.bot or "greedy"
+		local mean, total = {}, 0
+		for _, entry in ipairs(load_levels(dir, {})) do
+			local sum, wins = 0, 0
+			for g = 1, n do
+				local r = Run_play_first_win(entry, g, bot)
+				if r then
+					sum = sum + stars.rate(data.levels[tostring(entry.id)].t, r)
+					wins = wins + 1
+				end
+			end
+			mean[entry.id] = wins > 0 and sum / wins or 1
+			total = total + mean[entry.id]
+		end
+		local d = common.decode(common.read_file(ROOT .. "content/districts.json"))
+		local cost, cum, at, floor_at = 0, 0, {}, {}
+		local c1, c2 = 0, 0
+		local k = 1
+		for _, dist in ipairs(d.districts or d) do
+			for _, task in ipairs(dist.tasks) do cost = cost + task.cost end
+			-- first level where the cumulative stars reach the price so far
+			local level
+			cum = 0
+			for id = 1, 100 do
+				cum = cum + mean[id]
+				if cum >= cost then level = id break end
+			end
+			at[k] = level or "never"
+			floor_at[k] = cost <= 100 and cost or "never"
+			k = k + 1
+		end
+		print(string.format("bot %s, %d games per level: mean stars per level %.2f, total %.1f (the town costs %d)", bot, n, total / 100, total, cost))
+		print("district closed at level (mean bot): " .. table.concat(at, ", "))
+		print("district closed at level (1 star per win, no replay): " .. table.concat(floor_at, ", "))
+		return 0
 	end
 	if cmd ~= "gen" then
 		io.stderr:write(USAGE .. "\n")

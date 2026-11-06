@@ -86,10 +86,14 @@ end
 
 -- the stand-in result of a level without a meta attempt
 -- Stars by score of a win: {stars, concert, score} from the level's thresholds (1 star when it has none).
+-- QA only (the `qa_stars` command): the next wins are rated as if the score had just reached this many stars.
+M.qa_stars = nil
+
 local function rate(level_id, core_result)
 	local score = core_result and core_result.score
 	if type(score) ~= "number" or score < 0 or score ~= math.floor(score) then score = 0 end
 	local info = levels.stars(level_id)
+	if M.qa_stars and info then score = M.qa_stars <= 1 and 1 or info.t[M.qa_stars] end
 	return { stars = stars.rate(info and info.t, score), concert = info ~= nil and info.kind == "concert",
 		score = score, t = info and info.t or nil }
 end
@@ -150,6 +154,7 @@ function M.win(core_result, ctx)
 	local queued = {}
 	for k, v in pairs(res) do queued[k] = v end -- order-free: a shallow copy
 	queued.chest = nil
+	queued.stars = res.gained or 0 -- the town flies in the stars that are new to the wallet
 	app.push_reward(queued)
 	log("level_win", {
 		level = res.level_id, attempt = run.attempt, moves_left = core_result.moves_at_win or 0,
