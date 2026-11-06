@@ -15,7 +15,7 @@
 -- Commands (words separated by spaces; handlers live in main/app.script):
 --   state | goto <splash|town|level> [n] | level <n> | set_coins <n> |
 --   lang <auto|en|ru|ko> | volume <music> [sfx] | reset_save | save_code | save_import <code> |
---   meta_win [moves] [keep] |
+--   meta_win [moves] [keep] | qa_stars <1|2|3|off> (rate the next wins with that many stars) |
 --   toast <text...> | toast_key <key> | modal [id] | save_fail <0|1> |
 --   stall <ms> | stray_fade <in|out> | music <district|song> [all] | music_stop |
 --   song <song|district|none> (the jukebox pick: client/meta_qa.lua) |

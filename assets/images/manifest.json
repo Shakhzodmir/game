@@ -1283,6 +1283,12 @@
       "alpha": true,
       "bytes": 12282
     },
+    "ui/icons/super_star.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11683
+    },
     "ui/icons/swap.png": {
       "w": 96,
       "h": 96,

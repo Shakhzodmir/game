@@ -781,6 +781,67 @@ async function debugChecks() {
 		await p.context().close();
 	}
 
+	// 1b2. stars by score: the same level won with 1, 2 and 3 stars (`qa_stars` rates the win as if the score had reached
+	// that many), the results say so and the wallet follows; a worse replay never takes a star away ---------------
+	{
+		const p = await openPage(browser, { width: 540, height: 960 });
+		await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (stars)', 30000);
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await command(p, 'advance 3');
+		await command(p, 'goto town');
+		await sleep(1200);
+		const base = (await state(p)).app.stars;
+		const winResult = async (what) => {
+			await command(p, 'win');
+			await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert (' + what + ')', 150000);
+			await command(p, 'skip');
+			const r = await waitFor(p, s => s.app.ui.popup === 'result' && s.app.ui.result, 'the results (' + what + ')', 60000);
+			await sleep(1800);
+			return r;
+		};
+		const leave = async () => {
+			await tapTarget(p, 'town', 'popup');
+			await onScreen(p, 'town', 20000);
+		};
+		const replay = async (n) => {
+			await command(p, 'level ' + n);
+			await waitFor(p, s => s.app.screen === 'level' && !s.app.transitioning, 'the replay of level ' + n, 30000);
+			await sleep(1300);
+		};
+		await command(p, 'qa_stars 1');
+		await startLevelFromTown(p);
+		await sleep(1300);
+		const w1 = await winResult('level 4, 1 star');
+		await p.screenshot({ path: `${outDir}/client_stars_1.png` });
+		check(w1.app.ui.result.stars === 1 && w1.app.ui.result.gained === 1 && w1.app.stars === base + 1,
+			'stars: a win with a low score gives 1 star and the wallet follows', { result: w1.app.ui.result, stars: w1.app.stars, base });
+		check(typeof w1.app.ui.result.to_next === 'number' && w1.app.ui.result.to_next > 0,
+			'stars: the results say how far the next star is', w1.app.ui.result);
+		await leave();
+		for (const n of [2, 3]) {
+			await command(p, 'qa_stars ' + n);
+			await replay(4);
+			const w = await winResult('level 4 replay, ' + n + ' stars');
+			await p.screenshot({ path: `${outDir}/client_stars_${n}.png` });
+			check(w.app.ui.result.stars === n && w.app.ui.result.best === n && w.app.stars === base + n,
+				'stars: a replay with a better score raises the stars to ' + n + ' and pays only the difference',
+				{ result: w.app.ui.result, stars: w.app.stars, base });
+			await leave();
+		}
+		await command(p, 'qa_stars 1');
+		await replay(4);
+		const worse = await winResult('level 4 replay, worse');
+		check(worse.app.ui.result.stars === 1 && worse.app.ui.result.best === 3 && worse.app.stars === base + 3,
+			'stars: a worse replay keeps the 3 stars of the level and takes nothing from the wallet', { result: worse.app.ui.result, stars: worse.app.stars, base });
+		await leave();
+		await command(p, 'qa_stars off');
+		const kept = await state(p);
+		check(kept.app.stars === base + 3, 'stars: back in the town the wallet still holds them', { stars: kept.app.stars, base });
+		if (kept.errors && kept.errors.length) errors.push(...kept.errors.map(e => 'bridge: ' + e));
+		await p.context().close();
+	}
+
 	// 1c. a crowded results window: the chest of level 10 left unopened, then the results of level 11 (the older chest and
 	// a new booster). There "Collect" of the chest window lies over "Next level": a double tap on it must not press it ---
 	{

@@ -364,8 +364,31 @@ local function cmd_validate(opts, pos, dir)
 			print((opts.strict and "FAIL " or "warning: ") .. "plan: level files missing: " .. table.concat(missing, ", "))
 		end
 	end
+	-- a whole directory also carries the star thresholds (stars.json): ordered, reachable by a bot, not
+	-- trivial, matching the level files; --strict plays the witness game of every level again
+	local star_problems = 0
+	if #pos == 0 then
+		local text = common.read_file(dir .. "/stars.json")
+		local data = text and common.decode(text)
+		local errs
+		if not text then
+			-- a directory without thresholds (a sample, a work in progress): a warning, a failure with --strict
+			if opts.strict then
+				errs = { "stars.json is missing (luajit tools/stars.lua gen)" }
+			else
+				errs = {}
+				print("warning: stars: no stars.json in " .. dir .. " (luajit tools/stars.lua gen)")
+			end
+		elseif not data then
+			errs = { "stars.json is not JSON (luajit tools/stars.lua gen)" }
+		else
+			errs = require("tools.stars").check(data, dir, { replay = opts.strict })
+		end
+		for _, m in ipairs(errs) do print("FAIL stars: " .. m) end
+		star_problems = #errs
+	end
 	print(string.format("%d level(s): %d ok, %d failed, %d with plan warnings", #files, #files - bad, bad, warned))
-	return (bad > 0 or (opts.strict and gaps > 0)) and 1 or 0
+	return (bad > 0 or star_problems > 0 or (opts.strict and gaps > 0)) and 1 or 0
 end
 
 -- Statistics of raw levels: {counts, stars, rows, first}.
