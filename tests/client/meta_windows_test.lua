@@ -76,6 +76,51 @@ describe("meta windows: layout in both languages and every window size", functio
 		end
 	end)
 
+	it("keeps every node of every window inside its panel and the screen, in the worst case", function()
+		local views = require("client.views")
+		local real = views.shop_boosters
+		local bad = {}
+		local SIZES = { { 720, 1280 }, { 1920, 970 }, { 1280, 720 }, { 390, 844 }, { 360, 640 } }
+		-- the shop with 8 .. 12 packs (the catalogue grows)
+		local function with_packs(n)
+			views.shop_boosters = function(meta)
+				local list = real(meta)
+				local k = 1
+				while #list < n do
+					local src = list[k]
+					local copy = {}
+					for key, v in pairs(src) do copy[key] = v end -- order-free: a copy
+					list[#list + 1] = copy
+					k = k + 1
+				end
+				return list
+			end
+		end
+		local ok, err = pcall(function()
+			for _, lang in ipairs({ "en", "ru" }) do
+				for _, w in ipairs(SIZES) do
+					for _, case in ipairs({ { "shop", { tab = "boosters" }, 8 }, { "shop", { tab = "boosters" }, 9 },
+						{ "shop", { tab = "boosters" }, 12 }, { "shop", { tab = "coins" }, 8 },
+						{ "start", nil }, { "lives", nil }, { "settings", nil }, { "jukebox", nil }, { "concert", { district = "cafe" } },
+						{ "chest", { kind = "level", level_id = 10, chest = { coins = 60, boosters = { "stick", "riff", "crossfader" }, infinite_minutes = 15 } } },
+						{ "gift", { id = "riff" } },
+						{ "confirm", { title = { key = "settings.reset_title" }, text = { key = "settings.reset_text" } } } }) do
+						if case[3] then with_packs(case[3]) else views.shop_boosters = real end
+						G.with_town({ language = lang, window = w, setup = function(app) G.win(app, 13) end }, function(c)
+							open(c, case[1], case[2])
+							local label = case[1] .. (case[2] and case[2].tab and ("/" .. case[2].tab) or "") .. (case[3] and (" x" .. case[3]) or "")
+								.. " " .. lang .. " " .. w[1] .. "x" .. w[2]
+							for _, m in ipairs((G.overflows(c))) do bad[#bad + 1] = label .. ": " .. m end
+						end)
+					end
+				end
+			end
+		end)
+		views.shop_boosters = real
+		if not ok then error(err, 0) end
+		assert_eq(#bad == 0 and "" or ("\n" .. table.concat(bad, "\n")), "", "nodes out of the panel or the screen")
+	end)
+
 	it("builds every window in every window size and with a notch", function()
 		for _, w in ipairs(WINDOWS) do
 			for _, case in ipairs({ { "start", nil }, { "shop", { tab = "coins" } }, { "settings", nil }, { "jukebox", nil } }) do

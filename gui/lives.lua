@@ -135,7 +135,7 @@ function M.build(e)
 
 	-- Bit
 	local mood = (v.state == "empty") and "sad" or ((v.state == "full" or v.state == "infinite") and "happy" or "idle")
-	kit.bit(e, body, W / 2 - 40, -hh + 150, 120, mood)
+	kit.bit(e, body, W / 2 - 80, -hh + 150, 120, mood) -- inside the panel (a mascot at W/2-40 stuck out 27 px)
 	if mood == "sad" and e.bit then e.bit:mood_for(1e9, "sad") end
 end
 
