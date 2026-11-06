@@ -241,3 +241,26 @@ describe("tools/qa/web_screens.mjs", function()
 		end)
 	end)
 end)
+
+describe("tools/qa/layout_sweep.mjs", function()
+	it("sends only commands the QA bridge has and opens only windows that exist", function()
+		S.run({}, function(s)
+			local sweep = read("tools/qa/layout_sweep.mjs")
+			local n = 0
+			for text in string.gmatch(sweep, "command%(%s*[%w_]+%s*,%s*'([^']*)'") do
+				n = n + 1
+				assert_true(qa.has(words(text)[1]), "the bridge has no command '" .. text .. "'")
+			end
+			for text in string.gmatch(sweep, "%[%s*'[%w_]+'%s*,%s*'(popup [^']*)'%s*%]") do
+				n = n + 1
+				local w = words(text)
+				assert_true(qa.has(w[1]), text)
+				local f = io.open("gui/" .. w[2] .. ".lua", "rb")
+				assert_true(f ~= nil, "no window gui/" .. w[2] .. ".lua for '" .. text .. "'")
+				f:close()
+			end
+			assert_true(n > 12, "the sweep sends " .. n .. " commands")
+			assert_true(qa.has("gui_bounds") and qa.has("popup"))
+		end)
+	end)
+end)

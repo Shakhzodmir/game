@@ -229,6 +229,22 @@ local function qa_handlers(self)
 			app.toast_key(args[1] or "toast.coming_soon")
 			return { ok = true }
 		end,
+		-- QA layout sweep: open a town window (popup shop boosters), and ask the scenes for the rectangles of their texts
+		-- (gui_bounds, answer in app.ui.bounds after a frame or two; windows built before the first call are not tracked)
+		popup = function(args)
+			local params
+			if args[2] then params = { tab = args[2], district = args[2] } end
+			if args[1] == "close" then app.close_popup() else app.open_popup(args[1] or "start", params) end
+			return { ok = true }
+		end,
+		gui_bounds = function()
+			local q = require("client.gui_qa")
+			q.track = true
+			q.out = {}
+			q.want = q.want + 1
+			app.ui.bounds = q.out
+			return { ok = true }
+		end,
 		modal = function(args)
 			app.modal({ id = args[1] or "qa", title = { key = "settings.title" }, text = { key = "lives.full" },
 				buttons = { { id = "ok", text = { key = "common.ok" } } } })
