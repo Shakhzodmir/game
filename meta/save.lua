@@ -33,6 +33,7 @@ local progress = require("meta.progress")
 local town = require("meta.town")
 local prefs = require("meta.prefs")
 local record = require("meta.record")
+local songbook = require("meta.songbook")
 
 local M = {}
 
@@ -108,7 +109,7 @@ end
 
 -- Top-level fields of the state, i.e. of a save of this version.
 M.fields = { "salt", "wallet", "stats", "lives", "progress", "unlock_gifts", "town", "prefs", "chests",
-	"level_stars", "level_scores", "super_stars" }
+	"level_stars", "level_scores", "super_stars", "songbook" }
 
 local function is_known(k)
 	return k == "version" or k == "checksum" or util.index_of(M.fields, k) ~= nil
@@ -176,6 +177,8 @@ function M.restore(raw, districts)
 		level_stars = record.restore_stars(raw.level_stars),
 		level_scores = record.restore_scores(raw.level_scores),
 		super_stars = record.restore_super(raw.super_stars),
+		-- the song of each district, one line per beaten level; the lines of levels beaten before it existed are filled in
+		songbook = songbook.load(raw.songbook, salt, p.beaten),
 		extra = extra,
 	}
 end

@@ -63,6 +63,7 @@ local REGISTRY = {
 	gift = require("gui.gift"),
 	confirm = require("gui.confirm"),
 	replay = require("gui.replay"),
+	notebook = require("gui.notebook"),
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
@@ -112,6 +113,7 @@ function Town:keep_images()
 	for k in pairs(bit.images()) do keep[k] = true end -- order-free: a set
 	local c = self.popups and self.popups:find("concert")
 	if c then REGISTRY.concert.images(c.params.district or self.district, keep) end
+	if self.popups and self.popups:find("notebook") then REGISTRY.notebook.images(keep) end
 	return keep
 end
 
@@ -136,6 +138,18 @@ function Town:open_popup(name, params)
 		params.id = params.id or "riff"
 	end
 	return self.popups:open(name, params)
+end
+
+-- A song finished at the end of a stretch of levels is offered once: the notebook opens on it with the seal and the
+-- confetti. Never over another window, a reward on show or an account prompt (those come first); a song the player
+-- already saw, or one that was finished before the songbook existed, is never offered.
+function Town:songbook_offer()
+	if self.show:busy() or self.sliding or app.ui.popup or self.leaving or self.pending_open then return end
+	if rewards.count() > 0 or #app.meta:pending_chests() > 0 then return end
+	local id = app.meta:songbook_pending()
+	if not id or self.offered_song == id then return end
+	self.offered_song = id
+	self:open_popup("notebook", { district = id, celebrate = true })
 end
 
 -- Account prompts, never over another window and never while a reward is on show: the sync question (a
@@ -456,7 +470,10 @@ function Town:update(dt)
 		if rewards.count() > 0 then self:queue_rewards() end
 		self:queue_pending_chests()
 	end
-	if self.enter_t > 1.0 then self:account_prompts() end
+	if self.enter_t > 1.0 then
+		self:account_prompts()
+		self:songbook_offer()
+	end
 	if self.pending_open and self.enter_t > 0.5 and not self.show:busy() then
 		local want = self.pending_open
 		self.pending_open = nil
