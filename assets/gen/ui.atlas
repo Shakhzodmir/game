@@ -91,6 +91,111 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "ui_genres_ambient"
+  images {
+    image: "/assets/images/ui/genres/ambient.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_blues"
+  images {
+    image: "/assets/images/ui/genres/blues.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_bossa"
+  images {
+    image: "/assets/images/ui/genres/bossa.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_chiptune"
+  images {
+    image: "/assets/images/ui/genres/chiptune.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_cinematic"
+  images {
+    image: "/assets/images/ui/genres/cinematic.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_classical"
+  images {
+    image: "/assets/images/ui/genres/classical.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_country"
+  images {
+    image: "/assets/images/ui/genres/country.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_eastern"
+  images {
+    image: "/assets/images/ui/genres/eastern.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_edm"
+  images {
+    image: "/assets/images/ui/genres/edm.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_folk"
+  images {
+    image: "/assets/images/ui/genres/folk.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_hiphop"
+  images {
+    image: "/assets/images/ui/genres/hiphop.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_latin"
+  images {
+    image: "/assets/images/ui/genres/latin.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_pop"
+  images {
+    image: "/assets/images/ui/genres/pop.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_reggae"
+  images {
+    image: "/assets/images/ui/genres/reggae.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_genres_rnb"
+  images {
+    image: "/assets/images/ui/genres/rnb.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "ui_icons_arrow"
   images {
     image: "/assets/images/ui/icons/arrow.png"

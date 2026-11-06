@@ -849,6 +849,22 @@ function Meta:song_info(id)
 	return town.song_info(self.data, id)
 end
 
+-- The genres of content/genres.json (not districts), in file order: {{id, group, name, unlock = the district that
+-- opens the genre, unlock_index, open, songs = {ids}}}. `open` follows meta/config.lua genres_unlock.
+function Meta:genres()
+	local out = {}
+	for i, g in ipairs(self.data.genres or {}) do
+		local first = g.songs[1]
+		out[i] = {
+			id = g.id, group = g.group, name = util.copy(g.name), unlock = g.unlock,
+			unlock_index = self.data.by_id[g.unlock].index,
+			open = first ~= nil and town.song_status(self.s.town, self.data, first) == "open",
+			songs = util.copy(g.songs),
+		}
+	end
+	return out
+end
+
 -- {wins, losses, coins_earned, coins_spent}; coins = earned - spent.
 function Meta:stats()
 	return util.copy(self.s.stats)
