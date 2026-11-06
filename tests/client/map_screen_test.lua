@@ -182,6 +182,18 @@ describe("screens/map/map.gui_script", function()
 		end)
 	end)
 
+	it("a jump of the scroll outside its own update (QA `map goto`, the camera of Bit's walk) is drawn in the next frame", function()
+		with_map({ setup = function(app) G.win(app, 30) end }, function(c)
+			local before = c.app.ui.map.off
+			assert_true(before > 600, "the map opens on the level to play: " .. before)
+			c.E.bus.publish("map_qa", { action = "goto", level = 3 })
+			c.step(3)
+			assert_true(c.app.ui.map.off < before - 400, "off " .. before .. " -> " .. c.app.ui.map.off)
+			-- the 'to my level' button follows what is drawn: the level to play is out of the window now
+			assert_true(c.map:has_text("My level", true))
+		end)
+	end)
+
 	it("scrolls with the wheel and the 'to my level' button brings the view back", function()
 		with_map({ setup = function(app) G.win(app, 10) end }, function(c)
 			local u = c.app.ui

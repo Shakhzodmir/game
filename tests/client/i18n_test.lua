@@ -218,4 +218,17 @@ describe("client.i18n", function()
 		assert_true(seen > 20, "found the keys")
 		assert_same(missing, {})
 	end)
+
+	-- the stars come from the score (WP-4), not from the difficulty of the level: the note of the results window says so
+	it("the stars note of the results window speaks of the score in every language", function()
+		local words = { en = "score", ru = "очк", ko = "점수" }
+		local old_rule = { en = "difficulty", ru = "сложност", ko = "난이도" }
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			i18n.set_language(lang)
+			local text = i18n.t("win.stars_note")
+			assert_true(string.find(string.lower(text), words[lang], 1, true) ~= nil, lang .. ": " .. text)
+			assert_true(string.find(string.lower(text), old_rule[lang], 1, true) == nil, lang .. " still states the old rule: " .. text)
+		end
+	end)
+
 end)

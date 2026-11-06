@@ -308,7 +308,8 @@ function Map:update(dt)
 	v.bit:update(dt)
 	self:update_walk(dt)
 	local changed = self.scroll:update(dt)
-	if changed or v.off == nil or v.tile_key == nil then v:apply(self.scroll:pos()) end
+	-- the scroll also jumps outside its own update (the camera of Bit's walk, QA `map goto`): what is drawn follows its position
+	if changed or v.off == nil or v.tile_key == nil or v.off ~= self.scroll:pos() then v:apply(self.scroll:pos()) end
 	-- the "to my level" button while the level to play is out of the window
 	local target = self.model:node(v.next or self.model.count)
 	local sy = target.y - (v.off or 0)
