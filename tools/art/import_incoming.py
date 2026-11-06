@@ -44,44 +44,62 @@ EXTS = (".png", ".jpg", ".jpeg", ".webp")
 
 # -- the list of pictures of the brief ---------------------------------------------------------------------------------
 
+# the icons of the game: sheets of 9 (3x3) and the last one of 4 (2x2); the names are the game keys ui/icons/<name>
+ICON_SHEETS = (
+    ["arrow", "chart", "check", "chest_closed", "chest_open", "city", "close", "coin", "col_light"],
+    ["gift", "goal_floor", "hand", "haptics", "heart", "heart_infinite", "home", "jukebox", "lock"],
+    ["map", "music_off", "music_on", "note_off", "note_on", "pause", "play", "plus", "remix"],
+    ["retry", "row_light", "settings", "shop", "sound_off", "sound_on", "star", "star_empty", "stick"],
+    ["streak", "super_star", "swap", "team"],
+)
+
+
 def build_spec():
     S = {}
 
-    def add(name, group, kind, out, grid=None, names=None, uniform=False, anchor="center", aspect=None, align="cell"):
+    def add(name, group, kind, out, grid=None, names=None, uniform=False, anchor="center", aspect=None, align="cell",
+            fill=False):
+        # fill: the artwork touches the edges of the picture (no margin): nine-slice pieces, whose edges must be exact
         S[name] = {"group": group, "kind": kind, "out": list(out), "grid": list(grid) if grid else None,
-                   "names": names, "uniform": uniform, "anchor": anchor, "aspect": aspect, "align": align}
+                   "names": names, "uniform": uniform, "anchor": anchor, "aspect": aspect, "align": align, "fill": fill}
 
     for name, grid in (("bit_idle_breathe", (2, 2)), ("bit_idle_look", (2, 2)), ("bit_dance_a", (3, 2)),
                        ("bit_dance_b", (3, 2)), ("bit_cheer", (3, 2)), ("bit_surprised", (2, 2)),
                        ("bit_sleepy", (2, 2)), ("bit_write", (3, 2)), ("bit_listen", (2, 2)), ("bit_wave", (2, 2))):
         add(name, "bit", "set", (256, 256), grid, [str(i) for i in range(1, grid[0] * grid[1] + 1)], True, "bottom")
+    for name in ("bit_idle", "bit_happy", "bit_sad", "bit_worried", "bit_scratch"):  # still poses, read by client/bit.lua
+        add(name, "bit", "single", (256, 256), anchor="bottom")
     add("paper_sheet", "notebook", "single", (640, 900))
     add("notebook_closed", "notebook", "single", (384, 384))
-    add("stationery", "notebook", "set", (128, 128), (3, 3),
-        ["pencil", "pencil_big", "eraser", "pen", "highlighter", "sticker_star", "clip", "tape", "bookmark"])
+    add("stationery_pencil", "notebook", "single", (128, 128))   # game: notebook/stationery_1
+    add("stationery_star", "notebook", "single", (128, 128))     # game: notebook/stationery_6
     add("doodles", "notebook", "set", (96, 96), (3, 3),
         ["note", "note2", "clef", "heart", "star", "flower", "sun", "cloud", "bolt"])
     add("stamp_ready", "notebook", "single", (192, 192))
-    add("sparkle_burst", "notebook", "set", (128, 128), (3, 2), [str(i) for i in range(1, 7)], True)
     for d in ("cafe", "jazz", "square", "stadium", "garage"):
         add("map_bg_" + d, "map", "scene", (720, 1080), aspect=(2, 3))
         add("gate_" + d, "map", "single", (720, 480))
-        add("deco_" + d, "map", "set", (192, 192), (3, 2), ["d%d" % i for i in range(1, 7)])
+        add("deco_" + d, "map", "set", (160, 160), (3, 2), ["d%d" % i for i in range(1, 7)])
         add("room_%s_day" % d, "rooms", "scene", (720, 1280), aspect=(9, 16))
         add("room_%s_concert" % d, "rooms", "scene", (720, 1280), aspect=(9, 16))
-    add("map_path", "map", "set", (256, 256), (2, 2), ["straight", "curve_l", "curve_r", "end"], True)
-    add("node_day", "map", "set", (160, 160), (2, 2), ["locked", "available", "current", "done"], True)
-    add("node_concert", "map", "set", (224, 224), (2, 2), ["locked", "available", "current", "done"], True)
+    add("level_bg", "backgrounds", "scene", (720, 1280), aspect=(9, 16))
+    add("map_path_dot", "map", "single", (48, 48))
+    add("map_path_dot_done", "map", "single", (48, 48))
+    add("node_day", "map", "set", (160, 160), (2, 2), ["locked", "open", "current", "done"], True)
+    add("node_concert", "map", "set", (224, 224), (2, 2), ["locked", "open", "current", "done"], True)
     add("bonus_bar_frame", "bonus", "single", (640, 106))
     add("bonus_bar_fill", "bonus", "single", (640, 106))
     add("bonus_gift", "bonus", "set", (192, 192), (2, 2), ["closed", "shake", "glow", "open"], True)
     add("bonus_spark", "bonus", "set", (128, 128), (3, 2), [str(i) for i in range(1, 7)], True)
-    add("super_star", "bonus", "set", (192, 192), (2, 2), ["full", "empty", "glow", "small"])
     for c in ("green", "blue", "gold", "pink", "purple"):
-        add("btn_" + c, "ui", "set", (384, 128), (2, 2), ["normal", "pressed", "disabled", "focus"], True, align="center")
-    add("panels", "ui", "set", (512, 512), (2, 2), ["window", "plain", "tint", "tab"])
-    add("widgets", "ui", "set", (256, 256), (3, 3),
-        ["close", "back", "toggle_on", "toggle_off", "slider", "check_on", "check_off", "bar_frame", "bar_fill"])
+        add("btn_" + c, "ui", "single", (384, 128), fill=True)
+    add("panel", "ui", "single", (128, 128), fill=True)
+    add("ribbon", "ui", "single", (320, 80), fill=True)
+    add("moves_badge", "ui", "single", (192, 192), fill=True)
+    add("badge_count", "ui", "single", (56, 56))
+    add("bunting", "ui", "single", (720, 64))
+    for k, names in enumerate(ICON_SHEETS, 1):   # the 40 icons of the game (ui/icons/<name>)
+        add("icons_%d" % k, "ui", "set", (96, 96), (2, 2) if len(names) == 4 else (3, 3), names)
     add("genres_a", "genres", "set", (96, 96), (3, 3),
         ["classical", "folk", "pop", "hiphop", "edm", "rnb", "reggae", "country", "blues"])
     add("genres_b", "genres", "set", (96, 96), (3, 2), ["bossa", "ambient", "cinematic", "chiptune", "latin", "eastern"])
@@ -234,8 +252,8 @@ def place(sprite, out, anchor):
     return np.asarray(canvas)
 
 
-def fit_scale(bw, bh, out):
-    m = 1.0 - 2 * MARGIN
+def fit_scale(bw, bh, out, margin=MARGIN):
+    m = 1.0 - 2 * margin
     return min(out[0] * m / bw, out[1] * m / bh)
 
 
@@ -353,7 +371,7 @@ def process(path, name, spec):
     else:
         for c, a, bb in frames:
             x0, y0, x1, y1 = bb
-            s = fit_scale(x1 - x0, y1 - y0, out)
+            s = fit_scale(x1 - x0, y1 - y0, out, 0.0 if spec.get("fill") else MARGIN)
             if s > 1.6:
                 warns.append("предмет мал на картинке: его придётся растянуть в %.1f раза, будет мягким" % s)
             size = (max(1, round((x1 - x0) * s)), max(1, round((y1 - y0) * s)))
@@ -552,6 +570,11 @@ def synth_cell(size, draw, scale=2):
 def selftest():
     tmp = tempfile.mkdtemp(prefix="import-incoming-")
     problems = []
+    # the names of this list and the installer's table of game keys must be the same
+    import install_ready
+    gap = sorted(set(SPEC) ^ install_ready.brief_names())
+    if gap:
+        problems.append("SPEC and tools/art/install_ready.py name different pictures: %s" % gap)
     try:
         inp, outdir = os.path.join(tmp, "in"), os.path.join(tmp, "out")
         os.makedirs(inp)

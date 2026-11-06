@@ -14,6 +14,9 @@ game reads (docs/handoff/WP-8.md):
   rooms/room_<district>_day.png     -> assets/images/districts/<district>/bg.png          720x1280
   rooms/room_<district>_concert.png -> assets/images/districts/<district>/bg_concert.png  720x1280
 
+and every other picture of the brief: the tables SINGLES and SETS below (notebook, map, mapbg, bonus, ui, icons,
+genres, backgrounds, the still poses of Bit). A picture of the wrong size is reported and not installed.
+
 Whatever is not there stays the procedural drawing of tools/art. The installed files are listed in
 assets/art_ready/installed.json: tools/art/gen_art.py skips them, so a full redraw never overwrites the producer's art.
 Standard library only (sizes are read from the PNG header).
@@ -41,6 +44,63 @@ BIT_ANIMS = {"idle_breathe": 4, "idle_look": 4, "dance_a": 6, "dance_b": 6, "che
 BIT_SIZE = (256, 256)
 ROOM_SIZE = (720, 1280)
 DISTRICTS = ("cafe", "jazz", "square", "stadium", "garage")
+COLOURS = ("green", "blue", "gold", "pink", "purple")
+DOODLES = ["note", "note2", "clef", "heart", "star", "flower", "sun", "cloud", "bolt"]
+ICON_SHEETS = (
+    ["arrow", "chart", "check", "chest_closed", "chest_open", "city", "close", "coin", "col_light"],
+    ["gift", "goal_floor", "hand", "haptics", "heart", "heart_infinite", "home", "jukebox", "lock"],
+    ["map", "music_off", "music_on", "note_off", "note_on", "pause", "play", "plus", "remix"],
+    ["retry", "row_light", "settings", "shop", "sound_off", "sound_on", "star", "star_empty", "stick"],
+    ["streak", "super_star", "swap", "team"],
+)
+
+# One file per picture: (folder in art_ready, brief name, game key without .png, size in px).
+# The names and sizes are the same as in tools/art/import_incoming.py SPEC (a selftest checks it).
+SINGLES = [
+    ("bit", "bit_idle", "bit/idle", (256, 256)),
+    ("bit", "bit_happy", "bit/happy", (256, 256)),
+    ("bit", "bit_sad", "bit/sad", (256, 256)),
+    ("bit", "bit_worried", "bit/worried", (256, 256)),
+    ("bit", "bit_scratch", "bit/scratch", (256, 256)),
+    ("notebook", "paper_sheet", "notebook/paper_sheet", (640, 900)),
+    ("notebook", "notebook_closed", "notebook/closed", (384, 384)),
+    ("notebook", "stamp_ready", "notebook/stamp_ready", (192, 192)),
+    ("notebook", "stationery_pencil", "notebook/stationery_1", (128, 128)),
+    ("notebook", "stationery_star", "notebook/stationery_6", (128, 128)),
+    ("map", "map_path_dot", "map/path_dot", (48, 48)),
+    ("map", "map_path_dot_done", "map/path_dot_done", (48, 48)),
+    ("bonus", "bonus_bar_frame", "bonus/bar_frame", (640, 106)),
+    ("bonus", "bonus_bar_fill", "bonus/bar_fill", (640, 106)),
+    ("ui", "panel", "ui/panel", (128, 128)),
+    ("ui", "ribbon", "ui/ribbon", (320, 80)),
+    ("ui", "moves_badge", "ui/moves_badge", (192, 192)),
+    ("ui", "badge_count", "ui/badge_count", (56, 56)),
+    ("ui", "bunting", "ui/bunting", (720, 64)),
+    ("backgrounds", "level_bg", "backgrounds/level_bg", (720, 1280)),
+] + [("map", "map_bg_%s" % d, "mapbg/bg_%s" % d, (720, 1080)) for d in DISTRICTS] \
+  + [("map", "gate_%s" % d, "mapbg/gate_%s" % d, (720, 480)) for d in DISTRICTS] \
+  + [("ui", "btn_%s" % c, "ui/button_%s" % c, (384, 128)) for c in COLOURS] \
+  + [("rooms", "room_%s_%s" % (d, v), "districts/%s/%s" % (d, k), ROOM_SIZE)
+     for d in DISTRICTS for v, k in (("day", "bg"), ("concert", "bg_concert"))]
+
+# Sheets cut into cells: (folder, brief name, cell names in order, game key template, cell size).
+# Cell file = <brief name>_<cell name>.png. A template with %d takes the 1-based position of the cell, else the name.
+SETS = [
+    ("notebook", "doodles", DOODLES, "notebook/doodle_%d", (96, 96)),
+    ("map", "node_day", ["locked", "open", "current", "done"], "map/node_day_%s", (160, 160)),
+    ("map", "node_concert", ["locked", "open", "current", "done"], "map/node_concert_%s", (224, 224)),
+    ("bonus", "bonus_gift", ["closed", "shake", "glow", "open"], "bonus/gift_%s", (192, 192)),
+    ("bonus", "bonus_spark", ["1", "2", "3", "4", "5", "6"], "bonus/spark_%d", (128, 128)),
+    ("genres", "genres_a", ["classical", "folk", "pop", "hiphop", "edm", "rnb", "reggae", "country", "blues"],
+     "ui/genres/%s", (96, 96)),
+    ("genres", "genres_b", ["bossa", "ambient", "cinematic", "chiptune", "latin", "eastern"], "ui/genres/%s", (96, 96)),
+] + [("map", "deco_%s" % d, ["d%d" % i for i in range(1, 7)], "map/deco_%s_%%d" % d, (160, 160)) for d in DISTRICTS] \
+  + [("ui", "icons_%d" % k, names, "ui/icons/%s", (96, 96)) for k, names in enumerate(ICON_SHEETS, 1)]
+
+
+def brief_names():
+    """The names of the pictures of the brief (docs/art-brief-chatgpt.md) that this installer knows."""
+    return {s[1] for s in SINGLES} | {s[1] for s in SETS} | {"bit_" + a for a in BIT_ANIMS}
 
 
 def png_info(path):
@@ -86,19 +146,27 @@ def plan(ready):
             continue
         for i, s in enumerate(srcs, 1):
             items.append((s, "bit/%s_%d.png" % (anim, i)))
-    for d in DISTRICTS:
-        for view, target in (("day", "bg.png"), ("concert", "bg_concert.png")):
-            s = "rooms/room_%s_%s.png" % (d, view)
-            p = os.path.join(ready, s)
-            if not os.path.isfile(p):
-                notes.append("room_%s_%s: нет в art_ready, остаётся заглушка" % (d, view))
-                continue
-            info = png_info(p)
-            if info is None or (info[0], info[1]) != ROOM_SIZE:
-                notes.append("room_%s_%s: не PNG 720x1280, не ставится" % (d, view))
-                continue
-            items.append((s, "districts/%s/%s" % (d, target)))
+    for group, name, key, size in SINGLES:
+        _one(ready, "%s/%s.png" % (group, name), key, size, items, notes, name)
+    for group, name, names, template, size in SETS:
+        for n in names:
+            pos = names.index(n) + 1
+            key = template % pos if "%d" in template else template % n
+            _one(ready, "%s/%s_%s.png" % (group, name, n), key, size, items, notes, "%s_%s" % (name, n))
     return items, notes
+
+
+def _one(ready, src, key, size, items, notes, label):
+    """A picture that is in art_ready is planned for assets/images/<key>.png if it is a PNG RGBA of the right size.
+    A missing one is not a remark (status counts them); a wrong one is."""
+    p = os.path.join(ready, src)
+    if not os.path.isfile(p):
+        return
+    info = png_info(p)
+    if info is None or (info[0], info[1]) != tuple(size):
+        notes.append("%s: не PNG %dx%d, не ставится" % (label, size[0], size[1]))
+        return
+    items.append((src, key + ".png"))
 
 
 def install(ready=READY, images=IMAGES, state=inst.PATH, gen=True, out=print):
