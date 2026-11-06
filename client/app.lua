@@ -25,7 +25,11 @@
 --                                -- (the layered theme of a district is not one: app.district(id))
 --   app.set_song(id | nil)       -- the jukebox pick (nil = follow the town again): meta, save and analytics;
 --                                -- the music itself is started by client/songs.lua
+--   app.beaten_count()           -- levels open for a replay (1..n, no meta attempt: nothing is paid)
 --   app.ui                       -- status of the town and its popups (QA / debug)
+--   app.export_code()            -- the save as a text code (client/../meta/savecode.lua): code, summary
+--   app.read_code(text)          -- a typed code -> save table, summary (or nil, reason)
+--   app.replace_save(tbl)        -- the save of a code replaces the current one (the current goes to "previous")
 --   app.snapshot()               -- plain table for debug / QA bridge
 --
 -- Messages between scripts carry at most 2 KB (msg.post), so specs and
@@ -43,6 +47,7 @@ local analytics = require("client.services.analytics")
 local audio = require("client.audio")
 local rewards = require("client.rewards")
 local config = require("meta.config")
+local savecode = require("meta.savecode")
 
 local M = {}
 
@@ -265,6 +270,56 @@ function M.reset_save(seed, now)
 	M.commit("reset", true)
 end
 
+-- save code (transfer to another computer or browser) -------------------------------------------
+
+-- The current save as a code. The meta is written first, so the code, the "current" slot and what the
+-- player sees are the same state. Returns code, summary {beaten, coins, stars, wins}; nil and a reason on failure.
+function M.export_code()
+	local meta = M.meta
+	if not meta then return nil, "no_meta" end
+	local tbl = meta:serialize()
+	M.store:save(tbl) -- a failed write is retried by commit(); the code does not depend on it
+	local ok, code = pcall(savecode.encode, tbl)
+	if not ok then return nil, "encode" end
+	local sum = savecode.summary(tbl, M.districts)
+	return code, sum
+end
+
+-- A code typed or pasted by the player -> save table and summary, plus `behind` (the code holds less
+-- progress than the save now in use). Nil and a reason from meta/savecode.lua otherwise.
+function M.read_code(text)
+	local tbl, sum = savecode.read(text, M.districts)
+	if not tbl then return nil, sum end
+	local now = savecode.summary(M.meta:serialize(), M.districts)
+	return tbl, sum, now and savecode.behind(sum, now) or false, now
+end
+
+-- The save of a code becomes the current save: the save in use goes to the "previous" slot first (one
+-- undo by the next start), then the meta restarts from the new one without reloading the page.
+-- true; or false and why ("write" when the disk refused: nothing changed).
+function M.replace_save(tbl, seed, now)
+	now = now or clock()
+	local saved, werr = M.store:save(M.meta:serialize()) -- the save in use becomes the backup
+	if not saved then return false, "write", werr end
+	local ok, err = M.store:save(tbl)
+	if not ok then return false, "write", err end
+	local cur, prev = M.store:load()
+	local meta, info = Meta.load(M.districts, cur, prev, seed or 1, now)
+	if info.source == "fresh" then -- the code was checked before; this is a guard, the old save is still in "previous"
+		return false, "load"
+	end
+	M.store:adopt(info.source)
+	M.meta, M.load_info = meta, info
+	rewards.clear()
+	rev_published = -1
+	M.apply_settings()
+	bus.publish("save_reset", {})
+	bus.publish("settings_changed", { key = "*" })
+	bus.publish("language_changed", { language = i18n.language() })
+	M.commit("import", true)
+	return true
+end
+
 -- The jukebox pick. id = a song of the catalogue (a district id picks its theme) or nil to follow the town again.
 -- true, or false and the meta's reason ("unknown_song", "locked", "no_layers"). One analytics event per pick.
 function M.set_song(id)
@@ -282,6 +337,15 @@ end
 -- lives window; the rule itself is applied by the meta).
 function M.free_levels()
 	return config.levels.free_up_to
+end
+
+-- Levels the player can replay: 1..n (every level once the last one is beaten; 0 before any win).
+function M.beaten_count()
+	local meta = M.meta
+	if not meta then return 0 end
+	local n = meta:level_to_play()
+	if n then return n - 1 end
+	return config.levels.count
 end
 
 -- True when a save slot existed but could not be read (not merely missing).

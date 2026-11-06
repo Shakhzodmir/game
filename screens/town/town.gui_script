@@ -58,6 +58,7 @@ local REGISTRY = {
 	chest = require("gui.chest"),
 	gift = require("gui.gift"),
 	confirm = require("gui.confirm"),
+	replay = require("gui.replay"),
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
