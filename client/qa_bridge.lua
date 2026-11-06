@@ -22,7 +22,7 @@
 --   layer <tension|party> [0] | sfx <name> | note <color> <wave> |
 --   chord <wave> <color> <color> ... |
 --   hint_move | swap x1 y1 x2 y2 | tap x y | skip | booster <id> [x y | row | col | x1 y1 x2 y2] |
---   continue [n] [riff] | give_up | autoplay [n] [free] | win | hold [0|1] | level_stats
+--   continue [n] [riff] | give_up | autoplay [n] [free] | win | hold [0|1] | meter [points] [special] | level_stats
 --   (the level board, while it is on display: client/level_qa.lua; "state" then adds {level, board})
 -- QA wins (meta_win, advance) take the level chest at once, as if the player had opened it (flow.debug_win): the
 -- unlimited lives of the chest run from the win. The word `keep` after the numbers (meta_win 5 keep, advance 20 keep)
@@ -95,7 +95,7 @@ end
 -- The commands of the level board (client/level_qa.lua): outside the level screen they answer "needs the board"
 -- instead of "unknown command". tests/client/qa_bridge_test.lua keeps this list equal to the board's.
 M.NOT_YET = { hint_move = true, swap = true, tap = true, skip = true, booster = true, continue = true, give_up = true,
-	autoplay = true, win = true, hold = true, level_stats = true }
+	autoplay = true, win = true, hold = true, meter = true, level_stats = true }
 
 -- Commands a screen adds while it is on display (the level board):
 --   local off = qa_bridge.register({hint_move = fn(args, cmd, prev), ...})

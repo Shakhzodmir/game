@@ -133,6 +133,7 @@ return {
 	["gift.tap"] = "선물을 눌러 보세요!",
 	["gift.title"] = "새 부스터!",
 
+	["hud.bonus_hint"] = "특수 조각이 막대를 채워요. 가득 채우면 보너스 특수 조각을 받아요!",
 	["hud.booster_locked"] = "{n}레벨에서 열려요",
 	["hud.booster_no"] = "여기서는 쓸 수 없어요. 다른 곳을 골라 보세요",
 	["hud.goals"] = "목표",

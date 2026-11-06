@@ -32,6 +32,8 @@ M.PAUSE = { x = 62, w = 96, h = 96 }
 M.GOALS = { x = 330, w = 420, h = 176 }
 M.MOVES = { x = 632, w = 160, h = 160 }
 M.BAR = { x = 360, y = 70, w = 704, h = 132 }     -- centre y of the booster bar (anchored to the bottom)
+M.METER = { x = 455, y = 170, w = 470, h = 40 }  -- the bonus bar: in the gap between the booster bar (top at 136) and the board's room (from 200),
+                                                  -- right of where Bit stands under the board (x < 220); its gift hangs over the right end
 M.BAR_BUTTONS = { x0 = -268, gap = 134, w = 104, h = 96 } -- relative to the bar's centre: five in 704 px, their badges inside the bar
 M.FRAME = 20                                      -- the board's frame outside its cells (level_bg.gui_script)
 M.BIT_MAX, M.BIT_MIN, M.BIT_TINY = 150, 96, 64
@@ -56,10 +58,10 @@ end
 -- room, else under it above the booster bar, else above it, else squeezed
 -- into the corner (then he is not tappable). He may stand in front of the
 -- board's frame (decoration), never over its cells.
-function M.bit_slot(l)
+local function bit_slot_at(l, floor)
 	local b, safe, pad = l.board, l.safe, 8
 	if not b then
-		return { x = 80, y = l.bar.y1 + 76, size = 120, where = "bottom", tappable = true }
+		return { x = 80, y = floor + 76, size = 120, where = "bottom", tappable = true }
 	end
 	local lw = b.x0 - safe.x0 - 2 * pad
 	local rw = safe.x1 - b.x1 - 2 * pad
@@ -68,13 +70,13 @@ function M.bit_slot(l)
 	if w >= M.BIT_MIN then
 		local size = min(M.BIT_MAX, w)
 		local x = side == "left" and (b.x0 - pad - size / 2) or (b.x1 + pad + size / 2)
-		local y = max(b.y0 + size / 2, l.bar.y1 + pad + size / 2)
+		local y = max(b.y0 + size / 2, floor + pad + size / 2)
 		return { x = x, y = y, size = size, where = side, tappable = true }
 	end
-	local below = b.y0 - l.bar.y1 - 2 * pad
+	local below = b.y0 - floor - 2 * pad
 	if below >= M.BIT_MIN then
 		local size = min(M.BIT_MAX, below)
-		return { x = max(b.x0, safe.x0 + pad) + size / 2, y = l.bar.y1 + pad + size / 2, size = size, where = "bottom",
+		return { x = max(b.x0, safe.x0 + pad) + size / 2, y = floor + pad + size / 2, size = size, where = "bottom",
 			tappable = true }
 	end
 	local above = min(l.goals.y0, l.moves.y0) - b.y1 - 2 * pad
@@ -84,9 +86,24 @@ function M.bit_slot(l)
 			tappable = true }
 	end
 	-- squeezed: between the bar and the lowest cells
-	local size = min(M.BIT_MIN, max(M.BIT_TINY, b.y0 - l.bar.y1 - 2))
-	return { x = max(b.x0, safe.x0 + pad) + size / 2, y = l.bar.y1 + size / 2 + 1, size = size, where = "corner",
+	local size = min(M.BIT_MIN, max(M.BIT_TINY, b.y0 - floor - 2))
+	return { x = max(b.x0, safe.x0 + pad) + size / 2, y = floor + size / 2 + 1, size = size, where = "corner",
 		tappable = false }
+end
+
+-- Where Bit stands, from the free room around the board (layout `l` without a slot yet): beside the board when the
+-- window or a narrow board leaves room, else under it above the booster bar, else above it, else squeezed into the
+-- corner (then he is not tappable). He may stand in front of the board's frame (decoration), never over its cells.
+-- The bonus bar stands in the same strip right of him; where he would reach it (a narrow board, the right side) he
+-- stands above it instead.
+function M.bit_slot(l)
+	local slot = bit_slot_at(l, l.bar.y1)
+	local m = l.meter
+	if m and slot.x - slot.size / 2 < m.x1 and slot.x + slot.size / 2 > m.x0
+		and slot.y - slot.size / 2 < m.y1 and slot.y + slot.size / 2 > m.y0 then
+		slot = bit_slot_at(l, m.y1)
+	end
+	return slot
 end
 
 -- The HUD rectangles for a window (fit = layout.fit, insets = window.get_safe_area() or nil,
@@ -100,6 +117,7 @@ function M.layout(fit, insets, board)
 		goals = rect(M.GOALS.x, M.TOP_Y + ts, M.GOALS.w, M.GOALS.h),
 		moves = rect(M.MOVES.x, M.TOP_Y + ts, M.MOVES.w, M.MOVES.h),
 		bar = rect(M.BAR.x, M.BAR.y + bs, M.BAR.w, M.BAR.h),
+		meter = rect(M.METER.x, M.METER.y + bs, M.METER.w, M.METER.h),
 	}
 	if board then
 		l.board = { x0 = board.x0, y0 = board.y0, x1 = board.x1, y1 = board.y1, cell = board.cell }
@@ -123,6 +141,27 @@ function M.bar_slots()
 	local xs = {}
 	for i = 1, #M.BOOSTERS do xs[i] = b.x0 + (i - 1) * b.gap end
 	return xs
+end
+
+-- the bonus bar ------------------------------------------------------------------------------------
+
+M.METER_TENSE_FROM = 2 -- at threshold - 2 points (8 and 9 of 10) the bar trembles and glows: "will it fill?"
+
+-- How the bonus bar looks for `points` of `threshold`: {frac (0..1 of the fill), tense, full, label ("3/10")}.
+function M.meter_state(points, threshold)
+	threshold = math.max(1, tonumber(threshold) or 10)
+	local p = max(0, min(tonumber(points) or 0, threshold))
+	return {
+		frac = p / threshold, tense = p >= threshold - M.METER_TENSE_FROM and p < threshold, full = p >= threshold,
+		label = string.format("%d/%d", p, threshold),
+	}
+end
+
+-- The colour of the fill at a fraction: pink -> orange -> yellow (hex strings, the ui helper makes the vector).
+function M.meter_color(frac)
+	if frac < 0.45 then return "#FF5FA2" end
+	if frac < 0.8 then return "#FF9A3D" end
+	return "#FFD84D"
 end
 
 -- boosters -----------------------------------------------------------------------------------------

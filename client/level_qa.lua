@@ -11,6 +11,7 @@
 --   win                         autoplay to the end: the level is won, the final concert plays, the result is
 --                               handed to the HUD (poll "state": level.state won_wait / concert / complete)
 --   hold [0|1]                  the app loses (1) / regains (0) the focus: the game stands still while held
+--   meter [points] [special]    the bonus bar gets points by hand (special: bird | riff | sub | disco, default bird)
 --   state                       the app state + {level = board snapshot}
 --   level_stats                 sprites, particles, effects, plates (under blockers and wired pieces), frame counters of the board
 --
@@ -24,7 +25,7 @@ local qa_bridge = require("client.qa_bridge")
 
 local M = {}
 
-M.COMMANDS = { "hint_move", "swap", "tap", "skip", "booster", "continue", "give_up", "autoplay", "win", "hold" }
+M.COMMANDS = { "hint_move", "swap", "tap", "skip", "booster", "continue", "give_up", "autoplay", "win", "hold", "meter" }
 
 function M.handlers(board)
 	local h = {}

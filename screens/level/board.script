@@ -40,6 +40,8 @@
 --                  color_riff | color_sub | color_bird, or nil
 --   level_flash    {color, alpha, dur}                                 the whole screen flashes (fx GUI)
 --   level_floor    {x, y, lx, ly}                                      a dance-floor tile was lit
+--   level_bonus    {adds}                                    the bonus bar got points (client/bonus_meter.lua)
+--   level_bonus_gift {special, lx, ly}                       the gift was put on the board at (lx, ly)
 --   level_noise    {x, y, lx, ly}                                      noise grew onto a piece (Bit covers his ears)
 -- Bus topics read here: app_focus {focused} (the game stands still while the app is in the
 -- background), settings_changed (through app.settings_rev).
@@ -185,10 +187,14 @@ local function on_event(self, e)
 		bus.publish("level_special", { special = e.special, combo = e.combo, lx = lx, ly = ly })
 	elseif ty == "booster" then
 		bus.publish("level_booster", { booster = e.booster, phase = "done", ok = e.ok })
+	elseif ty == "bonus" then
+		local lx, ly = self.geom:center(e.x, e.y)
+		bus.publish("level_bonus_gift", { special = e.special, lx = lx, ly = ly })
 	end
 end
 
-local function on_tick(self, events)
+local function on_tick(self, events, tick, adds)
+	if adds and #adds > 0 then bus.publish("level_bonus", { adds = adds }) end
 	local n = #events
 	if n == 0 then return end
 	local t = self.t
@@ -351,7 +357,7 @@ function init(self)
 	local s, err = level_session.new({ params = params, read_level = read_level, hooks = hooks })
 	if not s then return fail(self, err) end
 	self.session = s
-	self.on_tick = function(events) on_tick(self, events) end
+	self.on_tick = function(events, tick, adds) on_tick(self, events, tick, adds) end
 	self.on_focus = function(topic, p) on_focus(self, topic, p) end
 	self.W, self.H = s.W, s.H
 	self.status = s.game:status()
