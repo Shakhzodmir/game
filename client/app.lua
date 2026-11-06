@@ -54,7 +54,7 @@ local M = {}
 M.VERSION = "0.1.0"
 M.APP_URL = "main:/app"
 M.OVERLAY_URL = "main:/overlay#overlay"
-M.SCREENS = { "splash", "town", "level" }
+M.SCREENS = { "splash", "town", "level", "map" }
 
 M.meta = nil          -- Meta instance
 M.districts = nil     -- decoded content/districts.json

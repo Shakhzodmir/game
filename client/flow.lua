@@ -2,7 +2,7 @@
 -- the QA bridge. Pure Lua except app.show_screen (Defold message).
 --
 --   local flow = require("client.flow")
---   local ok, why = flow.start(n, {"riff"}, "town")
+--   local ok, why = flow.start(n, {"riff"}, "town", back)   -- back: the screen the level returns to (nil = the town, "map")
 --   -- ok: the meta attempt is open and the level screen is on its way with
 --   --     app.params = {level_id, run, level_text, from}
 --   -- why: "no_lives" | "run_active" | "not_next_level" | "all_done" |
@@ -13,11 +13,11 @@
 --   {level_id = n, run = meta:start_level result (the attempt is already
 --    open in the meta), level_text = raw level JSON (nil when the file is
 --    missing: the meta still runs the attempt as "easy"), from = "town" |
---    "splash" | "level" (retry / next level) | "qa", level = n (alias of
---    level_id for older code)}.
+--    "splash" | "level" (retry / next level) | "qa" | "map" | "replay", level = n (alias of
+--    level_id for older code), back = "map" | nil (the screen the level goes back to: the map, or the town)}.
 -- The level screen closes the attempt (meta:finish_level or cancel_level),
 -- hands a result to the town with app.push_reward(result) and goes back
--- with app.show_screen("town"). A town entered with an attempt still open
+-- with app.show_screen(params.back or "town"). A town entered with an attempt still open
 -- settles it (M.settle_stale_run).
 
 local app = require("client.app")
@@ -44,7 +44,7 @@ end
 
 -- Opens the attempt through the meta and asks for the level screen.
 -- Returns true, nil, params or false, why.
-function M.start(n, boosters, from)
+function M.start(n, boosters, from, back)
 	local ref, info = M.level_ref(n)
 	local run, why = app.meta:start_level(ref, boosters or {}, app.now())
 	app.commit("level_start")
@@ -56,7 +56,7 @@ function M.start(n, boosters, from)
 	for _, id in ipairs(run.paid_boosters or {}) do
 		analytics.log("booster_use", { level = n, id = id, kind = "pre" })
 	end
-	local params = { level_id = n, level = n, run = run, level_text = info and info.text or nil, from = from }
+	local params = { level_id = n, level = n, run = run, level_text = info and info.text or nil, from = from, back = back }
 	app.show_screen("level", params)
 	return true, nil, params
 end

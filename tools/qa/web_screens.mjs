@@ -842,6 +842,90 @@ async function debugChecks() {
 		await p.context().close();
 	}
 
+	// 1b3. the map (WP-7): the town's Map button, scrolling by drag and wheel, a tap on a closed level, on a beaten one (replay)
+	// and on the level to play (it starts, the map is the way back), Bit walks to the new level after the win ----------
+	{
+		const p = await openPage(browser, { width: 540, height: 960 });
+		await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (map)', 30000);
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await command(p, 'advance 6');
+		await command(p, 'goto town');
+		await onScreen(p, 'town');
+		await sleep(1200);
+		await tapTarget(p, 'map');
+		let m = await onScreen(p, 'map', 20000);
+		await sleep(1500);
+		check(m.app.ui.map && m.app.ui.map.next === 6 && !m.app.ui.map.walking, 'map: opens on the level to play (6)', m.app.ui.map);
+		const n6 = m.app.ui.targets.node_6;
+		check(n6 && n6.y > 300 && n6.y < 900, 'map: level 6 is in the middle of the window', n6);
+		await p.screenshot({ path: `${outDir}/client_map.png` });
+		// a drag with the finger down the screen shows what is higher on the map
+		const off0 = m.app.ui.map.off;
+		const a = await logicalToPage(p, 360, 900), b = await logicalToPage(p, 360, 300);
+		await p.mouse.move(a.x, a.y);
+		await p.mouse.down();
+		for (let i = 1; i <= 12; i++) { await p.mouse.move(a.x + (b.x - a.x) * i / 12, a.y + (b.y - a.y) * i / 12); await sleep(40); }
+		await p.mouse.up();
+		await sleep(1800);
+		m = await state(p);
+		check(m.app.ui.map.off > off0 + 500, 'map: a drag scrolls the map with inertia', { before: off0, after: m.app.ui.map.off });
+		check(!m.app.ui.popup, 'map: a drag that started on the map opens nothing', m.app.ui.popup);
+		await p.screenshot({ path: `${outDir}/client_map_scrolled.png` });
+		const off1 = m.app.ui.map.off;
+		await p.mouse.move(270, 480);
+		await p.mouse.wheel(0, 300);
+		await sleep(1500);
+		m = await state(p);
+		check(m.app.ui.map.off < off1 - 100, 'map: the wheel scrolls it back', { before: off1, after: m.app.ui.map.off });
+		await tapTarget(p, 'to_current');
+		await waitFor(p, s => Math.abs(s.app.ui.map.off - off0) < 3, 'the glide back to the level to play', 6000);
+		// a closed level: no window
+		await tapTarget(p, 'node_8');
+		await sleep(900);
+		check(!(await state(p)).app.ui.popup, 'map: a closed level opens no window');
+		// a beaten level opens as a replay (no boosters, practice run)
+		await command(p, 'map goto 4');
+		await sleep(900);
+		await tapTarget(p, 'node_4');
+		await waitFor(p, s => s.app.ui.popup === 'start', 'the replay window', 8000);
+		await sleep(900);
+		await p.screenshot({ path: `${outDir}/client_map_replay.png` });
+		await command(p, 'close');
+		await waitFor(p, s => !s.app.ui.popup, 'the replay window closed', 8000);
+		// the level to play: Play starts it and the map is the way back
+		await command(p, 'map goto 6');
+		await sleep(900);
+		await tapTarget(p, 'node_6');
+		await waitFor(p, s => s.app.ui.popup === 'start', 'the start window of level 6', 8000);
+		await sleep(900);
+		await tapTarget(p, 'play', 'popup');
+		const lv = await onScreen(p, 'level', 20000);
+		check(lv.app.params && lv.app.params.from === 'map' && lv.app.params.back === 'map' && lv.app.run === true,
+			'map: a tap on the level to play starts it (from the map, way back = map)', lv.app.params);
+		await sleep(1300);
+		await command(p, 'win');
+		await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert (map)', 150000);
+		await command(p, 'skip');
+		await waitFor(p, s => s.app.ui.popup === 'result' && s.app.ui.result, 'the results (map)', 60000);
+		await sleep(1800);
+		await tapTarget(p, 'town', 'popup'); // "To the map"
+		await onScreen(p, 'map', 20000);
+		const w = await waitFor(p, s => s.app.ui.map && s.app.ui.map.next === 7, 'the map after the win', 10000);
+		check(w.app.ui.map.walking || w.app.ui.map.bit_u >= 6, 'map: after the win Bit walks on', w.app.ui.map);
+		await sleep(1200);
+		await p.screenshot({ path: `${outDir}/client_map_walk.png` });
+		const arrived = await waitFor(p, s => s.app.ui.map && !s.app.ui.map.walking && s.app.ui.map.shown === 7, 'Bit on level 7', 20000);
+		check(Math.abs(arrived.app.ui.map.bit_u - 7) < 0.01, 'map: Bit stands on the next level (7)', arrived.app.ui.map);
+		await sleep(1000);
+		await p.screenshot({ path: `${outDir}/client_map_arrived.png` });
+		await tapTarget(p, 'back');
+		await onScreen(p, 'town', 20000);
+		const fin = await state(p);
+		if (fin.errors && fin.errors.length) errors.push(...fin.errors.map(e => 'bridge: ' + e));
+		await p.context().close();
+	}
+
 	// 1c. a crowded results window: the chest of level 10 left unopened, then the results of level 11 (the older chest and
 	// a new booster). There "Collect" of the chest window lies over "Next level": a double tap on it must not press it ---
 	{

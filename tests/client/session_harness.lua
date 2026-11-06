@@ -29,6 +29,9 @@ M.SCREEN_SCRIPTS = {
 	town = {
 		{ gui = "/screens/town/town.gui", path = "screens/town/town.gui_script" },
 	},
+	map = {
+		{ gui = "/screens/map/map.gui", path = "screens/map/map.gui_script" },
+	},
 	level = {
 		{ gui = "/screens/level/level_bg.gui", path = "screens/level/level_bg.gui_script" },
 		{ path = "screens/level/board.script" },

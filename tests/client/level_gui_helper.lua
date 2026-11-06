@@ -58,7 +58,7 @@ function G.with_level(opts, fn)
 		fb = fake_board.new({ level = level, text = opts.level_text, window = { E.window.w, E.window.h }, insets = opts.insets,
 			run = run })
 		c.fb = fb
-		app.params = { level_id = level, level = level, run = run, from = "town" }
+		app.params = { level_id = level, level = level, run = run, from = opts.from or "town", back = opts.back }
 		c.hud = E.script("screens/level/level.gui_script", "/screens/level/level.gui")
 		c.hud:init()
 		app.set_screen("level", app.params)

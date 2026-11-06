@@ -161,6 +161,16 @@ function M.handlers()
 			if not res then return { ok = false, error = why } end
 			return { ok = true, life_lost = res.life_lost, lives = app.meta:lives(app.now()).count }
 		end,
+		-- the map screen: map goto <level> (scroll to it) | map tap <level> (what a tap on its node does)
+		map = function(args)
+			if app.screen ~= "map" or app.transitioning then return { ok = false, error = "the map is not on display" } end
+			local level = math.floor(tonumber(args[2]) or 0)
+			if (args[1] ~= "goto" and args[1] ~= "tap") or level < 1 then
+				return { ok = false, error = "map needs goto|tap <level>" }
+			end
+			bus.publish("map_qa", { action = args[1], level = level })
+			return { ok = true, action = args[1], level = level }
+		end,
 		meta_ui = function()
 			return { ok = true, ui = app.ui }
 		end,
