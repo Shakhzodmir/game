@@ -4,6 +4,7 @@
 //   python3 -m http.server 8765 -d dist/GLOW &
 //   node tools/qa/web_screens.mjs http://localhost:8765/index.html docs/media
 //   node tools/qa/web_screens.mjs http://localhost:8765/index.html /tmp --release   # a release build
+//   node tools/qa/web_screens.mjs http://localhost:8765/index.html docs/media --ko-only # just the Korean screens
 //
 // Env: PLAYWRIGHT = path to the playwright module (default: "playwright").
 // Exits with 1 when a check fails or the page logs a Lua error or a page error.
@@ -28,6 +29,8 @@
 // tutorials|level") appears in the console.
 // Every command the script sends exists in the bridge and every field it reads
 // is published by the game: tests/client/qa_script_test.lua keeps them in step.
+// Korean (section 4): town, shop, jukebox, settings, level and results in `lang ko`, every Hangul text checked for a
+// missing glyph (width from `gui_bounds`, ink in the screenshot); snapshots client_*_ko.png.
 // Release: the QA bridge is absent.
 
 const pwPath = process.env.PLAYWRIGHT || 'playwright';
@@ -36,6 +39,7 @@ const { chromium } = await import(pwPath);
 const url = process.argv[2] || 'http://localhost:8765/index.html';
 const outDir = process.argv[3] || 'docs/media';
 const releaseMode = process.argv.includes('--release');
+const koOnly = process.argv.includes('--ko-only'); // only section 4 (Korean): a few minutes instead of ten
 
 const errors = [];
 const consoleLines = [];
@@ -162,6 +166,93 @@ async function cpuPerSecond(page, cdp, seconds) {
 const browser = await chromium.launch({
 	args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'],
 });
+
+// Korean: no glyph may be missing. The engine draws nothing for a character a font lacks, so a text that is
+// "tofu" shows up as a rectangle (from `gui_bounds`) far narrower than its syllables should be, or as a clip of the
+// screenshot with no ink. Every text with Hangul is checked both ways. Returns the number of Hangul texts seen.
+const HANGUL = /[\uAC00-\uD7A3]/g;
+// texts of the town itself: with a window open they sit behind its opaque panel or dimmer, so only their width is checked
+const koTownTexts = new Set();
+async function koGlyphCheck(page, tag) {
+	await command(page, 'gui_bounds');
+	await sleep(500);
+	const s = await state(page);
+	const scenes = (s.app.ui && s.app.ui.bounds) || {};
+	const vp = page.viewportSize();
+	let seen = 0;
+	const thin = [], blank = [];
+	for (const rows of Object.values(scenes)) {
+		if (!Array.isArray(rows)) continue; // a scene with no text rows is an empty Lua table
+		for (const r of rows) {
+			const n = (r.t.match(HANGUL) || []).length;
+			if (n === 0) continue;
+			seen++;
+			// a Hangul syllable is about one em wide; tofu (nothing drawn) has no advance
+			if (r.w < r.px * 0.45 * n) thin.push(`${r.t.slice(0, 30)} (w ${r.w.toFixed(0)}, ${n} syllables, em ${r.px.toFixed(0)})`);
+			const top = vp.height - (r.y0 + r.h);
+			if (tag === 'town') koTownTexts.add(r.t);
+			if (tag !== 'town' && koTownTexts.has(r.t) && tag !== 'level' && tag !== 'results') continue; // behind the window
+			if (r.w >= 4 && r.h >= 4 && r.x0 >= 0 && top >= 0 && r.x0 + r.w <= vp.width && top + r.h <= vp.height) {
+				const buf = await page.screenshot({ clip: { x: r.x0, y: top, width: r.w, height: r.h } });
+				const colours = await page.evaluate(async b64 => {
+					const img = new Image();
+					await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = 'data:image/png;base64,' + b64; });
+					const c = document.createElement('canvas');
+					c.width = img.width; c.height = img.height;
+					const g = c.getContext('2d');
+					g.drawImage(img, 0, 0);
+					const d = g.getImageData(0, 0, c.width, c.height).data;
+					const seen = new Set();
+					for (let i = 0; i < d.length; i += 4) seen.add((d[i] >> 3) * 1024 + (d[i + 1] >> 3) * 32 + (d[i + 2] >> 3)); // 32 levels per channel: a text under a dimmed window is low in contrast
+					return seen.size;
+				}, buf.toString('base64'));
+				if (colours < 2) blank.push(`${r.t.slice(0, 30)} (${colours} colours)`);
+			}
+		}
+	}
+	check(seen > 0, `ko ${tag}: gui_bounds reports Hangul texts`, seen);
+	check(thin.length === 0, `ko ${tag}: every Hangul text is as wide as its syllables (no missing glyph)`, thin.slice(0, 5));
+	check(blank.length === 0, `ko ${tag}: every Hangul text has ink on the screen (no tofu)`, blank.slice(0, 5));
+	return seen;
+}
+
+async function koChecks(browser) {
+	const p = await openPage(browser, { width: 540, height: 960 });
+	await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (ko)', 30000);
+	await command(p, 'goto town');
+	await onScreen(p, 'town');
+	await command(p, 'gui_bounds'); // switches the text tracking on before the Korean windows are built
+	const r = await command(p, 'lang ko');
+	check(r.result.language === 'ko', 'ko: the language command switches to Korean', r.result);
+	await sleep(900);
+	await p.screenshot({ path: `${outDir}/client_town_ko.png` });
+	await koGlyphCheck(p, 'town');
+	for (const [popup, params, shot] of [
+		['shop', '{"tab":"boosters"}', 'client_shop_ko'], ['jukebox', '', 'client_jukebox_ko'], ['settings', '', 'client_settings_ko'],
+	]) {
+		await command(p, 'open ' + popup + (params ? ' ' + params : ''));
+		await waitFor(p, st => st.app.ui && st.app.ui.popup === popup, 'the ' + popup + ' window (ko)', 8000);
+		await sleep(1000);
+		await p.screenshot({ path: `${outDir}/${shot}.png` });
+		await koGlyphCheck(p, popup);
+		await command(p, 'close');
+		await waitFor(p, st => !st.app.ui.popup, popup + ' closed (ko)', 5000);
+	}
+	await startLevelFromTown(p);
+	await sleep(1300);
+	await p.screenshot({ path: `${outDir}/client_level_ko.png` });
+	await koGlyphCheck(p, 'level');
+	await command(p, 'win');
+	await waitFor(p, s => s.app.ui.level && ['concert', 'complete'].includes(s.app.ui.level.state), 'the final concert (ko)', 150000);
+	await command(p, 'skip');
+	await waitFor(p, s => s.app.ui.popup === 'result', 'the results (ko)', 60000);
+	await sleep(1800);
+	await p.screenshot({ path: `${outDir}/client_results_ko.png` });
+	await koGlyphCheck(p, 'results');
+	const fin = await state(p);
+	if (fin.errors && fin.errors.length) errors.push(...fin.errors.map(e => 'bridge: ' + e));
+	await p.context().close();
+}
 
 async function releaseChecks() {
 	const page = await openPage(browser, { width: 540, height: 960 });
@@ -787,10 +878,13 @@ async function debugChecks() {
 	const final = await state(tall);
 	if (final.errors && final.errors.length) errors.push(...final.errors.map(e => 'bridge: ' + e));
 	await tall.context().close();
+
+	// 4. Korean: the same screens, no missing glyph (WP-3)
+	await koChecks(browser);
 }
 
 try {
-	if (releaseMode) await releaseChecks(); else await debugChecks();
+	if (releaseMode) await releaseChecks(); else if (koOnly) await koChecks(browser); else await debugChecks();
 } catch (e) {
 	errors.push('qa: ' + e.message);
 } finally {

@@ -1,6 +1,6 @@
 -- Settings: music and sound volumes (sliders: heard live while dragging,
 -- saved on release), vibration, reduced motion, controls (swipe / tap-tap),
--- language (auto / English / Russian), the save code (copy it, or enter one and
+-- language (auto / English / Russian / Korean), the save code (copy it, or enter one and
 -- replace the progress after a confirmation), reset progress (with a confirmation)
 -- and the version. Every value goes through app.set_setting (the meta
 -- validates it, the save follows).
@@ -19,7 +19,7 @@ local W, H = 640, 1340
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
 -- offers that has no label yet (a new language needs its strings first) is left out.
 local INPUT_LABELS = { swipe = "settings.input_swipe", taptap = "settings.input_taptap" }
-local LANGUAGE_LABELS = { auto = "settings.lang_auto", en = "settings.lang_en", ru = "settings.lang_ru" }
+local LANGUAGE_LABELS = { auto = "settings.lang_auto", en = "settings.lang_en", ru = "settings.lang_ru", ko = "settings.lang_ko" }
 
 local function options(ids, labels)
 	local out = {}

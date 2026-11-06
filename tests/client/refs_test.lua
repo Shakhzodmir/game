@@ -168,11 +168,11 @@ describe("tools/check_refs.lua rules", function()
 			return {
 				const = data_c.const,
 				index = { sounds = { sfx = {}, notes = {}, music = {}, loops = {}, mixer = {}, songs = registry } },
-				districts = { districts = { { id = "cafe", genre = { en = "Lo-fi", ru = "Лоу-фай" }, tasks = {}, songs = listed } } },
+				districts = { districts = { { id = "cafe", genre = { en = "Lo-fi", ru = "Лоу-фай", ko = "로파이" }, tasks = {}, songs = listed } } },
 			}
 		end
 		local audio_go = 'embedded_components {\n  id: "song_calm"\n}\n'
-		local calm = { id = "calm", name = { en = "Calm", ru = "Спокойная" } }
+		local calm = { id = "calm", name = { en = "Calm", ru = "Спокойная", ko = "고요" } }
 		-- all in order, and a literal song id is a track audio.music can start
 		local p = lint({ ["assets/gen/audio.go"] = audio_go, ["gui/w.lua"] = 'audio.music("calm")\naudio.music("nowhere")' },
 			data_songs({ calm }, { calm = { id = "song_calm", loop = 20 } }), { "c" })
@@ -189,7 +189,7 @@ describe("tools/check_refs.lua rules", function()
 		assert_true(has(p, "c", "song orphan is in the sound registry but in no genre"), messages(p))
 		assert_true(has(p, "c", 'song "calm": component "song_calm" is not in assets/gen/audio.go'), messages(p))
 		assert_true(has(p, "c", "song calm has no loop length"), messages(p))
-		assert_true(has(p, "c", "song gone has no name (en and ru)"), messages(p))
+		assert_true(has(p, "c", "song gone has no name (en, ru and ko)"), messages(p))
 		-- a genre needs its name in both languages
 		local d = data_songs({}, {})
 		d.districts.districts[1].genre = { en = "Lo-fi" }

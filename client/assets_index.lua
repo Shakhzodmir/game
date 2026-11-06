@@ -218,10 +218,15 @@ return {
 	},
 	fonts = {
 		body = { path = "/assets/gen/fonts/body.font", size = 32, ttf = "/assets/fonts/Nunito-Bold.ttf" },
+		body_ko = { path = "/assets/gen/fonts/body_ko.font", size = 28, ttf = "/assets/fonts/ko/NotoSansKR-Bold-KS1001.ttf" },
 		button = { path = "/assets/gen/fonts/button.font", size = 44, ttf = "/assets/fonts/Rubik-Black.ttf" },
+		button_ko = { path = "/assets/gen/fonts/button_ko.font", size = 48, ttf = "/assets/fonts/ko/Jua-KS1001.ttf" },
 		number = { path = "/assets/gen/fonts/number.font", size = 40, ttf = "/assets/fonts/Rubik-Bold.ttf" },
+		number_ko = { path = "/assets/gen/fonts/number_ko.font", size = 32, ttf = "/assets/fonts/ko/NotoSansKR-Bold-KS1001.ttf" },
 		small = { path = "/assets/gen/fonts/small.font", size = 24, ttf = "/assets/fonts/Nunito-Bold.ttf" },
+		small_ko = { path = "/assets/gen/fonts/small_ko.font", size = 28, ttf = "/assets/fonts/ko/NotoSansKR-Bold-KS1001.ttf" },
 		title = { path = "/assets/gen/fonts/title.font", size = 72, ttf = "/assets/fonts/Rubik-Black.ttf" },
+		title_ko = { path = "/assets/gen/fonts/title_ko.font", size = 48, ttf = "/assets/fonts/ko/Jua-KS1001.ttf" },
 	},
 	sounds = {
 		notes = {

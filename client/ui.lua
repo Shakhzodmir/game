@@ -33,6 +33,7 @@ local layout = require("client.layout")
 local gfx = require("client.gfx")
 local assets = require("client.assets")
 local gui_qa = require("client.gui_qa")
+local i18n = require("client.i18n")
 
 local M = {}
 
@@ -68,6 +69,19 @@ M.STYLES = {
 }
 
 M.FONT_FALLBACK = "body"
+
+-- Korean fonts: every font name has a "<name>_ko" twin (tools/gen_defold.py) with the same size. The twin is used when
+-- the language is Korean and for any text that holds Hangul (the "한국어" button of the language switch in the other
+-- languages); a text with Cyrillic ("Русский" in the Korean UI) keeps the plain font. The test is a plain find, no allocation.
+local HANGUL = "[\234-\237][\128-\191][\128-\191]" -- UTF-8 lead bytes EA..ED: U+AC00..U+D7A3 and neighbours
+
+local CYRILLIC = "[\208\209][\128-\191]" -- U+0400..U+047F: "Русский" on the language switch stays in the Latin/Cyrillic font
+
+function M.font_for(font, str)
+	if str and string.find(str, HANGUL) then return (font == "number" and "button" or font) .. "_ko" end -- number_ko has no syllables
+	if i18n.language() == "ko" and not (str and string.find(str, CYRILLIC)) then return font .. "_ko" end
+	return font
+end
 M.EDGE_BANDS = 48      -- colour bands along a background edge (backdrop)
 M.EDGE_STEPS = 16      -- texels from the image edge outwards
 M.EDGE_HAZE = "#FFFFFF"
@@ -238,9 +252,12 @@ function Scene:_qa_bounds()
 				p = gui.get_parent(p)
 			end
 			local fres = gui.get_font_resource(gui.get_font(n))
-			local opts
-			if gui.get_line_break(n) then opts = { width = gui.get_size(n).x, line_break = true } end
-			local m = resource.get_text_metrics(fres, str, opts)
+			local m
+			if gui.get_line_break(n) then
+				m = resource.get_text_metrics(fres, str, { width = gui.get_size(n).x, line_break = true })
+			else
+				m = resource.get_text_metrics(fres, str) -- the engine rejects an explicit nil options argument
+			end
 			local pos = gui.get_screen_position(n)
 			local pv = gui.get_pivot(n)
 			local fx = (pv == gui.PIVOT_W or pv == gui.PIVOT_NW or pv == gui.PIVOT_SW) and 0
@@ -563,7 +580,8 @@ end
 -- Returns node, info (pass info to Scene:set_text).
 function Scene:text(parent, str, x, y, opts)
 	opts = opts or {}
-	local font = opts.font or "body"
+	local base_font = opts.font or "body"
+	local font = M.font_for(base_font, str)
 	local n = gui.new_text_node(v3(x, y), str or "")
 	gui.set_parent(n, parent or self.root)
 	if not pcall(gui.set_font, n, font) then
@@ -587,7 +605,7 @@ function Scene:text(parent, str, x, y, opts)
 		gui.set_size(n, v3(opts.width / scale, (opts.height or 400) / scale))
 	end
 	gui.set_scale(n, vmath.vector3(scale, scale, 1))
-	local info = { scale = scale, max_width = opts.max_width, font = font }
+	local info = { scale = scale, max_width = opts.max_width, font = font, base_font = base_font }
 	self:_fit_text(n, info)
 	if gui_qa.track then
 		self.qa_texts = self.qa_texts or {}
@@ -612,7 +630,7 @@ end
 -- How many lines `str` takes at `size` px when it is wrapped at `width` logical px (an estimate with a margin for the
 -- words that do not break where the width does), to size a block before the text is made.
 function Scene:text_lines(str, font, size, width)
-	local f = font or "body"
+	local f = M.font_for(font or "body", str)
 	local ok, w = pcall(function()
 		local node = gui.new_text_node(v3(0, 0), str)
 		gui.set_font(node, f)
@@ -628,6 +646,10 @@ end
 -- Changes the text of a node made by Scene:text; pass the info it returned
 -- to keep the shrink-to-fit behaviour.
 function Scene:set_text(n, str, info)
+	if info and info.base_font then
+		local f = M.font_for(info.base_font, str)
+		if f ~= info.font and pcall(gui.set_font, n, f) then info.font = f end
+	end
 	gui.set_text(n, str)
 	if info and info.max_width then self:_fit_text(n, info) end
 end
