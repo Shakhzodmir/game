@@ -30,6 +30,7 @@
 --   app.export_code()            -- the save as a text code (client/../meta/savecode.lua): code, summary
 --   app.read_code(text)          -- a typed code -> save table, summary (or nil, reason)
 --   app.replace_save(tbl)        -- the save of a code replaces the current one (the current goes to "previous")
+--   app.new_save(seed)           -- a fresh save table (cloud: "start over" on another account)
 --   app.snapshot()               -- plain table for debug / QA bridge
 --
 -- Messages between scripts carry at most 2 KB (msg.post), so specs and
@@ -316,8 +317,15 @@ function M.replace_save(tbl, seed, now)
 	bus.publish("save_reset", {})
 	bus.publish("settings_changed", { key = "*" })
 	bus.publish("language_changed", { language = i18n.language() })
-	M.commit("import", true)
+	-- not forced: the new save was just written, and a forced write would move it to "previous" over the backup
+	M.commit("import")
 	return true
+end
+
+-- A fresh save table (a new game's starting state) for "start over on this account": replace_save() takes it
+-- like the table of a save code, and the save in use goes to the "previous" slot first.
+function M.new_save(seed)
+	return Meta.new(M.districts, seed or 1):serialize()
 end
 
 -- The jukebox pick. id = a song of the catalogue (a district id picks its theme) or nil to follow the town again.
