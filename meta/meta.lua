@@ -619,6 +619,15 @@ function Meta:_refill_check()
 	return true
 end
 
+-- Lives sent by band mates (WP-11): up to n, never above the maximum. Returns how many were added. Lives only
+-- ever go up here: no star, coin or level is touched.
+function Meta:gift_lives(n, now)
+	self:_tick(now)
+	local added = lives.add(self.s.lives, n)
+	if added > 0 then self:_touch() end
+	return added
+end
+
 -- The refill button: {price, available, affordable, reason = nil | "full" |
 -- "infinite_active"}.
 function Meta:refill_offer(now)
