@@ -79,6 +79,7 @@ M.status = {
 	-- what plays: the song (a district id for a layered theme), the district whose key it is in, whether it is a
 	-- single mix, and the semitones from C that notes and tonal effects are transposed by
 	song = nil, single = false, semitones = 0,
+	bpm = nil, -- tempo of the track that plays (client/anim.lua dances to it)
 }
 
 -- pure maths ---------------------------------------------------------------------------

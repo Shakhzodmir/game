@@ -238,7 +238,10 @@ describe("screens/map/map.gui_script", function()
 			c.run(4)
 			local s = c.map:stats()
 			assert_true(s.peak < 700, "peak nodes " .. s.peak)
-			assert_true(s.loose <= 14, "loose images alive: " .. s.loose)
+			-- (the map's own pictures stay within 14; Bit's frames come on top, as many as he has shown)
+			local bit_frames = 0
+			for _ in pairs(require("client.bit").images()) do bit_frames = bit_frames + 1 end -- order-free: a count
+			assert_true(s.loose <= 14 + bit_frames, "loose images alive: " .. s.loose)
 			assert_same(c.E.audit(), {})
 		end)
 	end)

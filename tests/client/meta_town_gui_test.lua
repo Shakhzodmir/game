@@ -651,12 +651,14 @@ describe("screens/town/town.gui_script", function()
 			local concert = district_pictures()
 			assert_eq(#concert, #jazz)
 			only_of(concert, "jazz")
-			-- Bit has one picture per mood, at most
+			-- Bit has the pictures of its animations (loaded when first shown), at most
 			local bits = 0
 			for _, key in ipairs(c.town:loose_images()) do
 				if string.sub(key, 1, 4) == "bit/" then bits = bits + 1 end
 			end
-			assert_true(bits >= 1 and bits <= #require("client.bit").MOODS, "Bit pictures: " .. bits)
+			local all = 0
+			for _ in pairs(require("client.bit").images()) do all = all + 1 end -- order-free: a count
+			assert_true(bits >= 1 and bits <= all, "Bit pictures: " .. bits .. " of " .. all)
 		end)
 	end)
 end)

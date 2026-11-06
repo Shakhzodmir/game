@@ -172,9 +172,21 @@ function Town:toggle_view()
 	if not ok then return end
 	audio.sfx("button")
 	self.fx:flash(360, 760, { size = 1500, dur = 0.45, color = view == "day" and "#C9A7FF" or "#FFF4C9" })
-	self.scene:build(self.district)
+	self.scene:crossfade(self.district)
+	self:bit_follow_view()
 	self.hud:build()
 	self:publish()
+end
+
+-- In the concert look Bit dances to the song that plays (the frames follow the track's clock); in the day look it
+-- goes back to its idle life.
+function Town:bit_follow_view()
+	if app.meta:view(self.district) == "concert" then
+		local d = app.meta:district(self.district)
+		self.bit:dance(audio.status.bpm or (d and d.bpm) or 100)
+	else
+		self.bit:stop()
+	end
 end
 
 -- district switching -------------------------------------------------------------------------------
@@ -296,6 +308,7 @@ function Town:tap_scene(action)
 	if e.done then
 		self.fx:pop(e.node, 0.12, 0.35)
 		self.fx:burst(lx, ly, { count = 6, radius = 60, size = 24 })
+		self.bit:event("note_collected") -- Bit puts the headphones to its ears and listens
 		self.note_i = (self.note_i or 0) % 6 + 1
 		audio.play_note(NOTE_COLORS[self.note_i], ((self.note_i * 3) % 7) + 1, { quantize = true })
 	elseif task and task.id == id and task.district == self.district and task.affordable then
@@ -418,6 +431,7 @@ local function new_town()
 	t.scene:build(t.district)
 	t.hud:build()
 	t:sync_disp()
+	if app.meta:view(t.district) == "concert" then t:bit_follow_view() else t.bit:event("hello") end
 
 	audio.level_duck(false)
 	audio.layer("tension", false)
@@ -491,6 +505,7 @@ function Town:update(dt)
 end
 
 function Town:on_input(action_id, action)
+	if action_id == TOUCH and action.pressed then self.bit:touch() end -- Bit stays awake (a sleeper wakes up)
 	if self.popups:on_input(action_id, action) then return true end
 	if action_id == TOUCH and action.pressed and self.show:skippable() then
 		self.show:skip()

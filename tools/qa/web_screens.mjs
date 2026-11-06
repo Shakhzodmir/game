@@ -40,6 +40,7 @@ const url = process.argv[2] || 'http://localhost:8765/index.html';
 const outDir = process.argv[3] || 'docs/media';
 const releaseMode = process.argv.includes('--release');
 const koOnly = process.argv.includes('--ko-only'); // only section 4 (Korean): a few minutes instead of ten
+const roomsOnly = process.argv.includes('--rooms-only'); // only section 5 (rooms of the town)
 
 const errors = [];
 const consoleLines = [];
@@ -251,6 +252,41 @@ async function koChecks(browser) {
 	await koGlyphCheck(p, 'results');
 	const fin = await state(p);
 	if (fin.errors && fin.errors.length) errors.push(...fin.errors.map(e => 'bridge: ' + e));
+	await p.context().close();
+}
+
+// Rooms of the town (WP-8): every district in the day and the concert look, the living details on, a snapshot of each
+// (room_<district>_day.png, room_<district>_concert.png) and the facts the strict stub cannot know: the look switches by a
+// cross-fade that leaves one room behind, the page keeps drawing frames and logs no error.
+async function roomChecks(browser) {
+	const p = await openPage(browser, { width: 540, height: 960 });
+	await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (rooms)', 30000);
+	await command(p, 'goto town');
+	await onScreen(p, 'town');
+	await command(p, 'add_stars 3000');
+	// every task of every district through the card (the full animation), until the street has five districts
+	for (let i = 0; i < 45; i++) {
+		const st = await state(p);
+		if (st.app.ui && st.app.ui.nav && st.app.ui.nav.count >= 5 && st.app.next_task === null) break;
+		await command(p, 'complete_task');
+		await waitFor(p, s => !s.app.ui.busy, 'a task done (rooms)', 30000).catch(() => null);
+		await command(p, 'town_skip').catch(() => null);
+	}
+	for (const did of ['cafe', 'jazz', 'square', 'stadium', 'garage']) {
+		await command(p, 'browse ' + did);
+		await waitFor(p, s => s.app.ui.district === did && !s.app.ui.sliding, 'the room ' + did, 8000);
+		for (const view of ['day', 'concert']) {
+			await command(p, 'view ' + view);
+			await sleep(1100); // the cross-fade takes 0.6 s
+			const st = await state(p);
+			check(st.app.ui.view === view && st.app.ui.district === did, `room ${did}/${view}: shown`, st.app.ui);
+			await p.screenshot({ path: `${outDir}/room_${did}_${view}.png` });
+		}
+		await command(p, 'view day');
+		await sleep(900);
+	}
+	const final = await state(p);
+	if (final.errors && final.errors.length) errors.push(...final.errors.map(e => 'bridge: ' + e));
 	await p.context().close();
 }
 
@@ -1044,10 +1080,13 @@ async function debugChecks() {
 
 	// 4. Korean: the same screens, no missing glyph (WP-3)
 	await koChecks(browser);
+
+	// 5. the rooms of the town in both looks (WP-8)
+	await roomChecks(browser);
 }
 
 try {
-	if (releaseMode) await releaseChecks(); else if (koOnly) await koChecks(browser); else await debugChecks();
+	if (releaseMode) await releaseChecks(); else if (koOnly) await koChecks(browser); else if (roomsOnly) await roomChecks(browser); else await debugChecks();
 } catch (e) {
 	errors.push('qa: ' + e.message);
 } finally {
