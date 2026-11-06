@@ -854,7 +854,12 @@ function M.install(opts)
 
 	-- the engine side of resource.get_text_metrics: a font resource handle and a string
 	local resource = rawget(_G, "resource")
-	resource.get_text_metrics = function(font_res, text, options)
+	resource.get_text_metrics = function(...)
+		local font_res, text, options = ...
+		-- the real engine checks the third argument as soon as it is passed: an explicit nil is an error
+		if select("#", ...) >= 3 and type(options) ~= "table" then
+			error("bad argument #3 to 'get_text_metrics' (table expected, got " .. type(options) .. ")", 2)
+		end
 		local name = type(font_res) == "table" and font_res.font or nil
 		local f = name and font_for(name)
 		if not f then error("resource.get_text_metrics: a font resource was expected, got " .. tostring(font_res), 2) end

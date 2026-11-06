@@ -252,9 +252,12 @@ function Scene:_qa_bounds()
 				p = gui.get_parent(p)
 			end
 			local fres = gui.get_font_resource(gui.get_font(n))
-			local opts
-			if gui.get_line_break(n) then opts = { width = gui.get_size(n).x, line_break = true } end
-			local m = resource.get_text_metrics(fres, str, opts)
+			local m
+			if gui.get_line_break(n) then
+				m = resource.get_text_metrics(fres, str, { width = gui.get_size(n).x, line_break = true })
+			else
+				m = resource.get_text_metrics(fres, str) -- the engine rejects an explicit nil options argument
+			end
 			local pos = gui.get_screen_position(n)
 			local pv = gui.get_pivot(n)
 			local fx = (pv == gui.PIVOT_W or pv == gui.PIVOT_NW or pv == gui.PIVOT_SW) and 0
