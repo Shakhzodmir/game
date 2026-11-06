@@ -95,7 +95,7 @@ describe("tools/qa/web_screens.mjs", function()
 					or name == "advance" or name == "volume" then
 					if w[1] and w[1] ~= "free" then assert_true(tonumber(w[1]) ~= nil, where) end
 				elseif name == "lang" then
-					assert_true(w[1] == "auto" or w[1] == "en" or w[1] == "ru", where)
+					assert_true(w[1] == "auto" or w[1] == "en" or w[1] == "ru" or w[1] == "ko", where)
 				elseif name == "music" then
 					-- a district (its layered theme) or a song of the jukebox (one mix)
 					assert_true(assets.index.sounds.music[w[1]] ~= nil or assets.song(w[1]) ~= nil, "no music for " .. tostring(w[1]) .. ": " .. where)
@@ -238,6 +238,29 @@ describe("tools/qa/web_screens.mjs", function()
 				assert_true(s:qa("close").ok)
 				s:step_until(function() return s.app.ui.popup == nil end, 3, "window " .. r.popup .. " to close")
 			end
+		end)
+	end)
+end)
+
+describe("tools/qa/layout_sweep.mjs", function()
+	it("sends only commands the QA bridge has and opens only windows that exist", function()
+		S.run({}, function(s)
+			local sweep = read("tools/qa/layout_sweep.mjs")
+			local n = 0
+			for text in string.gmatch(sweep, "command%(%s*[%w_]+%s*,%s*'([^']*)'") do
+				n = n + 1
+				assert_true(qa.has(words(text)[1]), "the bridge has no command '" .. text .. "'")
+			end
+			for text in string.gmatch(sweep, "%[%s*'[%w_]+'%s*,%s*'(popup [^']*)'%s*%]") do
+				n = n + 1
+				local w = words(text)
+				assert_true(qa.has(w[1]), text)
+				local f = io.open("gui/" .. w[2] .. ".lua", "rb")
+				assert_true(f ~= nil, "no window gui/" .. w[2] .. ".lua for '" .. text .. "'")
+				f:close()
+			end
+			assert_true(n > 12, "the sweep sends " .. n .. " commands")
+			assert_true(qa.has("gui_bounds") and qa.has("popup"))
 		end)
 	end)
 end)

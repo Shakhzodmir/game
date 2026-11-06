@@ -59,18 +59,19 @@ UI_ZONES = {
     "top_bar": (20, 20, 600, 120), "settings": (612, 22, 708, 118),
     "district_ribbon": (125, 136, 595, 224), "concert_toggle": (580, 148, 700, 212),
     "task_card": (60, 798, 660, 922), "streak_notes": (269, 908, 451, 962),
-    "level_button": (125, 967, 595, 1103), "hard_tag": (445, 944, 615, 994),
+    "level_button": (53, 967, 523, 1103), "map_button": (545, 967, 695, 1103), "hard_tag": (350, 944, 546, 994), "notebook_button": (638, 214, 720, 290),
     "bottom_nav": (0, 1147, 720, 1280),
 }
 ZONE_ALPHA = 16       # alpha (0..255) above which an item pixel counts as "touching"
 OVERLAP_ALPHA = 64    # two items overlap if both are above this alpha at the same scene pixel
 EDGE_ALPHA = 30       # no sprite may have alpha above this on its outer 1 px ring ...
 EDGE_EXEMPT = ("board/cell_", "board/edge_", "blockers/wires_", "ui/bunting", "/garlands", "/strings", "/lamps", "/sign",
-               "/garage_door")   # ... except art meant to tile or to run off the edge
+               "/garage_door", "/bg.png", "/bg_concert.png")   # ... except art meant to tile or to run off the edge, and the
+# opaque room pictures (the producer's come as RGBA)
 GHOST_ALPHA = 0.75
 BG_DITHER = 0.5       # ordered dither on the opaque backgrounds (breaks gradient banding)
-BUDGET_MB = 9.0
-GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts"]
+BUDGET_MB = 12.5   # 10 until the 48 flipbook frames of Bit (WP-8) joined: ~55 KB each
+GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts", "map", "mapbg", "notebook"]
 
 
 # ==========================================================================
@@ -87,6 +88,7 @@ def build_jobs():
     import blockers
     import ui
     import bit
+    import genres
     import items
 
     J = []
@@ -129,8 +131,13 @@ def build_jobs():
     J.append(("ui", "ui/bunting.png", "ui", "draw_bunting", (), {}))
     for k in ui.ICON_FUNCS:
         J.append(("icons", f"ui/icons/{k}.png", "ui", "ICON_FUNCS", k, {}))
+    for k in genres.GENRE_FUNCS:
+        J.append(("icons", f"ui/genres/{k}.png", "genres", "GENRE_FUNCS", k, {}))
     for p in bit.POSE_ORDER:
         J.append(("bit", f"bit/{p}.png", "bit", "draw_bit", (p,), {}))
+    for a in bit.FRAME_ANIMS:
+        for n in range(1, len(bit.FRAMES[a]) + 1):
+            J.append(("bit", f"bit/{a}_{n}.png", "bit", "draw_frame", (a, n), {}))
     J.append(("logo", "logo/logo.png", "logo", "draw_logo", (), {}))
     bg = {"opaque": True, "dither": BG_DITHER}
     J.append(("backgrounds", "backgrounds/level_bg.png", "districts", "bg_level", (), bg))
@@ -143,6 +150,12 @@ def build_jobs():
                 raise SystemExit(f"no item drawing for task {did}/{t['id']}")
             J.append(("districts", f"districts/{did}/{t['id']}.png", "items", "ITEM_FUNCS", t["id"],
                       {"trim": t["id"] not in items.NO_TRIM, "ghost": True}))
+    import map_art
+    for group, rel, attr, args, opts in map_art.jobs():
+        J.append((group, rel, "map_art", attr, args, opts))
+    import notebook_art
+    for group, rel, attr, args, opts in notebook_art.jobs():
+        J.append((group, rel, "notebook_art", attr, args, opts))
     return J
 
 
@@ -171,7 +184,7 @@ def run_job(job):
             cv = fn[key]()
     else:
         cv = fn(*key)
-    img = cv.image(opaque=opts.get("opaque", False), dither=opts.get("dither", 0.0))
+    img = cv if opts.get("pil") else cv.image(opaque=opts.get("opaque", False), dither=opts.get("dither", 0.0))
     if opts.get("trim"):
         a = np.asarray(img)[..., 3]
         ys, xs = np.nonzero(a > 2)
@@ -328,6 +341,7 @@ NOTES = {
     "ui/moves_badge.png": "pink gradient badge; print the move count in white Rubik Black on top",
     "ui/bunting.png": "720px festive garland for the top edge of the level screen",
     "fx/*.png": "white / near-white, tint in the engine",
+    "ui/genres/*.png": "96x96 round genre icons of the jukebox (procedural placeholders of art brief B3)",
     "ui/icons/*.png": "96x96 glossy icons with a white sticker edge, all inside the central 88px",
     "ui/icons/goal_floor.png": "goal icon for 'light the dance floor': the unlit (violet) tile as the board shows it, on "
                                "the gold tile it turns into",
@@ -728,11 +742,15 @@ def main():
     if unknown:
         raise SystemExit(f"unknown groups: {sorted(unknown)}")
     jobs = [j for j in build_jobs() if (not groups or j[0] in groups) and args.match in j[1]]
+    # pictures the producer's drawings were installed as (tools/art/install_ready.py) are never redrawn or deleted
+    import installed
+    kept = installed.load()
+    jobs = [j for j in jobs if j[1] not in kept]
     if args.layout_only:
         jobs = []
     full = not groups and not args.match and not args.layout_only
     os.makedirs(OUT, exist_ok=True)
-    heavy = ("districts", "backgrounds", "bit", "blockers", "logo")
+    heavy = ("districts", "backgrounds", "bit", "blockers", "logo", "mapbg")
     jobs.sort(key=lambda j: (j[0] not in heavy, "/bg" not in j[1], j[1]))
     t0 = time.time()
     results = []
@@ -744,7 +762,7 @@ def main():
         results = [run_job(j) for j in jobs]
     if full:
         # full run: remove stale files afterwards (the folder is never emptied while rendering)
-        keep = {j[1] for j in jobs} | {j[1][:-4] + "_ghost.png" for j in jobs if j[5].get("ghost")}
+        keep = {j[1] for j in jobs} | {j[1][:-4] + "_ghost.png" for j in jobs if j[5].get("ghost")} | kept
         for dp, _, fns in os.walk(OUT):
             for fn in fns:
                 rel = os.path.relpath(os.path.join(dp, fn), OUT).replace(os.sep, "/")
@@ -775,6 +793,11 @@ def main():
     for rel, w, h, size, dt in results:
         print(f"{rel:52s} {w:4d}x{h:<4d} {size:8d}")
     total = sum(os.path.getsize(os.path.join(OUT, r)) for r in MANIFEST)
+    own = sum(os.path.getsize(os.path.join(OUT, r)) for r in MANIFEST if r not in kept)
+    if kept:
+        print(f"of them {(total - own) / 1024 / 1024:.2f} MB are the producer's installed pictures "
+              f"(assets/art_ready/installed.json): the budget below counts only the generated {own / 1024 / 1024:.2f} MB")
+        total = own
     print("-" * 72)
     for g, (n, size) in sorted(by_group.items()):
         print(f"{g:14s} {n:4d} files {size / 1024:9.1f} KB")

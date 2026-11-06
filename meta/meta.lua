@@ -29,6 +29,8 @@ local economy = require("meta.economy")
 local inventory = require("meta.inventory")
 local lives = require("meta.lives")
 local progress = require("meta.progress")
+local record = require("meta.record")
+local songbook = require("meta.songbook")
 local town = require("meta.town")
 local prefs = require("meta.prefs")
 local save = require("meta.save")
@@ -91,6 +93,9 @@ function Meta.load(districts, current, previous, seed, now)
 	if state then
 		self = wrap(state, data)
 		if info.source ~= "current" or info.migrated then self:_touch() end
+		-- a save from before the songbook: the lines filled in now are written with the next save
+		local slot = info.source == "current" and current or previous
+		if type(slot) == "table" and slot.songbook == nil then self:_touch() end
 	else
 		self = fresh(data, salt)
 	end
@@ -342,6 +347,20 @@ end
 -- Loss: {won = false, level_id, reason = "out_of_moves"|"quit", life_lost,
 --        streak_lost = streak before the loss, fails}
 -- or false, "no_run".
+-- Optional fields of a win by score: stars (1..3, from meta/stars.lua), score (>= 0), concert (boolean).
+local function check_stars_fields(result, level)
+	local st = result.stars
+	if st ~= nil and not (util.is_int(st) and st >= 1 and st <= 3) then
+		error("meta: result.stars must be 1, 2 or 3, got " .. tostring(st), level + 1)
+	end
+	if result.score ~= nil and not (util.is_int(result.score) and result.score >= 0) then
+		error("meta: result.score must be a non-negative integer", level + 1)
+	end
+	if result.concert ~= nil and type(result.concert) ~= "boolean" then
+		error("meta: result.concert must be a boolean", level + 1)
+	end
+end
+
 function Meta:finish_level(result, now)
 	if type(result) ~= "table" then error("meta: finish_level needs a result table", 2) end
 	if type(result.won) ~= "boolean" then
@@ -356,6 +375,7 @@ function Meta:finish_level(result, now)
 		if not util.is_int(result.moves_at_win) or result.moves_at_win < 0 then
 			error("meta: result.moves_at_win must be a non-negative integer for a win", 2)
 		end
+		check_stars_fields(result, 3)
 	end
 	self:_tick(now)
 	local run = self.s.progress.run
@@ -367,7 +387,7 @@ function Meta:finish_level(result, now)
 		error("meta: finish_level difficulty differs from the one the level started with", 2)
 	end
 	if result.won then
-		local r = self:_win(result.moves_at_win)
+		local r = self:_win(result)
 		return r
 	end
 	if quit then run.moved = true end
@@ -378,14 +398,20 @@ function Meta:finish_level(result, now)
 	return r
 end
 
-function Meta:_win(moves_at_win)
+function Meta:_win(result)
 	local p = self.s.progress
-	local coins, stars = economy.win_reward(p.run.difficulty, moves_at_win)
+	local coins, legacy_stars = economy.win_reward(p.run.difficulty, result.moves_at_win)
+	-- stars by score; a caller that sends none gets what the old rule paid
+	local stars = result.stars or legacy_stars
+	-- the records first: they read `beaten` as it was before this win
+	local rec = record.gain(self.s, p.run.level_id, p.run.difficulty, stars, result.score, result.concert)
 	local run = progress.finish(p, true)
 	self.s.stats.wins = self.s.stats.wins + 1
 	self:_touch()
-	self:_change("level_win", { { "coins", coins }, { "stars", stars } })
+	self:_change("level_win", { { "coins", coins }, { "stars", rec.gained } })
 	local unlocked = self:_give_unlock_gifts()
+	-- the character writes a line of the song of this stretch of levels (decoration: nothing is paid)
+	local song = self:_write_song_line(run.level_id)
 	-- a level chest is not paid here: it waits until the player claims it (claim_level_chest)
 	local chest = economy.level_chest(run.level_id)
 	if chest then self:_hold_chest(run.level_id) end
@@ -393,12 +419,118 @@ function Meta:_win(moves_at_win)
 		won = true,
 		level_id = run.level_id,
 		coins = coins,
-		stars = stars,
+		stars = stars,         -- stars of this win
+		gained = rec.gained,   -- stars new to the wallet (the record rose by this much)
+		best = rec.best,       -- best stars of the level now
+		super_gained = rec.super_gained,
+		concert = result.concert and true or false,
+		new_best_score = rec.new_best_score,
 		chest = chest,
 		unlocked = unlocked,
+		song = song,
 		streak = p.streak,
 		next_level = progress.level_to_play(p),
 	}
+end
+
+-- Fills the songbook up to the progress and returns what the beaten level wrote: {district, pos, line, total, ready}
+-- or nil (a level outside every stretch). Lines of older levels that were still missing are added silently.
+function Meta:_write_song_line(level_id)
+	local added = songbook.sync(self.s.songbook, self.s.salt, self.s.progress.beaten)
+	if #added > 0 then self:_touch() end
+	for _, a in ipairs(added) do
+		if a.level == level_id then
+			return { district = a.district, pos = a.pos, line = a.line, total = songbook.total(a.district),
+				ready = songbook.is_ready(self.s.songbook, a.district) }
+		end
+	end
+	return nil
+end
+
+-- songbook ---------------------------------------------------------------------------------
+
+-- The songs of the districts, in order: {{id, first, last, total, count, ready, seen, lines = {pool numbers},
+-- groups = {{kind, from, to}}, title = number | nil}}. Texts: client/songbook.lua.
+function Meta:songbook()
+	local out = {}
+	for i, d in ipairs(C.songbook.districts) do out[i] = songbook.song(self.s.songbook, d.id) end
+	return out
+end
+
+-- One song or nil (unknown district).
+function Meta:song_of(district_id)
+	return songbook.song(self.s.songbook, district_id)
+end
+
+-- The ready song the player was not offered yet (the first in order), or nil.
+function Meta:songbook_pending()
+	for _, d in ipairs(C.songbook.districts) do
+		if songbook.is_ready(self.s.songbook, d.id) and not util.index_of(self.s.songbook.seen, d.id) then return d.id end
+	end
+	return nil
+end
+
+-- The player was offered the ready song of the district. true when it changed.
+function Meta:songbook_seen(district_id)
+	if songbook.mark_seen(self.s.songbook, district_id) then
+		self:_touch()
+		return true
+	end
+	return false
+end
+
+-- A win of a level the player has already beaten (a replay): no coins, no life, no streak; only the
+-- records rise. result = {level_id, difficulty, stars (1..3), score, concert}. Returns {stars, gained,
+-- best, super_gained, new_best_score} or false, "not_beaten" | "running".
+function Meta:record_replay(result)
+	if type(result) ~= "table" or not util.is_int(result.level_id) then
+		error("meta: record_replay needs {level_id, difficulty, stars}", 2)
+	end
+	if not util.index_of(C.difficulties, result.difficulty) then error("meta: record_replay needs the level's difficulty", 2) end
+	if not util.is_int(result.stars) then error("meta: record_replay needs stars", 2) end
+	check_stars_fields(result, 2)
+	local p = self.s.progress
+	if result.level_id < 1 or result.level_id > p.beaten then return false, "not_beaten" end
+	if p.run then return false, "running" end
+	local rec = record.gain(self.s, result.level_id, result.difficulty, result.stars, result.score, result.concert)
+	if rec.gained > 0 or rec.super_gained > 0 or rec.new_best_score then self:_touch() end
+	if rec.gained > 0 then self:_change("level_stars_up", { { "stars", rec.gained } }) end
+	return { stars = result.stars, gained = rec.gained, best = rec.best, super_gained = rec.super_gained,
+		new_best_score = rec.new_best_score }
+end
+
+-- Best stars of a level (0 when never won). Pass the level's difficulty to also count a level won before
+-- the stars by score (it is worth what the old rule paid).
+function Meta:level_stars(level_id, difficulty)
+	return record.best(self.s, level_id, difficulty)
+end
+
+-- Best score of a level (0 when never won).
+function Meta:level_score(level_id)
+	return self.s.level_scores[tostring(level_id)] or 0
+end
+
+-- Super stars: {balance, earned, spent, levels = {[level id] = stars}}.
+function Meta:super_stars()
+	local balance, earned = record.super_balance(self.s)
+	local levels = {}
+	for key, n in pairs(self.s.super_stars.levels) do levels[tonumber(key)] = n end -- order-free: keyed by id
+	return { balance = balance, earned = earned, spent = self.s.super_stars.spent, levels = levels }
+end
+
+-- Spends super stars on a sink of C.super_stars.sinks ({id, price}). Nothing is on sale yet (the list is
+-- empty), so this answers false, "unknown_sink". false, "not_enough_super_stars" when short.
+function Meta:spend_super_stars(sink_id)
+	local sink
+	for _, def in ipairs(C.super_stars.sinks) do
+		if def.id == sink_id then sink = def end
+	end
+	if not sink then return false, "unknown_sink" end
+	local balance = record.super_balance(self.s)
+	if balance < sink.price then return false, "not_enough_super_stars" end
+	self.s.super_stars.spent = self.s.super_stars.spent + sink.price
+	self:_touch()
+	return true
 end
 
 function Meta:_lose(reason)
@@ -538,6 +670,15 @@ function Meta:_refill_check()
 	if ls.count >= C.lives.max then return false, "full" end
 	if lives.infinite_active(ls) then return false, "infinite_active" end
 	return true
+end
+
+-- Lives sent by band mates (WP-11): up to n, never above the maximum. Returns how many were added. Lives only
+-- ever go up here: no star, coin or level is touched.
+function Meta:gift_lives(n, now)
+	self:_tick(now)
+	local added = lives.add(self.s.lives, n)
+	if added > 0 then self:_touch() end
+	return added
 end
 
 -- The refill button: {price, available, affordable, reason = nil | "full" |
@@ -768,6 +909,22 @@ end
 -- {id, district, theme} of any song of the catalogue (the theme of a district has the district's id), or nil.
 function Meta:song_info(id)
 	return town.song_info(self.data, id)
+end
+
+-- The genres of content/genres.json (not districts), in file order: {{id, group, name, unlock = the district that
+-- opens the genre, unlock_index, open, songs = {ids}}}. `open` follows meta/config.lua genres_unlock.
+function Meta:genres()
+	local out = {}
+	for i, g in ipairs(self.data.genres or {}) do
+		local first = g.songs[1]
+		out[i] = {
+			id = g.id, group = g.group, name = util.copy(g.name), unlock = g.unlock,
+			unlock_index = self.data.by_id[g.unlock].index,
+			open = first ~= nil and town.song_status(self.s.town, self.data, first) == "open",
+			songs = util.copy(g.songs),
+		}
+	end
+	return out
 end
 
 -- {wins, losses, coins_earned, coins_spent}; coins = earned - spent.

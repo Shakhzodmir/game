@@ -10,8 +10,9 @@
 -- disabled while the town's own music plays).
 -- The tab and the page on display live in e.state (they survive a rebuild: a language change); the pick lives
 -- in the meta. A genre with more songs than a page holds pages with two arrows.
--- QA targets: tab_<district>, play_<song id> (the theme: play_<district id>), back_home, page_prev, page_next.
--- QA status (app.ui.jukebox): {tab, page, pages, chosen = the pick, rows = in the tab, ids = the rows on the page}.
+-- QA targets: tab_<genre>, play_<song id> (the theme: play_<district id>), back_home, page_prev, page_next, tabs_prev,
+-- tabs_next (the row of genre tabs pages: 3 on a page).
+-- QA status (app.ui.jukebox): {tab, tab_page, tab_pages, page, pages, chosen = the pick, rows = in the tab, ids = the rows on the page}.
 
 local app = require("client.app")
 local i18n = require("client.i18n")
@@ -31,6 +32,11 @@ local PAGE_ROWS_PAGED = 4
 local TAB_H, TAB_GAP = 100, 10
 -- the button style of each genre tab (the colour of its district: pink, lavender, gold, blue, green)
 local TAB_STYLE = { "pink", "purple", "gold", "blue", "green" }
+-- the genres that are not districts take the style of their group
+local GROUP_STYLE = { classic = "purple", traditional = "gold", modern = "blue" }
+-- the genre tabs page: this many on the row, two arrows turn the pages (20 genres do not fit one row)
+local TABS_PER_PAGE = 3
+local ARROW_W = 84
 
 local function rows_per_page(count)
 	return count <= PAGE_ROWS and PAGE_ROWS or PAGE_ROWS_PAGED
@@ -189,7 +195,7 @@ end
 local function tab_button(e, body, tab, x, y, w, active)
 	local s = e.ui
 	local locked = tab.state == "locked"
-	local style = locked and "white" or (active and (TAB_STYLE[(tab.index - 1) % #TAB_STYLE + 1]) or "white")
+	local style = locked and "white" or (active and (GROUP_STYLE[tab.group] or TAB_STYLE[(tab.index - 1) % #TAB_STYLE + 1]) or "white")
 	local bw, bh = active and w + 8 or w, active and TAB_H + 12 or TAB_H
 	local b = s:button({ parent = body, x = x, y = y + (active and 6 or 0), w = bw, h = bh, style = style, sfx = false,
 		on_click = function()
@@ -209,7 +215,8 @@ local function tab_button(e, body, tab, x, y, w, active)
 		kit.lock(e, b.node, 0, 14, 46)
 		s:text(b.node, "???", 0, -26, { font = "button", size = 22, color = "white", outline = "#5A5470", max_width = w - 12 })
 	else
-		local note = s:image(b.node, "ui/icons/note_on", 0, 16, { w = 44, h = 44 })
+		local icon = (tab.icon and assets.has_image(tab.icon)) and tab.icon or "ui/icons/note_on"
+		local note = s:image(b.node, icon, 0, 16, { w = 44, h = 44 })
 		if note then gui.set_inherit_alpha(note, true) end
 		s:text(b.node, label, 0, -26, { font = "button", size = 23, color = active and "white" or "text",
 			outline = active and "#5220A6" or false, shadow = active and "#5220A6" or false, max_width = w - 10 })
@@ -221,7 +228,7 @@ end
 function M.build(e)
 	local s = e.ui
 	local st = e.state
-	local vm = views.jukebox(app.meta, app.district_by_id)
+	local vm = views.jukebox(app.meta, app.district_by_id, app.genre_by_id)
 	if not st.tab or not tab_by_id(vm, st.tab) then st.tab = first_tab(vm) end
 	local tab = tab_by_id(vm, st.tab)
 	local rows = tab and vm.songs[tab.id] or {}
@@ -243,13 +250,38 @@ function M.build(e)
 	kit.bit(e, strip, (W - 60) / 2 - 66, -14, 104, "idle")
 	if picked and e.bit then e.bit:dance(picked.bpm or 100) end
 
-	-- the genre tabs
+	-- the genre tabs: TABS_PER_PAGE on the row, arrows at both ends turn the pages (the page of the tab on display
+	-- is shown first; a tap on an arrow never changes the tab)
 	local n = #vm.tabs
-	local tw = math.floor((LIST_W - (n - 1) * TAB_GAP) / math.max(1, n))
+	local tab_pages = math.max(1, math.ceil(n / TABS_PER_PAGE))
+	if not st.tab_page then
+		for i, tb in ipairs(vm.tabs) do
+			if tb.id == st.tab then st.tab_page = math.ceil(i / TABS_PER_PAGE) end
+		end
+	end
+	st.tab_page = math.max(1, math.min(st.tab_page or 1, tab_pages))
 	local ty = ny - 58 - 14 - TAB_H / 2 + 6
-	for i, t in ipairs(vm.tabs) do
-		local tx = (i - (n + 1) / 2) * (tw + TAB_GAP)
-		tab_button(e, body, t, tx, ty, tw, t.id == st.tab)
+	local first_t = (st.tab_page - 1) * TABS_PER_PAGE + 1
+	local last_t = math.min(n, first_t + TABS_PER_PAGE - 1)
+	local slots = tab_pages > 1 and TABS_PER_PAGE or math.max(1, n)
+	local span = LIST_W - (tab_pages > 1 and 2 * (ARROW_W + TAB_GAP) or 0)
+	local tw = math.floor((span - (slots - 1) * TAB_GAP) / slots)
+	for i = first_t, last_t do
+		local tx = (i - first_t + 1 - (slots + 1) / 2) * (tw + TAB_GAP)
+		tab_button(e, body, vm.tabs[i], tx, ty, tw, vm.tabs[i].id == st.tab)
+	end
+	if tab_pages > 1 then
+		local ax = LIST_W / 2 - ARROW_W / 2
+		local function turn(x, label, target, delta)
+			s:button({ parent = body, x = x, y = ty, w = ARROW_W, h = TAB_H, style = "white", text = label, text_size = 36, sfx = "tap",
+				on_click = function()
+					st.tab_page = (st.tab_page - 1 + delta) % tab_pages + 1
+					e:rebuild()
+				end })
+			e:target(target, x, ty)
+		end
+		turn(-ax, "<", "tabs_prev", -1)
+		turn(ax, ">", "tabs_next", 1)
 	end
 
 	-- the songs of the tab: a pastel card of the genre's colour behind the rows
@@ -303,7 +335,7 @@ function M.build(e)
 	if not vm.chosen then gui.set_color(home.node, vmath.vector4(1, 1, 1, 0.6)) end
 	e:target("back_home", 0, by)
 
-	app.ui.jukebox = { tab = st.tab, page = page, pages = pages, chosen = vm.chosen, rows = #rows, ids = ids }
+	app.ui.jukebox = { tab = st.tab, tab_page = st.tab_page, tab_pages = tab_pages, page = page, pages = pages, chosen = vm.chosen, rows = #rows, ids = ids }
 end
 
 function M.update(e, dt)

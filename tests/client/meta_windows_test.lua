@@ -76,6 +76,51 @@ describe("meta windows: layout in both languages and every window size", functio
 		end
 	end)
 
+	it("keeps every node of every window inside its panel and the screen, in the worst case", function()
+		local views = require("client.views")
+		local real = views.shop_boosters
+		local bad = {}
+		local SIZES = { { 720, 1280 }, { 1920, 970 }, { 1280, 720 }, { 390, 844 }, { 360, 640 } }
+		-- the shop with 8 .. 12 packs (the catalogue grows)
+		local function with_packs(n)
+			views.shop_boosters = function(meta)
+				local list = real(meta)
+				local k = 1
+				while #list < n do
+					local src = list[k]
+					local copy = {}
+					for key, v in pairs(src) do copy[key] = v end -- order-free: a copy
+					list[#list + 1] = copy
+					k = k + 1
+				end
+				return list
+			end
+		end
+		local ok, err = pcall(function()
+			for _, lang in ipairs({ "en", "ru" }) do
+				for _, w in ipairs(SIZES) do
+					for _, case in ipairs({ { "shop", { tab = "boosters" }, 8 }, { "shop", { tab = "boosters" }, 9 },
+						{ "shop", { tab = "boosters" }, 12 }, { "shop", { tab = "coins" }, 8 },
+						{ "start", nil }, { "lives", nil }, { "settings", nil }, { "jukebox", nil }, { "concert", { district = "cafe" } },
+						{ "chest", { kind = "level", level_id = 10, chest = { coins = 60, boosters = { "stick", "riff", "crossfader" }, infinite_minutes = 15 } } },
+						{ "gift", { id = "riff" } },
+						{ "confirm", { title = { key = "settings.reset_title" }, text = { key = "settings.reset_text" } } } }) do
+						if case[3] then with_packs(case[3]) else views.shop_boosters = real end
+						G.with_town({ language = lang, window = w, setup = function(app) G.win(app, 13) end }, function(c)
+							open(c, case[1], case[2])
+							local label = case[1] .. (case[2] and case[2].tab and ("/" .. case[2].tab) or "") .. (case[3] and (" x" .. case[3]) or "")
+								.. " " .. lang .. " " .. w[1] .. "x" .. w[2]
+							for _, m in ipairs((G.overflows(c))) do bad[#bad + 1] = label .. ": " .. m end
+						end)
+					end
+				end
+			end
+		end)
+		views.shop_boosters = real
+		if not ok then error(err, 0) end
+		assert_eq(#bad == 0 and "" or ("\n" .. table.concat(bad, "\n")), "", "nodes out of the panel or the screen")
+	end)
+
 	it("builds every window in every window size and with a notch", function()
 		for _, w in ipairs(WINDOWS) do
 			for _, case in ipairs({ { "start", nil }, { "shop", { tab = "coins" } }, { "settings", nil }, { "jukebox", nil } }) do
@@ -610,7 +655,7 @@ describe("meta windows: jukebox", function()
 				assert_true(has(c, text), "no '" .. text .. "' in: " .. texts(c))
 			end
 			assert_eq(c.app.ui.jukebox.tab, "jazz")
-			for _, name in ipairs({ "tab_cafe", "tab_jazz", "tab_square", "tab_stadium", "tab_garage", "back_home", "play_jazz",
+			for _, name in ipairs({ "tab_cafe", "tab_jazz", "tab_square", "tabs_prev", "tabs_next", "back_home", "play_jazz",
 				"play_bossa_breeze", "play_scat_parade", "close" }) do
 				assert_true(c.app.ui.popup_targets[name] ~= nil, "no target " .. name)
 			end
@@ -749,6 +794,15 @@ describe("meta windows: jukebox", function()
 		end)
 	end)
 
+	-- the row of genre tabs pages: turn to the page that holds the genre, then tap it
+	local function tab_to(c, tab)
+		for _ = 1, 7 do
+			if c.app.ui.popup_targets["tab_" .. tab] then break end
+			wtap(c, "tabs_next")
+		end
+		wtap(c, "tab_" .. tab)
+	end
+
 	it("fits every genre, picked or not, in both languages and every window size", function()
 		for _, lang in ipairs({ "en", "ru" }) do
 			for _, w in ipairs(WINDOWS) do
@@ -757,14 +811,14 @@ describe("meta windows: jukebox", function()
 					open(c, "jukebox")
 					local label = lang .. " " .. w[1] .. "x" .. w[2]
 					for _, tab in ipairs({ "cafe", "jazz", "square", "stadium", "garage" }) do
-						wtap(c, "tab_" .. tab)
+						tab_to(c, tab)
 						assert_same(c.E.audit(), {}, label .. " " .. tab)
 						for _, s in ipairs(c.town:smallest_texts(3)) do
 							assert_true(s.px >= 15, label .. " " .. tab .. ": '" .. s.text .. "' is only " .. string.format("%.1f", s.px) .. " px")
 						end
 					end
 					-- the longest name of a district (Russian) on the strip, picked
-					wtap(c, "tab_square")
+					tab_to(c, "square")
 					wtap(c, "play_square")
 					assert_same(c.E.audit(), {}, label .. " picked")
 					for _, s in ipairs(c.town:smallest_texts(3)) do

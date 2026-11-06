@@ -101,6 +101,16 @@ function M.consume(ls)
 	return true
 end
 
+-- Adds up to n lives (a gift from a band mate), never above the maximum. Returns how many were added.
+function M.add(ls, n)
+	if not util.is_int(n) or n < 0 then error("meta: lives to add must be a non-negative integer", 2) end
+	local added = math.min(n, MAX - ls.count)
+	if added <= 0 then return 0 end
+	ls.count = ls.count + added
+	if ls.count == MAX then ls.next_at = 0 end
+	return added
+end
+
 function M.refill(ls)
 	ls.count, ls.next_at = MAX, 0
 end

@@ -18,7 +18,12 @@ local M = {}
 
 M.rebuild_on_meta = true
 
-local W, H = 680, 1150
+local W = 680
+-- The panel height follows the content (a tab with more cards or rows than fits gets a taller panel); the host
+-- then slides and shrinks it onto the screen (e:fit through kit.panel opts.fit), so nothing is cut off.
+local H_MIN = 900
+local HEAD = 156 -- from the panel top to the first content row (ribbon, coins pill, tabs)
+local FOOT = 30 -- free space kept under the last row
 
 local function coins_fly(e, n, x, y)
 	if not e.pill then return end
@@ -151,7 +156,8 @@ end
 
 -- boosters tab ------------------------------------------------------------------------------
 
-local CARD_W, CARD_H, CARD_STEP = 300, 214, 226
+local CARD_W, CARD_H, CARD_STEP = 300, 214, 222
+local PRODUCT_STEP = 146
 
 -- One pack: the name on top (two lines when it is long), the picture, "x3" and the stock, the
 -- price button (or what unlocks it).
@@ -313,16 +319,32 @@ local function build_coins(e, body, top)
 	local y = top - 134
 	for _, p in ipairs(list) do
 		product_row(e, body, p, y)
-		y = y - 146
+		y = y - PRODUCT_STEP
 	end
 	gift_row(e, body, y)
+end
+
+-- Panel height for the cards of the boosters tab (n packs + the lives card) and the rows of the coins tab.
+local function boosters_height(n)
+	local rows = math.ceil((n + 1) / 2)
+	return HEAD + 116 + CARD_H / 2 + (rows - 1) * CARD_STEP + FOOT
+end
+
+local function coins_height(n)
+	return HEAD + 134 + n * PRODUCT_STEP + 66 + FOOT
 end
 
 function M.build(e)
 	local s = e.ui
 	local st = e.state
 	st.tab = st.tab or e.params.tab or "boosters"
-	local body, hh = kit.panel(e, W, H, { title = { key = "shop.title" } })
+	local H = H_MIN
+	if st.tab == "coins" then
+		H = math.max(H, coins_height(#views.shop_products(iap.PRODUCTS, iap.available())))
+	else
+		H = math.max(H, boosters_height(#views.shop_boosters(app.meta)))
+	end
+	local body, hh = kit.panel(e, W, H, { title = { key = "shop.title" }, fit = true })
 	e.pill = kit.coins_pill(e, body, -W / 2 + 150, hh - 96, e.shown_coins or app.meta:coins())
 	local tabs_y = hh - 96
 	kit.segmented(e, body, 80, tabs_y, 320, {

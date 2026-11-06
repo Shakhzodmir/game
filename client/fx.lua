@@ -60,6 +60,7 @@ function Fx:clear()
 	self.ui:clear(self.layer)
 	self.layer = self.ui:layer(self.parent, "fx")
 	self.tweens = {}
+	self.sparks = 0
 end
 
 function Fx:busy()
@@ -225,6 +226,8 @@ end
 
 -- Sparkles shooting out of (x, y). o = {count = 12, radius = 130, dur = 0.6,
 -- size = 34, image = "fx/star_particle", colors = M.SPARK_COLORS, parent}.
+M.MAX_SPARKS = 160 -- the sparks of bursts alive at once
+
 function Fx:burst(x, y, o)
 	o = o or {}
 	local parent = o.parent or self.layer
@@ -234,6 +237,9 @@ function Fx:burst(x, y, o)
 		return
 	end
 	local count = o.count or 12
+	-- a chain of bursts must not run the scene into gui.max_animation_count (each spark holds four animations)
+	self.sparks = self.sparks or 0
+	count = math.max(0, math.min(count, M.MAX_SPARKS - self.sparks))
 	local colors = o.colors or M.SPARK_COLORS
 	local dur = o.dur or 0.6
 	for i = 1, count do
@@ -246,7 +252,11 @@ function Fx:burst(x, y, o)
 		gui.animate(n, "position", vmath.vector3(x + cos(a) * r, y + sin(a) * r, 0), gui.EASING_OUTQUAD, d)
 		gui.animate(n, "euler.z", M.rand(-240, 240), gui.EASING_OUTQUAD, d)
 		gui.animate(n, "scale", vmath.vector3(0.2, 0.2, 1), gui.EASING_INQUAD, d)
-		gui.animate(n, "color.w", 0, gui.EASING_INQUAD, d, 0, function() gui.delete_node(n) end)
+		self.sparks = self.sparks + 1
+		gui.animate(n, "color.w", 0, gui.EASING_INQUAD, d, 0, function()
+			gui.delete_node(n)
+			self.sparks = math.max(0, self.sparks - 1)
+		end)
 	end
 end
 

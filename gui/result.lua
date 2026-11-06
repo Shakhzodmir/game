@@ -1,5 +1,5 @@
--- Results window of the level screen, after the final concert: the stars earned (the meta's number
--- for the difficulty), the coins (the meta's: the base and 5 for every move left), the score, the hit
+-- Results window of the level screen, after the final concert: the stars earned (from the score: the level's
+-- thresholds, meta/stars.lua) with a scale to the next star, the super stars of a concert level, the coins (the meta's: the base and 5 for every move left), the score, the hit
 -- streak with the free boosters of the next start, the progress to the next level chest (or the
 -- chest that just came: "Open" shows the chest window and, once the player takes it, the meta pays it and
 -- its unlimited lives start; left unopened it is offered again by the next results window and the town),
@@ -19,6 +19,7 @@ local config = require("meta.config")
 local fx = require("client.fx")
 local kit = require("gui.kit")
 local lkit = require("gui.level_kit")
+local songbook = require("client.songbook")
 
 local M = {}
 
@@ -28,6 +29,7 @@ M.no_back = true
 local W = 640
 local GAP = 14
 local BIT_UP = 104       -- how far Bit's head sticks out above the panel (the ribbon: 50)
+local SONG_H = 100       -- the songbook strip: the line written, or the finished song
 local CHEST_H = 212      -- the chest strip: the picture, the title, the contents and an Open button of 88 px
 local OPEN_H = 88        -- the touch target of the kit
 local TAKEN_HOLD = 1.2   -- seconds a chest just taken stays on show while another one waits
@@ -109,28 +111,77 @@ local function blocks(e, body, v, animate, alive, note)
 	local list = {}
 	local function add(h, draw) list[#list + 1] = { h = h, draw = draw } end
 
-	-- stars: only the ones earned (the meta's number for the difficulty, not a rating of the play: empty
-	-- slots made players think more stars could be won by playing better)
+	-- stars: the three slots, the ones earned lit (they come from the score thresholds of the level, so a
+	-- slot left empty is a promise: play it better and it fills)
 	local n_stars = math.max(1, math.min(3, v.stars))
 	add(150, function(y)
-		local stars = lkit.stars(e, body, 0, y - 4, n_stars, n_stars, 100)
+		local stars = lkit.stars(e, body, 0, y - 4, n_stars, 3, 100)
 		if animate and not kit.reduced() then
 			for i = 1, n_stars do
 				local node = stars[i]
 				local base = gui.get_scale(node)
 				gui.set_scale(node, base * 0.01)
-				local sx = (i - (n_stars + 1) / 2) * 100 * 1.08
+				local sx = (i - 2) * 100 * 1.08
 				e.fx:after(0.35 + i * 0.4, function()
 					if not alive() then return end
 					gui.animate(node, "scale", base, gui.EASING_OUTBACK, 0.45)
 					kit.sfx("star", { speed = 1 + 0.12 * i })
-					local ax, ay = e:abs(sx, y - 4)
+					local ax, ay = e:abs(sx, y - 4 + (i == 2 and 14 or 0)) -- the middle star sits 0.14 of its size higher (lkit.stars)
 					e.fx:burst(ax, ay, { count = 10, radius = 110, size = 32 })
 					e.fx:ring(ax, ay, { size = 90, scale = 2.4, dur = 0.45 })
 				end)
 			end
 		end
 	end)
+	-- the score scale: the bar runs from 0 to the 3-star score with the 2 and 3 star marks on it (lit when reached),
+	-- and a line under it says how far the next star is
+	if v.scale then
+		add(74 + GAP, function(y)
+			local sc = v.scale
+			local bw = W - 200
+			local cy = y - GAP / 2 + 16
+			s:round(body, 0, cy, bw, 26, "#DDD2F3", { radius = 13 })
+			local frac = math.max(0.02, math.min(1, v.score / math.max(1, sc.max)))
+			local fill = s:round(body, -bw / 2 + bw * frac / 2, cy, bw * frac, 26, n_stars >= 3 and "#FFB020" or "#FF8AB8", { radius = 13 })
+			if animate and not kit.reduced() then
+				local c = gui.get_color(fill)
+				gui.set_color(fill, vmath.vector4(c.x, c.y, c.z, 0))
+				e.fx:after(0.5, function()
+					if alive() then gui.animate(fill, "color.w", c.w, gui.EASING_OUTCUBIC, 0.9) end
+				end)
+			end
+			for i = 2, 3 do
+				local mx = -bw / 2 + bw * sc.t[i] / sc.max
+				kit.icon(e, body, i <= n_stars and "ui/icons/star" or "ui/icons/star_empty", mx, cy, 40, "yellow")
+			end
+			local line = n_stars >= 3 and i18n.t("win.max_stars") or i18n.t("win.next_star", { n = i18n.number(sc.left) })
+			s:text(body, line, 0, cy - 38, { font = "small", size = 24, color = n_stars >= 3 and "gold" or "text_soft", max_width = W - 100 })
+		end)
+	end
+	-- the record: what this win added, or what the level already holds
+	local record_key, record_vars
+	if v.new_best_score then
+		record_key = "win.new_record"
+	elseif v.best > v.stars then
+		record_key, record_vars = "win.stars_kept", { n = v.best }
+	elseif v.gained > 0 and v.gained < v.stars then
+		record_key, record_vars = "win.stars_new", { n = v.gained }
+	end
+	if record_key then
+		add(40 + GAP, function(y)
+			s:text(body, i18n.t(record_key, record_vars), 0, y - GAP / 2, { font = "button", size = 24, color = "text_soft", max_width = W - 100 })
+		end)
+	end
+	-- a concert level pays super stars
+	if v.concert then
+		add(76 + GAP, function(y)
+			local text = v.super_gained > 0 and { key = "win.super_new", vars = { n = v.super_gained } }
+				or { key = "win.super_have", vars = { n = v.super_total } }
+			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
+				text = text, icon = "ui/icons/super_star", fallback = "purple", size = 28, h = 76, color = "text", fill = "#FFF0C2",
+			})
+		end)
+	end
 	if note and not v.standalone and n_stars < 3 then
 		add(104 + GAP, function(y)
 			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
@@ -142,7 +193,7 @@ local function blocks(e, body, v, animate, alive, note)
 	-- coins, moves left, score
 	add(172, function(y)
 		if v.standalone then
-			s:text(body, i18n.t("win.debug"), 0, y, { font = "button", size = 30, color = "text_soft", max_width = W - 80 })
+			s:text(body, i18n.t("win.practice"), 0, y, { font = "button", size = 30, color = "text_soft", max_width = W - 80 })
 			return
 		end
 		kit.icon(e, body, "ui/icons/coin", -150, y + 26, 76, "coin")
@@ -163,6 +214,63 @@ local function blocks(e, body, v, animate, alive, note)
 			font = "small", size = 24, color = "text_soft", max_width = W - 100,
 		})
 	end)
+
+	-- the songbook: Bit writes the line of this level on a sheet; a finished song is announced with a way to hear it
+	if v.song then
+		add(SONG_H + GAP, function(y)
+			local sw = W - 80
+			local cy = y - GAP / 2
+			if v.song.ready then
+				local card = s:round(body, 0, cy, sw, SONG_H, "#FFD84D", { radius = 32 })
+				local inner = s:round(card, 0, 0, sw - 8, SONG_H - 8, "#FFF6D6", { radius = 28 })
+				kit.icon(e, inner, "notebook/stamp_ready", -sw / 2 + 58, 0, 84, "gold")
+				s:text(inner, i18n.t("win.song_ready"), -28, 24, { font = "title", size = 30, color = "gold", outline = "white", max_width = 270 })
+				kit.label(e, inner, songbook.title(v.song.district, v.song.title or 1), -28, -20, {
+					font = "button", size = 24, color = "purple", max_width = 270, lines = 1 })
+				s:button({ parent = inner, x = sw / 2 - 98, y = 0, w = 160, h = 88, style = "green", icon = "ui/icons/play", icon_size = 40,
+					text = i18n.t("win.song_open"), text_size = 24, on_click = function()
+						e:open("notebook", { district = v.song.district, celebrate = true })
+					end })
+				e:target("song_open", sw / 2 - 98, cy)
+				if animate and not kit.reduced() then
+					kit.pop_in(card, 1.6, 0.45)
+					e.fx:after(1.6, function() if alive() then e.fx:burst(e:abs(-sw / 2 + 58, cy)) end end)
+				end
+				return
+			end
+			-- the line: paper, a staff, Bit's pencil, the letters appearing one by one; a tap writes it at once
+			local sheet = s:round(body, 0, cy, sw, SONG_H, "#EAD9AE", { radius = 26 })
+			local paper = s:round(sheet, 0, 0, sw - 8, 92, "#FFF6DD", { radius = 22 })
+			for k = 1, 5 do s:round(paper, 40, -34 + k * 8 + 8, sw - 150, 2, "#D8C99D", { radius = 1 }) end
+			kit.icon(e, paper, "notebook/stationery_1", -sw / 2 + 52, -6, 60, "yellow")
+			s:text(paper, i18n.t("win.song_line"), 40, 32, { font = "small", size = 19, color = "text_soft", max_width = sw - 150 })
+			local text = songbook.line(v.song.district, v.song.line)
+			local n = songbook.length(text)
+			local node, info = s:text(paper, animate and "" or text, -sw / 2 + 96, -8, {
+				font = "body", size = 25, color = "#3B3355", pivot = gui.PIVOT_W, max_width = sw - 120 })
+			local done = false
+			local function finish()
+				if done then return end
+				done = true
+				s:set_text(node, text, info)
+				if animate and not kit.reduced() then
+					e.fx:pop(sheet, 0.08, 0.3)
+					e.fx:burst(e:abs(sw / 2 - 60, cy))
+				end
+			end
+			if animate and not kit.reduced() then
+				e.fx:count(0, n, math.min(1.4, 0.35 + n * 0.04), function(val)
+					if done or not alive() then return end
+					local k = math.floor(val + 0.5)
+					if k >= n then finish() else s:set_text(node, songbook.prefix(text, k), info) end
+				end, 0.5)
+				-- a tap on the sheet writes it at once
+				strip_button(e, sheet, sw, SONG_H, finish)
+			elseif animate then
+				finish()
+			end
+		end)
+	end
 
 	-- the hit streak
 	if v.streak.active and v.streak.count > 0 then
@@ -287,10 +395,14 @@ local function blocks(e, body, v, animate, alive, note)
 	-- boosters the core could not place come back
 	local back = refund_ids(e.params.refund)
 	if #back > 0 then
-		add(60 + GAP, function(y)
-			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
-				text = { key = "win.refund", vars = { names = names(back) } }, icon = views.booster_icon(back[1]),
-				size = 22, h = 60, color = "text",
+		-- the names wrap onto as many lines as they need (3-4 names do not fit one line at a readable size)
+		local text = { key = "win.refund", vars = { names = names(back) } }
+		local W_NOTE, SIZE = W - 80, 22
+		local nlines = s:text_lines(i18n.tr(text), "button", SIZE, W_NOTE - 60 - 36)
+		local h = math.max(60, math.ceil(nlines * SIZE * 1.25) + 24)
+		add(h + GAP, function(y)
+			lkit.note(e, body, 0, y - GAP / 2, W_NOTE, {
+				text = text, icon = views.booster_icon(back[1]), wrap = true, size = SIZE, h = h, color = "text",
 			})
 		end)
 	end
@@ -308,6 +420,11 @@ end
 function M.build(e)
 	local s = e.ui
 	local v = e.params.view
+	-- what QA reads from the state snapshot (tools/qa/web_screens.mjs)
+	app.ui.result = { level = v.level_id, stars = v.stars, best = v.best, gained = v.gained, score = v.score,
+		concert = v.concert, super_gained = v.super_gained, super_total = v.super_total,
+		to_next = v.scale and v.scale.left or nil, standalone = v.standalone,
+		song = v.song and { district = v.song.district, pos = v.song.pos, total = v.song.total, ready = v.song.ready } or nil }
 	local st = e.state
 	local animate = e.first and not st.played
 	st.played = true
@@ -351,12 +468,12 @@ function M.build(e)
 		lkit.pulse(nb.node, 0.03, 0.9)
 		local ty = -hh + 80
 		s:button({ parent = body, x = 0, y = ty, w = 340, h = 92, style = "blue", icon = "ui/icons/home", icon_size = 50,
-			text = i18n.t("win.town"), text_size = 34, on_click = function() e:close("town") end })
+			text = i18n.t(e.params.back == "map" and "win.map" or "win.town"), text_size = 34, on_click = function() e:close("town") end })
 		e:target("town", 0, ty)
 	else
 		local ty = -hh + 100
 		s:button({ parent = body, x = 0, y = ty, w = 440, h = 112, style = "green", icon = "ui/icons/home", icon_size = 58,
-			text = i18n.t("win.town"), text_size = 42, on_click = function() e:close("town") end })
+			text = i18n.t(e.params.back == "map" and "win.map" or "win.town"), text_size = 42, on_click = function() e:close("town") end })
 		e:target("town", 0, ty)
 		s:text(body, i18n.t("win.all_done"), 0, ty + 86, { font = "button", size = 26, color = "text_soft", max_width = W - 80 })
 	end
@@ -366,6 +483,10 @@ function M.build(e)
 		if not kit.reduced() then e.fx:confetti({ rate = 26, burst = 18, duration = 3.2 }) end
 		fx.buzz(40)
 	end
+end
+
+function M.closed(e)
+	app.ui.result = nil
 end
 
 function M.update(e, dt)

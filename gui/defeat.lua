@@ -53,7 +53,7 @@ function M.build(e)
 	local h_goals = tiles > 0 and 214 or 0
 	local h_lines = #lines > 0 and (#lines * 64 + 16) or 0
 	local H = 600 + h_goals + h_lines
-	local body, hh = kit.panel(e, W, H, { title = { key = "lose.title" }, close = false })
+	local body, hh = kit.panel(e, W, H, { title = { key = "lose.title" }, close = false, fit = true })
 
 	-- Bit, sad, with a word for the player
 	kit.bit(e, body, 0, hh - 150, 190, "sad")
@@ -86,7 +86,7 @@ function M.build(e)
 	lkit.pulse(rb.node, 0.03, 0.9)
 	local ty = -hh + 78
 	s:button({ parent = body, x = 0, y = ty, w = 360, h = 96, style = "blue", icon = "ui/icons/home", icon_size = 52,
-		text = i18n.t("lose.town"), text_size = 36, on_click = function() e:close("town") end })
+		text = i18n.t(e.params.back == "map" and "win.map" or "lose.town"), text_size = 36, on_click = function() e:close("town") end })
 	e:target("town", 0, ty)
 end
 

@@ -27,6 +27,8 @@ local qa_bridge = require("client.qa_bridge")
 local analytics = require("client.services.analytics")
 local iap = require("client.services.iap")
 local ads = require("client.services.ads")
+local auth = require("client.services.auth")
+local cloud = require("client.cloud")
 
 local FADE = 0.25
 local FADE_WATCHDOG = FADE + 1.5  -- seconds a fade may take before the manager moves on
@@ -45,7 +47,11 @@ end
 local function load_districts()
 	local data, err = sys.load_resource("/content/districts.json")
 	if not data then error("cannot load /content/districts.json: " .. tostring(err)) end
-	return json.decode(data)
+	local districts = json.decode(data)
+	-- the genres of the jukebox that are not districts ride along as districts.genres (meta/town.lua reads them)
+	local gdata = sys.load_resource("/content/genres.json")
+	if gdata then districts.genres = json.decode(gdata).genres end
+	return districts
 end
 
 -- screen state machine -------------------------------------------------------------------
@@ -208,12 +214,41 @@ local function qa_handlers(self)
 			app.reset_save(platform.random_seed(), app.now())
 			return { ok = true }
 		end,
+		-- the save code (meta/savecode.lua): `save_code` exports the current save, `save_import <code>` replaces it
+		-- as the settings window does after its confirmation (no window, no "behind" warning)
+		save_code = function()
+			local code, sum = app.export_code()
+			if not code then return { ok = false, error = tostring(sum) } end
+			return { ok = true, code = code, beaten = sum.beaten, coins = sum.coins, stars = sum.stars }
+		end,
+		save_import = function(args)
+			local tbl, sum = app.read_code(args[1] or "")
+			if not tbl then return { ok = false, error = tostring(sum) } end
+			local ok, why = app.replace_save(tbl, platform.random_seed(), app.now())
+			return { ok = ok, error = why, beaten = sum.beaten, coins = sum.coins, stars = sum.stars }
+		end,
 		toast = function(args, cmd)
 			app.toast(string.sub(cmd, 7))
 			return { ok = true }
 		end,
 		toast_key = function(args)
 			app.toast_key(args[1] or "toast.coming_soon")
+			return { ok = true }
+		end,
+		-- QA layout sweep: open a town window (popup shop boosters), and ask the scenes for the rectangles of their texts
+		-- (gui_bounds, answer in app.ui.bounds after a frame or two; windows built before the first call are not tracked)
+		popup = function(args)
+			local params
+			if args[2] then params = { tab = args[2], district = args[2] } end
+			if args[1] == "close" then app.close_popup() else app.open_popup(args[1] or "start", params) end
+			return { ok = true }
+		end,
+		gui_bounds = function()
+			local q = require("client.gui_qa")
+			q.track = true
+			q.out = {}
+			q.want = q.want + 1
+			app.ui.bounds = q.out
 			return { ok = true }
 		end,
 		modal = function(args)
@@ -254,6 +289,15 @@ local function qa_handlers(self)
 			local res, why = flow.debug_win(tonumber(args[1]) or 5, args[2] == "keep")
 			if not res then return { ok = false, error = why } end
 			return { ok = true, level = res.level_id, stars = app.meta:stars(), coins = app.meta:coins() }
+		end,
+		-- the next wins are rated with 1, 2 or 3 stars whatever the board scored; `off` goes back to the real score
+		qa_stars = function(args)
+			local n = tonumber(args[1])
+			if args[1] == "off" then n = nil elseif not (n and n >= 1 and n <= 3 and n == math.floor(n)) then
+				return { ok = false, error = "stars_1_2_3_or_off" }
+			end
+			require("client.level_end").qa_stars = n
+			return { ok = true, stars = n }
 		end,
 		music_stop = function()
 			audio.stop_music()
@@ -313,6 +357,11 @@ function init(self)
 		end,
 	})
 	ads.init({ debug = debug })
+	-- accounts and the cloud save (WP-10): the browser provider answers "available" only when web/auth_config.js
+	-- is filled in; without it the game is a guest game and the UI says sign-in is not available yet
+	if platform.is_html5() then auth.set_provider(require("client.services.auth_web").new()) end
+	cloud.init({ app = app, auth = auth, binding = save_io.account_backend() })
+	cloud.start()
 
 	self.busy = false
 	self.current = nil
@@ -338,6 +387,7 @@ function init(self)
 	hooks.on_window(function(event)
 		if event == "focus_lost" or event == "iconified" then
 			app.commit("background", true)
+			cloud.flush()
 			end_session(self)
 			bus.publish("app_focus", { focused = false, event = event })
 		elseif event == "focus_gained" or event == "deiconified" then
@@ -358,9 +408,15 @@ end
 
 function update(self, dt)
 	self.tick = self.tick + dt
+	self.auth_tick = (self.auth_tick or 0) + dt
+	if self.auth_tick >= 0.25 then -- the browser bridge answers by polling
+		self.auth_tick = 0
+		auth.tick(app.now())
+	end
 	if self.tick >= 1 then
 		self.tick = self.tick - 1
 		app.tick(app.now()) -- lives regenerate; a failed save is retried here
+		cloud.tick(app.now()) -- background cloud save and its retries (client/cloud.lua)
 	end
 	watchdog(self, dt)
 	qa_bridge.update()
@@ -392,7 +448,8 @@ local DEBUG_KEYS = {
 		app.toast_key("toast.debug_coins", { n = 1000 })
 	end,
 	[hash("debug_language")] = function()
-		app.set_setting("language", i18n.language() == "ru" and "en" or "ru")
+		local lang = i18n.language()
+		app.set_setting("language", lang == "en" and "ru" or lang == "ru" and "ko" or "en") -- en -> ru -> ko
 		app.toast_key("toast.language")
 	end,
 	[hash("debug_reset_save")] = function(self)

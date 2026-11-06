@@ -28,7 +28,7 @@ local META = { splash = true, town = true, nav = true, lives = true, start = tru
 local FILES = "gui/start.lua gui/shop.lua gui/settings.lua gui/lives.lua gui/jukebox.lua gui/concert.lua gui/chest.lua " ..
 	"gui/gift.lua gui/confirm.lua gui/kit.lua screens/town/hud.lua screens/town/scene.lua screens/town/show.lua " ..
 	"screens/town/steps.lua screens/town/town.gui_script screens/splash/splash.gui_script main/overlay.gui_script " ..
-	"main/app.script client/views.lua client/popups.lua client/meta_qa.lua client/flow.lua client/app.lua"
+	"main/app.script client/views.lua client/popups.lua client/meta_qa.lua client/flow.lua client/app.lua client/account.lua"
 
 describe("client/i18n.lua: the meta screens block", function()
 	it("has every key once, and the meta strings together in their own commented block", function()
@@ -59,7 +59,7 @@ describe("client/i18n.lua: the meta screens block", function()
 		local first, last = string.find(src, "META SCREENS:", 1, true), string.find(src, "end of META SCREENS", 1, true)
 		local block = string.sub(src, first, last)
 		local code = {}
-		local cmd = "find client gui screens main content tools/qa -type f ! -name i18n.lua " ..
+		local cmd = "find client gui screens main content tools/qa -type f ! -name i18n.lua ! -name i18n_ko.lua " ..
 			"\\( -name '*.lua' -o -name '*.script' -o -name '*.gui_script' -o -name '*.json' -o -name '*.mjs' \\)"
 		for _, f in ipairs(list(cmd)) do code[#code + 1] = read(f) end
 		local joined = table.concat(code, "\n")
