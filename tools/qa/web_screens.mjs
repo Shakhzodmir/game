@@ -323,12 +323,16 @@ async function debugChecks() {
 
 	// one song at a time: quick switches between a theme and songs; the engine holds at most two tracks (the one
 	// going out and the one coming in) and a pair sounds together for one crossfade at most
-	for (const id of ['rainy_window', 'bossa_breeze', 'neon_heartbeat', 'cafe', 'sleepy_cat']) {
-		await command(page, 'music ' + id);
+	const quick = async (id) => {
 		await sleep(250);
 		const s = (await state(page)).app.audio;
 		check(s.tracks >= 1 && s.tracks <= 2, 'audio: at most two tracks while switching (' + id + ')', s.tracks);
-	}
+	};
+	await command(page, 'music rainy_window'); await quick('rainy_window');
+	await command(page, 'music bossa_breeze'); await quick('bossa_breeze');
+	await command(page, 'music neon_heartbeat'); await quick('neon_heartbeat');
+	await command(page, 'music cafe'); await quick('cafe');
+	await command(page, 'music sleepy_cat'); await quick('sleepy_cat');
 	await sleep(1500);
 	const a6 = (await state(page)).app.audio;
 	check(a6.tracks === 1 && a6.song === 'sleepy_cat' && a6.xfade == null, 'audio: one song after the crossfade', { tracks: a6.tracks, song: a6.song });
