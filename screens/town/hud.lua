@@ -33,9 +33,9 @@ M.BIT_X, M.BIT_Y = 660, 398
 
 M.NAV = {
 	{ id = "shop", icon = "ui/icons/shop", label = "nav.shop" },
-	{ id = "band", icon = "ui/icons/team", label = "nav.band", soon = true },
+	{ id = "band", icon = "ui/icons/team", label = "nav.band" },
 	{ id = "town", icon = "ui/icons/city", label = "nav.town", active = true },
-	{ id = "chart", icon = "ui/icons/chart", label = "nav.chart", soon = true },
+	{ id = "chart", icon = "ui/icons/chart", label = "nav.chart" },
 	{ id = "jukebox", icon = "ui/icons/jukebox", label = "nav.jukebox" },
 }
 

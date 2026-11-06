@@ -83,6 +83,47 @@ end
 SETUPS.cloud_choose = with_decision(nil)
 SETUPS.cloud_foreign = with_decision("u999")
 
+-- chart and bands (WP-11): the mock server, the longest word names, a full band
+local function soc_env(app, opts)
+	opts = opts or {}
+	local auth = require("client.services.auth")
+	local social = require("client.services.social")
+	local rules = require("meta.social")
+	local now = 4 * 86400 + 3 * 604800 + 3600
+	local m = require("client.services.social_mock").new({ now = function() return now end })
+	m:seed(opts.bots or 0)
+	local a = require("client.services.auth_mock").new()
+	auth.set_provider(a)
+	require("client.social").reset()
+	if opts.server ~= false then social.set_provider(m) end
+	if opts.signed ~= false then
+		a.google_next = { sub = "me", email = "me@gmail.com" }
+		auth.sign_in_google(function() end)
+	end
+	if opts.profile then
+		m:profile_set(auth.user().uid, { a = 15, n = 12, d = 99 }, 12, function() end) -- the longest words
+	end
+	return m, auth.user() and auth.user().uid, rules
+end
+SETUPS.soc_unavailable = function(app) rich(app); soc_env(app, { server = false }) end
+SETUPS.soc_signin = function(app) rich(app); soc_env(app, { signed = false }) end
+SETUPS.soc_setup = function(app) rich(app); soc_env(app, {}) end
+SETUPS.soc_chart = function(app) rich(app); soc_env(app, { bots = 120, profile = true }) end
+SETUPS.soc_none = function(app) rich(app); soc_env(app, { bots = 3, profile = true }) end
+SETUPS.soc_band = function(app)
+	rich(app)
+	local m, uid, rules = soc_env(app, { bots = 0, profile = true })
+	m:band_create(uid, { a = 16, n = 13 }, function() end)
+	local code = m.players[uid].band
+	for i = 1, rules.BAND_MAX - 1 do
+		local id = "m" .. i
+		m.players[id] = { uid = id, seen = {}, day_sent = 0, day_got = 0, day = -1, inbox = 0, helped_by = {}, help_req = i % 3 == 0,
+			profile = { name = { a = 9, n = 12, d = 99 }, avatar = i % 12 + 1 }, band = code,
+			rec = { total = 99, level = 40, day = 0, day_gain = 0, week = rules.week_id(4 * 86400 + 3 * 604800 + 3600), week_base = 0, flags = 0 } }
+		m.bands[code].members[id] = { seq = 10 + i }
+	end
+end
+
 -- town windows: {name, params, setup name}
 local CASES = {
 	{ "start" }, { "start", nil, "rich" }, { "start", nil, "nolives" }, { "start", nil, "late" }, { "start", nil, "fresh" },
@@ -92,6 +133,9 @@ local CASES = {
 	{ "settings" }, { "settings", nil, "fresh" },
 	{ "account", nil, "acct_guest" }, { "account", { mode = "choice" }, "acct_guest" }, { "account", nil, "acct_id" },
 	{ "account", nil, "acct_google" }, { "cloud_choice", nil, "cloud_choose" }, { "cloud_choice", nil, "cloud_foreign" }, { "jukebox" }, { "jukebox", nil, "late" },
+	{ "chart", nil, "soc_unavailable" }, { "chart", nil, "soc_signin" }, { "chart", nil, "soc_setup" }, { "chart", nil, "soc_chart" },
+	{ "band", nil, "soc_unavailable" }, { "band", nil, "soc_signin" }, { "band", nil, "soc_setup" }, { "band", nil, "soc_none" },
+	{ "band", nil, "soc_band" },
 	{ "concert", { district = "cafe" } }, { "concert", { district = "cafe" }, "late" },
 	{ "chest", { kind = "level", level_id = 10, chest = { coins = 9999, boosters = { "stick", "riff", "crossfader" }, infinite_minutes = 15 } } },
 	{ "gift", { id = "riff" } }, { "gift", { id = "crossfader" } },
@@ -129,6 +173,8 @@ describe("text layout audit: town windows", function()
 			end)
 			require("client.cloud").reset()
 			require("client.services.auth").set_provider(nil)
+			require("client.services.social").set_provider(nil)
+			require("client.social").reset()
 		end, CASES)
 		fail_on(bad, "texts out of their boxes")
 	end)
