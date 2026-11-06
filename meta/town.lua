@@ -18,7 +18,8 @@
 -- track of the district; its song id is the district id) opens with the district's first stem,
 -- the extra songs of the genre (songs[] of the district in districts.json, single mixes) open
 -- with the district itself: a genre is open while its district is available (being built or
--- finished), whatever the progress inside it.
+-- finished), whatever the progress inside it. The genres of content/genres.json open the same way with the
+-- district they name; meta/config.lua genres_unlock = "all" opens every genre at once.
 
 local C = require("meta.config")
 local inventory = require("meta.inventory")
@@ -56,26 +57,50 @@ end
 
 local SONG_ID = "^[a-z][a-z0-9_]*$"
 
--- The catalogue of the jukebox: data.songs.by_id[id] = {id, district, theme}, and district.songs = the ids
+-- The catalogue of the jukebox: data.songs.by_id[id] = {id, district, theme, unlock}, and district.songs = the ids
 -- of the extra songs of the genre in file order. A song id is unique across the whole catalogue and is never
--- a district id (the audio engine tells a theme from a song by its id).
+-- a district id or a genre id (the audio engine tells a theme from a song by its id).
+--   district = the genre the song belongs to (a district id for the five district genres, else an id of
+--              content/genres.json), unlock = the district whose availability opens the genre.
+-- Extra genres (src.genres, content/genres.json: pop, blues, classical ...) are not districts: data.genres is their
+-- list (id, group, name, unlock = district id, songs = ids) and data.genre_by_id the same by id.
+local function check_song_id(where, s, by_id)
+	if type(s) ~= "table" or type(s.id) ~= "string" or #s.id > 40 or not string.match(s.id, SONG_ID) then
+		fail(where .. " needs an id of lower-case letters, digits and _ (like bossa_breeze)")
+	end
+	if by_id[s.id] then fail(where .. " repeats the id '" .. s.id .. "' (song and genre ids are unique and never a district id)") end
+end
+
 local function validate_songs(src, data)
 	data.songs = { by_id = {} }
+	data.genres, data.genre_by_id = {}, {}
 	for _, d in ipairs(data.list) do
-		data.songs.by_id[d.id] = { id = d.id, district = d.id, theme = true }
+		data.songs.by_id[d.id] = { id = d.id, district = d.id, theme = true, unlock = d.id }
 	end
 	for i, sd in ipairs(src.districts) do
 		local d = data.list[i]
 		d.songs = {}
 		if sd.songs ~= nil and type(sd.songs) ~= "table" then fail(d.id .. " songs must be a list") end
 		for j, s in ipairs(sd.songs or {}) do
-			local where = d.id .. " song " .. j
-			if type(s) ~= "table" or type(s.id) ~= "string" or #s.id > 40 or not string.match(s.id, SONG_ID) then
-				fail(where .. " needs an id of lower-case letters, digits and _ (like bossa_breeze)")
-			end
-			if data.songs.by_id[s.id] then fail(where .. " repeats the id '" .. s.id .. "' (song ids are unique and never a district id)") end
-			data.songs.by_id[s.id] = { id = s.id, district = d.id, theme = false }
+			check_song_id(d.id .. " song " .. j, s, data.songs.by_id)
+			data.songs.by_id[s.id] = { id = s.id, district = d.id, theme = false, unlock = d.id }
 			d.songs[#d.songs + 1] = s.id
+		end
+	end
+	if src.genres ~= nil and type(src.genres) ~= "table" then fail("genres must be a list") end
+	for i, g in ipairs(src.genres or {}) do
+		local where = "genre " .. i
+		if type(g) ~= "table" or type(g.id) ~= "string" or not string.match(g.id, SONG_ID) then fail(where .. " needs an id") end
+		if data.by_id[g.id] or data.genre_by_id[g.id] or data.songs.by_id[g.id] then fail(where .. " repeats the id '" .. g.id .. "'") end
+		if not data.by_id[g.district] then fail(where .. " (" .. g.id .. ") names an unknown district '" .. tostring(g.district) .. "'") end
+		local genre = { id = g.id, group = g.group, name = util.copy(g.name), unlock = g.district, songs = {} }
+		data.genres[#data.genres + 1] = genre
+		data.genre_by_id[g.id] = genre
+		for j, s in ipairs(g.songs or {}) do
+			check_song_id(g.id .. " song " .. j, s, data.songs.by_id)
+			if data.genre_by_id[s.id] then fail(g.id .. " song " .. j .. " repeats the id '" .. s.id .. "'") end
+			data.songs.by_id[s.id] = { id = s.id, district = g.id, theme = false, unlock = g.district }
+			genre.songs[#genre.songs + 1] = s.id
 		end
 	end
 end
@@ -221,7 +246,8 @@ end
 -- {id, district, theme} of a song of the catalogue (a theme is the id of its district), or nil. A copy.
 function M.song_info(data, id)
 	local info = type(id) == "string" and data.songs.by_id[id] or nil
-	return info and util.copy(info) or nil
+	if not info then return nil end
+	return { id = info.id, district = info.district, theme = info.theme }
 end
 
 -- Can the song be played now? "open"; "locked" (its genre is not open yet); "no_layers" (the theme of the
@@ -229,9 +255,11 @@ end
 function M.song_status(town, data, id)
 	local info = type(id) == "string" and data.songs.by_id[id] or nil
 	if not info then return nil end
-	local d = data.by_id[info.district]
-	if not M.is_available(town, data, d) then return "locked" end
-	if info.theme and not M.is_complete(town, d) and #M.unmuted(town, d) == 0 then return "no_layers" end
+	local d = data.by_id[info.unlock or info.district]
+	-- C.genres_unlock = "all": every genre is open from the start; a theme still needs a layer to play
+	if C.genres_unlock ~= "all" and not M.is_available(town, data, d) then return "locked" end
+	local own = data.by_id[info.district]
+	if info.theme and not M.is_complete(town, own) and #M.unmuted(town, own) == 0 then return "no_layers" end
 	return "open"
 end
 

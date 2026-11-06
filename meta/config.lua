@@ -120,6 +120,11 @@ C.languages = { "auto", "en", "ru", "ko" }
 -- District scene look, a cosmetic toggle.
 C.views = { "day", "concert" }
 
+-- Jukebox genres. "districts": a genre opens with its district (the first one has Lo-fi and the genres that
+-- name it in content/genres.json); "all": every genre and every song is open from the start (a district theme
+-- still needs a built layer). The pick saved in prefs.song is valid in both modes.
+C.genres_unlock = "districts"
+
 C.save_version = 1
 
 return C

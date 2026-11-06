@@ -136,7 +136,7 @@ function M.install(opts)
 	E.receivers = {}       -- url text -> script (messages posted to it are delivered by E.pump)
 	E.input_stack = {}     -- scripts that took input focus, the last one is asked first
 	E.unrouted = {}        -- messages nobody receives (main:/app, main:/audio#audio, ...)
-	E.sounds = { played = {}, stopped = {}, gains = {}, group_gains = {} }
+	E.sounds = { played = {}, stopped = {}, gains = {}, group_gains = {}, live = {} }
 	E.limits.animations = tonumber(E.project["gui.max_animation_count"]) or 1024
 	E.limits.characters = tonumber(E.project["graphics.max_characters"]) or 8192
 	E.custom_resources = parse_custom_resources(E.project)
@@ -188,9 +188,22 @@ function M.install(opts)
 
 	-- sound: recorded, no mixing ---------------------------------------------------------------------------
 	local sound = {}
-	function sound.play(url, props, cb) E.sounds.played[#E.sounds.played + 1] = { url = tostring(url), props = props } end
-	function sound.stop(url) E.sounds.stopped[#E.sounds.stopped + 1] = tostring(url) end
-	function sound.set_gain(url, g) E.sounds.gains[tostring(url)] = g end
+	-- `live`: the components that sound now (played and not stopped) with their gain: a component is one voice
+	-- group, set_gain and stop act on all of its voices (like Defold)
+	function sound.play(url, props, cb)
+		local u = tostring(url)
+		E.sounds.played[#E.sounds.played + 1] = { url = u, props = props }
+		E.sounds.live[u] = { gain = props and props.gain or 1 }
+	end
+	function sound.stop(url)
+		E.sounds.stopped[#E.sounds.stopped + 1] = tostring(url)
+		E.sounds.live[tostring(url)] = nil
+	end
+	function sound.set_gain(url, g)
+		E.sounds.gains[tostring(url)] = g
+		local l = E.sounds.live[tostring(url)]
+		if l then l.gain = g end
+	end
 	function sound.set_group_gain(group, g) E.sounds.group_gains[name_of(group) or tostring(group)] = g end
 	function sound.get_rms(group, window_s) return 0, 0 end
 	rawset(_G, "sound", sound)
@@ -1421,6 +1434,9 @@ function M.boot(opts)
 		local f = assert(io.open("content/districts.json", "r"))
 		local districts = json.decode(f:read("*a"))
 		f:close()
+		local g = assert(io.open("content/genres.json", "r"))
+		districts.genres = json.decode(g:read("*a")).genres
+		g:close()
 		analytics.init({ strict = true })
 		rewards.clear()
 		E.backend = opts.backend or save_io.memory_backend()

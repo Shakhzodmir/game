@@ -16,7 +16,7 @@
 --   views.shop_boosters(meta)                --> every booster pack
 --   views.shop_products(products, available) --> coin packs of the store
 --   views.refill(meta, now)                  --> the refill button
---   views.jukebox(meta, districts_by_id)     --> the genre tabs and the songs of each
+--   views.jukebox(meta, districts_by_id, genres_by_id) --> the genre tabs and the songs of each
 --   views.chest_items(chest)                 --> what a chest holds, in reveal order
 --   views.gift(id, config)                   --> an unlock gift
 --   views.settings(meta)                     --> the settings window
@@ -61,6 +61,9 @@ M.PRODUCTS = {
 function M.booster_icon(id)
 	return M.BOOSTER_ICON[id] or "ui/icons/gift"
 end
+
+-- The colour of the genre tabs that are not districts, by group (content/genres.json group).
+M.GROUP_COLORS = { classic = "#C9A7FF", traditional = "#FFB86B", modern = "#6FD3FF" }
 
 function M.district_color(index)
 	local c = M.DISTRICT_COLORS
@@ -292,7 +295,7 @@ end
 -- done / total / stems = the layers built); the rows after it are the songs of the genre
 -- (content/districts.json songs[]): playable at once in an open genre. row = {id, district, index (1 = the theme),
 -- theme, name, color, state, bpm, done, total, stems, prev_name, playable, playing}.
-function M.jukebox(meta, districts_by_id)
+function M.jukebox(meta, districts_by_id, genres_by_id)
 	local list = meta:districts()
 	local chosen = meta:song()
 	local tabs, songs = {}, {}
@@ -329,7 +332,30 @@ function M.jukebox(meta, districts_by_id)
 		songs[d.id] = rows
 		tabs[i] = {
 			id = d.id, index = d.index, genre = data and data.genre or d.name, name = d.name, color = color,
-			state = state, count = #rows, prev_name = prev_name, playing = playing,
+			state = state, count = #rows, prev_name = prev_name, playing = playing, group = "district",
+		}
+	end
+	-- the genres that are not districts (content/genres.json): classical, traditional, modern; a row per song and
+	-- no layered theme. state "open" | "locked" (the district that opens it is not available yet).
+	for _, g in ipairs(meta.genres and meta:genres() or {}) do
+		local data = genres_by_id and genres_by_id[g.id] or nil
+		local color = M.GROUP_COLORS[g.group] or "#B79CFF"
+		local state = g.open and "open" or "locked"
+		local prev_name = list[g.unlock_index - 1] and list[g.unlock_index - 1].name or nil
+		local rows, playing = {}, false
+		for j, sid in ipairs(g.songs) do
+			local s = data and data.songs and data.songs[j] or nil
+			rows[j] = {
+				id = sid, district = g.id, index = j, theme = false, name = s and s.name or { en = sid }, color = color,
+				state = state, done = 0, total = 0, stems = 0, prev_name = prev_name, bpm = s and s.bpm or nil,
+				playable = g.open, playing = chosen == sid,
+			}
+			if chosen == sid then playing = true end
+		end
+		songs[g.id] = rows
+		tabs[#tabs + 1] = {
+			id = g.id, index = #tabs + 1, genre = g.name, name = g.name, color = color, state = state, count = #rows,
+			prev_name = prev_name, playing = playing, group = g.group, icon = "ui/genres/" .. g.id,
 		}
 	end
 	return { tabs = tabs, songs = songs, chosen = chosen }

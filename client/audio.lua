@@ -12,7 +12,12 @@
 --   audio.music(song_id)                a jukebox song: ONE mix, no layers (tension / party do nothing);
 --                                       it plays in the key of its genre, so notes and effects follow it
 --                                       (a district id and a song id never clash: meta/town.lua checks)
---   audio.stop_music(fade_seconds)
+--   audio.stop_music(fade_seconds)      the track fades out over TRACK_CROSSFADE (nothing cuts hard)
+--
+-- ONE SONG AT A TIME. Every request for another track (a district theme or a jukebox song) is a crossfade of
+-- TRACK_CROSSFADE seconds: the new track comes in while the old one (the "outgoing deck") goes out; then the old
+-- one is stopped. At most two tracks exist at any moment: a third request cuts the outgoing deck at once. A
+-- request for the track that already plays changes no track (only its layers follow: `all` / `party`).
 --   audio.unlock_stem(district_id, stem)  0 -> 1 crossfade over 0.5 s
 --   audio.layer("tension" | "party", on) the extra stems of every track; the
 --                                       two are never on together (party wins)
@@ -48,6 +53,7 @@ M.MAX_STEP = 10          -- pentatonic steps 0..10 -> files <color>_1 .. <color>
 M.MAX_TRANSPOSE = 7      -- semitones either way (keeps resampling artefacts low)
 M.QUANTIZE_DIVISION = 32 -- 1/32 notes
 M.CROSSFADE = 0.5        -- seconds, stem unlock
+M.TRACK_CROSSFADE = 0.8  -- seconds, one track (a district theme or a song) giving way to the next
 M.LEVEL_DUCK_DB = -6
 M.COMBO_DUCK_DB = -3     -- on top of the level duck: -9 dB in a big combo
 M.COMBO_HOLD = 1.5       -- seconds the combo duck lasts after the last big combo
@@ -76,6 +82,15 @@ M.status = {
 }
 
 -- pure maths ---------------------------------------------------------------------------
+
+-- Equal-power crossfade `t` seconds into one of `dur`: the gain factor of the track coming in and of the one
+-- going out (both exactly 1 / 0 at the ends, so a finished fade leaves nothing behind).
+function M.xfade_gains(t, dur)
+	if not dur or dur <= 0 or t >= dur then return 1, 0 end
+	if t <= 0 then return 0, 1 end
+	local a = math.pi / 2 * t / dur
+	return math.sin(a), math.cos(a)
+end
 
 -- Pentatonic step of a cascade wave: min(wave - 1, 10), never below 0.
 function M.note_step(wave)

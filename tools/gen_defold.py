@@ -531,10 +531,11 @@ def sounds_manifest(warnings):
 
 
 def song_catalogue():
-    """Ids of the jukebox songs named by content/districts.json (songs[] of every district)."""
+    """Ids of the jukebox songs named by content/districts.json and content/genres.json (songs[] of every genre)."""
     data = load_json(rel("content", "districts.json")) or {}
+    extra = load_json(rel("content", "genres.json")) or {}
     out = []
-    for d in data.get("districts", []):
+    for d in list(data.get("districts", [])) + list(extra.get("genres", [])):
         for s in (d.get("songs") or []) if isinstance(d, dict) else []:
             if isinstance(s, dict) and isinstance(s.get("id"), str):
                 out.append(s["id"])
