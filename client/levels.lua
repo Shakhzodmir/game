@@ -13,6 +13,7 @@
 -- (client/flow.lua), so the level does not read the file again.
 
 local level_floor = require("client.level_floor")
+local stars = require("meta.stars")
 
 local M = {}
 
@@ -132,8 +133,31 @@ function M.tag(difficulty)
 	return nil
 end
 
+-- Star thresholds (content/levels/stars.json, meta/stars.lua): decoded once, cached; a missing or broken
+-- file reads as "no thresholds" (every win is then 1 star, nothing is a concert).
+M.STARS_PATH = "/content/levels/stars.json"
+local star_table = nil
+
+function M.star_data()
+	if star_table == nil then
+		local text = read(M.STARS_PATH)
+		star_table = (text and decode(text)) or false
+	end
+	return star_table or nil
+end
+
+-- {kind = "normal" | "concert", t = {t1, t2, t3}} of a level, or nil.
+function M.stars(n)
+	return stars.entry(M.star_data(), n)
+end
+
+function M.is_concert(n)
+	return stars.is_concert(M.star_data(), n)
+end
+
 -- Test hook.
 function M._reset()
+	star_table = nil
 	cache, order = {}, {}
 	M.read, M.decode = nil, nil
 end
