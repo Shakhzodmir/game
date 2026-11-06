@@ -27,7 +27,7 @@
 --   lives_tick        {now}                 once per second, for timers
 --   save_failed       {error, streak}       a save write failed (retried every second)
 --   save_recovered    {after}               the first successful save after failures
---   save_reset        {}                    debug: the save was wiped
+--   save_reset        {}                    the save was wiped (debug) or replaced (a save code)
 --   app_focus         {focused, event}      focus / iconify changes (client/hooks.lua)
 --
 -- A subscriber that stops draining (a disabled screen) cannot grow without

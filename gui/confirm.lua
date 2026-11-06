@@ -1,6 +1,6 @@
 -- A yes / no question on top of another window (reset progress, ...).
 -- params = {title, text (strings or {key, vars}), confirm = {text, style},
---           cancel = {text}, on_confirm = fn()}
+--           cancel = {text}, on_confirm = fn(), icon, h = taller window (a long text)}
 -- Result: "confirm" or "cancel" / "close".
 
 local i18n = require("client.i18n")
@@ -8,15 +8,18 @@ local kit = require("gui.kit")
 
 local M = {}
 
-local W, H = 580, 560
+local W, H0 = 580, 560
 
 function M.build(e)
 	local s = e.ui
 	local p = e.params
+	local H = p.h or H0
 	local body, hh = kit.panel(e, W, H, { title = p.title or { key = "common.ok" } })
 	kit.icon(e, body, p.icon or "ui/icons/retry", 0, hh - 120, 96, "pink")
-	s:text(body, i18n.tr(p.text or ""), 0, 20, {
-		font = "body", size = 30, color = "text", width = W - 90, height = 220,
+	local ty, th = 20, 220
+	if p.h then ty, th = -13, H - 320 end -- a taller window: the text takes what the icon and the buttons leave
+	s:text(body, i18n.tr(p.text or ""), 0, ty, {
+		font = "body", size = 30, color = "text", width = W - 90, height = th,
 	})
 	local cancel = p.cancel or {}
 	s:button({ parent = body, x = -130, y = -hh + 90, w = 230, h = 100, style = "blue",

@@ -1,6 +1,7 @@
 -- Settings: music and sound volumes (sliders: heard live while dragging,
 -- saved on release), vibration, reduced motion, controls (swipe / tap-tap),
--- language (auto / English / Russian), reset progress (with a confirmation)
+-- language (auto / English / Russian), the save code (copy it, or enter one and
+-- replace the progress after a confirmation), reset progress (with a confirmation)
 -- and the version. Every value goes through app.set_setting (the meta
 -- validates it, the save follows).
 
@@ -13,7 +14,7 @@ local kit = require("gui.kit")
 
 local M = {}
 
-local W, H = 640, 1100
+local W, H = 640, 1340
 
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
 -- offers that has no label yet (a new language needs its strings first) is left out.
@@ -67,10 +68,78 @@ local function reset(e)
 	})
 end
 
+-- save code ---------------------------------------------------------------------------------
+
+local CODE_ERRORS = {
+	empty = "code.empty", prefix = "code.err_prefix", version = "code.err_version", format = "code.err_damaged",
+	checksum = "code.err_damaged", corrupt = "code.err_damaged", too_long = "code.err_damaged", bad_save = "code.err_bad_save",
+}
+M.CODE_ERRORS = CODE_ERRORS
+
+function M.copy_code()
+	local code = app.export_code()
+	if not code then
+		app.toast_key("code.copy_failed", nil, { color = "pink" })
+		return false
+	end
+	local how = platform.copy_text(code, i18n.t("code.prompt_copy"))
+	if how == "clipboard" then
+		app.toast_key("code.copied", nil, { color = "gold" })
+	elseif how == "prompt" then
+		app.toast_key("code.shown", nil, { color = "blue" })
+	else
+		app.toast_key("code.copy_failed", nil, { color = "pink" })
+		return false
+	end
+	return true
+end
+
+-- What the confirmation says about a code: its levels, coins and stars, a warning when it holds less.
+function M.code_text(sum, behind, now)
+	local lines = {
+		{ key = "code.confirm_levels", vars = { n = sum.beaten } },
+		{ key = "code.confirm_coins", vars = { n = i18n.number(sum.coins) } },
+		{ key = "code.confirm_stars", vars = { n = sum.stars } },
+	}
+	if behind then lines[#lines + 1] = { key = "code.confirm_behind", vars = { n = now and now.beaten or 0 } } end
+	lines[#lines + 1] = { key = "code.confirm_keep" }
+	return { lines = lines }
+end
+
+function M.enter_code(e)
+	local text = platform.paste_text(i18n.t("code.prompt_paste"))
+	if not text then
+		app.toast_key("code.empty", nil, { color = "pink" })
+		return false
+	end
+	local tbl, sum, behind, now = app.read_code(text)
+	if not tbl then
+		app.toast_key(CODE_ERRORS[sum] or "code.err_bad_save", nil, { color = "pink" })
+		return false
+	end
+	e:open("confirm", {
+		title = { key = "code.confirm_title" },
+		text = M.code_text(sum, behind, now),
+		icon = "ui/icons/city",
+		h = 760,
+		confirm = { text = { key = "code.confirm_do" }, style = behind and "pink" or "green" },
+		on_confirm = function()
+			local ok = app.replace_save(tbl, platform.random_seed(), app.now())
+			if not ok then
+				app.toast_key("code.write_failed", nil, { color = "pink" })
+				return
+			end
+			app.toast_key("code.done", nil, { color = "gold" })
+			app.show_screen("splash", { from = "import" })
+		end,
+	})
+	return true
+end
+
 function M.build(e)
 	local s = e.ui
 	local v = views.settings(app.meta)
-	local body, hh = kit.panel(e, W, H, { title = { key = "settings.title" } })
+	local body, hh = kit.panel(e, W, H, { title = { key = "settings.title" }, fit = true })
 	local y = hh - 110
 	kit.section(e, body, i18n.t("settings.sound"), 0, y, W - 80)
 	volume_row(e, body, "music", "settings.music", "ui/icons/music_on", "ui/icons/music_off", y - 86, v.music)
@@ -105,6 +174,16 @@ function M.build(e)
 		app.set_setting("language", id) -- the host rebuilds every window on language_changed
 		e:rebuild()
 	end, { h = 84, text_size = 26, targets = "lang" })
+
+	-- save code
+	y = y - 150
+	kit.section(e, body, i18n.t("settings.code_section"), 0, y, W - 80)
+	s:button({ parent = body, x = 0, y = y - 90, w = 520, h = 92, style = "blue", icon = "ui/icons/city", icon_size = 46,
+		text = i18n.t("settings.code_copy"), text_size = 28, on_click = function() M.copy_code() end })
+	e:target("code_copy", 0, y - 90)
+	s:button({ parent = body, x = 0, y = y - 196, w = 520, h = 92, style = "blue", icon = "ui/icons/city", icon_size = 46,
+		text = i18n.t("settings.code_enter"), text_size = 28, on_click = function() M.enter_code(e) end })
+	e:target("code_enter", 0, y - 196)
 
 	-- reset + version
 	local ry = -hh + 110

@@ -208,6 +208,19 @@ local function qa_handlers(self)
 			app.reset_save(platform.random_seed(), app.now())
 			return { ok = true }
 		end,
+		-- the save code (meta/savecode.lua): `save_code` exports the current save, `save_import <code>` replaces it
+		-- as the settings window does after its confirmation (no window, no "behind" warning)
+		save_code = function()
+			local code, sum = app.export_code()
+			if not code then return { ok = false, error = tostring(sum) } end
+			return { ok = true, code = code, beaten = sum.beaten, coins = sum.coins, stars = sum.stars }
+		end,
+		save_import = function(args)
+			local tbl, sum = app.read_code(args[1] or "")
+			if not tbl then return { ok = false, error = tostring(sum) } end
+			local ok, why = app.replace_save(tbl, platform.random_seed(), app.now())
+			return { ok = ok, error = why, beaten = sum.beaten, coins = sum.coins, stars = sum.stars }
+		end,
 		toast = function(args, cmd)
 			app.toast(string.sub(cmd, 7))
 			return { ok = true }
