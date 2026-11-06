@@ -141,6 +141,18 @@ describe("client.level_anim", function()
 		assert_true(find(A:frame(ps, 56, 0), 4).sx < 1)
 	end)
 
+	it("keeps the bonus bar's gift invisible while it flies in, then blooms it", function()
+		local g = G()
+		local A = level_anim.new({ geom = g })
+		A:event({ type = "bonus", t = 30, id = 9, x = 4, y = 3, special = "bird" }, 1.0)
+		local ps = { piece(9, 4, 3, { kind = "special", special = "bird" }) }
+		assert_eq(find(A:frame(ps, 30, 1.0 + level_anim.BONUS_DELAY / 2), 9).sx, 0)
+		local s = find(A:frame(ps, 40, 1.0 + level_anim.BONUS_DELAY + 0.05), 9)
+		assert_true(s.sx > 0 and s.sx < 1.2)
+		assert_true(s.flash > 0.5)
+		assert_near(find(A:frame(ps, 90, 3.0), 9).sx, 1, 1e-9)
+	end)
+
 	it("flies the pieces of a group into the cell of its new special, which grows 0 -> 1.2 -> 1", function()
 		local g = G()
 		local A = level_anim.new({ geom = g })

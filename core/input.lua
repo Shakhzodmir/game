@@ -232,6 +232,34 @@ local function do_continue(s, cmd)
 	return true, "ok"
 end
 
+-- The bonus meter's gift (client/bonus_meter.lua): a random free regular piece becomes the named special
+-- ("riff" | "sub" | "bird" | "disco"). Between ticks, at rest, while playing; no move is spent, nothing is
+-- scheduled. The piece is drawn with the init stream (the one `continue` uses), a Riff's axis with it too.
+-- Event `bonus` {id, x, y, special, axis}. Refusals: bad_cmd, bad_state, not_rest, no_candidates (the client
+-- keeps the gift and asks again at the next rest).
+local BONUS_SPECIAL = { riff = C.SP_RIFF, sub = C.SP_SUB, bird = C.SP_BIRD, disco = C.SP_DISCO }
+local function do_bonus(s, cmd)
+	local code = type(cmd.special) == "string" and BONUS_SPECIAL[cmd.special] or nil
+	if not code then return false, "bad_cmd" end
+	if s.state ~= C.G_PLAYING then return false, "bad_state" end
+	if not s.rest_flag then return false, "not_rest" end
+	local cands = {}
+	for i = 1, s.N do
+		local o = B.get(s, i)
+		if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 then cands[#cands + 1] = o end
+	end
+	if #cands == 0 then return false, "no_candidates" end
+	local o = cands[R.int(s.rng[R.INIT], #cands)]
+	local axis = 0
+	if code == C.SP_RIFF then axis = R.int(s.rng[R.INIT], 2) == 1 and C.AX_H or C.AX_V end
+	o.kind, o.special, o.axis, o.color, o.blocker, o.hp = C.K_SPECIAL, code, axis, 0, 0, 0
+	local x, y = U.xy(s.W, o.cell)
+	local ev = { id = o.id, x = x, y = y, special = C.SPECIAL_NAME[code] }
+	if axis ~= 0 then ev.axis = C.AXIS_NAME[axis] end
+	E.emit(s, "bonus", ev)
+	return true, "ok"
+end
+
 -- Switch to turbo between ticks (15.1.8).
 function I.switch_turbo(s)
 	local now = s.tick + 1
@@ -262,6 +290,7 @@ local HANDLERS = {
 	swap = do_swap,
 	tap = do_tap,
 	booster = do_booster,
+	bonus = do_bonus,
 	["continue"] = do_continue,
 	give_up = function(s)
 		if s.state ~= C.G_OUT then return false, "bad_state" end
