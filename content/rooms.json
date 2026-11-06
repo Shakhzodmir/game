@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "note": "Living rooms of the town (screens/town/life.lua). Coordinates are the picture's (720x1280, y from the top, as in district_layouts.json). Layers, bottom to top: bg (sky, picture) < mid < items < fg; each slides with its own factor while paging districts (parallax). A detail with `item` appears when that task is restored, `view` limits it to the day or the concert look. Kinds: blink (lights), steam (puffs rising), notes (floating notes), motes (drifting specks: dust | sparkle | confetti | ember), shaft (a beam of light), bokeh (big soft lights in the foreground). At most `budget` GUI nodes per room.",
+  "budget": 44,
+  "parallax": { "bg": 1.0, "mid": 1.08, "items": 1.16, "fg": 1.34 },
+  "drift": { "mid": 4, "fg": 9 },
+  "crossfade": 0.6,
+  "districts": {
+    "cafe": {
+      "mood": "cosy",
+      "details": [
+        { "kind": "shaft", "x": 300, "y": 190, "w": 190, "h": 880, "angle": 16, "layer": "mid", "view": "day", "color": "#FFF1B8", "alpha": [0.1, 0.2], "period": 5.5 },
+        { "kind": "motes", "style": "dust", "rect": [150, 240, 380, 620], "count": 9, "layer": "mid", "view": "day", "color": "#FFE9A8" },
+        { "kind": "blink", "points": [[80, 52], [200, 58], [320, 52], [440, 58], [560, 52]], "r": 26, "layer": "mid", "colors": ["#FFD84D", "#FF8FBE", "#7BE8C0"], "period": 1.8 },
+        { "kind": "blink", "item": "lamps", "points": [[300, 372], [420, 372]], "r": 70, "layer": "items", "colors": ["#FFE9A0"], "period": 2.6, "alpha": [0.25, 0.55] },
+        { "kind": "notes", "item": "turntable", "x": 370, "y": 640, "count": 3, "layer": "items", "colors": ["#FF8FBE", "#7BE8C0", "#FFD84D"], "rise": 190, "period": 3.4 },
+        { "kind": "steam", "item": "piano", "x": 170, "y": 556, "count": 3, "size": 52, "rise": 120, "period": 3.2, "layer": "items", "color": "#FFFFFF" },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
+    },
+    "jazz": {
+      "mood": "velvet",
+      "details": [
+        { "kind": "shaft", "x": 190, "y": 60, "w": 150, "h": 760, "angle": 12, "layer": "mid", "color": "#FFE9A8", "alpha": [0.1, 0.22], "period": 4.6 },
+        { "kind": "shaft", "x": 530, "y": 60, "w": 150, "h": 760, "angle": -12, "layer": "mid", "color": "#BFFFE8", "alpha": [0.08, 0.18], "period": 5.4 },
+        { "kind": "blink", "points": [[40, 640], [140, 640], [240, 640], [340, 640], [440, 640], [540, 640], [640, 640]], "r": 30, "layer": "mid", "colors": ["#FFE98A", "#FFB347"], "period": 1.2 },
+        { "kind": "motes", "style": "sparkle", "rect": [60, 200, 600, 560], "count": 8, "layer": "mid", "color": "#FFF3B0" },
+        { "kind": "notes", "item": "sax", "x": 376, "y": 600, "count": 3, "layer": "items", "colors": ["#FFD84D", "#C9A7FF", "#7BE8C0"], "rise": 210, "period": 3.8 },
+        { "kind": "blink", "item": "neon", "points": [[160, 322]], "r": 150, "layer": "items", "colors": ["#FF4FD8"], "period": 1.5, "alpha": [0.2, 0.6] },
+        { "kind": "bokeh", "count": 2, "layer": "fg", "colors": ["#FFE9A8", "#FFB3D9"], "size": [150, 230], "y": [900, 1150] }
+      ]
+    },
+    "square": {
+      "mood": "festive",
+      "details": [
+        { "kind": "motes", "style": "confetti", "rect": [0, 80, 720, 520], "count": 10, "layer": "fg", "colors": ["#FF4D8D", "#FFDB1A", "#3AA4FF", "#2BE38F", "#9B52FF"] },
+        { "kind": "shaft", "x": 120, "y": 40, "w": 200, "h": 700, "angle": -20, "layer": "mid", "view": "day", "color": "#FFF6C8", "alpha": [0.08, 0.16], "period": 6.0 },
+        { "kind": "steam", "item": "fountain", "x": 330, "y": 600, "count": 4, "size": 46, "rise": 150, "period": 2.4, "layer": "items", "color": "#BFE8FF" },
+        { "kind": "blink", "item": "lanterns", "points": [[106, 470], [60, 560], [150, 560]], "r": 80, "layer": "items", "colors": ["#FFB347", "#FF8FBE"], "period": 2.2, "alpha": [0.25, 0.6] },
+        { "kind": "notes", "item": "tuba", "x": 600, "y": 470, "count": 3, "layer": "items", "colors": ["#FFDB1A", "#FF4D8D", "#3AA4FF"], "rise": 200, "period": 3.6 },
+        { "kind": "blink", "points": [[60, 150], [180, 130], [300, 150], [420, 130], [540, 150], [660, 130]], "r": 28, "layer": "mid", "view": "concert", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "period": 1.4 }
+      ]
+    },
+    "stadium": {
+      "mood": "electric",
+      "details": [
+        { "kind": "blink", "points": [[36, 100], [684, 100]], "r": 120, "layer": "mid", "colors": ["#FFFFFF"], "period": 2.2, "alpha": [0.2, 0.6] },
+        { "kind": "motes", "style": "sparkle", "rect": [40, 140, 640, 520], "count": 10, "layer": "mid", "color": "#FFFFFF" },
+        { "kind": "shaft", "item": "lasers", "x": 578, "y": 330, "w": 60, "h": 620, "angle": 28, "layer": "items", "color": "#3CF2FF", "alpha": [0.15, 0.4], "period": 2.3 },
+        { "kind": "blink", "item": "lightsticks", "points": [[520, 660], [560, 640], [600, 660]], "r": 60, "layer": "items", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "period": 0.55, "alpha": [0.3, 0.8] },
+        { "kind": "steam", "item": "fog", "x": 150, "y": 740, "count": 4, "size": 120, "rise": 70, "period": 4.4, "layer": "items", "color": "#E8DCFF" },
+        { "kind": "motes", "style": "sparkle", "item": "fireworks", "rect": [60, 230, 230, 400], "count": 5, "layer": "items", "color": "#FFE066" },
+        { "kind": "bokeh", "count": 3, "layer": "fg", "view": "concert", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "size": [160, 260], "y": [850, 1200] }
+      ]
+    },
+    "garage": {
+      "mood": "gritty-warm",
+      "details": [
+        { "kind": "shaft", "x": 420, "y": 250, "w": 220, "h": 780, "angle": 18, "layer": "mid", "view": "day", "color": "#FFF1B8", "alpha": [0.1, 0.2], "period": 6.2 },
+        { "kind": "motes", "style": "dust", "rect": [300, 320, 360, 560], "count": 9, "layer": "mid", "color": "#FFE2A0" },
+        { "kind": "blink", "item": "amp", "points": [[88, 600], [134, 600]], "r": 36, "layer": "items", "colors": ["#FF4D4D", "#FFB347"], "period": 0.9, "alpha": [0.3, 0.9] },
+        { "kind": "motes", "style": "ember", "item": "drum_kit", "rect": [180, 560, 220, 120], "count": 6, "layer": "items", "color": "#FFB347" },
+        { "kind": "notes", "item": "bass_guitar", "x": 232, "y": 380, "count": 3, "layer": "items", "colors": ["#FF4D4D", "#FFB347", "#9B52FF"], "rise": 180, "period": 3.4 },
+        { "kind": "blink", "points": [[100, 140], [260, 140], [420, 140], [580, 140]], "r": 40, "layer": "mid", "view": "concert", "colors": ["#FF4D8D", "#FFB347", "#3CF2FF"], "period": 1.1 }
+      ]
+    }
+  }
+}
