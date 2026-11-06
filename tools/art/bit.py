@@ -293,7 +293,7 @@ def _deck(cv):
 def draw_bit(pose):
     P = dict(lean=0.0, sx=1.0, sy=1.0, dy=0.0, arms=(20, 20), feet=(0.0, 0.0), eyes="open", mouth="smile",
              brows=None, droop=0.0, look=(0.0, 0.0), ears=False, deck=False)
-    P.update(POSES[pose])
+    P.update(POSES[pose] if isinstance(pose, str) else pose)
     lay = Canvas(256, 256)
     droop = P["droop"]
     if not P["deck"]:
@@ -382,3 +382,112 @@ POSES = {
                 extras=[_extras_sad]),
 }
 POSE_ORDER = ["idle", "dance_a", "dance_b", "happy", "worried", "scratch", "sad"]
+
+
+# ------------------------------------------------------------------ flipbook frames
+# The animations of client/anim.lua (content/animations.json): `bit/<anim>_<n>.png`, 256x256, every frame stands on
+# the same ground line. The producer's art (docs/art-brief-chatgpt.md, group A1) replaces these under the same names
+# (tools/art/install_ready.py); anything not replaced stays this procedural drawing.
+def _zzz(cv, x, y, s, a=1.0):
+    X, Y = cv.X, cv.Y
+    for k in range(2):
+        zx, zy, z = x + k * 22 * s, y - k * 26 * s, (11 - 2 * k) * s
+        pts = [(zx - z, zy - z), (zx + z, zy - z), (zx - z, zy + z), (zx + z, zy + z)]
+        cv.fill(sd_polyline(X, Y, pts) - 3.6 * s, "#FFFFFF", a)
+        cv.fill(sd_polyline(X, Y, pts) - 2.2 * s, "#7B4FFF", a)
+
+
+def _extras_notepad(k):
+    def f(cv):
+        X, Y = cv.X, cv.Y
+        pad = lambda: sd_rect(X, Y, 150, 176, 236, 238, 6)
+        cv.fill(pad() - 3, "#B3A0E8")
+        cv.fill(pad(), "#FFFDF4")
+        for ly in (194, 207, 220):
+            cv.fill(sd_capsule(X, Y, 160, ly, 160 + 52 - (k % 3) * 6, ly, 1.3), "#C9B8F4")
+        x = 168 + (k % 3) * 14
+        y = 190 + (k % 2) * 9
+        cv.fill(sd_capsule(X, Y, x, y, x + 34, y - 44, 3.6) - 1.5, "#FFFFFF")
+        cv.fill(sd_capsule(X, Y, x, y, x + 34, y - 44, 3.6), "#FFD23F")
+        cv.fill(sd_circle(X, Y, x, y, 3.4), "#3B2A8F")
+        if k % 2:
+            _note(cv, 210, 172 - 10 * (k % 3), 0.14, PIECES["blue"], ang=8)
+    return f
+
+
+def _extras_listen(k):
+    def f(cv):
+        _note(cv, 42 + 4 * (k % 2), 70 - 8 * (k % 4), 0.18, PIECES["pink" if "pink" in PIECES else "red"], ang=-10)
+        _note(cv, 218 - 4 * (k % 2), 52 + 8 * (k % 3), 0.2, PIECES["green"], ang=10)
+        if k % 2 == 0:
+            _sparkle(cv, 224, 110, 8, "#3CE0FF")
+    return f
+
+
+def _extras_sleepy(k):
+    def f(cv):
+        if k >= 1:
+            _zzz(cv, 190, 70 - 4 * k, 0.7 + 0.12 * k, 1.0 if k < 3 else 0.8)
+    return f
+
+
+def _extras_surprised(k):
+    def f(cv):
+        X, Y = cv.X, cv.Y
+        if k >= 1:
+            for a in (-35, 0, 35):
+                ar = math.radians(a - 90)
+                cv.fill(sd_capsule(X, Y, 128 + 76 * math.cos(ar), 150 + 82 * math.sin(ar),
+                                   128 + 96 * math.cos(ar), 150 + 104 * math.sin(ar), 3.2), "#FFDB1A")
+    return f
+
+
+def _frames():
+    F = {}
+    F["idle_breathe"] = [dict(arms=(18, 18), sx=sx, sy=sy, dy=dy) for sx, sy, dy in
+                         ((1.0, 1.0, 0), (1.015, 0.985, 0), (1.03, 0.97, 1), (1.015, 0.985, 0))]
+    F["idle_look"] = [dict(arms=(18, 18), look=lk, eyes=ey) for lk, ey in
+                      (((-4, 0), "open"), ((0, 0), "open"), ((4, 0), "open"), ((0, 0), "happy"))]
+    F["dance_a"] = [dict(lean=l, sx=sx, sy=sy, arms=a, feet=f, eyes=e, mouth="open", extras=[_extras_dance_a]) for
+                    l, sx, sy, a, f, e in
+                    ((-9, 1.04, 0.97, (150, 40), (0, 12), "happy"), (-4, 1.0, 1.0, (120, 70), (4, 4), "happy"),
+                     (0, 0.98, 1.03, (60, 60), (0, 0), "open"), (5, 1.0, 1.0, (40, 120), (4, 4), "happy"),
+                     (9, 1.04, 0.97, (40, 150), (12, 0), "happy"), (0, 1.0, 1.0, (90, 90), (0, 0), "open"))]
+    F["dance_b"] = [dict(lean=l, sx=sx, sy=sy, dy=dy, arms=a, feet=f, eyes="open", mouth="o", look=(3, -2),
+                         extras=[_extras_dance_b]) for l, sx, sy, dy, a, f in
+                    ((9, 0.97, 1.03, 0, (45, 155), (12, 0)), (4, 1.0, 1.0, -6, (80, 130), (6, 6)),
+                     (0, 0.96, 1.04, -12, (150, 150), (10, 10)), (-4, 1.0, 1.0, -6, (130, 80), (6, 6)),
+                     (-9, 1.03, 0.97, 0, (155, 45), (0, 12)), (0, 1.0, 1.0, 0, (100, 100), (0, 0)))]
+    F["cheer"] = [dict(sx=sx, sy=sy, dy=dy, arms=a, feet=f, eyes="happy", mouth="grin", extras=[_extras_happy] if
+                       dy < -4 else []) for sx, sy, dy, a, f in
+                  ((1.06, 0.92, 4, (40, 40), (0, 0)), (0.99, 1.03, -4, (120, 120), (6, 6)),
+                   (0.97, 1.05, -14, (165, 165), (12, 12)), (0.97, 1.05, -16, (170, 170), (12, 12)),
+                   (1.0, 1.0, -6, (130, 130), (8, 8)), (1.05, 0.94, 3, (50, 50), (0, 0)))]
+    F["surprised"] = [dict(sx=sx, sy=sy, dy=dy, arms=a, feet=f, eyes="open", mouth=m, brows="worried" if k else None,
+                           extras=[_extras_surprised(k)]) for k, (sx, sy, dy, a, f, m) in
+                      enumerate(((1.0, 1.0, 0, (18, 18), (0, 0), "smile"), (0.96, 1.05, -10, (110, 110), (8, 8), "o"),
+                                 (0.94, 1.07, -14, (140, 140), (10, 10), "o"), (1.0, 1.0, -3, (80, 80), (3, 3), "o")))]
+    F["sleepy"] = [dict(sx=sx, sy=sy, arms=(8, 8), eyes=e, mouth=m, droop=dr, look=(0, 2), extras=[_extras_sleepy(k)])
+                   for k, (sx, sy, e, m, dr) in enumerate(((1.0, 1.0, "sad", "smile", 1), (1.02, 0.98, "squeeze", "smile", 3),
+                                                           (1.03, 0.96, "happy", "smile", 5), (1.02, 0.98, "happy", "o", 4)))]
+    F["write"] = [dict(arms=(18, 60 + 4 * (k % 3)), eyes="open", mouth="smile", look=(2, 4), lean=2 + k % 2,
+                       extras=[_extras_notepad(k)]) for k in range(6)]
+    F["listen"] = [dict(ears=True, lean=l, sx=sx, sy=sy, eyes="happy", mouth="smile", extras=[_extras_listen(k)])
+                   for k, (l, sx, sy) in enumerate(((-5, 1.0, 1.0), (0, 1.02, 0.98), (5, 1.0, 1.0), (0, 1.02, 0.98)))]
+    F["wave"] = [dict(arms=(18, a), eyes="happy" if k % 2 else "open", mouth="grin" if k % 2 else "smile") for k, a in
+                 enumerate((110, 150, 175, 150))]
+    return F
+
+
+FRAMES = _frames()
+FRAME_ANIMS = ["idle_breathe", "idle_look", "dance_a", "dance_b", "cheer", "surprised", "sleepy", "write", "listen",
+               "wave"]
+
+
+def frame_names():
+    """Image paths (relative to assets/images) of every flipbook frame."""
+    return ["bit/%s_%d.png" % (a, i + 1) for a in FRAME_ANIMS for i in range(len(FRAMES[a]))]
+
+
+def draw_frame(anim, n):
+    return draw_bit(FRAMES[anim][n - 1])
