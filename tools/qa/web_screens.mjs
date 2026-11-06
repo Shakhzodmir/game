@@ -383,6 +383,24 @@ async function debugChecks() {
 	await waitFor(page, s => lvl(s) && lvl(s).state === 'playing' && lvl(s).moves > 0, 'level 14 on display', 20000);
 	await sleep(1300); // the pieces bloom in
 	const moves0 = lvl(await state(page)).moves;
+	// the bonus bar (client/bonus_meter.lua): 10 points by hand make a gift, which the core puts on the board at rest as
+	// one more special; the bar drains to 0. (Level 14 is past the first two levels, where there is no bar.)
+	{
+		const specials = pic => (pic || []).join('').replace(/[^RVSBD]/g, '').length;
+		const s0 = (await command(page, 'state')).result.state;
+		const r = (await command(page, 'meter 10 bird')).result.state;
+		check(r.meter && r.meter.enabled && r.meter.earned === 10 && r.meter.made === 1, 'bonus bar: 10 points make one gift', r.meter);
+		let sn = null;
+		for (let i = 0; i < 40; i++) {
+			sn = (await command(page, 'state')).result.state;
+			if (sn.meter.waiting === 0 && specials(sn.picture) > specials(s0.picture)) break;
+			await sleep(250);
+		}
+		check(sn.meter.waiting === 0 && specials(sn.picture) === specials(s0.picture) + 1,
+			'bonus bar: the gift is put on the board as one special at rest, no move spent', { before: specials(s0.picture), after: specials(sn.picture), moves: sn.moves });
+		check(sn.meter.points === 0 && sn.moves === s0.moves, 'bonus bar: the bar drained and the gift cost no move', { points: sn.meter.points });
+		await page.screenshot({ path: `${outDir}/client_bonus_bar.png` });
+	}
 	// things that cannot be moved (client/level_plates.lua): level 14 has record boxes, each on its plate; a swipe on one is
 	// refused by the core (not_movable), costs no move, and the box shakes its head; the first time in a session a toast says why
 	const stats14 = (await command(page, 'level_stats')).result.board;

@@ -65,6 +65,7 @@ M.SHAKE_AMP = 0.085     -- ... by this much of a cell to each side at first
 M.SWELL_TICKS = 6       -- T.sub_swell
 M.SWELL_SCALE = 1.35
 M.APPEAR_DELAY = 5 / 60 -- a new special blooms 5 ticks after the group started flying in
+M.BONUS_DELAY = 0.55    -- the bonus bar's gift flies for this long (screens/level/hud.lua on_gift), then the piece blooms
 M.PIN_FLASH = 0.16      -- white pulse of a piece an effect has pinned (about to be hit)
 M.PIN_SCALE = 0.035
 M.NOISE_HOLD = 0.2      -- seconds a piece keeps its look while the noise creeps over to it
@@ -283,6 +284,9 @@ function Anim:event(e, t)
 			end
 			self.group = nil
 		end
+	elseif ty == "bonus" then
+		local v = rec(self, e.id)
+		v.appear, v.flash = t + M.BONUS_DELAY, t + M.BONUS_DELAY
 	elseif ty == "transform" or ty == "concert_riff" or ty == "continue_riff" then
 		local v = rec(self, e.id)
 		v.pop, v.flash = t, t

@@ -392,6 +392,10 @@ function Level:on_bus(topic, p)
 		self:on_result(p.result or {})
 	elseif topic == "level_booster" then
 		self:on_booster_event(p)
+	elseif topic == "level_bonus" then
+		guard(self, "bonus", self.hud.on_bonus, self.hud, p)
+	elseif topic == "level_bonus_gift" then
+		guard(self, "bonus", self.hud.on_gift, self.hud, p)
 	elseif topic == "level_special" or topic == "level_noise" or topic == "level_praise" then
 		guard(self, "bit", self.hud.bit_event, self.hud, topic, p)
 	elseif topic == "meta_changed" then
@@ -534,7 +538,7 @@ local function new_level()
 	})
 	t.sub = bus.subscribe({
 		"level_ready", "level_moves", "level_goal", "level_score", "level_state", "level_result", "level_booster",
-		"level_special", "level_noise", "level_praise", "meta_changed", "language_changed", "settings_changed",
+		"level_special", "level_noise", "level_praise", "level_bonus", "level_bonus_gift", "meta_changed", "language_changed", "settings_changed",
 		"screen_leaving", "lives_tick", "popup_request",
 	}, "level_hud")
 	t.bus_cb = function(topic, p) t:on_bus(topic, p) end
