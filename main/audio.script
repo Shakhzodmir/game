@@ -216,6 +216,7 @@ local function update_status(self, dt)
 	st.district = self.track and self.track.district or nil
 	st.song = self.track and self.track.id or nil
 	st.single = self.track and self.track.single or false
+	st.bpm = self.track and self.track.bpm or nil
 	st.semitones = self.track and self.semitones or 0
 	st.playing = self.mixer:playing()
 	st.clock = self.mixer:clock(now()) or 0
