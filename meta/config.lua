@@ -32,6 +32,24 @@ C.super_stars = {
 	sinks = {},
 }
 
+-- The songbook (meta/songbook.lua): the notebook where the character writes one line of a song per beaten level.
+-- `districts` are the stretches of levels a song belongs to (the same as the segments of content/map.json: a test
+-- keeps them equal); a song is ready when all its levels are beaten. `pool` = lines to choose from per district
+-- (client/i18n_songbook.lua holds exactly that many `sb.<district>.<n>` keys), `titles` = titles per district
+-- (`sbt.<district>.<n>`). A song pays nothing: it is only decoration.
+C.songbook = {
+	districts = {
+		{ id = "cafe", first = 1, last = 20 },
+		{ id = "jazz", first = 21, last = 40 },
+		{ id = "square", first = 41, last = 60 },
+		{ id = "stadium", first = 61, last = 80 },
+		{ id = "garage", first = 81, last = 100 },
+	},
+	pool = 32,
+	titles = 16,
+	group = 4,  -- lines of a verse / a chorus
+}
+
 C.coins = {
 	start = 500,
 	win_base = 25,

@@ -59,6 +59,7 @@ local REGISTRY = {
 	account = require("gui.account"), -- opened from the settings
 	confirm = require("gui.confirm"),
 	chest = require("gui.chest"), -- the results window opens the level chest
+	notebook = require("gui.notebook"), -- ... and the song that was just finished
 }
 
 local Level = {}
@@ -530,7 +531,11 @@ local function new_level()
 	t.tutv = tutorial_view.new(t.ui, { parent = t.c_tut, fx = t.fx, hud = t.hud, on_skip = function() t:skip_tutorial() end })
 	t.popups = popups.new(t.ui, t.c_popups, {
 		registry = REGISTRY, fx = t.fx,
-		release = function() t.ui:release_images(bit.images()) end,
+		release = function()
+			local keep = bit.images()
+			if t.popups and (t.popups:find("notebook") or t.popups:find("result")) then REGISTRY.notebook.images(keep) end
+			t.ui:release_images(keep)
+		end,
 		on_change = function() t:on_popups() end,
 	})
 	t.sub = bus.subscribe({

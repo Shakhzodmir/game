@@ -71,7 +71,7 @@ AUDIO_SCRIPT = "/main/audio.script"
 
 GAME_GROUPS = ("pieces", "specials", "blockers", "board", "fx")
 UI_GROUPS = ("ui", "icons")
-LOOSE_GROUPS = ("districts", "backgrounds", "bit", "logo", "mapbg")  # custom resources, loaded on demand
+LOOSE_GROUPS = ("districts", "backgrounds", "bit", "logo", "mapbg", "notebook")  # custom resources, loaded on demand
 LOOSE_DIRS = tuple("/assets/images/" + g for g in LOOSE_GROUPS)
 MIN_BG = (720, 1280)  # backgrounds below this look soft on 3x phones
 
