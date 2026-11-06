@@ -644,12 +644,12 @@ async function debugChecks() {
 	// one more special; the bar drains to 0. (Level 14 is past the first two levels, where there is no bar.)
 	{
 		const specials = pic => (pic || []).join('').replace(/[^RVSBD]/g, '').length;
-		const s0 = (await command(page, 'state')).result.state;
+		const s0 = (await command(page, 'state')).result.level;
 		const r = (await command(page, 'meter 10 bird')).result.state;
 		check(r.meter && r.meter.enabled && r.meter.earned === 10 && r.meter.made === 1, 'bonus bar: 10 points make one gift', r.meter);
 		let sn = null;
 		for (let i = 0; i < 40; i++) {
-			sn = (await command(page, 'state')).result.state;
+			sn = (await command(page, 'state')).result.level;
 			if (sn.meter.waiting === 0 && specials(sn.picture) > specials(s0.picture)) break;
 			await sleep(250);
 		}
