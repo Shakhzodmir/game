@@ -156,7 +156,7 @@ describe("a session: the monkey", function()
 		for _, run in ipairs(runs) do
 			local opts = { wins = run[2], coins = run[3] }
 			if run[4] then opts.levels = { [25] = function(d) d.moves = 5 end } end
-			for key, n in pairs(monkey(run[1], 300, opts)) do visited[key] = (visited[key] or 0) + n end
+			for key, n in pairs(monkey(run[1], 500, opts)) do visited[key] = (visited[key] or 0) + n end
 		end
 		-- the monkey must keep reaching the places worth testing (a change that walls it in fails here)
 		for _, key in ipairs({ "screen:splash", "screen:town", "screen:level", "popup:start", "popup:settings", "popup:pause",
