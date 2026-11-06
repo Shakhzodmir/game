@@ -19,15 +19,17 @@ in Russian, what is wrong with a picture so that it can be drawn again.
 """
 
 import argparse
+import difflib
 import json
 import os
 import re
 import shutil
 import sys
 import tempfile
+import time
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 KEY = np.array([255.0, 0.0, 255.0], np.float32)
@@ -159,9 +161,18 @@ def key_out(rgb, key=KEY):
     b = max(2, int(min(h, w) * 0.01))
     border[:b, :] = border[-b:, :] = border[:, :b] = border[:, -b:] = True
     bg = flood(cand & border, cand) | (d < T_PURE)
+    kk = float((key ** 2).sum())
+    s_ = np.clip((p * key).sum(-1) / max(kk, 1.0), 0.25, 1.0)
+    d_sh = np.sqrt(((p - s_[..., None] * key) ** 2).sum(-1))
+    gl = np.clip((p[..., 1] - key[1]) / max(255.0 - key[1], 1.0), 0.0, 0.85)
+    d_gl = np.sqrt(((p - (key + gl[..., None] * (255.0 - key))) ** 2).sum(-1))
+    trans = flood(bg, ((d_sh < 25.0) | (d_gl < 25.0)) | bg) & ~bg
+    use_sh = d_sh <= d_gl
+    a_t = np.clip(np.where(use_sh, 1.0 - s_, gl), 0.0, 1.0)
+    bg_all = bg | trans
     r = max(1, int(round(RIM * min(h, w) / 1000.0)))
-    rim = dilate(bg, r) & ~bg
-    obj = ~bg & ~rim
+    rim = dilate(bg_all, r) & ~bg_all
+    obj = ~bg_all & ~rim
     wobj = obj.astype(np.float32)
     k = 2 * r + 1
     cnt = box_sum(wobj, k)
@@ -171,9 +182,19 @@ def key_out(rgb, key=KEY):
     num = ((p - key) * dF).sum(-1)
     a_rim = np.where(denom < 400.0, 1.0, np.clip(num / np.maximum(denom, 1.0), 0.0, 1.0))
     a_rim = np.where(cnt < 0.5, 0.0, a_rim)
+    thin = rim & (cnt < 0.5) & (d > T_HARD)
+    iso = np.zeros_like(thin)
+    if _ndi is not None and thin.any():
+        lt, _n = _ndi.label(thin)
+        big = np.bincount(lt.ravel()) >= 20
+        big[0] = False
+        iso = big[lt]
+    a_rim = np.where(iso, 1.0, a_rim)
     a_rim = np.where(a_rim < 0.04, 0.0, a_rim)
     alpha = np.where(obj, 1.0, np.where(rim, a_rim, 0.0)).astype(np.float32)
-    color = np.where(obj[..., None], p, np.where(rim[..., None], fg, 0.0)).astype(np.float32)
+    color = np.where(obj[..., None] | iso[..., None], p, np.where(rim[..., None], fg, 0.0)).astype(np.float32)
+    alpha = np.where(trans, a_t, alpha).astype(np.float32)
+    color = np.where(trans[..., None], np.where(use_sh[..., None], 0.0, 255.0), color).astype(np.float32)
     info = {
         "border_purity": float((d[border] < T_HARD * 1.5).mean()),
         "leftover": int(((alpha > 0.5) & (d < 50.0)).sum()),
@@ -348,17 +369,32 @@ def norm_stem(f):
     return s
 
 
+DUPES = {}
+ALT_EXTS = (".jfif", ".avif", ".heic", ".heif", ".gif", ".bmp", ".tif", ".tiff")
+
+
+def outputs_of(name, spec):
+    return [name + "_" + n + ".png" for n in spec["names"]] if spec["names"] else [name + ".png"]
+
+
 def find_inputs(root):
-    found, unknown = {}, []
+    cands, unknown = {}, []
+    DUPES.clear()
     for dp, _, fns in os.walk(root):
         for f in sorted(fns):
-            if os.path.splitext(f)[1].lower() not in EXTS:
+            ext = os.path.splitext(f)[1].lower()
+            if ext not in EXTS and ext not in ALT_EXTS:
                 continue
             key = norm_stem(f)
-            if key in SPEC:
-                found[key] = os.path.join(dp, f)
+            if key in SPEC and ext in EXTS:
+                cands.setdefault(key, []).append(os.path.join(dp, f))
             else:
                 unknown.append(os.path.join(dp, f))
+    found = {}
+    for key, ps in cands.items():
+        found[key] = max(ps, key=os.path.getmtime)
+        if len(ps) > 1:
+            DUPES[key] = sorted(ps)
     return found, unknown
 
 
@@ -391,6 +427,8 @@ def preview(group, outputs, path):
 
 def run(inp, outdir, only=None, write=True):
     found, unknown = find_inputs(inp)
+    for k in sorted(DUPES):
+        print("замечание: для %s найдено несколько файлов (%s): взят самый новый %s" % (k, ", ".join(os.path.relpath(x, inp) for x in DUPES[k]), os.path.relpath(found[k], inp)))
     manifest, groups, bad = {}, {}, 0
     for name in sorted(found):
         if only and name not in only:
@@ -410,6 +448,11 @@ def run(inp, outdir, only=None, write=True):
                 entry["files"].append(os.path.relpath(p, outdir))
                 groups.setdefault(spec["group"], []).append((name + suffix, p))
         manifest[name] = entry
+        if write:
+            for fn in outputs_of(name, spec):
+                pth = os.path.join(outdir, spec["group"], fn)
+                if os.path.join(spec["group"], fn) not in entry["files"] and os.path.exists(pth):
+                    os.remove(pth)
         mark = "ОШИБКА" if errs else ("есть замечания" if warns else "ок")
         print("%-22s %s%s" % (name, mark, ("  (%d файлов)" % len(files)) if files else ""))
         for m in errs:
@@ -418,12 +461,37 @@ def run(inp, outdir, only=None, write=True):
         for m in warns:
             print("    замечание: " + m)
     for u in unknown:
-        print("не знаю такого имени: %s (имена в docs/art-brief-chatgpt.md)" % os.path.relpath(u, inp))
+        ext = os.path.splitext(u)[1].lower()
+        if ext in ALT_EXTS:
+            print("формат не поддержан: %s (сохрани как PNG, JPG или WebP)" % os.path.relpath(u, inp))
+            continue
+        near = difflib.get_close_matches(norm_stem(os.path.basename(u)), list(SPEC), n=1, cutoff=0.75)
+        print("не знаю такого имени: %s%s (имена в docs/art-brief-chatgpt.md)"
+              % (os.path.relpath(u, inp), (", возможно это %s?" % near[0]) if near else ""))
     if write and manifest:
         os.makedirs(outdir, exist_ok=True)
-        with open(os.path.join(outdir, "manifest.json"), "w", encoding="utf-8") as f:
-            json.dump(manifest, f, ensure_ascii=False, indent=1)
-        for g, outs in groups.items():
+        mp = os.path.join(outdir, "manifest.json")
+        merged = {}
+        if only and os.path.exists(mp):
+            try:
+                merged = json.load(open(mp, encoding="utf-8"))
+            except Exception:
+                merged = {}
+        merged.update(manifest)
+        if not only:
+            for n, sp in SPEC.items():
+                if n not in found:
+                    for fn in outputs_of(n, sp):
+                        pth = os.path.join(outdir, sp["group"], fn)
+                        if os.path.exists(pth):
+                            os.remove(pth)
+        with open(mp, "w", encoding="utf-8") as f:
+            json.dump(merged, f, ensure_ascii=False, indent=1)
+        allg = {}
+        for n in sorted(merged):
+            for rel in merged[n]["files"]:
+                allg.setdefault(merged[n]["group"], []).append((os.path.splitext(os.path.basename(rel))[0], os.path.join(outdir, rel)))
+        for g, outs in allg.items():
             preview(g, outs, os.path.join(outdir, "_preview", g + ".png"))
     print("обработано: %d, с ошибками: %d, предупреждений: %d" % (
         len(manifest), sum(1 for e in manifest.values() if e["errors"]), sum(len(e["warnings"]) for e in manifest.values())))
@@ -491,6 +559,31 @@ def selftest():
             ImageDraw.Draw(tr).ellipse([(i % 3) * 512 + 150, (i // 3) * 512 + 140, (i % 3) * 512 + 360, (i // 3) * 512 + 430],
                                        fill=(255, 180, 60, 255), outline=(150, 90, 20, 255), width=5)
         tr.save(os.path.join(inp, "bit_dance_b.png"))
+        # 2d. a hero with a soft contact shadow (30% black over magenta) under the feet, sheet 2x2
+        sh_sheet = Image.new("RGB", (1024, 1024), (255, 0, 255))
+        for i in range(4):
+            cell = Image.new("RGB", (512, 512), (255, 0, 255))
+            shadow = Image.new("L", (512, 512), 0)
+            ImageDraw.Draw(shadow).ellipse([110, 400, 400, 450], fill=77)
+            cell = Image.composite(Image.new("RGB", (512, 512), (0, 0, 0)), cell, shadow.filter(ImageFilter.GaussianBlur(6)))
+            ImageDraw.Draw(cell).ellipse([150, 170, 360, 425], fill=(255, 201, 139), outline=(224, 135, 58), width=4)
+            sh_sheet.paste(cell, ((i % 2) * 512, (i // 2) * 512))
+        sh_sheet.save(os.path.join(inp, "bit_surprised.png"))
+        # 2e. a music note whose stem is 5 px wide and has no outline (single sprite)
+        note = Image.new("RGB", (1024, 1024), (255, 0, 255))
+        nd = ImageDraw.Draw(note)
+        nd.ellipse([300, 700, 420, 790], fill=(60, 200, 190))
+        nd.rectangle([415, 250, 420, 750], fill=(60, 200, 190))
+        nd.polygon([(420, 250), (540, 330), (420, 310)], fill=(60, 200, 190))
+        note.save(os.path.join(inp, "notebook_closed.png"))
+        # 2f. the same name twice (an old drawing and a newer re-download): the newer one must win
+        for fname, colour, age in (("bit_cheer.png", (200, 40, 40), 1000), ("bit_cheer (1).png", (40, 160, 60), 0)):
+            twin = Image.new("RGB", (1536, 1024), (255, 0, 255))
+            for i in range(6):
+                ImageDraw.Draw(twin).ellipse([(i % 3) * 512 + 150, (i // 3) * 512 + 140, (i % 3) * 512 + 360, (i // 3) * 512 + 430], fill=colour)
+            tp = os.path.join(inp, fname)
+            twin.save(tp)
+            os.utime(tp, (time.time() - age, time.time() - age))
         # 3. a scene (wide) cropped to 9:16
         Image.new("RGB", (1536, 1024), (120, 200, 255)).save(os.path.join(inp, "room_cafe_day.png"))
         # 4. a single sprite with a ring (a hole of magenta closed inside) and a file with a name the brief does not know
@@ -541,6 +634,35 @@ def selftest():
                 if not (0.04 < (a[..., 3] > 128).mean() < 0.9):
                     problems.append("%s: the opaque share is odd (%.2f)" % (f, (a[..., 3] > 128).mean()))
                     break
+        # the soft shadow does not become an opaque pink oval, and the sheet is not reported
+        w5 = man["bit_surprised"]
+        if w5["errors"] or w5["warnings"] or len(w5["files"]) != 4:
+            problems.append("the sheet with shadows got remarks: %s" % w5)
+        else:
+            for f in w5["files"]:
+                a = np.asarray(Image.open(os.path.join(outdir, f)))
+                op = a[a[..., 3] >= 250][:, :3].astype(int)
+                if int(((op[:, 0] > 120) & (op[:, 2] > 120) & (op[:, 1] < 60)).sum()) > 30:
+                    problems.append("the shadow stayed as opaque magenta in " + f)
+                    break
+        # a thin stem without an outline survives: one piece
+        nb = np.asarray(Image.open(os.path.join(outdir, "notebook", "notebook_closed.png")))
+        if _ndi is not None:
+            pieces = _ndi.label(nb[..., 3] > 128)[1]
+            if pieces != 1:
+                problems.append("the 5 px note stem was cut: %d pieces" % pieces)
+        # two files for one name: the newer one wins and the user is told
+        if "bit_cheer" not in DUPES or not man["bit_cheer"]["source"].endswith("(1).png"):
+            problems.append("the newer of two files for one name was not taken: %s" % man["bit_cheer"]["source"])
+        else:
+            cf = np.asarray(Image.open(os.path.join(outdir, man["bit_cheer"]["files"][0])))
+            if not (cf[128, 128, 1] > cf[128, 128, 0]):
+                problems.append("bit_cheer shows the old (red) drawing, not the new (green) one")
+        # --only keeps the other entries of manifest.json
+        run(inp, outdir, only=["stamp_ready"])
+        man2 = json.load(open(os.path.join(outdir, "manifest.json"), encoding="utf-8"))
+        if "bit_idle_breathe" not in man2 or "stamp_ready" not in man2:
+            problems.append("--only lost entries of manifest.json: %s" % sorted(man2))
         # the transparent PNG is not keyed: six frames, transparent corners, opaque body
         w4 = man["bit_dance_b"]
         if w4["errors"] or len(w4["files"]) != 6:
@@ -581,7 +703,16 @@ def main():
     if a.cmd == "status":
         status(a.inp, a.out)
         return
-    only = a.only.split(",") if a.only else None
+    only = [x.strip().lower() for x in a.only.split(",") if x.strip()] if a.only else None
+    if not os.path.isdir(a.inp):
+        print("папка с картинками не найдена: %s" % a.inp)
+        sys.exit(2)
+    if only:
+        found, _ = find_inputs(a.inp)
+        missing = [n for n in only if n not in found]
+        if missing:
+            print("нет такой картинки или нет файла для неё: %s" % ", ".join(missing))
+            sys.exit(2)
     sys.exit(0 if run(a.inp, a.out, only, write=a.cmd == "run") else 1)
 
 

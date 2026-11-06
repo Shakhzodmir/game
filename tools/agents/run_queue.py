@@ -207,11 +207,17 @@ class Runner:
     def conf(self, t, key):
         return t.get(key, self.defaults[key])
 
-    def prompt(self, t, path, base):
+    RESUME_NOTE = ("ПРОДОЛЖЕНИЕ ПРЕРВАННОЙ РАБОТЫ. Прошлый запуск этой задачи оборвался (контейнер перезапустился), а рабочая "
+                   "копия сохранилась: в ней могут лежать твои неоконченные правки и коммиты. Сначала посмотри `git status`, "
+                   "`git diff --stat` и `git log --oneline`, пойми, что уже сделано, и продолжай с этого места: не начинай заново "
+                   "и не откатывай сделанное без причины. Остальные правила и сама задача ниже без изменений.")
+
+    def prompt(self, t, path, base, resume=False):
         with open(os.path.join(HERE, t["spec"]) if not os.path.isabs(t["spec"]) else t["spec"], encoding="utf-8") as f:
             spec = f.read()
-        return ("ЗАДАЧА: %s: %s\nВетка: agent/%s. Рабочая копия: %s. Базовый коммит: %s.\n\n%s"
-                % (t["id"], t["title"], t["id"], path, base[:10], spec))
+        note = self.RESUME_NOTE + "\n\n" if resume else ""
+        return ("ЗАДАЧА: %s: %s\nВетка: agent/%s. Рабочая копия: %s. Базовый коммит: %s.\n\n%s%s"
+                % (t["id"], t["title"], t["id"], path, base[:10], note, spec))
 
     def rules(self):
         p = os.path.join(HERE, "worker_rules.md")
@@ -312,13 +318,16 @@ class Runner:
     def run_task(self, t):
         tid = t["id"]
         try:
+            resume = bool(self.st(tid).get("resume")) and os.path.isdir(self.wt(tid))
             with self.git_lock:
                 self.integration()
-                base = self.head("agent/integration")
+                base = (self.st(tid).get("base") if resume else None) or self.head("agent/integration")
             path = self.ensure_worktree(tid, "agent/" + tid, base)
-            self.set(tid, status="running", started=time.time(), branch="agent/" + tid, base=base)
-            log("%s: worker starts (%s, cap $%.2f)" % (tid, self.conf(t, "model"), self.conf(t, "max_budget_usd")))
-            data, failed, note = self.run_worker(t, path, self.prompt(t, path, base), self.conf(t, "max_budget_usd"), tid + ".1")
+            self.set(tid, status="running", started=time.time(), branch="agent/" + tid, base=base, resume=False)
+            log("%s: worker %s (%s, cap $%.2f)" % (tid, "continues the interrupted work" if resume else "starts",
+                                                  self.conf(t, "model"), self.conf(t, "max_budget_usd")))
+            data, failed, note = self.run_worker(t, path, self.prompt(t, path, base, resume), self.conf(t, "max_budget_usd"),
+                                                 tid + (".resume" if resume else ".1"))
             self.write_report(t, data)
             if failed:
                 self.commit_leftovers(path)
@@ -363,7 +372,63 @@ class Runner:
         out = [t for t in self.tasks if t.get("wave", 1) <= max_wave and (not only or t["id"] in only)]
         return out
 
+    @staticmethod
+    def pid_is_runner(pid):
+        """Is pid a live run_queue process? (After a container restart a stale PID may belong to anything.)"""
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False
+        try:
+            with open("/proc/%d/cmdline" % pid, "rb") as f:
+                return b"run_queue" in f.read()
+        except OSError:
+            return True      # no /proc here: the process exists, assume it is a runner
+
+    def lock_path(self):
+        return os.path.join(self.state_dir, "run.lock")
+
+    def acquire_lock(self):
+        """One runner per state directory; a lock left by a dead runner (or by a PID that now belongs to something else) is replaced."""
+        path = self.lock_path()
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    pid = int(f.read().split()[0])
+            except (ValueError, IndexError, OSError):
+                pid = 0
+            if pid and pid != os.getpid() and self.pid_is_runner(pid):
+                sys.exit("another runner is alive (PID %d): `stop` it first or wait for it" % pid)
+        with open(path, "w") as f:
+            f.write("%d %d\n" % (os.getpid(), time.time()))
+
+    def release_lock(self):
+        try:
+            os.remove(self.lock_path())
+        except OSError:
+            pass
+
+    def recover(self):
+        """A task that is still 'running' while this runner holds the lock has lost its worker (container restart, kill -9).
+        It goes back to the queue; its working copy, with whatever the dead worker left in it, is kept and the next worker
+        is told to continue from it. The cost of the lost run is not in state.json (the claude JSON arrives only at the end):
+        the real figure is in the Console."""
+        for tid, s in list(self.state["tasks"].items()):
+            if s.get("status") == "running":
+                keep = os.path.isdir(self.wt(tid))
+                self.set(tid, status="pending", resume=keep,
+                         note="recovered after an interruption" + ("" if keep else " (working copy lost)"))
+                log("%s: was running when the runner died, back to the queue%s" % (tid, "; working copy kept, the next worker continues from it" if keep else ""))
+
     def run(self, parallel, budget, max_wave, only=None):
+        self.acquire_lock()
+        try:
+            self.recover()
+            self._run(parallel, budget, max_wave, only)
+        finally:
+            self.release_lock()
+
+    def _run(self, parallel, budget, max_wave, only=None):
         order = self.selected(max_wave, only)
         self.integration()
         pool = ThreadPoolExecutor(max_workers=parallel)
@@ -469,6 +534,8 @@ assert "CLAUDE_CODE_REMOTE_SESSION_ID" not in os.environ and "GITHUB_TOKEN" not 
 if tid == "T-bad":
     print(json.dumps({"type": "result", "is_error": True, "result": "could not do it", "total_cost_usd": 0.4}))
     sys.exit(1)
+if "ПРОДОЛЖЕНИЕ ПРЕРВАННОЙ РАБОТЫ" in prompt:
+    open("resumed.txt", "w").write(os.getcwd() + "\n")
 if "Проверка runner-а упала" in prompt:
     open("fixed.txt", "w").write("fixed\n")
 else:
@@ -494,7 +561,7 @@ def selftest():
         run("git", "init", "-q", "-b", "main")
         run("git", "config", "user.email", "t@t")
         run("git", "config", "user.name", "t")
-        for name in ("T-a", "T-b", "T-bad", "T-after-bad", "T-flaky", "T-c1", "T-c2", "T-late"):
+        for name in ("T-a", "T-b", "T-bad", "T-after-bad", "T-flaky", "T-c1", "T-c2", "T-late", "T-crash"):
             with open(os.path.join(repo, "specs", name + ".md"), "w") as f:
                 f.write("Do " + name + "\n")
         with open(os.path.join(repo, "shared.txt"), "w") as f:
@@ -517,6 +584,8 @@ def selftest():
                 {"id": "T-c1", "title": "conflict one", "spec": os.path.join(repo, "specs", "T-c1.md"), "depends_on": ["T-a"]},
                 {"id": "T-c2", "title": "conflict two", "spec": os.path.join(repo, "specs", "T-c2.md"), "depends_on": ["T-b"]},
                 {"id": "T-late", "title": "wave two", "wave": 2, "spec": os.path.join(repo, "specs", "T-late.md")},
+                {"id": "T-crash", "title": "was running when the container died", "wave": 3,
+                 "spec": os.path.join(repo, "specs", "T-crash.md")},
             ],
         }
         qp = os.path.join(tmp, "queue.json")
@@ -560,6 +629,38 @@ def selftest():
         r.run(parallel=2, budget=100, max_wave=2, only=["T-late"])
         if s("T-late") != "merged":
             problems.append("wave 2 did not run when asked for: %s" % s("T-late"))
+        # recovery after a container restart: T-crash was running, its working copy holds an unfinished file, the lock is stale
+        base = r.head("agent/integration")
+        cpath = r.ensure_worktree("T-crash", "agent/T-crash", base)
+        with open(os.path.join(cpath, "partial.txt"), "w") as f:
+            f.write("half done\n")
+        r.set("T-crash", status="running", base=base)
+        with open(r.lock_path(), "w") as f:
+            f.write("999999 0\n")
+        r.run(parallel=2, budget=100, max_wave=3, only=["T-crash"])
+        if s("T-crash") != "merged":
+            problems.append("an interrupted task was not continued: %s (%s)" % (s("T-crash"), r.st("T-crash").get("note")))
+        for fn in ("partial.txt", "resumed.txt"):
+            if not os.path.exists(os.path.join(ipath, fn)):
+                problems.append("after the recovery agent/integration lacks " + fn)
+        if os.path.exists(r.lock_path()):
+            problems.append("the lock was not released after the run")
+        # a live runner holds the lock: a second one refuses; after it dies the stale lock is replaced
+        sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "run_queue_selftest_sleeper"])
+        try:
+            with open(r.lock_path(), "w") as f:
+                f.write("%d 0\n" % sleeper.pid)
+            try:
+                r.run(parallel=2, budget=100, max_wave=3, only=["T-crash"])
+                problems.append("a second runner started while another one holds the lock")
+            except SystemExit:
+                pass
+        finally:
+            sleeper.kill()
+            sleeper.wait()
+        r.run(parallel=2, budget=100, max_wave=3, only=["T-crash"])
+        if os.path.exists(r.lock_path()):
+            problems.append("a stale lock was not replaced and released")
         bad = dict(queue)
         bad["tasks"] = queue["tasks"] + [{"id": "T-opus", "title": "opus", "model": "opus",
                                           "spec": os.path.join(repo, "specs", "T-a.md")}]

@@ -18,7 +18,7 @@
 
 ```
 python3 tools/agents/run_queue.py check-key            # один маленький вызов: работает ли ключ (центы)
-nohup python3 tools/agents/run_queue.py run --max-wave 1 --parallel 2 --budget-usd 60 > /tmp/glow-agents/run.log 2>&1 &
+python3 tools/agents/run_queue.py run --max-wave 1 --parallel 2 --budget-usd 60 --push > /tmp/glow-agents/run.log 2>&1   # из сессии: Bash с run_in_background
 python3 tools/agents/run_queue.py status               # таблица задач и расходов
 python3 tools/agents/run_queue.py stop                 # новые задачи не стартуют; идущие дойдут до конца
 python3 tools/agents/run_queue.py stop --now           # убить идущих рабочих
@@ -28,6 +28,10 @@ python3 tools/agents/run_queue.py selftest             # проверка сам
 ```
 
 Состояние (рабочие копии, журналы, отчёты рабочих, `state.json`) лежит в `$AGENT_STATE_DIR` (по умолчанию `/tmp/glow-agents`). Отчёт рабочего по задаче: `reports/<id>.md`; журнал проверок: `logs/<id>.verify.*.log`. Расход по каждой задаче считается из `total_cost_usd` ответа `claude`; у каждой задачи свой потолок (`max_budget_usd`), у запуска общий (`--budget-usd`): когда он исчерпан, новые задачи не стартуют.
+
+## Обрыв (перезапуск контейнера)
+
+`run` кладёт `run.lock` с PID: второй запуск при живом первом не стартует. Если запуск умер (контейнер пересоздан, `kill -9`), следующий `run` сам возвращает задачи «running» в очередь и оставляет их рабочие копии; новый рабочий получает пометку «продолжение прерванной работы» и дорабатывает недоделанное. Расход оборванного запуска в `state.json` не попадает (ответ `claude` приходит только в конце): реальную цифру показывает Console. Сессия-оркестратор должна сама просыпаться и перезапускать очередь (`ORCHESTRATOR.md`).
 
 ## Статусы
 
