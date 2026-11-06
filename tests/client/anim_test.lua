@@ -55,6 +55,7 @@ describe("content/animations.json", function()
 			assert_true(imgs[k], k)
 		end
 		for k in pairs(imgs) do -- order-free
+			assert_true(require("client.assets").image(k) ~= nil, "not in the image index: " .. k)
 			local f = io.open("assets/images/" .. k .. ".png", "rb")
 			assert_true(f ~= nil, "no picture for " .. k)
 			if f then f:close() end
