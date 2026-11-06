@@ -418,7 +418,8 @@
      },
      "bpm": 92,
      "bars": 8,
-     "mood": "neo-soul groove: muted guitar, rhodes, tight drums"
+     "mood": "neo-soul groove: muted guitar, rhodes, tight drums",
+     "ceiling_trim": -1.0
     }
    ]
   },

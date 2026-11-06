@@ -31,8 +31,8 @@ def kick808(sr):
     return dsp.fade(np.tanh(2.0 * x), sr, 0.0005, 0.02)
 
 
-def finish_drums(s, d, wet=0.08, drv=1.4):
-    d = dsp.loop_apply(d, lambda z: dsp.lowpass(z, 6500, s.sr, 2))
+def finish_drums(s, d, wet=0.08, drv=1.4, lp=6500):
+    d = dsp.loop_apply(d, lambda z: dsp.lowpass(z, lp, s.sr, 2))
     return room(s, dsp.drive(d / dsp.peak(d) * 1.3, drv), wet * 0.6, 0.6, "drums", damp=5000)
 
 
@@ -70,10 +70,16 @@ def drop_impact(s, beat, midi=32, level=0.8):
     return np.roll(S.impact(s, midi, level, seed="imp%d" % beat), int(round(s.sec(beat) * s.sr)))
 
 
+def v_soft(s, m, d, v=0.7, **_):
+    """A cheap soft pad voice: two slightly detuned triangles under a slow envelope (few spectral peaks, small file)."""
+    n = nsamp(s.sec(d) + 0.7, s.sr)
+    x = dsp.triangle(midi_hz(m) * 0.9965, n, s.sr) + dsp.triangle(midi_hz(m) * 1.0035, n, s.sr)
+    return dsp.fade(x * dsp.env_adsr(n, s.sr, 0.35, 0.3, 0.85, s.sec(d), 0.6), s.sr, 0.001, 0.02) * v * 0.5
+
+
 def chorus_pad(s, ch, lo=57, hi=76, center=66, gain=1.0, mask=None, cutoff=1800.0):
     vo = S.voicing(ch, lo, hi, center, S.no_root)
-    return S.comp(s, ch, vo, [(0, 4, 0.7)], lambda ss, m, du, v: S.v_pad(ss, m, du, v, cutoff=cutoff, att=0.4, rel=0.6),
-                  gain=gain, mask=mask)
+    return S.comp(s, ch, vo, [(0, 4, 0.7)], lambda ss, m, du, v: v_soft(ss, m, du, v), gain=gain, mask=mask)
 
 
 # ---------------------------------------------------------------- POP
@@ -239,11 +245,11 @@ def festival_drop(s):
     S.hits(s, d, k["crash"], {0: "X...............", 8: "X...............", 12: "X..............."}, r, gain=0.5, jit=0.0)
     roll(s, d, k["snare"], 24, 16, 0.25, 0.2, 0.7, r)
     roll(s, d, k["snare"], 28, 16, 0.25, 0.4, 1.0, r)
-    d = finish_drums(s, d, 0.08, 1.4)
+    d = finish_drums(s, d, 0.05, 1.3, 4500)
     vo = S.voicing(ch, 56, 80, 68, S.no_root)
     saw = S.comp(s, ch, vo, [(0, 4, 0.9)], lambda ss, m, du, v: S.v_super(ss, m, du, v, att=0.01, rel=0.1, k=m % 3), r=r, jit=0.0, mask=set(range(8, 16)))
-    saw = sidechain(s, loop_filter(s, saw, "lp", 7000), BEATS(s), 0.8, 0.16)
-    saw = room(s, saw, 0.15, 1.2, "saw", damp=6000)
+    saw = sidechain(s, loop_filter(s, saw, "lp", 4500), BEATS(s), 0.8, 0.16)
+    saw = room(s, saw, 0.06, 0.8, "saw", damp=4000)
     pad = chorus_pad(s, ch, 57, 78, 67, 1.0, mask=set(range(0, 8)), cutoff=500)
     bass = S.line(s, ch, lambda c, n, i: [(q + 0.5, 0.45, S.root_of(c, 48, 43, 55), 1.0) for q in range(4)], S.v_sbass, r=r, jit=0.0, mask=set(range(8, 16)))
     bass = sidechain(s, loop_filter(s, bass, "lp", 400, 4), BEATS(s), 0.6, 0.12)
@@ -251,8 +257,8 @@ def festival_drop(s):
     b = "3+:1 1+:.5 6:.5 3+:2 | 4+:2 1+:.5 6:.5 4:1 | 5+:1 2+:1 7:1 5:1 | 3+:3 r:1"
     tn = S.tune(" | ".join(["r:4"] * 8) + " | " + a + " | " + b, s.tonic, 4)
     lead = S.lay(s, lambda ss, m, du, v: S.v_super(ss, m, du, v, att=0.01, rel=0.12), tn)
-    lead = sidechain(s, room(s, echo(s, lead, 0.75, 0.2, 0.35, 3, 4500), 0.2, 1.3, "lead", damp=6500), BEATS(s), 0.5, 0.12)
-    fx = room(s, rise(s, 16, 16, 0.7) + drop_impact(s, 32), 0.2, 1.4, "fx", damp=5000)
+    lead = sidechain(s, room(s, echo(s, lead, 0.75, 0.15, 0.3, 2, 3500), 0.1, 0.9, "lead", damp=4500), BEATS(s), 0.5, 0.12)
+    fx = rise(s, 16, 16, 0.5) + drop_impact(s, 32)
     return {"drums": d, "keys": saw, "pad": pad, "bass": bass, "lead": lead, "fx": fx}
 
 
@@ -289,32 +295,40 @@ def laser_trance(s):
     S.hits(s, d, k["ohat"], "..x...x...x...x.", r, gain=0.5, jit=0.0, mask=set(range(16)) - {6, 7})
     S.hits(s, d, k["crash"], {0: "X...............", 8: "X...............", 12: "X..............."}, r, gain=0.45, jit=0.0)
     roll(s, d, k["snare"], 24, 16, 0.5, 0.2, 0.9, r)
-    d = finish_drums(s, d, 0.08, 1.4)
+    d = finish_drums(s, d, 0.05, 1.3, 4500)
     bass = S.line(s, ch, lambda c, n, i: [(q + o, 0.2, S.root_of(c, 48, 43, 55), 1.0) for q in range(4) for o in (0.25, 0.5, 0.75)],
                   S.v_sbass, r=r, jit=0.0, mask=set(range(16)) - {6, 7})
     bass = sidechain(s, loop_filter(s, bass, "lp", 400, 4), BEATS(s), 0.7, 0.1)
-    ar = arp(s, ch, 62, 90, lambda ss, m, du, v: S.v_pluck(ss, m, du, v, cutoff=6500, decay=0.06), [0, 2, 4, 2, 1, 3, 5, 3])
-    ar = sidechain(s, room(s, echo(s, ar, 0.75, 0.3, 0.45, 3, 7000), 0.12, 1.0, "arp", damp=8000), BEATS(s), 0.3, 0.1)
+    ar = arp(s, ch, 62, 90, lambda ss, m, du, v: S.v_pluck(ss, m, du, v, cutoff=3200, decay=0.06), [0, 2, 4, 2, 1, 3, 5, 3])
+    ar = sidechain(s, echo(s, ar, 0.75, 0.2, 0.35, 2, 3000), BEATS(s), 0.3, 0.1)
     pad = chorus_pad(s, ch, 57, 78, 67, 1.0, cutoff=500)
     a = "3+:1.5 1+:.5 6:1 1+:1 | 2+:1.5 7:.5 5:1 7:1 | 1+:1.5 6:.5 4:1 6:1 | 7:1 2+:1 5+:2"
     b = "3+:1 5+:1 3+:1 1+:1 | 2+:1 5+:1 2+:1 7:1 | 1+:1 4+:1 6+:1 4+:1 | 7:1 2+:1 5+:2"
     tn = S.tune(" | ".join(["r:4"] * 8) + " | " + a + " | " + b, s.tonic, 4)
     lead = S.lay(s, lambda ss, m, du, v: S.v_super(ss, m, du, v, att=0.01, rel=0.12), tn)
-    lead = sidechain(s, room(s, echo(s, lead, 0.75, 0.25, 0.4, 3, 5000), 0.2, 1.4, "lead", damp=6500), BEATS(s), 0.4, 0.1)
-    fx = room(s, rise(s, 24, 8, 0.7) + drop_impact(s, 32), 0.2, 1.4, "fx", damp=5000)
+    lead = sidechain(s, room(s, echo(s, lead, 0.75, 0.15, 0.3, 2, 3500), 0.1, 0.9, "lead", damp=4500), BEATS(s), 0.4, 0.1)
+    fx = rise(s, 24, 8, 0.5) + drop_impact(s, 32)
     return {"drums": d, "bass": bass, "arp": ar, "pad": pad, "lead": lead, "fx": fx}
+
+
+def trimmed(fn, hz):
+    """Wraps a song: every part is low-passed (circularly) at hz, which keeps the Vorbis file small."""
+    def f(s):
+        return {k: loop_filter(s, v, "lp", hz, 2) for k, v in fn(s).items()}
+    f.__doc__ = fn.__doc__
+    return f
 
 
 SONGS = {
     "sunny_hook": ("I:4 V:4 vi:4 IV:4 I:4 V:4 vi:4 IV:4 IV:4 V:4", sunny_hook, {"drums": -16}),
     "city_lights_pop": ("I:4 iii:4 IV:4 V:4 I:4 iii:4 IV:4 ii:2 V:2", city_lights_pop, {"pad": -23}),
-    "summer_crush": ("I:4 iii:4 IV:4 V:4 I:4 iii:4 IV:4 V:4 vi:4 IV:4 ii:4 V:4", summer_crush, {"drums": -16, "voice": -23}),
+    "summer_crush": ("I:4 iii:4 IV:4 V:4 I:4 iii:4 IV:4 V:4 vi:4 IV:4 ii:4 V:4", trimmed(summer_crush, 5500), {"drums": -16, "voice": -23}),
     "boom_bap_sunrise": ("vi7:4 ii7:4 V7:4 Imaj7:4 vi7:4 ii7:4 V7:4 Imaj7:4", boom_bap_sunrise, {"drums": -16, "bass": -19}),
     "trap_playground": ("vi:4 IV:4 I:4 V:4 vi:4 IV:4 I:4 V:4 vi:4 IV:4 I:4 V:4", trap_playground, {"bass": -17, "pad": -27}),
     "street_cipher": ("vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 I:4", street_cipher, {"drums": -16, "bass": -19}),
-    "festival_drop": ("vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4", festival_drop,
+    "festival_drop": ("vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4", trimmed(festival_drop, 3000),
                       {"drums": -16.5, "keys": -20, "pad": -28}),
-    "deep_house_sunset": ("vi7:4 ii7:4 IVmaj7:4 Imaj7:4 vi7:4 ii7:4 IVmaj7:4 Imaj7:4 vi7:4 ii7:4 IVmaj7:4 Imaj7:4", deep_house_sunset,
+    "deep_house_sunset": ("vi7:4 ii7:4 IVmaj7:4 Imaj7:4 vi7:4 ii7:4 IVmaj7:4 Imaj7:4 vi7:4 ii7:4 IVmaj7:4 Imaj7:4", trimmed(deep_house_sunset, 4500),
                           {"drums": -18}),
-    "laser_trance": ("vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4", laser_trance, {"drums": -17, "arp": -25, "pad": -28}),
+    "laser_trance": ("vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4", trimmed(laser_trance, 3200), {"drums": -17, "arp": -25, "pad": -28}),
 }
