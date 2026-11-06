@@ -124,8 +124,8 @@ end
 local BUBBLE_W, BUBBLE_FACE, BUBBLE_FONT_SIZE, BUBBLE_LINES, BUBBLE_MARGIN = 620, 230, 30, 2, 6
 local BUBBLE_WIDTH = BUBBLE_W - BUBBLE_FACE
 
-local function bubble_lines(text)
-	local font = require("tests.client.font_advances").body
+local function bubble_lines(text, lang)
+	local font = require("tests.client.font_advances")[lang == "ko" and "body_ko" or "body"]
 	local codepoints = require("tests.client.town_defold_stub").utf8_codepoints
 	local function width(s)
 		local w = 0
@@ -244,7 +244,7 @@ describe("the authored tutorials on the real boards", function()
 				if st.text then
 					for _, lang in ipairs(i18n.LANGUAGES) do
 						local text = i18n.t(st.text, nil, lang)
-						local lines = bubble_lines(text)
+						local lines = bubble_lines(text, lang)
 						if lines > BUBBLE_LINES then
 							long[#long + 1] = string.format("level %d step %d %s [%s] takes %d lines: %s", n, i, st.text, lang, lines, text)
 						end

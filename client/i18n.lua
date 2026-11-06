@@ -1,4 +1,4 @@
--- UI strings in English and Russian + formatting helpers (pure Lua).
+-- UI strings in English, Russian and Korean + formatting helpers (pure Lua).
 --
 --   local i18n = require("client.i18n")
 --   i18n.set_language("auto", sys.get_sys_info().language)  -- setting from the meta
@@ -8,8 +8,8 @@
 --   i18n.duration(125)                          --> "2:05"
 --   i18n.name({en = "Jazz Bar", ru = "Джаз-бар"}) --> by current language
 --
--- Every entry holds both languages side by side, so a missing translation is
--- visible in review and caught by tests/client/i18n_test.lua. A value is a
+-- Every entry holds en and ru side by side; the Korean text of the same key lives in client/i18n_ko.lua and is merged
+-- in below as `ko` (one plural form: a plain string). A missing translation is caught by tests/client/i18n_test.lua. A value is a
 -- string with {placeholders} or, for counted phrases, a plural table:
 -- en {one, other}; ru {one, few, many} (1 звезда, 2 звезды, 5 звёзд).
 -- Glyphs used here must exist in the generated fonts (tools/gen_defold.py
@@ -17,7 +17,7 @@
 
 local M = {}
 
-M.LANGUAGES = { "en", "ru" }
+M.LANGUAGES = { "en", "ru", "ko" }
 M.FALLBACK = "en"
 
 local S = {
@@ -562,6 +562,7 @@ local S = {
 	["settings.lang_auto"] = { en = "Auto", ru = "Авто" },
 	["settings.lang_en"] = { en = "English", ru = "English" },
 	["settings.lang_ru"] = { en = "Русский", ru = "Русский" },
+	["settings.lang_ko"] = { en = "한국어", ru = "한국어" },
 	["settings.version"] = { en = "Version {v}", ru = "Версия {v}" },
 	["settings.reset"] = { en = "Reset progress", ru = "Сбросить прогресс" },
 	["settings.reset_title"] = { en = "Reset progress?", ru = "Сбросить прогресс?" },
@@ -649,6 +650,11 @@ local S = {
 	-- end of META SCREENS
 	-- ============================================================================================================
 }
+
+-- Korean texts: same keys, merged as the `ko` field (key order does not matter).
+for key, text in pairs(require("client.i18n_ko")) do
+	if S[key] then S[key].ko = text end
+end
 
 M.STRINGS = S
 

@@ -104,7 +104,7 @@ C.settings = {
 	language = "auto",
 }
 C.input_modes = { "swipe", "taptap" }
-C.languages = { "auto", "en", "ru" }
+C.languages = { "auto", "en", "ru", "ko" }
 
 -- District scene look, a cosmetic toggle.
 C.views = { "day", "concert" }

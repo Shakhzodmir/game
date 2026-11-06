@@ -19,6 +19,26 @@ fonts {
   name: "title"
   font: "/assets/gen/fonts/title.font"
 }
+fonts {
+  name: "body_ko"
+  font: "/assets/gen/fonts/body_ko.font"
+}
+fonts {
+  name: "button_ko"
+  font: "/assets/gen/fonts/button_ko.font"
+}
+fonts {
+  name: "number_ko"
+  font: "/assets/gen/fonts/number_ko.font"
+}
+fonts {
+  name: "small_ko"
+  font: "/assets/gen/fonts/small_ko.font"
+}
+fonts {
+  name: "title_ko"
+  font: "/assets/gen/fonts/title_ko.font"
+}
 textures {
   name: "game"
   texture: "/assets/gen/game.atlas"
