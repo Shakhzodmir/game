@@ -1467,6 +1467,24 @@ SONGS = {
 }
 
 
+# The songs of the genres that are not districts (content/genres.json) live in songs_<group>.py: each module
+# defines SONGS = {id: (prog text, function, level overrides)} like the table above and imports this module as `S`.
+EXTRA_MODULES = ("songs_classic", "songs_folk", "songs_latin", "songs_pop", "songs_rnb", "songs_ambient")
+
+
+def load_extra():
+    """Adds the songs of the extra modules that exist to SONGS (a missing module is a genre not written yet)."""
+    import importlib
+    import importlib.util
+    for name in EXTRA_MODULES:
+        if importlib.util.find_spec(name) is None:
+            continue
+        mod = importlib.import_module(name)
+        for sid, spec in mod.SONGS.items():
+            assert sid not in SONGS, "song %s defined twice" % sid
+            SONGS[sid] = spec
+
+
 def song_for(entry, genre):
     """The Song grid of a catalogue entry (content/districts.json songs[]) in the key of its genre."""
     spec = SONGS[entry["id"]]
@@ -1501,3 +1519,6 @@ def render_song(entry, genre):
         if name not in UNPITCHED:
             tonal += y
     return s, mix, tonal, parts
+
+
+load_extra()

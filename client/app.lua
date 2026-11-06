@@ -96,7 +96,7 @@ function M.claim(ticket)
 end
 
 local function index_districts(data)
-	local by_id, list, songs = {}, {}, {}
+	local by_id, list, songs, genres = {}, {}, {}, {}
 	for i, d in ipairs(data.districts or {}) do
 		by_id[d.id] = d
 		list[i] = d
@@ -104,7 +104,14 @@ local function index_districts(data)
 			songs[s.id] = { id = s.id, district = d.id, name = s.name, bpm = s.bpm, bars = s.bars }
 		end
 	end
-	return by_id, list, songs
+	-- the genres of content/genres.json (data.genres): not districts, but a song names one as its key and its tab
+	for _, g in ipairs(data.genres or {}) do
+		genres[g.id] = g
+		for _, s in ipairs(g.songs or {}) do
+			songs[s.id] = { id = s.id, district = g.id, name = s.name, bpm = s.bpm, bars = s.bars }
+		end
+	end
+	return by_id, list, songs, genres
 end
 
 -- opts = {districts = table (content/districts.json), store = save_io store,
@@ -117,7 +124,7 @@ function M.init(opts)
 	end
 	clock = opts.clock or platform.now
 	M.districts = opts.districts
-	M.district_by_id, M.district_list, M.song_by_id = index_districts(opts.districts)
+	M.district_by_id, M.district_list, M.song_by_id, M.genre_by_id = index_districts(opts.districts)
 	M.store = opts.store
 	M.debug = opts.debug and true or false
 	M.sys_language = opts.sys_language
@@ -394,7 +401,13 @@ function M.district(id)
 	return M.district_by_id and M.district_by_id[id] or nil
 end
 
--- A single-mix song of the jukebox (content/districts.json songs[]) or nil.
+-- The genre a song plays in the key of: a district (the five district genres) or an extra genre of
+-- content/genres.json (it has bpm / key / semitones_from_c like a district), or nil.
+function M.genre(id)
+	return (M.district_by_id and M.district_by_id[id]) or (M.genre_by_id and M.genre_by_id[id]) or nil
+end
+
+-- A single-mix song of the jukebox (content/districts.json songs[], content/genres.json) or nil.
 function M.song(id)
 	return M.song_by_id and M.song_by_id[id] or nil
 end

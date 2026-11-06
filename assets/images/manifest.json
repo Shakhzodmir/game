@@ -20,6 +20,7 @@
     "ui/moves_badge.png": "pink gradient badge; print the move count in white Rubik Black on top",
     "ui/bunting.png": "720px festive garland for the top edge of the level screen",
     "fx/*.png": "white / near-white, tint in the engine",
+    "ui/genres/*.png": "96x96 round genre icons of the jukebox (procedural placeholders of art brief B3)",
     "ui/icons/*.png": "96x96 glossy icons with a white sticker edge, all inside the central 88px",
     "ui/icons/goal_floor.png": "goal icon for 'light the dance floor': the unlit (violet) tile as the board shows it, on the gold tile it turns into",
     "ui/icons/streak.png": "hit streak (Seriya hitov)",
@@ -1366,6 +1367,96 @@
         16,
         22
       ]
+    },
+    "ui/genres/ambient.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11032
+    },
+    "ui/genres/blues.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11515
+    },
+    "ui/genres/bossa.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 12195
+    },
+    "ui/genres/chiptune.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11762
+    },
+    "ui/genres/cinematic.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 10646
+    },
+    "ui/genres/classical.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11090
+    },
+    "ui/genres/country.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11342
+    },
+    "ui/genres/eastern.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11700
+    },
+    "ui/genres/edm.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11643
+    },
+    "ui/genres/folk.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 10850
+    },
+    "ui/genres/hiphop.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 12020
+    },
+    "ui/genres/latin.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11812
+    },
+    "ui/genres/pop.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11772
+    },
+    "ui/genres/reggae.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11230
+    },
+    "ui/genres/rnb.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 11501
     },
     "ui/icons/arrow.png": {
       "w": 96,
