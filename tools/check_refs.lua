@@ -474,6 +474,7 @@ local function load_data(repo)
 	end
 	try("client.assets_index", "index")
 	try("client.i18n", "i18n")
+	try("client.i18n_ko", "i18n_ko")
 	try("core.const", "const")
 	try("meta.config", "config")
 	try("client.level_audio", "level_audio")
@@ -599,7 +600,7 @@ end
 local function image_sources(repo)
 	local out = {}
 	for _, src in ipairs(repo.sources) do
-		if src.client and src.path ~= "client/assets_index.lua" and src.path ~= "client/i18n.lua" then out[#out + 1] = src end
+		if src.client and src.path ~= "client/assets_index.lua" and src.path ~= "client/i18n.lua" and src.path ~= "client/i18n_ko.lua" then out[#out + 1] = src end
 	end
 	return out
 end
@@ -905,8 +906,8 @@ local function check_sounds(repo, data)
 	-- nobody lists would sit in the memory of the page for nothing
 	local listed = {}
 	for _, d in ipairs((data.districts and data.districts.districts) or {}) do
-		if type(d.genre) ~= "table" or not (d.genre.en and d.genre.ru) then
-			problem(repo, "c", "content/districts.json", 0, "district " .. d.id .. " has no genre name (en and ru) for the jukebox")
+		if type(d.genre) ~= "table" or not (d.genre.en and d.genre.ru and d.genre.ko) then
+			problem(repo, "c", "content/districts.json", 0, "district " .. d.id .. " has no genre name (en, ru and ko) for the jukebox")
 		end
 		for _, song in ipairs(d.songs or {}) do
 			listed[song.id] = true
@@ -916,8 +917,8 @@ local function check_sounds(repo, data)
 			elseif not (type(entry.loop) == "number" and entry.loop > 0) then
 				problem(repo, "c", "client/assets_index.lua", 0, "song " .. tostring(song.id) .. " has no loop length (the music clock needs it)")
 			end
-			if type(song.name) ~= "table" or not (song.name.en and song.name.ru) then
-				problem(repo, "c", "content/districts.json", 0, "song " .. tostring(song.id) .. " has no name (en and ru)")
+			if type(song.name) ~= "table" or not (song.name.en and song.name.ru and song.name.ko) then
+				problem(repo, "c", "content/districts.json", 0, "song " .. tostring(song.id) .. " has no name (en, ru and ko)")
 			end
 		end
 	end
@@ -964,10 +965,18 @@ local function check_i18n(repo, data)
 	local S = data.i18n and data.i18n.STRINGS
 	if not S then return end
 	local used = {}
-	-- both languages, same shape
+	-- every language, same shape (the Korean texts live in client/i18n_ko.lua and are merged in by client/i18n.lua)
+	local ko = data.i18n_ko or {}
+	for key in pairs(ko) do
+		if not S[key] then problem(repo, "d", "client/i18n_ko.lua", 0, "key \"" .. key .. "\" is not in client/i18n.lua") end
+	end
 	for key, entry in pairs(S) do
 		if entry.en == nil then problem(repo, "d", "client/i18n.lua", 0, key .. " has no English text") end
 		if entry.ru == nil then problem(repo, "d", "client/i18n.lua", 0, key .. " has no Russian text") end
+		if entry.ko == nil then problem(repo, "d", "client/i18n_ko.lua", 0, key .. " has no Korean text") end
+		if type(entry.ko) ~= "string" then
+			if entry.ko ~= nil then problem(repo, "d", "client/i18n_ko.lua", 0, key .. ": Korean has one plural form, use a plain string") end
+		end
 	end
 	local namespaces = {}
 	for key in pairs(S) do namespaces[string.match(key, "^([^.]+)")] = true end
@@ -978,7 +987,7 @@ local function check_i18n(repo, data)
 		return false
 	end
 	for _, src in ipairs(repo.sources) do
-		if src.client and src.path ~= "client/i18n.lua" and src.path ~= "client/assets_index.lua" then
+		if src.client and src.path ~= "client/i18n.lua" and src.path ~= "client/i18n_ko.lua" and src.path ~= "client/assets_index.lua" then
 			local toks = src.toks
 			for i = 1, #toks do
 				local t = toks[i]

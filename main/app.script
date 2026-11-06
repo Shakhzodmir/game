@@ -421,7 +421,8 @@ local DEBUG_KEYS = {
 		app.toast_key("toast.debug_coins", { n = 1000 })
 	end,
 	[hash("debug_language")] = function()
-		app.set_setting("language", i18n.language() == "ru" and "en" or "ru")
+		local lang = i18n.language()
+		app.set_setting("language", lang == "en" and "ru" or lang == "ru" and "ko" or "en") -- en -> ru -> ko
 		app.toast_key("toast.language")
 	end,
 	[hash("debug_reset_save")] = function(self)

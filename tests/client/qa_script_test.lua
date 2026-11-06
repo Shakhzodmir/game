@@ -95,7 +95,7 @@ describe("tools/qa/web_screens.mjs", function()
 					or name == "advance" or name == "volume" then
 					if w[1] and w[1] ~= "free" then assert_true(tonumber(w[1]) ~= nil, where) end
 				elseif name == "lang" then
-					assert_true(w[1] == "auto" or w[1] == "en" or w[1] == "ru", where)
+					assert_true(w[1] == "auto" or w[1] == "en" or w[1] == "ru" or w[1] == "ko", where)
 				elseif name == "music" then
 					-- a district (its layered theme) or a song of the jukebox (one mix)
 					assert_true(assets.index.sounds.music[w[1]] ~= nil or assets.song(w[1]) ~= nil, "no music for " .. tostring(w[1]) .. ": " .. where)

@@ -59,7 +59,7 @@ describe("client/i18n.lua: the meta screens block", function()
 		local first, last = string.find(src, "META SCREENS:", 1, true), string.find(src, "end of META SCREENS", 1, true)
 		local block = string.sub(src, first, last)
 		local code = {}
-		local cmd = "find client gui screens main content tools/qa -type f ! -name i18n.lua " ..
+		local cmd = "find client gui screens main content tools/qa -type f ! -name i18n.lua ! -name i18n_ko.lua " ..
 			"\\( -name '*.lua' -o -name '*.script' -o -name '*.gui_script' -o -name '*.json' -o -name '*.mjs' \\)"
 		for _, f in ipairs(list(cmd)) do code[#code + 1] = read(f) end
 		local joined = table.concat(code, "\n")

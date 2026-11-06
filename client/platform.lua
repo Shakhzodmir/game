@@ -45,7 +45,13 @@ function M.is_html5()
 	return M.system() == "HTML5" and html5 ~= nil
 end
 
+-- The language the player's device or browser asks for. In the browser navigator.language wins (it is what a
+-- portal or the browser settings say); anywhere else the system language of the device.
 function M.language()
+	if M.is_html5() then
+		local ok, code = pcall(html5.run, "(navigator.language || (navigator.languages && navigator.languages[0]) || '')")
+		if ok and type(code) == "string" and #code >= 2 then return code end
+	end
 	local info = sys_info()
 	return info.language or info.device_language or "en"
 end

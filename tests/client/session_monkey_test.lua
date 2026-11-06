@@ -86,7 +86,7 @@ local function run_monkey(seed, actions, opts)
 				E.set_window(w[1], w[2])
 				s:step(rng(1, 10))
 			elseif r <= 93 then
-				app.set_setting("language", rng(2) == 1 and "en" or "ru")
+				app.set_setting("language", ({ "en", "ru", "ko" })[rng(3)])
 				s:step(2)
 			elseif r <= 96 then
 				if link.active() and link.board and link.status() and link.status().state == "playing" then
@@ -151,7 +151,7 @@ describe("a session: the monkey", function()
 		local visited = {}
 		-- {seed, levels already won, coins} ; a 5-move level 25 ends in the moves window quickly
 		local runs = {
-			{ 1, 0 }, { 2, 0 }, { 3, 24, 5000, true }, { 4, 3 }, { 6, 24, 5000, true }, { 8, 10, 1500 },
+			{ 1, 0 }, { 2, 0 }, { 3, 24, 5000, true }, { 4, 3 }, { 6, 24, 5000, true }, { 8, 10, 1500 }, { 7, 24, 5000, true },
 		}
 		for _, run in ipairs(runs) do
 			local opts = { wins = run[2], coins = run[3] }
