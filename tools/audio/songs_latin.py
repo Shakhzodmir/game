@@ -230,10 +230,10 @@ def oasis_nights(s):
     hits(s, d, ds["tek"], "......g.....g.g.", r, gain=0.3)
     d = room(s, d, 0.2, 1.2, "perc", damp=5000)
     pad = comp(s, ch, voicing(ch, 50, 74, 62, None), [(0, 3.95, 0.7)], v_pad, r=r)
-    pad = room(s, pad, 0.2, 1.5, "pad", damp=3500) + drone(s, [38, 45], 0.8)
+    pad = room(s, pad, 0.2, 1.5, "pad", damp=3500) + drone(s, [50, 57], 0.8)  # an octave up: a D2 drone is below what the loudness meter hears and piles up in peaks
     m = ("2:1.5 3:.5 5:2 | 6:1 5:1 3:2 | 2:1 3:1 5:1 6:1 | 5:4 | 6:1.5 1+:.5 6:1 5:1 | 3:1 5:1 3:1 2:1 | 3:2 2:1 1:1 | 1:4")
     oud = room(s, lay(s, v_zither, tune(m, t, 4), 0.8, r=r, jit=0.005), 0.25, 1.4, "oud", damp=5000)
-    b = bassline(s, ch, lambda c, n, i: [(0, 2.5, root_of(c, 38, 33, 47), 0.8)], r=r, cut=900)
+    b = bassline(s, ch, lambda c, n, i: [(0, 2.5, root_of(c, 50, 45, 59), 0.8)], r=r, cut=900)
     gong = s.zeros()
     for bar in (0, 4):
         at(s, gong, ds["gong"][0], bar * 4, 0.5)
@@ -295,7 +295,7 @@ SONGS = {
     "cumbia_riverside": ("I:4 IV:4 V7:4 I:4 vi:4 IV:4 V7:4 I:4", cumbia_riverside, {}),
     "salsa_market": ("I:4 IV:4 V7:4 I:4 vi:4 ii:4 V7:4 I:4 IV:4 V7:4", salsa_market, {}),
     "bazaar_noon": ("I:4 I:4 ii:4 I:4 vi:4 ii:4 I:4 V:4 vi:4 ii:4 V:4 I:4", bazaar_noon, {"pad": -27, "guitar": -26}),
-    "oasis_nights": ("I:4 vi:4 ii:4 V:4 I:4 vi:4 ii:4 I:4", oasis_nights, {"pad": -23, "fx": -28}),
+    "oasis_nights": ("I:4 vi:4 ii:4 V:4 I:4 vi:4 ii:4 I:4", oasis_nights, {"pad": -23, "fx": -28, "bass": -23, "drums": -22}),
     "bamboo_garden": ("I:4 vi:4 V:4 I:4 ii:4 vi:4 V:4 I:4", bamboo_garden, {"pad": -28, "arp": -24, "fx": -32}),
     "silk_road_caravan": ("vi:4 vi:4 I:4 V:4 vi:4 ii:4 I:4 V:4 vi:4 I:4 V:4 vi:4", silk_road_caravan, {"pad": -28}),
 }

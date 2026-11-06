@@ -445,9 +445,12 @@ def build_song(job):
     fs = music.SR_HI
     path = DIR_SONGS / f"{entry['id']}.ogg"
     measure = lambda z: A.lufs(hi_rate(z, s.sr), fs, circular=True)[0]  # noqa: E731
-    ceiling = MIX_TP_AIM
+    # a song whose beats peak just above the rest may get a lower true-peak ceiling (entry "ceiling_trim", dB; the
+    # loudness stays SONG_LUFS) so that notes + the music bed in a level still fit under 0 dBTP (the headroom check)
+    ceiling = MIX_TP_AIM + float(entry.get("ceiling_trim", 0.0))
+    target = SONG_LUFS
     for _ in range(8):  # Vorbis moves peaks a little: settle the decoded true peak under MIX_TP_MAX
-        y, gr, egr = level_loop(mix, s.sr, measure, SONG_LUFS, ceiling)
+        y, gr, egr = level_loop(mix, s.sr, measure, target, ceiling)
         data, dec = dsp.encode_vorbis(y, s.sr, Q_MUSIC, rel(path))
         dec_hi = hi_rate(dec, s.sr)
         tp, pk = A.true_peak(dec_hi, circular=True), A.sample_peak(dec)
@@ -468,7 +471,7 @@ def build_song(job):
         "bytes": len(data), "loop_samples": s.n, "loop_samples_44100": s.n * 2, "loop_seconds": round(s.n / s.sr, 6),
         "exact_seconds": round(entry["bars"] * 4 * 60.0 / entry["bpm"], 6),
         "chords": [c.name for c in s.chords], "chord_beats": [c.dur for c in s.chords], "parts": list(parts),
-        "lufs": round(A.lufs(dec_hi, fs, circular=True)[0], 1), "lufs_target": SONG_LUFS,
+        "lufs": round(A.lufs(dec_hi, fs, circular=True)[0], 1), "lufs_target": round(target, 2),
         "limiter_gr_db": gr, "limiter_energy_gr_db": egr,
         "centroid_hz": round(A.centroid(dec_hi, fs)),
         "brightness": {"hf_2k_8k_vs_mid_db": round(A.band_db(dec_hi, fs, 2000, 8000), 1),
@@ -950,6 +953,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--only", default="notes,sfx,music,songs", help="comma list of notes,sfx,music,songs")
     ap.add_argument("--jobs", type=int, default=min(5, mp.cpu_count()))
+    ap.add_argument("--songs", default="", help="comma list of song ids: with --only songs, render just these and keep "
+                    "the other songs of the previous manifest (a quick re-level of one song)")
     ap.add_argument("--preview", default="", help="comma list of song ids: render only these to --out, print their "
                     "measurements and checks, touch nothing in assets/ (for writing songs)")
     ap.add_argument("--out", default="/tmp/glow_song_preview", help="folder of --preview")
@@ -963,6 +968,9 @@ def main():
 
     genres = json.loads(GENRES.read_text(encoding="utf-8"))["genres"]
     catalogue = [(e, d) for d in districts + genres for e in d.get("songs", [])]
+    if args.songs:
+        want = set(args.songs.split(","))
+        catalogue = [(e, d) for e, d in catalogue if e["id"] in want]
     pool = None
     if ("music" in parts or "songs" in parts) and args.jobs > 1:
         pool = mp.get_context("fork").Pool(args.jobs)
@@ -997,7 +1005,11 @@ def main():
     print(f"music: {sum(len(v['stems']) for v in man['music'].values())} stems  ({time.time() - t0:.1f}s)")
     if "songs" in parts:
         res = pending_songs.get() if pool else [build_song(j) for j in catalogue]
-        man["songs"] = {r["id"]: r for r in res}
+        man["songs"] = dict(prev.get("songs", {})) if args.songs else {}
+        man["songs"].update({r["id"]: r for r in res})
+        if args.songs:  # keep the catalogue order of the manifest
+            order = [e["id"] for d in districts + genres for e in d.get("songs", [])]
+            man["songs"] = {i: man["songs"][i] for i in order if i in man["songs"]}
     else:
         man["songs"] = prev.get("songs", {})
     if pool:
