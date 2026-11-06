@@ -71,7 +71,7 @@ AUDIO_SCRIPT = "/main/audio.script"
 
 GAME_GROUPS = ("pieces", "specials", "blockers", "board", "fx")
 UI_GROUPS = ("ui", "icons")
-LOOSE_GROUPS = ("districts", "backgrounds", "bit", "logo")  # custom resources, loaded on demand
+LOOSE_GROUPS = ("districts", "backgrounds", "bit", "logo", "mapbg")  # custom resources, loaded on demand
 LOOSE_DIRS = tuple("/assets/images/" + g for g in LOOSE_GROUPS)
 MIN_BG = (720, 1280)  # backgrounds below this look soft on 3x phones
 
@@ -131,6 +131,8 @@ GUI_SPECS = {
     "screens/splash/splash.gui": ("/screens/splash/splash.gui_script", ["ui"], []),
     "screens/town/town.gui": ("/screens/town/town.gui_script", ["ui", "meta"], ["grey"], 2048),
     "screens/level/level.gui": ("/screens/level/level.gui_script", ["game", "ui"], []),
+    # the map pools its nodes (client/map_model.lua): a few hundred live at once; it hosts the start window
+    "screens/map/map.gui": ("/screens/map/map.gui_script", ["ui", "map", "meta"], []),
 }
 MATERIALS = {"grey": "render/gui_grey.material"}
 GUI_MAX_NODES = 1024
@@ -342,7 +344,8 @@ def check_loose(images, dids, warnings):
         if parts[0] == "districts" and parts[1] not in dids:
             warnings.append("image of a district that is not in content/districts.json: " + key)
         name = parts[-1]
-        if (parts[0] == "backgrounds" or name.startswith("bg")) and (e["w"] < MIN_BG[0] or e["h"] < MIN_BG[1]):
+        # the tiles of the map (mapbg/bg_*, 720 px wide, 1 logical px = 1 px) are drawn smaller than a full screen
+        if parts[0] != "mapbg" and (parts[0] == "backgrounds" or name.startswith("bg")) and (e["w"] < MIN_BG[0] or e["h"] < MIN_BG[1]):
             warnings.append("low-res background %s (%dx%d): drawn at up to %.1fx on a 3x phone, ask for %dx%d" % (
                 key, e["w"], e["h"], 1170 * 1280 / 720 / e["h"], MIN_BG[0], MIN_BG[1]))
 

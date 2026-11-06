@@ -875,6 +875,306 @@
       "alpha": true,
       "bytes": 141012
     },
+    "map/deco_cafe_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11902
+    },
+    "map/deco_cafe_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_cafe_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 4529
+    },
+    "map/deco_cafe_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8589
+    },
+    "map/deco_cafe_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8477
+    },
+    "map/deco_cafe_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 10369
+    },
+    "map/deco_garage_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11314
+    },
+    "map/deco_garage_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8202
+    },
+    "map/deco_garage_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_garage_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 7451
+    },
+    "map/deco_garage_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11910
+    },
+    "map/deco_garage_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8589
+    },
+    "map/deco_jazz_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_jazz_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8589
+    },
+    "map/deco_jazz_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8158
+    },
+    "map/deco_jazz_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 4529
+    },
+    "map/deco_jazz_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12214
+    },
+    "map/deco_jazz_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 6026
+    },
+    "map/deco_square_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11902
+    },
+    "map/deco_square_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 7451
+    },
+    "map/deco_square_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8173
+    },
+    "map/deco_square_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 4529
+    },
+    "map/deco_square_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 8158
+    },
+    "map/deco_square_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_stadium_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12214
+    },
+    "map/deco_stadium_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11403
+    },
+    "map/deco_stadium_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 7451
+    },
+    "map/deco_stadium_4.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 9409
+    },
+    "map/deco_stadium_5.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12369
+    },
+    "map/deco_stadium_6.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11902
+    },
+    "map/node_concert_current.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 46358
+    },
+    "map/node_concert_done.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 27079
+    },
+    "map/node_concert_locked.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 22864
+    },
+    "map/node_concert_open.png": {
+      "w": 224,
+      "h": 224,
+      "alpha": true,
+      "bytes": 28129
+    },
+    "map/node_day_current.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 35640
+    },
+    "map/node_day_done.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 18940
+    },
+    "map/node_day_locked.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 15122
+    },
+    "map/node_day_open.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 18338
+    },
+    "map/path_dot.png": {
+      "w": 48,
+      "h": 48,
+      "alpha": true,
+      "bytes": 2420
+    },
+    "map/path_dot_done.png": {
+      "w": 48,
+      "h": 48,
+      "alpha": true,
+      "bytes": 2553
+    },
+    "mapbg/bg_cafe.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 46683
+    },
+    "mapbg/bg_garage.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 52014
+    },
+    "mapbg/bg_jazz.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 47817
+    },
+    "mapbg/bg_square.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 49963
+    },
+    "mapbg/bg_stadium.png": {
+      "w": 720,
+      "h": 1080,
+      "alpha": false,
+      "bytes": 43542
+    },
+    "mapbg/gate_cafe.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 45344
+    },
+    "mapbg/gate_garage.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 45415
+    },
+    "mapbg/gate_jazz.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 44992
+    },
+    "mapbg/gate_square.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 42351
+    },
+    "mapbg/gate_stadium.png": {
+      "w": 720,
+      "h": 480,
+      "alpha": true,
+      "bytes": 46037
+    },
     "pieces/blue.png": {
       "w": 160,
       "h": 160,
@@ -1174,6 +1474,12 @@
       "h": 96,
       "alpha": true,
       "bytes": 8879
+    },
+    "ui/icons/map.png": {
+      "w": 96,
+      "h": 96,
+      "alpha": true,
+      "bytes": 8705
     },
     "ui/icons/music_off.png": {
       "w": 96,

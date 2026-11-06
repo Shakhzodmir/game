@@ -1,0 +1,377 @@
+-- Map: the road of the 100 levels (docs/handoff/WP-7.md). The data is content/map.json (client/map_model.lua),
+-- the scrolling client/map_scroll.lua, the drawing screens/map/view.lua (pooled nodes), the top bar and the
+-- "to my level" button screens/map/hud.lua.
+--
+-- What the player can do: drag (finger or mouse) or use the wheel to scroll, with inertia; tap the node of a
+-- level: the level to play opens the start window (gui/start.lua), a beaten one opens it as a replay (stars grow,
+-- nothing else is paid), a closed one says "opens after level N". Back goes to the town; the level screen
+-- returns here (params.back = "map", client/flow.lua).
+-- Bit stands on the level to play; after a win he walks along the trail to the new one (view.remembered).
+-- After level 100 the map ends with the "new levels soon" sign and Bit rests on the last node.
+--
+-- Bus in: meta_changed, language_changed, settings_changed, save_reset, screen_leaving, popup_request,
+-- map_qa (client/qa_bridge.lua: {action = "goto" | "tap", level = n}).
+-- State for QA: app.ui.map (see view.lua), app.ui.targets (node_<n>, back, to_current).
+
+local app = require("client.app")
+local ui = require("client.ui")
+local i18n = require("client.i18n")
+local bus = require("client.bus")
+local audio = require("client.audio")
+local songs = require("client.songs")
+local popups = require("client.popups")
+local flow = require("client.flow")
+local levels = require("client.levels")
+local map_model = require("client.map_model")
+local map_scroll = require("client.map_scroll")
+local view_mod = require("screens.map.view")
+local hud_mod = require("screens.map.hud")
+
+local GUI = "/screens/map/map.gui"
+local TOUCH = hash("touch")
+local BACK = hash("back")
+local WHEEL_UP, WHEEL_DOWN = hash("wheel_up"), hash("wheel_down")
+
+-- literal requires: bob bundles only modules it can see
+local REGISTRY = {
+	start = require("gui.start"),
+	lives = require("gui.lives"),
+	shop = require("gui.shop"),
+	confirm = require("gui.confirm"),
+}
+
+local WALK_DELAY = 0.8     -- seconds between the opening of the map and the first step
+local FOCUS = 0.42         -- the level to play is put at this fraction of the window height (from the bottom)
+
+local Map = {}
+Map.__index = Map
+
+local function is_concert(n)
+	return levels.is_concert(n) and "concert" or "day"
+end
+
+-- actions -----------------------------------------------------------------------------------------
+
+function Map:go_town()
+	if self.leaving then return end
+	self.leaving = true
+	app.show_screen("town", { from = "map" })
+end
+
+function Map:to_current()
+	local next = self.view.next or self.model.count
+	local y = self.model:node(next).y
+	self.scroll:glide(self.model:off_for(y, self.view:view_h(), FOCUS), 0.6)
+end
+
+-- A tap on the node of level n.
+function Map:tap_level(n)
+	local v = self.view
+	local st = self.model:state(n, v.next)
+	local slot = v:slot_for(n)
+	if st == "locked" then
+		audio.sfx("swap_fail")
+		if slot.level == n then self.fx:shake(slot.face, 10, 0.4) end
+		app.toast_key("map.locked", { n = n - 1 }, { color = "blue" })
+		if v.bit then v.bit:worry(1.0) end
+		return
+	end
+	audio.sfx("button")
+	if slot.level == n then self.fx:pop(slot.face, 0.12, 0.25) end
+	self.popups:open("start", { level = n, replay = st == "done" })
+end
+
+-- A tap at logical coordinates (720x1280, y up): the node under it, if any.
+function Map:tap_at(lx, ly)
+	local n = self.model:pick(lx, ly + self.view.off)
+	if n then self:tap_level(n) end
+	return n
+end
+
+-- Bit's walk ------------------------------------------------------------------------------------------
+
+function Map:start_walk(from, to)
+	self.walk = { from = from, to = to, delay = WALK_DELAY }
+	self.view.bit_u = from
+	self.view:place_bit(0)
+end
+
+function Map:arrive()
+	local v, m = self.view, self.model
+	local w = self.walk
+	self.walk = nil
+	v.bit_u = w.to
+	v.disp_next = v.next
+	view_mod.remembered.level = v.next or m.count + 1
+	v:refresh()
+	v.bit:cheer(1.6, 2)
+	audio.sfx("unlock")
+	-- the node Bit arrived on lights up
+	local target = v.next or m.count
+	local slot = v:slot_for(target)
+	if slot.level == target then
+		v:bind_slot(slot, target, true)
+		local nd = m:node(target)
+		self.fx:burst(nd.x, nd.y - v.off, { count = 16, radius = 150, size = 34 })
+	end
+	v:place_bit(0)
+	v.hud:set_stars()
+end
+
+function Map:update_walk(dt)
+	local w = self.walk
+	if not w then return end
+	local v = self.view
+	if w.delay > 0 then
+		w.delay = w.delay - dt
+		return
+	end
+	local u = v.bit_u + view_mod.WALK_SPEED * dt
+	if u >= w.to then
+		self:arrive()
+		return
+	end
+	v.bit_u = u
+	-- a hop for every third of a level
+	local ph = (u * 3) % 1
+	local hop = 4 * ph * (1 - ph) * 26
+	v:place_bit(hop)
+	v.bit:set("happy")
+	-- the camera follows Bit unless the player has hold of the map
+	if not self.scroll:dragging() then
+		local _, y = self.model:path_pos(u)
+		local want = self.model:off_for(y, v:view_h(), FOCUS)
+		local p = self.scroll:pos()
+		self.scroll:set(p + (want - p) * math.min(1, dt * 5))
+	end
+end
+
+-- lifecycle ---------------------------------------------------------------------------------------------
+
+function Map:setup_scroll()
+	local v, m = self.view, self.model
+	local vh = v:view_h()
+	self.scroll = map_scroll.new({ min = 0, max = m:max_off(vh), pos = 0 })
+	local next = v.next
+	local target_u = next or m.count
+	local rem = view_mod.remembered.level
+	local from_u = target_u
+	if not app.reduced_motion() and rem and rem < (next or m.count + 1) and rem >= 1 and rem <= m.count then
+		from_u = rem
+	end
+	if from_u < target_u then
+		-- Bit walks from where the map last saw him; the nodes still show that state until he arrives
+		v.disp_next = from_u
+		self.scroll:set(m:off_for(m:node(from_u).y, vh, FOCUS))
+		v.bit_u = from_u
+		self:start_walk(from_u, target_u)
+	elseif not app.reduced_motion() and rem and next == nil and rem == m.count then
+		-- level 100 was just beaten: its node turns "done" with a little party
+		v.disp_next = m.count
+		v.bit_u = m.count
+		self.scroll:set(m:off_for(m:node(m.count).y, vh, FOCUS))
+		self:start_walk(m.count, m.count)
+	else
+		v.disp_next = next
+		v.bit_u = target_u
+		view_mod.remembered.level = next or m.count + 1
+		self.scroll:set(m:off_for(m:node(target_u).y, vh, FOCUS))
+	end
+end
+
+local function new_map()
+	local t = setmetatable({}, Map)
+	t.sub = bus.subscribe({ "meta_changed", "language_changed", "settings_changed", "save_reset", "screen_leaving",
+		"popup_request", "map_qa", "lives_tick" }, "map")
+	t.on_bus = function(topic, p) t:handle_bus(topic, p) end
+	t.ui = ui.scene({ gui = GUI, on_resize = function() t.dirty_layout = true end })
+	app.ui = { screen = "map" }
+
+	-- an attempt a level left open is settled first (the town shows what it cost)
+	local stale = flow.settle_stale_run()
+	if stale then app.push_reward(stale) end
+
+	local data = assert(map_model.read())
+	t.model = map_model.new(data, { kind_of = is_concert })
+	t.view = view_mod.new(t.ui, t.model)
+	t.fx = t.view.fx
+	t.view.next = app.meta:level_to_play()
+	t.view:build_world()
+	t.popups = popups.new(t.ui, t.view.c_popups, {
+		registry = REGISTRY, fx = t.fx,
+		release = function() t.ui:release_images(t.view:keep_images()) end,
+		on_change = function() t:publish() end,
+	})
+	t.view.hud = hud_mod.new(t.view, {
+		back = function() t:go_town() end,
+		to_current = function() t:to_current() end,
+	})
+	t.view.hud:build()
+	t:setup_scroll()
+	t.view:apply(t.scroll:pos())
+	t.view:refresh()
+	t.time = 0
+
+	audio.level_duck(false)
+	audio.layer("tension", false)
+	audio.layer("party", false)
+	songs.play("town", app.focus_district())
+	t:publish()
+	return t
+end
+
+function Map:publish()
+	local u = app.ui
+	u.screen = "map"
+	self.view:publish(u, self.walk ~= nil)
+end
+
+function Map:handle_bus(topic, p)
+	if self.popups then self.popups:on_event(topic, p) end
+	local v = self.view
+	if topic == "language_changed" then
+		self.dirty_world = true
+	elseif topic == "settings_changed" then
+		if p and (p.key == "reduced_motion" or p.key == "*") then self.dirty_world = true end
+	elseif topic == "meta_changed" then
+		v.next = app.meta:level_to_play()
+		self.dirty_meta = true
+	elseif topic == "save_reset" then
+		self.popups:close_all()
+		view_mod._reset()
+		v.next = app.meta:level_to_play()
+		self.dirty_world = true
+		self.reset = true
+	elseif topic == "screen_leaving" then
+		self.leaving = true
+		self.popups:close_all()
+	elseif topic == "popup_request" then
+		if p.close then
+			self.popups:close()
+		elseif p.name then
+			self.popups:open(p.name, p.params)
+		end
+	elseif topic == "map_qa" then
+		if p.action == "goto" and p.level then
+			self.scroll:set(self.model:off_for(self.model:node(p.level).y, v:view_h(), FOCUS))
+		elseif p.action == "tap" and p.level then
+			self:tap_level(p.level)
+		end
+	end
+end
+
+function Map:rebuild()
+	local v = self.view
+	self.popups:close_all()
+	local off = self.scroll:pos()
+	v.next = app.meta:level_to_play()
+	if self.reset then
+		self.reset = false
+		self.walk = nil
+		v.disp_next = v.next
+		v.bit_u = v.next or self.model.count
+	end
+	v:build_world()
+	v.hud:build()
+	self.scroll:set_range(0, self.model:max_off(v:view_h()))
+	self.scroll:set(off)
+	v:apply(self.scroll:pos())
+	v:refresh()
+end
+
+function Map:update(dt)
+	local v = self.view
+	self.time = self.time + dt
+	self.sub:drain(self.on_bus)
+	-- window changed: the pools may have to grow
+	if self.dirty_layout then
+		self.dirty_layout = false
+		if v:view_h() > v.view_h_built then self.dirty_world = true end
+		self.scroll:set_range(0, self.model:max_off(v:view_h()))
+		v.tile_key = nil
+	end
+	if self.dirty_world and not self.ui.pressed then
+		self.dirty_world = false
+		self.dirty_meta = false
+		self:rebuild()
+	elseif self.dirty_meta then
+		self.dirty_meta = false
+		if not self.walk then
+			v.disp_next = v.next
+			v:refresh()
+		end
+		v.hud:set_stars()
+	end
+	self.ui:update(dt)
+	self.fx:update(dt)
+	self.popups:update(dt)
+	v.bit:update(dt)
+	self:update_walk(dt)
+	local changed = self.scroll:update(dt)
+	if changed or v.off == nil or v.tile_key == nil then v:apply(self.scroll:pos()) end
+	-- the "to my level" button while the level to play is out of the window
+	local target = self.model:node(v.next or self.model.count)
+	local sy = target.y - (v.off or 0)
+	v.hud:show_current(sy < -60 or sy > v:view_h() + 60)
+	self:publish()
+end
+
+function Map:on_input(action_id, action)
+	if self.popups:on_input(action_id, action) then return true end
+	if action_id == BACK then
+		if action.released then self:go_town() end
+		return true
+	end
+	if self.leaving then return true end
+	local sc = self.scroll
+	if action_id == WHEEL_UP then
+		sc:wheel(1)
+		return true
+	elseif action_id == WHEEL_DOWN then
+		sc:wheel(-1)
+		return true
+	end
+	if action_id ~= TOUCH and action_id ~= nil then return false end
+	local _, ly = self.ui:logical(action)
+	if action_id == TOUCH and action.pressed then
+		if self.ui:on_input(action_id, action) then
+			self.on_button = true
+			return true
+		end
+		sc:press(ly, self.time)
+		return true
+	elseif action_id == TOUCH and action.released then
+		if self.on_button then
+			self.on_button = false
+			self.ui:on_input(action_id, action)
+			return true
+		end
+		local lx = self.ui:logical(action)
+		if sc:release(self.time) then self:tap_at(lx, ly) end
+		return true
+	end
+	-- the pointer moved (a mouse move has no action id, a touch drag comes as "touch")
+	if not self.on_button then sc:move(ly, self.time) end
+	return action_id == TOUCH
+end
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	self.m = new_map()
+end
+
+function final(self)
+	local t = self.m
+	t.sub:close()
+	t.popups:close_all()
+	app.ui = {}
+	t.ui:final()
+end
+
+function update(self, dt)
+	self.m:update(dt)
+end
+
+function on_input(self, action_id, action)
+	return self.m:on_input(action_id, action)
+end
