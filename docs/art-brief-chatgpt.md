@@ -70,6 +70,8 @@
 | A1.9 | `bit_listen.png` | 2×2 | 4 кадра: глаза закрыты, прижимает наушники руками, покачивается, маленькие ноты |
 | A1.10 | `bit_wave.png` | 2×2 | 4 кадра: машет рукой, улыбается |
 
+Как игра читает Бита (WP-8, `content/animations.json`): кадры n-й анимации ложатся как `bit/<анимация>_<n>.png` (`bit_cheer_3` в брифе = `bit/cheer_3` в игре), 256×256, одна линия земли у всех кадров; `tools/art/install_ready.py` ставит анимацию, только когда готовы **все** её кадры. Что игра делает с кадрами: `idle_breathe` крутится туда-обратно всегда, `idle_look` и `wave`/`listen` играют по случайному поводу, `sleepy` после кадра 4 качается между кадрами 3 и 4, пока игрок не тронет экран, `dance_a`/`dance_b` меняются каждые 4 доли и идут в такт песни (один проход = 2 доли), `write` крутится, пока блокнот открыт. Дыхание, покачивание и подскок на доле игра добавляет сама (скелетная часть), рисовать их в кадрах не нужно.
+
 **A2. Блокнот песни** (папка `notebook`; задача WP-9; прикладывать `05_bit.png`, `01_ui_buttons_panels.png`, `02_icons.png`)
 
 | № | Файл | Сетка | Что нарисовать | В игре |
@@ -119,7 +121,7 @@
 
 | № | Файл | Что нарисовать |
 |---|---|---|
-| B1.1–B1.5 | `room_<район>_day.png` (cafe, jazz, square, stadium, garage), папка `rooms` | комната района днём, портрет 2:3, без розового, как `bg.png` на листе `06_district_items.png` и на экране города: окно с видом на город наверху, стена, пол; предметы не рисовать (они отдельные), оставить свободный пол для 3–6 предметов |
+| B1.1–B1.5 | `room_<район>_day.png` (cafe, jazz, square, stadium, garage), папка `rooms` | комната района днём, портрет 2:3, без розового, как `bg.png` на листе `06_district_items.png` и на экране города: окно с видом на город наверху, стена, пол; предметы не рисовать (они отдельные), оставить свободный пол для 3–6 предметов; в игре комната уже (9:16), поэтому по бокам срежется по 8% ширины: окно и важное держи ближе к центру |
 | B1.6–B1.10 | `room_<район>_concert.png` | та же комната «в режиме концерт»: яркая неоновая ночь, сине-фиолетовый #3B2A8F → #6B4CE0 с розовыми, бирюзовыми и жёлтыми прожекторами; не тёмная |
 | B2.1–B2.5 | `btn_<цвет>.png` (green, blue, gold, pink, purple), папка `ui` | сетка 2×2: широкая кнопка-«таблетка» без текста: обычная, нажатая, выключенная (серая), с ободком-фокусом; глянец, тёмная «полка» снизу, как на `01_ui_buttons_panels.png`, но красивее |
 | B2.6 | `panels.png` | 2×2: окно-панель с лентой-заголовком, без ленты, панель-подложка (кремовая), «таблетка» вкладки (выбрана и нет) |
@@ -184,7 +186,7 @@ A4.3 bonus_gift, grid 2x2: a bonus gift: closed box, shaking, glowing before ope
 A4.4 bonus_spark, grid 3x2: 6 frames of a small spark-star pop.
 A4.5 super_star, grid 2x2: a golden super star with a rainbow glint and a tiny crown; the same star empty and grey; the star with a glow; a small simplified version for a score row.
 
-B1 Rooms (opaque, portrait 2:3, no magenta): room_cafe_day, room_jazz_day, room_square_day, room_stadium_day, room_garage_day, and room_<district>_concert for each. A room of the district as in the attached game screens: a window with a city view at the top, a wall, a floor; do NOT draw furniture or items, leave free floor space for 3 to 6 items. "day" = bright pastel daylight. "concert" = bright neon night with colored spotlights.
+B1 Rooms (opaque, portrait 2:3, no magenta): room_cafe_day, room_jazz_day, room_square_day, room_stadium_day, room_garage_day, and room_<district>_concert for each. A room of the district as in the attached game screens: a window with a city view at the top, a wall, a floor; do NOT draw furniture or items, leave free floor space for 3 to 6 items. "day" = bright pastel daylight. "concert" = bright neon night with colored spotlights. In the game a room is narrower (9:16) than the canvas, so about 8% of the width is cut from each side: keep the window and every important shape in the central 80%.
 
 B2 Interface (magenta background):
 B2.1-B2.5 btn_green, btn_blue, btn_gold, btn_pink, btn_purple: grid 2x2: a wide pill-shaped button without text: normal, pressed, disabled (grey), focused (glowing rim). Glossy with a dark "shelf" at the bottom, like the attached buttons but more beautiful.
