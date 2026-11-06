@@ -11,7 +11,7 @@
 -- The tab and the page on display live in e.state (they survive a rebuild: a language change); the pick lives
 -- in the meta. A genre with more songs than a page holds pages with two arrows.
 -- QA targets: tab_<genre>, play_<song id> (the theme: play_<district id>), back_home, page_prev, page_next, tabs_prev,
--- tabs_next (the row of genre tabs pages: 4 on a page).
+-- tabs_next (the row of genre tabs pages: 3 on a page).
 -- QA status (app.ui.jukebox): {tab, tab_page, tab_pages, page, pages, chosen = the pick, rows = in the tab, ids = the rows on the page}.
 
 local app = require("client.app")
@@ -35,8 +35,8 @@ local TAB_STYLE = { "pink", "purple", "gold", "blue", "green" }
 -- the genres that are not districts take the style of their group
 local GROUP_STYLE = { classic = "purple", traditional = "gold", modern = "blue" }
 -- the genre tabs page: this many on the row, two arrows turn the pages (20 genres do not fit one row)
-local TABS_PER_PAGE = 4
-local ARROW_W = 52
+local TABS_PER_PAGE = 3
+local ARROW_W = 84
 
 local function rows_per_page(count)
 	return count <= PAGE_ROWS and PAGE_ROWS or PAGE_ROWS_PAGED

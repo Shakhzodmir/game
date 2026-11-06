@@ -655,7 +655,7 @@ describe("meta windows: jukebox", function()
 				assert_true(has(c, text), "no '" .. text .. "' in: " .. texts(c))
 			end
 			assert_eq(c.app.ui.jukebox.tab, "jazz")
-			for _, name in ipairs({ "tab_cafe", "tab_jazz", "tab_square", "tab_stadium", "tab_garage", "back_home", "play_jazz",
+			for _, name in ipairs({ "tab_cafe", "tab_jazz", "tab_square", "tabs_prev", "tabs_next", "back_home", "play_jazz",
 				"play_bossa_breeze", "play_scat_parade", "close" }) do
 				assert_true(c.app.ui.popup_targets[name] ~= nil, "no target " .. name)
 			end
@@ -794,6 +794,15 @@ describe("meta windows: jukebox", function()
 		end)
 	end)
 
+	-- the row of genre tabs pages: turn to the page that holds the genre, then tap it
+	local function tab_to(c, tab)
+		for _ = 1, 7 do
+			if c.app.ui.popup_targets["tab_" .. tab] then break end
+			wtap(c, "tabs_next")
+		end
+		wtap(c, "tab_" .. tab)
+	end
+
 	it("fits every genre, picked or not, in both languages and every window size", function()
 		for _, lang in ipairs({ "en", "ru" }) do
 			for _, w in ipairs(WINDOWS) do
@@ -802,14 +811,14 @@ describe("meta windows: jukebox", function()
 					open(c, "jukebox")
 					local label = lang .. " " .. w[1] .. "x" .. w[2]
 					for _, tab in ipairs({ "cafe", "jazz", "square", "stadium", "garage" }) do
-						wtap(c, "tab_" .. tab)
+						tab_to(c, tab)
 						assert_same(c.E.audit(), {}, label .. " " .. tab)
 						for _, s in ipairs(c.town:smallest_texts(3)) do
 							assert_true(s.px >= 15, label .. " " .. tab .. ": '" .. s.text .. "' is only " .. string.format("%.1f", s.px) .. " px")
 						end
 					end
 					-- the longest name of a district (Russian) on the strip, picked
-					wtap(c, "tab_square")
+					tab_to(c, "square")
 					wtap(c, "play_square")
 					assert_same(c.E.audit(), {}, label .. " picked")
 					for _, s in ipairs(c.town:smallest_texts(3)) do

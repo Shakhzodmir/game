@@ -32,7 +32,7 @@ def kick808(sr):
 
 
 def finish_drums(s, d, wet=0.08, drv=1.4):
-    d = dsp.loop_apply(d, lambda z: dsp.lowpass(z, 9000, s.sr, 2))
+    d = dsp.loop_apply(d, lambda z: dsp.lowpass(z, 6500, s.sr, 2))
     return room(s, dsp.drive(d / dsp.peak(d) * 1.3, drv), wet * 0.6, 0.6, "drums", damp=5000)
 
 
@@ -236,7 +236,6 @@ def festival_drop(s):
     S.hits(s, d, k["kick"], "X...X...X...X...", r, jit=0.0, mask=set(range(4, 16)))
     S.hits(s, d, k["clap"], "....X.......X...", r, gain=0.9, jit=0.0, mask=set(range(8, 16)))
     S.hits(s, d, k["ohat"], "..x...x...x...x.", r, gain=0.55, jit=0.0, mask=set(range(8, 16)))
-    S.hits(s, d, k["hat"], "o.o.o.o.o.o.o.o.", r, gain=0.3, jit=0.0, mask=set(range(8, 16)))
     S.hits(s, d, k["crash"], {0: "X...............", 8: "X...............", 12: "X..............."}, r, gain=0.5, jit=0.0)
     roll(s, d, k["snare"], 24, 16, 0.25, 0.2, 0.7, r)
     roll(s, d, k["snare"], 28, 16, 0.25, 0.4, 1.0, r)
@@ -245,7 +244,7 @@ def festival_drop(s):
     saw = S.comp(s, ch, vo, [(0, 4, 0.9)], lambda ss, m, du, v: S.v_super(ss, m, du, v, att=0.01, rel=0.1, k=m % 3), r=r, jit=0.0, mask=set(range(8, 16)))
     saw = sidechain(s, loop_filter(s, saw, "lp", 7000), BEATS(s), 0.8, 0.16)
     saw = room(s, saw, 0.15, 1.2, "saw", damp=6000)
-    pad = chorus_pad(s, ch, 57, 78, 67, 1.0, mask=set(range(0, 8)), cutoff=1200)
+    pad = chorus_pad(s, ch, 57, 78, 67, 1.0, mask=set(range(0, 8)), cutoff=500)
     bass = S.line(s, ch, lambda c, n, i: [(q + 0.5, 0.45, S.root_of(c, 48, 43, 55), 1.0) for q in range(4)], S.v_sbass, r=r, jit=0.0, mask=set(range(8, 16)))
     bass = sidechain(s, loop_filter(s, bass, "lp", 400, 4), BEATS(s), 0.6, 0.12)
     a = "6:1 1+:1 3+:1.5 1+:.5 | 4+:1 6:1 1+:2 | 7:1 2+:1 5+:1.5 2+:.5 | 7:1 5:1 3:2"
@@ -265,7 +264,7 @@ def deep_house_sunset(s):
     S.hits(s, d, k["kick"], "X...X...X...X...", r, jit=0.0, gain=0.9)
     S.hits(s, d, k["clap"], "....x.......x...", r, gain=0.6, jit=0.0)
     S.hits(s, d, k["ohat"], "..x...x...x...x.", r, gain=0.5, jit=0.0)
-    S.hits(s, d, k["shaker"], "ogogogogogogogog", r, gain=0.45, jit=0.002, swing=0.1)
+    S.hits(s, d, k["shaker"], "o.g.o.g.o.g.o.g.", r, gain=0.35, jit=0.002, swing=0.1)
     d = finish_drums(s, d, 0.1, 1.2)
     bass = S.line(s, ch, lambda c, n, i: [(q + 0.5, 0.4, S.root_of(c, 40, 33, 46) + (12 if (q == 3) else 0), 1.0 if q % 2 == 0 else 0.8) for q in range(4)],
                   S.v_sbass, r=r, jit=0.0)
@@ -296,7 +295,7 @@ def laser_trance(s):
     bass = sidechain(s, loop_filter(s, bass, "lp", 400, 4), BEATS(s), 0.7, 0.1)
     ar = arp(s, ch, 62, 90, lambda ss, m, du, v: S.v_pluck(ss, m, du, v, cutoff=6500, decay=0.06), [0, 2, 4, 2, 1, 3, 5, 3])
     ar = sidechain(s, room(s, echo(s, ar, 0.75, 0.3, 0.45, 3, 7000), 0.12, 1.0, "arp", damp=8000), BEATS(s), 0.3, 0.1)
-    pad = chorus_pad(s, ch, 57, 78, 67, 1.0, cutoff=1500)
+    pad = chorus_pad(s, ch, 57, 78, 67, 1.0, cutoff=500)
     a = "3+:1.5 1+:.5 6:1 1+:1 | 2+:1.5 7:.5 5:1 7:1 | 1+:1.5 6:.5 4:1 6:1 | 7:1 2+:1 5+:2"
     b = "3+:1 5+:1 3+:1 1+:1 | 2+:1 5+:1 2+:1 7:1 | 1+:1 4+:1 6+:1 4+:1 | 7:1 2+:1 5+:2"
     tn = S.tune(" | ".join(["r:4"] * 8) + " | " + a + " | " + b, s.tonic, 4)
@@ -314,8 +313,8 @@ SONGS = {
     "trap_playground": ("vi:4 IV:4 I:4 V:4 vi:4 IV:4 I:4 V:4 vi:4 IV:4 I:4 V:4", trap_playground, {"bass": -17, "pad": -27}),
     "street_cipher": ("vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 I:4", street_cipher, {"drums": -16, "bass": -19}),
     "festival_drop": ("vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4 vi:4 IV:4 V:4 iii:4", festival_drop,
-                      {"drums": -15, "keys": -20}),
+                      {"drums": -16.5, "keys": -20, "pad": -28}),
     "deep_house_sunset": ("vi7:4 ii7:4 IVmaj7:4 Imaj7:4 vi7:4 ii7:4 IVmaj7:4 Imaj7:4 vi7:4 ii7:4 IVmaj7:4 Imaj7:4", deep_house_sunset,
-                          {"drums": -17}),
-    "laser_trance": ("vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4", laser_trance, {"drums": -16, "arp": -22}),
+                          {"drums": -18}),
+    "laser_trance": ("vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4 vi:4 V:4 IV:4 V:4", laser_trance, {"drums": -17, "arp": -25, "pad": -28}),
 }
