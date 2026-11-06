@@ -59,7 +59,7 @@ UI_ZONES = {
     "top_bar": (20, 20, 600, 120), "settings": (612, 22, 708, 118),
     "district_ribbon": (125, 136, 595, 224), "concert_toggle": (580, 148, 700, 212),
     "task_card": (60, 798, 660, 922), "streak_notes": (269, 908, 451, 962),
-    "level_button": (53, 967, 523, 1103), "map_button": (545, 967, 695, 1103), "hard_tag": (350, 944, 546, 994), "notebook_button": (636, 214, 716, 284),
+    "level_button": (53, 967, 523, 1103), "map_button": (545, 967, 695, 1103), "hard_tag": (350, 944, 546, 994), "notebook_button": (638, 214, 720, 290),
     "bottom_nav": (0, 1147, 720, 1280),
 }
 ZONE_ALPHA = 16       # alpha (0..255) above which an item pixel counts as "touching"

@@ -779,7 +779,6 @@ local S = {
 	-- ============================================================================================================
 	-- songbook (WP-9): the notebook window, its button in the town and the line in the results ----------------------------
 	["notebook.title"] = { en = "Songbook", ru = "Блокнот песен" },
-	["notebook.button"] = { en = "Songbook", ru = "Блокнот" },
 	["notebook.levels"] = { en = "Levels {first}-{last}", ru = "Уровни {first}–{last}" },
 	["notebook.verse"] = { en = "Verse {n}", ru = "Куплет {n}" },
 	["notebook.chorus"] = { en = "Chorus", ru = "Припев" },
@@ -787,7 +786,6 @@ local S = {
 	["notebook.stop"] = { en = "Stop", ru = "Остановить" },
 	["notebook.progress"] = { en = "Lines written: {n} of {total}", ru = "Записано строк: {n} из {total}" },
 	["notebook.hint"] = { en = "Beat a level and Bit writes the next line", ru = "Пройди уровень, и Бит запишет следующую строку" },
-	["notebook.ready_toast"] = { en = "A new song is ready: {name}", ru = "Новая песня готова: {name}" },
 	["win.song_line"] = { en = "Bit wrote a new line", ru = "Бит записал новую строку" },
 	["win.song_ready"] = { en = "Your song is ready!", ru = "Твоя песня готова!" },
 	["win.song_open"] = { en = "Listen", ru = "Слушать" },

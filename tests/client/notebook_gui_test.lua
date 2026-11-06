@@ -168,4 +168,22 @@ describe("songbook window", function()
 			assert_eq(#c.E.audit(), 0)
 		end)
 	end)
+
+	it("fits every window shape in every language: nothing sticks out of the panel or the screen", function()
+		for _, window in ipairs({ { 720, 1280 }, { 360, 640 }, { 1280, 720 }, { 540, 1200 } }) do
+			for _, lang in ipairs({ "en", "ru", "ko" }) do
+				G.with_town({ language = lang, window = window, setup = function(app) win(app, 21) end }, function(c)
+					c.run(2) -- the finished song is offered
+					assert_eq(c.app.ui.popup, "notebook")
+					local bad = G.overflows(c)
+					assert_same(bad, {}, lang .. " " .. window[1] .. "x" .. window[2])
+					assert_eq(#c.E.audit(), 0, lang .. " glyphs")
+					popup_target(c, "close")
+					c.run(0.6)
+					open(c, { district = "jazz" })
+					assert_same(G.overflows(c), {}, lang .. " jazz page " .. window[1] .. "x" .. window[2])
+				end)
+			end
+		end
+	end)
 end)
