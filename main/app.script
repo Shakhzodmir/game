@@ -27,6 +27,8 @@ local qa_bridge = require("client.qa_bridge")
 local analytics = require("client.services.analytics")
 local iap = require("client.services.iap")
 local ads = require("client.services.ads")
+local auth = require("client.services.auth")
+local cloud = require("client.cloud")
 
 local FADE = 0.25
 local FADE_WATCHDOG = FADE + 1.5  -- seconds a fade may take before the manager moves on
@@ -351,6 +353,11 @@ function init(self)
 		end,
 	})
 	ads.init({ debug = debug })
+	-- accounts and the cloud save (WP-10): the browser provider answers "available" only when web/auth_config.js
+	-- is filled in; without it the game is a guest game and the UI says sign-in is not available yet
+	if platform.is_html5() then auth.set_provider(require("client.services.auth_web").new()) end
+	cloud.init({ app = app, auth = auth, binding = save_io.account_backend() })
+	cloud.start()
 
 	self.busy = false
 	self.current = nil
@@ -376,6 +383,7 @@ function init(self)
 	hooks.on_window(function(event)
 		if event == "focus_lost" or event == "iconified" then
 			app.commit("background", true)
+			cloud.flush()
 			end_session(self)
 			bus.publish("app_focus", { focused = false, event = event })
 		elseif event == "focus_gained" or event == "deiconified" then
@@ -396,9 +404,15 @@ end
 
 function update(self, dt)
 	self.tick = self.tick + dt
+	self.auth_tick = (self.auth_tick or 0) + dt
+	if self.auth_tick >= 0.25 then -- the browser bridge answers by polling
+		self.auth_tick = 0
+		auth.tick(app.now())
+	end
 	if self.tick >= 1 then
 		self.tick = self.tick - 1
 		app.tick(app.now()) -- lives regenerate; a failed save is retried here
+		cloud.tick(app.now()) -- background cloud save and its retries (client/cloud.lua)
 	end
 	watchdog(self, dt)
 	qa_bridge.update()

@@ -28,7 +28,7 @@ local META = { splash = true, town = true, nav = true, lives = true, start = tru
 local FILES = "gui/start.lua gui/shop.lua gui/settings.lua gui/lives.lua gui/jukebox.lua gui/concert.lua gui/chest.lua " ..
 	"gui/gift.lua gui/confirm.lua gui/kit.lua screens/town/hud.lua screens/town/scene.lua screens/town/show.lua " ..
 	"screens/town/steps.lua screens/town/town.gui_script screens/splash/splash.gui_script main/overlay.gui_script " ..
-	"main/app.script client/views.lua client/popups.lua client/meta_qa.lua client/flow.lua client/app.lua"
+	"main/app.script client/views.lua client/popups.lua client/meta_qa.lua client/flow.lua client/app.lua client/account.lua"
 
 describe("client/i18n.lua: the meta screens block", function()
 	it("has every key once, and the meta strings together in their own commented block", function()

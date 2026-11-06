@@ -64,6 +64,27 @@ function M.defold_backend(app_id)
 	}
 end
 
+-- The account file (client/cloud.lua): which account this device's save belongs to, outside the save itself.
+-- {read = fn() -> table|nil, write = fn(table) -> true | nil, err}. A new file: the save slots are untouched.
+M.ACCOUNT_FILE = "save_account.sav"
+function M.account_backend(app_id)
+	app_id = app_id or M.APP_ID
+	local function path() return sys.get_save_file(app_id, M.ACCOUNT_FILE) end
+	return {
+		read = function()
+			local ok, res = pcall(function() return sys.load(path()) end)
+			if not ok then return nil end
+			return unwrap(res)
+		end,
+		write = function(tbl)
+			local ok, res = pcall(function() return sys.save(path(), wrap(tbl)) end)
+			if not ok then return nil, tostring(res) end
+			if res == false then return nil, "sys.save returned false" end
+			return true
+		end,
+	}
+end
+
 -- In-memory backend. `files` (optional) pre-fills slots with wrapped content.
 function M.memory_backend(files)
 	local b = { files = files or {}, writes = 0, fail = false }
