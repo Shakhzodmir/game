@@ -21,6 +21,17 @@ C.difficulties = { "easy", "medium", "hard", "super_hard" }
 -- Stars for a win, by difficulty.
 C.stars = { easy = 1, medium = 1, hard = 2, super_hard = 3 }
 
+-- Stars by score: a win gives 1 star at least, 2 and 3 by the level's score thresholds
+-- (content/levels/stars.json, meta/stars.lua). C.stars above is what the old rule paid; it is kept to
+-- credit the levels a save won before the new rule (meta/record.lua).
+
+-- Super stars: paid by the concert levels (stars.json, kind = "concert"), as many as the best stars
+-- of that level. What they buy is not decided (open question to the producer): `sinks` is empty, so
+-- the stars only pile up and are shown. A sink is {id, price}; Meta:spend_super_stars(id) pays it.
+C.super_stars = {
+	sinks = {},
+}
+
 C.coins = {
 	start = 500,
 	win_base = 25,
