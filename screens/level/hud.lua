@@ -529,38 +529,53 @@ end
 
 local METER_TIP_COLORS = { "#FFFFFF", "#FFF3A6", "#FF9A3D", "#FF5FA2" }
 
--- level_bonus: the additions of one tick, in order.
+-- level_bonus: the additions of one tick, in order. A chain can fire dozens of specials in a moment (a Disco ball, a
+-- final concert): the bar runs through all of them but the effects are made once per call and at most METER_FX_LIVE
+-- at a time, so the GUI scene never runs out of animations (the engine drops the ones past gui.max_animation_count).
+local METER_FX_LIVE = 3
+
 function Hud:on_bonus(p)
 	local mt = self.mtr
-	if not mt or not p or not p.adds then return end
+	if not mt or not p or not p.adds or #p.adds == 0 then return end
 	local thr = self.m_thr
+	local sum, passed_full, last = 0, false, p.adds[#p.adds]
 	for _, a in ipairs(p.adds) do
-		local shown = a.fill and thr or (a.total or 0)
+		sum = sum + (a.n or 1)
+		if a.fill then passed_full = true end
 		self.m_pts = a.fill and (a.total - thr) or a.total
-		local tipx = mt.x0 + mt.w * math.min(shown, thr) / thr
-		self:_meter_set(math.min(shown, thr), true)
-		self.fx:pop(mt.back, 0.06, 0.25)
-		self.fx:burst(tipx, mt.cy, { count = 5 + 3 * (a.n or 1), radius = 34 + 14 * (a.n or 1), size = 22, dur = 0.5,
-			colors = METER_TIP_COLORS })
-		self.fx:float_text("+" .. tostring(a.n or 1), tipx, mt.cy + 26, { size = 34, color = "#FFF3A6", outline = METER_EDGE,
+	end
+	local shown = last.fill and thr or (last.total or 0)
+	if passed_full and not last.fill then shown = thr end -- it was full on the way: show that, then drain
+	shown = math.min(shown, thr)
+	local tipx = mt.x0 + mt.w * shown / thr
+	self:_meter_set(shown, true)
+	self.fx:pop(mt.back, 0.06, 0.25)
+	pcall(audio.play_note, "yellow", math.max(1, math.min(shown, 9))) -- a note of the scale that climbs with the bar
+	if not meter_hinted then -- once per session: what the bar is for
+		meter_hinted = true
+		pcall(app.toast_key, "hud.bonus_hint", nil, { color = "purple", duration = 3 })
+	end
+	self.m_live = self.m_live or 0
+	if self.m_live < METER_FX_LIVE then
+		self.m_live = self.m_live + 1
+		local k = math.min(sum, 3)
+		self.fx:burst(tipx, mt.cy, { count = 5 + 3 * k, radius = 34 + 14 * k, size = 22, dur = 0.5, colors = METER_TIP_COLORS })
+		self.fx:float_text("+" .. tostring(sum), tipx, mt.cy + 26, { size = 34, color = "#FFF3A6", outline = METER_EDGE,
 			dur = 0.7, rise = 50, max_width = 120 })
-		-- a note of the scale that climbs with the bar
-		pcall(audio.play_note, "yellow", math.max(1, math.min(shown, 9)))
-		if not meter_hinted then -- once per session: what the bar is for
-			meter_hinted = true
-			pcall(app.toast_key, "hud.bonus_hint", nil, { color = "purple", duration = 3 })
-		end
-		if a.fill then
-			-- full: flash and ring at the gift, the fanfare, then the bar drains to what was carried over
-			self.fx:flash(mt.gx, mt.gy, { size = 220, color = "#FFF3A6", dur = 0.5 })
-			self.fx:ring(mt.gx, mt.gy, { size = 110, scale = 3, dur = 0.6, color = "#FFD84D" })
-			self.fx:burst(mt.gx, mt.gy, { count = 16, radius = 110, size = 30, dur = 0.7 })
-			self.fx:shake(mt.gift, 8, 0.4)
-			pcall(audio.sfx, "star")
-			self.fx:after(0.55, function()
-				if self.mtr == mt then self:_meter_set(self.m_pts, true) end
-			end)
-		end
+		self.fx:after(0.8, function() self.m_live = math.max(0, (self.m_live or 1) - 1) end)
+	end
+	if passed_full and not self.m_fill_fx then
+		-- full: flash and ring at the gift, the fanfare, then the bar drains to what was carried over
+		self.m_fill_fx = true
+		self.fx:flash(mt.gx, mt.gy, { size = 220, color = "#FFF3A6", dur = 0.5 })
+		self.fx:ring(mt.gx, mt.gy, { size = 110, scale = 3, dur = 0.6, color = "#FFD84D" })
+		self.fx:burst(mt.gx, mt.gy, { count = 16, radius = 110, size = 30, dur = 0.7 })
+		self.fx:shake(mt.gift, 8, 0.4)
+		pcall(audio.sfx, "star")
+		self.fx:after(0.55, function()
+			self.m_fill_fx = false
+			if self.mtr == mt then self:_meter_set(self.m_pts, true) end
+		end)
 	end
 end
 
