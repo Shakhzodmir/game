@@ -25,6 +25,7 @@
 --                                -- (the layered theme of a district is not one: app.district(id))
 --   app.set_song(id | nil)       -- the jukebox pick (nil = follow the town again): meta, save and analytics;
 --                                -- the music itself is started by client/songs.lua
+--   app.beaten_count()           -- levels open for a replay (1..n, no meta attempt: nothing is paid)
 --   app.ui                       -- status of the town and its popups (QA / debug)
 --   app.export_code()            -- the save as a text code (client/../meta/savecode.lua): code, summary
 --   app.read_code(text)          -- a typed code -> save table, summary (or nil, reason)
@@ -336,6 +337,15 @@ end
 -- lives window; the rule itself is applied by the meta).
 function M.free_levels()
 	return config.levels.free_up_to
+end
+
+-- Levels the player can replay: 1..n (every level once the last one is beaten; 0 before any win).
+function M.beaten_count()
+	local meta = M.meta
+	if not meta then return 0 end
+	local n = meta:level_to_play()
+	if n then return n - 1 end
+	return config.levels.count
 end
 
 -- True when a save slot existed but could not be read (not merely missing).

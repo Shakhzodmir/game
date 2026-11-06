@@ -251,6 +251,27 @@ async function debugChecks() {
 	check(Math.abs((await state(page)).app.audio.music_gain - 0.8) < 1e-6, 'audio: a save reset applies the default volume again',
 		(await state(page)).app.audio.music_gain);
 
+	// the save code: export, wipe the save, import: the progress is the same as before
+	await command(page, 'meta_win 5');
+	await command(page, 'meta_win 5');
+	await sleep(300);
+	const beforeCode = (await state(page)).app;
+	const exported = (await command(page, 'save_code')).result;
+	check(typeof exported.code === 'string' && exported.code.startsWith('GLOW1-') && /^[A-Za-z0-9_-]+$/.test(exported.code),
+		'save code: exported as one url-safe line', exported.code && exported.code.slice(0, 12));
+	await command(page, 'reset_save');
+	await sleep(300);
+	check((await state(page)).app.level === 1, 'save code: the wiped save starts again', (await state(page)).app.level);
+	const bad = await command(page, 'save_import ' + exported.code.slice(0, -3), { refused: true });
+	check(bad.result.ok === false, 'save code: a cut code is refused', bad.result.error);
+	check((await state(page)).app.level === 1, 'save code: a refused code changes nothing');
+	const imp = (await command(page, 'save_import ' + exported.code)).result;
+	await sleep(400);
+	const afterCode = (await state(page)).app;
+	check(imp.ok === true && afterCode.level === beforeCode.level && afterCode.coins === beforeCode.coins && afterCode.stars === beforeCode.stars,
+		'save code: the imported progress matches the exported one',
+		{ before: [beforeCode.level, beforeCode.coins, beforeCode.stars], after: [afterCode.level, afterCode.coins, afterCode.stars] });
+
 	// a task: a (meta) win gives a star, the task card restores the item in
 	// full colour with a gold glow and unlocks its stem
 	await command(page, 'meta_win 5');

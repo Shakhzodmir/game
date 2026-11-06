@@ -30,7 +30,6 @@ M.MAX_DATA = 1000000    -- bytes a code may unpack to
 local MAX_DEPTH = 16
 
 local floor, char, byte = math.floor, string.char, string.byte
-local unp = unpack or table.unpack
 
 -- value <-> text -----------------------------------------------------------------------------
 
@@ -270,8 +269,10 @@ function M.b64_decode(s)
 			cnt = cnt + 1
 		end
 		for _ = cnt + 1, 4 do n = n * 64 end
-		local bytes = { floor(n / 65536), floor(n / 256) % 256, n % 256 }
-		out[#out + 1] = char(unp(bytes, 1, cnt - 1))
+		local b1, b2, b3 = floor(n / 65536), floor(n / 256) % 256, n % 256
+		if cnt == 4 then out[#out + 1] = char(b1, b2, b3)
+		elseif cnt == 3 then out[#out + 1] = char(b1, b2)
+		else out[#out + 1] = char(b1) end
 	end
 	return table.concat(out)
 end

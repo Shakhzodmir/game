@@ -142,7 +142,7 @@ local function blocks(e, body, v, animate, alive, note)
 	-- coins, moves left, score
 	add(172, function(y)
 		if v.standalone then
-			s:text(body, i18n.t("win.debug"), 0, y, { font = "button", size = 30, color = "text_soft", max_width = W - 80 })
+			s:text(body, i18n.t("win.practice"), 0, y, { font = "button", size = 30, color = "text_soft", max_width = W - 80 })
 			return
 		end
 		kit.icon(e, body, "ui/icons/coin", -150, y + 26, 76, "coin")

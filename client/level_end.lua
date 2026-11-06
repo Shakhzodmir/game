@@ -21,6 +21,7 @@
 
 local app = require("client.app")
 local analytics = require("client.services.analytics")
+local config = require("meta.config")
 local ads = require("client.services.ads")
 
 local M = {}
@@ -75,12 +76,18 @@ local function refund(meta, unplaced, run)
 	return back
 end
 
+-- the level after `id` in a practice run: past the last level there is none (a debug start keeps counting on)
+local function next_replay(id)
+	if app.meta and app.meta:all_done() and id + 1 > config.levels.count then return nil end
+	return id + 1
+end
+
 -- the stand-in result of a level without a meta attempt
 local function standalone(won, core_result, ctx)
 	return {
 		won = won, standalone = true, level_id = ctx and ctx.level_id or 0,
 		coins = 0, stars = won and (core_result and core_result.stars or 0) or 0, streak = 0, unlocked = {},
-		next_level = won and ((ctx and ctx.level_id or 0) + 1) or nil,
+		next_level = won and next_replay(ctx and ctx.level_id or 0) or nil,
 		life_lost = false, streak_lost = 0, fails = 0, reason = "out_of_moves",
 	}
 end

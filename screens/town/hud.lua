@@ -387,10 +387,10 @@ function Hud:build_level(parent)
 	local x, y = 360, M.LEVEL_Y
 	self.notes, self.closed = {}, {}
 	if v.all_done then
-		local b = s:button({ parent = parent, x = x, y = y, w = 560, h = 128, style = "blue", text = i18n.t("town.all_done"),
+		local b = s:button({ parent = parent, x = x, y = y, w = 560, h = 128, style = "blue", text = i18n.t("replay.button"),
 			text_size = 34, on_click = function()
-				app.toast_key("town.all_done", nil, { color = "blue" })
 				if town.bit then town.bit:cheer(1.2, 1) end
+				town:open_popup("replay") -- the beaten levels can be played again
 			end })
 		s:anchor(b.node, "bottom")
 		self:target("level", self:bottom(x, y))

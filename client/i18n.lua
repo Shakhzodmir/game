@@ -280,7 +280,6 @@ local S = {
 	["win.free_next"] = { en = "Free next start:", ru = "Бесплатно на старте:" },
 	["win.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
 	["win.refund"] = { en = "Returned to you: {names}", ru = "Возвращено тебе: {names}" },
-	["win.debug"] = { en = "Test level: no reward", ru = "Тестовый уровень: без награды" },
 
 	-- tutorial -----------------------------------------------------------------------------------------------------
 	-- Two lines at most in the bubble (screens/level/tutorial_view.lua): a third one runs under its Skip tab.
