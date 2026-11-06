@@ -37,7 +37,7 @@ local M = {}
 
 -- the windows the town can host (screens/town/town.gui_script registry)
 M.POPUPS = { start = true, lives = true, shop = true, settings = true, jukebox = true, concert = true, chest = true,
-	gift = true, confirm = true }
+	gift = true, confirm = true, notebook = true }
 
 M.decode = nil -- test hook: fn(text) -> table
 

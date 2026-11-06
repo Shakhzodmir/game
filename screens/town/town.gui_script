@@ -145,7 +145,7 @@ end
 -- already saw, or one that was finished before the songbook existed, is never offered.
 function Town:songbook_offer()
 	if self.show:busy() or self.sliding or app.ui.popup or self.leaving or self.pending_open then return end
-	if rewards.count() > 0 then return end
+	if rewards.count() > 0 or #app.meta:pending_chests() > 0 then return end
 	local id = app.meta:songbook_pending()
 	if not id or self.offered_song == id then return end
 	self.offered_song = id

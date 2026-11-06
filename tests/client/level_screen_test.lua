@@ -1381,9 +1381,10 @@ describe("level screen: the results window fits the screen", function()
 		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
 			win(c)
 			assert_false(c.has(i18n.t("win.stars_note")), "the streak, an older chest and a new booster crowd the window")
-			-- the score scale is one more strip: a crowded window shrinks a little (kit.panel fit), never below 90%
+			-- the score scale and the songbook strip (a finished song at level 20) are more strips: a crowded window shrinks a
+			-- little (kit.panel fit), never below 85%
 			local k = popups(c):find("result").fit_k
-			assert_true(k > 0.9 and k <= 1, "and without the note it shrinks only a little: " .. tostring(k))
+			assert_true(k > 0.85 and k <= 1, "and without the note it shrinks only a little: " .. tostring(k))
 		end)
 	end)
 
@@ -1395,7 +1396,7 @@ describe("level screen: the results window fits the screen", function()
 			c.hud:ctx(function() e:rebuild() end)
 			c.step(5)
 			assert_true(c.hud:find("^Returned to you:", true) ~= nil, "the refund strip")
-			assert_true(e.fit_k < 1 and e.fit_k > 0.85, "shrunk by a little: " .. tostring(e.fit_k))
+			assert_true(e.fit_k < 1 and e.fit_k > 0.78, "shrunk by a little: " .. tostring(e.fit_k))
 			check_fits(c, "level 20 with the refund strip")
 			-- the taps QA and the tests make are where the buttons are drawn
 			for target, label in pairs({ next = "Next level", town = "To town", chest = "Open" }) do
