@@ -99,13 +99,16 @@ FONT_SPECS = {
     "number": ("Rubik-Bold.ttf", 40, 3.0, 0.30, 2, -3.0),
     "body": ("Nunito-Bold.ttf", 32, 0.0, 0.0, 0, 0.0),
     "small": ("Nunito-Bold.ttf", 24, 0.0, 0.0, 0, 0.0),
-    # Korean (client/ui.lua picks "<name>_ko" for the ko language and for any text that holds Hangul). Same sizes as
-    # the fonts above, so a text keeps its scale. Fonts: assets/fonts/ko (SIL OFL), cut by tools/ko_fonts.py.
-    "title_ko": ("ko/Jua-KS1001.ttf", 72, 5.0, 0.35, 3, -5.0),
-    "button_ko": ("ko/Jua-KS1001.ttf", 44, 3.0, 0.30, 2, -3.0),
-    "number_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 40, 3.0, 0.30, 2, -3.0),
-    "body_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 32, 0.0, 0.0, 0, 0.0),
-    "small_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 24, 0.0, 0.0, 0, 0.0),
+    # Korean (client/ui.lua picks "<name>_ko" for the ko language and for any text that holds Hangul), cut by
+    # tools/ko_fonts.py from assets/fonts/ko (SIL OFL). The HTML5 build pays for every glyph of every font, so the
+    # Korean set is small: title and button are ONE bank (same ttf and numbers: the build stores it once), body and
+    # small are one bank, and the number font holds no Hangul (a number text with Hangul uses the button font). The
+    # sizes are smaller than the Latin ones: the distance-field fonts scale up cleanly and a bank grows with size^2.
+    "title_ko": ("ko/Jua-KS1001.ttf", 48, 3.5, 0.33, 2, -3.5),
+    "button_ko": ("ko/Jua-KS1001.ttf", 48, 3.5, 0.33, 2, -3.5),
+    "number_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 32, 2.4, 0.30, 2, -2.4),
+    "body_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 28, 0.0, 0.0, 0, 0.0),
+    "small_ko": ("ko/NotoSansKR-Bold-KS1001.ttf", 28, 0.0, 0.0, 0, 0.0),
 }
 
 # Images copied into the "meta" atlas (fnmatch patterns over image keys of the
@@ -464,11 +467,12 @@ def plan_fonts(warnings):
     """Every font name of FONT_SPECS, always (gui.set_font must never fail)."""
     wanted = BASE_CHARS + CYRILLIC + LATIN1 + EXTRA_CHARS + content_chars()
     wanted_ko = BASE_CHARS + "×−…‘’“”" + ko_content_chars()
+    wanted_ko_plain = "".join(c for c in wanted_ko if not is_hangul(c))  # number_ko: no syllables
     out = {}
     for name, spec in sorted(FONT_SPECS.items()):
         font_path, local = resolve_ttf(spec[0], warnings)
         cmap = font_cmap(local) if local else None
-        chars = sorted(set(wanted_ko if name.endswith("_ko") else wanted))
+        chars = sorted(set(wanted_ko_plain if name == "number_ko" else wanted_ko if name.endswith("_ko") else wanted))
         if cmap is not None:
             chars = [c for c in chars if ord(c) in cmap or c == " "]
         out[name] = (spec, "".join(chars), font_path)

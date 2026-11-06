@@ -78,7 +78,7 @@ local HANGUL = "[\234-\237][\128-\191][\128-\191]" -- UTF-8 lead bytes EA..ED: U
 local CYRILLIC = "[\208\209][\128-\191]" -- U+0400..U+047F: "Русский" on the language switch stays in the Latin/Cyrillic font
 
 function M.font_for(font, str)
-	if str and string.find(str, HANGUL) then return font .. "_ko" end
+	if str and string.find(str, HANGUL) then return (font == "number" and "button" or font) .. "_ko" end -- number_ko has no syllables
 	if i18n.language() == "ko" and not (str and string.find(str, CYRILLIC)) then return font .. "_ko" end
 	return font
 end
