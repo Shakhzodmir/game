@@ -12,6 +12,11 @@ local function read(path)
 end
 
 local districts = json.decode(read("content/districts.json")).districts
+-- the five district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
+local extra_genres = json.decode(read("content/genres.json")).genres
+local catalogue = {}
+for _, d in ipairs(districts) do catalogue[#catalogue + 1] = d end
+for _, g in ipairs(extra_genres) do catalogue[#catalogue + 1] = g end
 local audio_go = read("assets/gen/audio.go")
 local manifest = json.decode(read("assets/sounds/manifest.json"))
 
@@ -20,7 +25,7 @@ describe("the registry of the jukebox songs", function()
 
 	it("has every song of the catalogue: a component of the audio object and a loop length", function()
 		local n = 0
-		for _, d in ipairs(districts) do
+		for _, d in ipairs(catalogue) do
 			for _, s in ipairs(d.songs) do
 				n = n + 1
 				local e = assets.song(s.id)
@@ -33,16 +38,16 @@ describe("the registry of the jukebox songs", function()
 				assert_true(e.loop >= 16 and e.loop <= 32, s.id .. " loops " .. e.loop .. " s")
 			end
 		end
-		assert_true(n >= 15, "only " .. n .. " songs")
+		assert_eq(n, 69)
 	end)
 
 	it("has no song that the catalogue does not name, and no id of a district", function()
 		local named = {}
-		for _, d in ipairs(districts) do
-			assert_eq(assets.song(d.id), nil, d.id .. " is a district, not a song")
+		for _, d in ipairs(catalogue) do
+			assert_eq(assets.song(d.id), nil, d.id .. " is a district or a genre, not a song")
 			for _, s in ipairs(d.songs) do named[s.id] = true end
 		end
-		for id in pairs(index.sounds.songs) do assert_true(named[id], id .. " is not in content/districts.json") end
+		for id in pairs(index.sounds.songs) do assert_true(named[id], id .. " is not in content/districts.json or content/genres.json") end
 		assert_eq(assets.song("nope"), nil)
 	end)
 
@@ -70,7 +75,7 @@ describe("the audio manifest of the jukebox songs", function()
 
 	it("measures every song of the catalogue and nothing else", function()
 		local count = 0
-		for _, d in ipairs(districts) do
+		for _, d in ipairs(catalogue) do
 			for _, s in ipairs(d.songs) do
 				count = count + 1
 				local m = songs[s.id]
@@ -112,10 +117,18 @@ describe("the audio manifest of the jukebox songs", function()
 		end
 	end)
 
-	it("costs at most 6 MB, with the rest of the audio under its old budget", function()
-		local bytes = 0
-		for _, m in pairs(songs) do bytes = bytes + m.bytes end
-		assert_true(bytes <= 6 * 1024 * 1024, "the songs weigh " .. bytes .. " bytes")
+	it("costs at most 6 MB for the district genres and 8 MB more for the extra genres, the rest of the audio under its old budget", function()
+		local bytes, extra = 0, 0
+		local extra_ids = {}
+		for _, g in ipairs(extra_genres) do
+			for _, s in ipairs(g.songs) do extra_ids[s.id] = true end
+		end
+		for id, m in pairs(songs) do
+			if extra_ids[id] then extra = extra + m.bytes else bytes = bytes + m.bytes end
+		end
+		assert_true(bytes <= 6 * 1024 * 1024, "the district songs weigh " .. bytes .. " bytes")
+		assert_true(extra <= 8 * 1024 * 1024, "the songs of the new genres weigh " .. extra .. " bytes (the WP-6 budget is +8 MB)")
+		bytes = bytes + extra
 		assert_true(manifest.total_bytes - bytes <= 7 * 1024 * 1024, "the rest of the audio grew")
 	end)
 
@@ -128,7 +141,7 @@ describe("the audio manifest of the jukebox songs", function()
 		for _, line in ipairs(manifest.checks) do
 			if string.find(line, "^Songs `") then songs_lines = songs_lines + 1 end
 		end
-		assert_eq(songs_lines, #districts, "one check line per genre")
+		assert_eq(songs_lines, #catalogue, "one check line per genre")
 	end)
 
 end)

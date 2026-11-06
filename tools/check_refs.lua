@@ -495,6 +495,7 @@ local function load_data(repo)
 		return v
 	end
 	data.districts = json_file("content/districts.json")
+	data.genres = json_file("content/genres.json")
 	data.tutorials = json_file("content/tutorials.json")
 	data.json_file = json_file
 	return data
@@ -735,6 +736,12 @@ local function check_images(repo, data)
 			end
 		end
 	end
+	-- the tab icon of every extra jukebox genre
+	for _, g in ipairs((data.genres and data.genres.genres) or {}) do
+		if not images["ui/genres/" .. g.id] then
+			problem(repo, "b", "content/genres.json", 0, "genre " .. g.id .. ": no image ui/genres/" .. g.id)
+		end
+	end
 	-- district art: backgrounds and every task's object (day picture; the ghost is optional art)
 	for _, d in ipairs((data.districts and data.districts.districts) or {}) do
 		if not images["districts/" .. d.id .. "/bg"] then
@@ -905,9 +912,19 @@ local function check_sounds(repo, data)
 	-- the jukebox catalogue: every song listed in content/districts.json has its mix and loop length, and a mix
 	-- nobody lists would sit in the memory of the page for nothing
 	local listed = {}
-	for _, d in ipairs((data.districts and data.districts.districts) or {}) do
+	local genres = {}
+	for _, d in ipairs((data.districts and data.districts.districts) or {}) do genres[#genres + 1] = d end
+	for _, g in ipairs((data.genres and data.genres.genres) or {}) do
+		genres[#genres + 1] = g
+		-- an extra genre has a tab icon, a name and a key (the notes and effects follow it)
+		if not (type(g.semitones_from_c) == "number") then
+			problem(repo, "c", "content/genres.json", 0, "genre " .. g.id .. " has no semitones_from_c (its key)")
+		end
+	end
+	for _, d in ipairs(genres) do
+		if type(d.genre) ~= "table" and type(d.name) == "table" and d.semitones_from_c and not d.tasks then d.genre = d.name end
 		if type(d.genre) ~= "table" or not (d.genre.en and d.genre.ru and d.genre.ko) then
-			problem(repo, "c", "content/districts.json", 0, "district " .. d.id .. " has no genre name (en, ru and ko) for the jukebox")
+			problem(repo, "c", "content/districts.json", 0, "genre " .. d.id .. " has no genre name (en, ru and ko) for the jukebox")
 		end
 		for _, song in ipairs(d.songs or {}) do
 			listed[song.id] = true

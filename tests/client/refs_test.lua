@@ -193,7 +193,7 @@ describe("tools/check_refs.lua rules", function()
 		-- a genre needs its name in both languages
 		local d = data_songs({}, {})
 		d.districts.districts[1].genre = { en = "Lo-fi" }
-		assert_true(has(lint({ ["assets/gen/audio.go"] = "" }, d, { "c" }), "c", "district cafe has no genre name"))
+		assert_true(has(lint({ ["assets/gen/audio.go"] = "" }, d, { "c" }), "c", "cafe has no genre name"))
 	end)
 
 	local data_d = {

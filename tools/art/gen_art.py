@@ -87,6 +87,7 @@ def build_jobs():
     import blockers
     import ui
     import bit
+    import genres
     import items
 
     J = []
@@ -129,6 +130,8 @@ def build_jobs():
     J.append(("ui", "ui/bunting.png", "ui", "draw_bunting", (), {}))
     for k in ui.ICON_FUNCS:
         J.append(("icons", f"ui/icons/{k}.png", "ui", "ICON_FUNCS", k, {}))
+    for k in genres.GENRE_FUNCS:
+        J.append(("icons", f"ui/genres/{k}.png", "genres", "GENRE_FUNCS", k, {}))
     for p in bit.POSE_ORDER:
         J.append(("bit", f"bit/{p}.png", "bit", "draw_bit", (p,), {}))
     J.append(("logo", "logo/logo.png", "logo", "draw_logo", (), {}))
@@ -331,6 +334,7 @@ NOTES = {
     "ui/moves_badge.png": "pink gradient badge; print the move count in white Rubik Black on top",
     "ui/bunting.png": "720px festive garland for the top edge of the level screen",
     "fx/*.png": "white / near-white, tint in the engine",
+    "ui/genres/*.png": "96x96 round genre icons of the jukebox (procedural placeholders of art brief B3)",
     "ui/icons/*.png": "96x96 glossy icons with a white sticker edge, all inside the central 88px",
     "ui/icons/goal_floor.png": "goal icon for 'light the dance floor': the unlit (violet) tile as the board shows it, on "
                                "the gold tile it turns into",
