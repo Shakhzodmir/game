@@ -290,3 +290,49 @@ describe("songbook texts", function()
 		end
 	end)
 end)
+
+describe("songbook glyphs", function()
+	local i18n = require("client.i18n")
+	local fonts = require("tests.client.font_advances")
+
+	local function missing(text, font)
+		local out = {}
+		local i = 1
+		while i <= #text do
+			local b = text:byte(i)
+			local size = (b >= 240 and 4) or (b >= 224 and 3) or (b >= 192 and 2) or 1
+			local cp
+			if size == 1 then
+				cp = b
+			elseif size == 2 then
+				cp = (b % 32) * 64 + (text:byte(i + 1) % 64)
+			elseif size == 3 then
+				cp = (b % 16) * 4096 + (text:byte(i + 1) % 64) * 64 + (text:byte(i + 2) % 64)
+			else
+				cp = 0x10000
+			end
+			if not font.advances[cp] then out[#out + 1] = string.format("U+%04X", cp) end
+			i = i + size
+		end
+		return out
+	end
+
+	it("has every character of every line and title in the fonts that draw them, in all three languages", function()
+		local lines = { en = "body", ru = "body", ko = "body_ko" }
+		local titles = { en = "title", ru = "title", ko = "title_ko" }
+		for _, d in ipairs(C.songbook.districts) do
+			for lang, font in pairs(lines) do -- order-free: every language is checked
+				for n = 1, C.songbook.pool do
+					local text = i18n.t("sb." .. d.id .. "." .. n, nil, lang)
+					assert_same(missing(text, fonts[font]), {}, d.id .. "." .. n .. " (" .. lang .. ") " .. text)
+				end
+			end
+			for lang, font in pairs(titles) do -- order-free
+				for n = 1, C.songbook.titles do
+					local text = i18n.t("sbt." .. d.id .. "." .. n, nil, lang)
+					assert_same(missing(text, fonts[font]), {}, d.id .. " title " .. n .. " (" .. lang .. ") " .. text)
+				end
+			end
+		end
+	end)
+end)
