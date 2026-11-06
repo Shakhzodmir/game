@@ -27,6 +27,8 @@ fi
 	--variant "$VARIANT" --archive --bundle-output dist \
 	resolve distclean build bundle
 out="$(dirname "$(find dist -name index.html | head -1)")"
+# accounts (WP-10): the browser bridge and the public provider configuration sit next to index.html
+cp web/auth_config.js web/glow_auth.js "$out/"
 rm -f "$out/DEBUG_BUILD_DO_NOT_PUBLISH"
 if [ "$VARIANT" = "debug" ]; then
 	echo "debug bundle: cheat keys and the QA bridge are in it. Never publish it." > "$out/DEBUG_BUILD_DO_NOT_PUBLISH"
