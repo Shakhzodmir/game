@@ -1,5 +1,5 @@
--- Results window of the level screen, after the final concert: the stars earned (the meta's number
--- for the difficulty), the coins (the meta's: the base and 5 for every move left), the score, the hit
+-- Results window of the level screen, after the final concert: the stars earned (from the score: the level's
+-- thresholds, meta/stars.lua) with a scale to the next star, the super stars of a concert level, the coins (the meta's: the base and 5 for every move left), the score, the hit
 -- streak with the free boosters of the next start, the progress to the next level chest (or the
 -- chest that just came: "Open" shows the chest window and, once the player takes it, the meta pays it and
 -- its unlimited lives start; left unopened it is offered again by the next results window and the town),
@@ -109,28 +109,77 @@ local function blocks(e, body, v, animate, alive, note)
 	local list = {}
 	local function add(h, draw) list[#list + 1] = { h = h, draw = draw } end
 
-	-- stars: only the ones earned (the meta's number for the difficulty, not a rating of the play: empty
-	-- slots made players think more stars could be won by playing better)
+	-- stars: the three slots, the ones earned lit (they come from the score thresholds of the level, so a
+	-- slot left empty is a promise: play it better and it fills)
 	local n_stars = math.max(1, math.min(3, v.stars))
 	add(150, function(y)
-		local stars = lkit.stars(e, body, 0, y - 4, n_stars, n_stars, 100)
+		local stars = lkit.stars(e, body, 0, y - 4, n_stars, 3, 100)
 		if animate and not kit.reduced() then
 			for i = 1, n_stars do
 				local node = stars[i]
 				local base = gui.get_scale(node)
 				gui.set_scale(node, base * 0.01)
-				local sx = (i - (n_stars + 1) / 2) * 100 * 1.08
+				local sx = (i - 2) * 100 * 1.08
 				e.fx:after(0.35 + i * 0.4, function()
 					if not alive() then return end
 					gui.animate(node, "scale", base, gui.EASING_OUTBACK, 0.45)
 					kit.sfx("star", { speed = 1 + 0.12 * i })
-					local ax, ay = e:abs(sx, y - 4)
+					local ax, ay = e:abs(sx, y - 4 + (i == 2 and 14 or 0)) -- the middle star sits 0.14 of its size higher (lkit.stars)
 					e.fx:burst(ax, ay, { count = 10, radius = 110, size = 32 })
 					e.fx:ring(ax, ay, { size = 90, scale = 2.4, dur = 0.45 })
 				end)
 			end
 		end
 	end)
+	-- the score scale: the bar runs from 0 to the 3-star score with the 2 and 3 star marks on it (lit when reached),
+	-- and a line under it says how far the next star is
+	if v.scale then
+		add(74 + GAP, function(y)
+			local sc = v.scale
+			local bw = W - 200
+			local cy = y - GAP / 2 + 16
+			s:round(body, 0, cy, bw, 26, "#DDD2F3", { radius = 13 })
+			local frac = math.max(0.02, math.min(1, v.score / math.max(1, sc.max)))
+			local fill = s:round(body, -bw / 2 + bw * frac / 2, cy, bw * frac, 26, n_stars >= 3 and "#FFB020" or "#FF8AB8", { radius = 13 })
+			if animate and not kit.reduced() then
+				local c = gui.get_color(fill)
+				gui.set_color(fill, vmath.vector4(c.x, c.y, c.z, 0))
+				e.fx:after(0.5, function()
+					if alive() then gui.animate(fill, "color.w", c.w, gui.EASING_OUTCUBIC, 0.9) end
+				end)
+			end
+			for i = 2, 3 do
+				local mx = -bw / 2 + bw * sc.t[i] / sc.max
+				kit.icon(e, body, i <= n_stars and "ui/icons/star" or "ui/icons/star_empty", mx, cy, 40, "yellow")
+			end
+			local line = n_stars >= 3 and i18n.t("win.max_stars") or i18n.t("win.next_star", { n = i18n.number(sc.left) })
+			s:text(body, line, 0, cy - 38, { font = "small", size = 24, color = n_stars >= 3 and "gold" or "text_soft", max_width = W - 100 })
+		end)
+	end
+	-- the record: what this win added, or what the level already holds
+	local record_key, record_vars
+	if v.new_best_score then
+		record_key = "win.new_record"
+	elseif v.best > v.stars then
+		record_key, record_vars = "win.stars_kept", { n = v.best }
+	elseif v.gained > 0 and v.gained < v.stars then
+		record_key, record_vars = "win.stars_new", { n = v.gained }
+	end
+	if record_key then
+		add(40 + GAP, function(y)
+			s:text(body, i18n.t(record_key, record_vars), 0, y - GAP / 2, { font = "button", size = 24, color = "text_soft", max_width = W - 100 })
+		end)
+	end
+	-- a concert level pays super stars
+	if v.concert then
+		add(76 + GAP, function(y)
+			local text = v.super_gained > 0 and { key = "win.super_new", vars = { n = v.super_gained } }
+				or { key = "win.super_have", vars = { n = v.super_total } }
+			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
+				text = text, icon = "ui/icons/super_star", fallback = "purple", size = 28, h = 76, color = "text", fill = "#FFF0C2",
+			})
+		end)
+	end
 	if note and not v.standalone and n_stars < 3 then
 		add(104 + GAP, function(y)
 			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
@@ -312,6 +361,10 @@ end
 function M.build(e)
 	local s = e.ui
 	local v = e.params.view
+	-- what QA reads from the state snapshot (tools/qa/web_screens.mjs)
+	app.ui.result = { level = v.level_id, stars = v.stars, best = v.best, gained = v.gained, score = v.score,
+		concert = v.concert, super_gained = v.super_gained, super_total = v.super_total,
+		to_next = v.scale and v.scale.left or nil, standalone = v.standalone }
 	local st = e.state
 	local animate = e.first and not st.played
 	st.played = true
@@ -370,6 +423,10 @@ function M.build(e)
 		if not kit.reduced() then e.fx:confetti({ rate = 26, burst = 18, duration = 3.2 }) end
 		fx.buzz(40)
 	end
+end
+
+function M.closed(e)
+	app.ui.result = nil
 end
 
 function M.update(e, dt)

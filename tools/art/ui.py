@@ -544,6 +544,18 @@ def icon_star_empty():
     return finish(cv, shadow=0.15)
 
 
+def icon_super_star():
+    """Placeholder of the super star (art brief A4.5): a violet-pink star with a gold rim and a small crown dot."""
+    cv = Canvas(96, 96)
+    d = _star_shape(cv.X, cv.Y)
+    obj(cv, d, PIECES["purple"], depth=20, rim=0.4)
+    inner = opening(sd_star(cv.X, cv.Y, 48, 52, 26, 13), 4, 3)
+    obj(cv, inner, PIECES["yellow"], depth=8, rim=0.3)
+    cv.fill(sd_circle(cv.X, cv.Y, 48, 10, 6), "#FFD23F", 1.0)
+    hl_drop(cv, 38, 38, 7, 4, -36, d + 5)
+    return finish(cv)
+
+
 def icon_heart():
     cv = Canvas(96, 96)
     d = opening(heart_sdf(cv.X, cv.Y, 48, 50, 2.55), 2)
@@ -1092,7 +1104,7 @@ def draw_badge_count():
 
 
 ICON_FUNCS = {
-    "coin": icon_coin, "star": icon_star, "star_empty": icon_star_empty, "heart": icon_heart,
+    "coin": icon_coin, "star": icon_star, "star_empty": icon_star_empty, "super_star": icon_super_star, "heart": icon_heart,
     "heart_infinite": icon_heart_infinite, "pause": icon_pause, "settings": icon_settings,
     "close": icon_close, "check": icon_check, "lock": icon_lock, "shop": icon_shop, "city": icon_city,
     "jukebox": icon_jukebox, "team": icon_team, "chart": icon_chart, "play": icon_play,

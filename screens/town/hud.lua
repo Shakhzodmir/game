@@ -136,7 +136,12 @@ function Hud:build_top(parent)
 		font = "number", size = 34, color = "text", pivot = gui.PIVOT_W, max_width = 68,
 	})
 	hit(s, sp, 0, 0, 146, 100, function()
-		app.toast_key("town.stars_hint", nil, { color = "gold" })
+		local sup = app.meta:super_stars()
+		if sup.earned > 0 then
+			app.toast_key("town.super_stars_hint", { n = sup.balance }, { color = "gold" })
+		else
+			app.toast_key("town.stars_hint", nil, { color = "gold" })
+		end
 		town.fx:pop(self.star_icon, 0.3)
 	end)
 	self:target("stars", self:top(M.STARS_X, M.TOP_Y))
