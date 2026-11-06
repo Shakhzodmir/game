@@ -216,7 +216,7 @@ def one_drop_sun(s):
               " 5:1 3:.5 5:.5 6:1.5 5:.5 | 1+:1 3+:1 2+:2 | 1+:.5 7:.5 6:1 4:1 5:1 | 3:1.5 2:.5 1:2", t, 4)
     lead = lead_line(s, tn, "melodica", "sun")
     lead = room(s, echo(s, lead, 0.75, 0.15, 0.3, 2, 3500), 0.15, 1.0, "lead", damp=5000)
-    return {"drums": loop_filter(s, d, "lp", 5000), "guitar": loop_filter(s, gtr, "lp", 4500), "bass": mix_bass(s, bass, 800), "organ": pad, "lead": lead}
+    return {"drums": loop_filter(s, d, "lp", 4000), "guitar": loop_filter(s, gtr, "lp", 4000), "bass": mix_bass(s, bass, 800), "organ": pad, "lead": loop_filter(s, lead, "lp", 3000)}
 
 
 def dub_lagoon(s):
@@ -247,6 +247,7 @@ def dub_lagoon(s):
     tn = tune("r:4 | r:2 5:1 6:1 | 5:2 3:1 2:1 | r:4 | r:4 | r:2 1+:1 6:1 | 5:3 r:1 | r:4", t, 4)
     lead = lead_line(s, tn, "melodica", "dub")
     lead = room(s, echo(s, lead, 1.5, 0.45, 0.55, 4, 2500), 0.3, 1.8, "lead", damp=4000)
+    d = loop_filter(s, d, "lp", 4000)
     return {"drums": d, "guitar": gtr, "organ": stab, "bass": mix_bass(s, bass, 700, 0.02), "lead": lead}
 
 
@@ -259,7 +260,7 @@ def porch_pickin(s):
     k = kits(s, "lofi", "rock")
     d = s.zeros()
     hits(s, d, k["kick"], "X.......x.......", r, gain=0.6)
-    hits(s, d, k["snare"], "g.xxg.xxg.xxg.xx", r, gain=0.35)
+    hits(s, d, k["snare"], "g.xxg.xxg.xxg.xx", r, gain=0.25)
     d = room(s, d, 0.08, 0.7, "drums", damp=5000)
     vo = voicing(ch, 55, 72, 62, no_root, span=12)
     gtr = strum_comp(s, ch, vo, fit([(1.0, 0.4, 0.8), (1.5, 0.3, 0.55), (3.0, 0.4, 0.8), (3.5, 0.3, 0.55)]), r=r, bright=0.6,
@@ -280,7 +281,7 @@ def porch_pickin(s):
     lead = lay(s, lambda ss, m, du, v: ins.guitar(m, s.sec(du), s.sr, bright=0.8, t60=0.9, pick=0.2, mute=0.04, key=m % 3) * v,
                tn, r=r, jit=0.004)
     lead = room(s, lead, 0.12, 0.9, "lead", damp=6000)
-    lp = lambda x: loop_filter(s, x, "lp", 4500)  # noqa: E731  (fewer highs, smaller file)
+    lp = lambda x: loop_filter(s, x, "lp", 2800)  # noqa: E731  (fewer highs, smaller file)
     return {"drums": lp(d), "guitar": lp(gtr), "bass": mix_bass(s, bass, 1500), "lead": lp(bj), "keys": lp(lead)}
 
 

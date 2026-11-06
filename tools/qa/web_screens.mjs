@@ -321,6 +321,20 @@ async function debugChecks() {
 		'audio: the stems resync after a stall', { resyncs: a5.resyncs - r0, stalls: a5.stalls, pos: a5.last_resync_pos });
 	await command(page, 'music cafe');
 
+	// one song at a time: quick switches between a theme and songs; the engine holds at most two tracks (the one
+	// going out and the one coming in) and a pair sounds together for one crossfade at most
+	for (const id of ['rainy_window', 'bossa_breeze', 'neon_heartbeat', 'cafe', 'sleepy_cat']) {
+		await command(page, 'music ' + id);
+		await sleep(250);
+		const s = (await state(page)).app.audio;
+		check(s.tracks >= 1 && s.tracks <= 2, 'audio: at most two tracks while switching (' + id + ')', s.tracks);
+	}
+	await sleep(1500);
+	const a6 = (await state(page)).app.audio;
+	check(a6.tracks === 1 && a6.song === 'sleepy_cat' && a6.xfade == null, 'audio: one song after the crossfade', { tracks: a6.tracks, song: a6.song });
+	check(a6.max_overlap <= 0.8 + 0.25, 'audio: two tracks never sounded together longer than a crossfade', a6.max_overlap);
+	await command(page, 'music cafe');
+
 	// the saved volumes reach the mixer (whatever the script init order), and a
 	// save reset applies the defaults again
 	await command(page, 'volume 0.3');
