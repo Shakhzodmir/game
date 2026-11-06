@@ -543,8 +543,6 @@ return {
 	["cloud.loaded"] = "진행도를 불러왔어요",
 	["cloud.uploading"] = "클라우드에 저장하는 중...",
 	["cloud.err_write"] = "이 기기에 저장하지 못했어요. 아무것도 바뀌지 않았어요",
-	["settings.account_section"] = "계정",
 	["settings.account_guest"] = "게스트",
 	["settings.account_user"] = "계정: {name}",
-	["settings.account_open"] = "계정과 클라우드",
 }
