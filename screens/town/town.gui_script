@@ -64,6 +64,8 @@ local REGISTRY = {
 	confirm = require("gui.confirm"),
 	replay = require("gui.replay"),
 	notebook = require("gui.notebook"),
+	chart = require("gui.chart"),
+	band = require("gui.band"),
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
