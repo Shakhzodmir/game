@@ -287,10 +287,14 @@ local function blocks(e, body, v, animate, alive, note)
 	-- boosters the core could not place come back
 	local back = refund_ids(e.params.refund)
 	if #back > 0 then
-		add(60 + GAP, function(y)
-			lkit.note(e, body, 0, y - GAP / 2, W - 80, {
-				text = { key = "win.refund", vars = { names = names(back) } }, icon = views.booster_icon(back[1]),
-				size = 22, h = 60, color = "text",
+		-- the names wrap onto as many lines as they need (3-4 names do not fit one line at a readable size)
+		local text = { key = "win.refund", vars = { names = names(back) } }
+		local W_NOTE, SIZE = W - 80, 22
+		local nlines = s:text_lines(i18n.tr(text), "button", SIZE, W_NOTE - 60 - 36)
+		local h = math.max(60, math.ceil(nlines * SIZE * 1.25) + 24)
+		add(h + GAP, function(y)
+			lkit.note(e, body, 0, y - GAP / 2, W_NOTE, {
+				text = text, icon = views.booster_icon(back[1]), wrap = true, size = SIZE, h = h, color = "text",
 			})
 		end)
 	end
