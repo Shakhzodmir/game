@@ -639,6 +639,22 @@ def icon_lock():
     return finish(cv)
 
 
+def icon_map():
+    """The game map: a folded sheet with a winding trail and a pin."""
+    cv = Canvas(96, 96)
+    X, Y = cv.X, cv.Y
+    sheet = sd_poly(X, Y, [(10, 26), (34, 18), (62, 28), (86, 18), (86, 72), (62, 82), (34, 72), (10, 80)])
+    obj(cv, sheet, ("#FFFFFF", "#FFF4E0", "#F2D7B0", "#C28A4E"), lw=2.6, depth=8, rim=0.3)
+    for fx in (34, 62):
+        cv.fill(sd_rect(X, Y, fx - 1, 20, fx + 1, 78, 0), "#C28A4E", 0.45)
+    trail = sd_polyline(X, Y, [(20, 66), (38, 52), (54, 62), (72, 38)]) - 2.4
+    cv.fill(np.maximum(trail, sheet + 3), "#FF4D8D", 0.9)
+    pin = U(sd_circle(X, Y, 72, 30, 9), sd_poly(X, Y, [(65, 34), (79, 34), (72, 48)]))
+    obj(cv, pin, RED, lw=2.0, depth=6)
+    cv.fill(sd_circle(X, Y, 72, 30, 3.4), "#FFFFFF")
+    return finish(cv)
+
+
 def icon_shop():
     cv = Canvas(96, 96)
     X, Y = cv.X, cv.Y
@@ -1107,7 +1123,7 @@ ICON_FUNCS = {
     "coin": icon_coin, "star": icon_star, "star_empty": icon_star_empty, "super_star": icon_super_star, "heart": icon_heart,
     "heart_infinite": icon_heart_infinite, "pause": icon_pause, "settings": icon_settings,
     "close": icon_close, "check": icon_check, "lock": icon_lock, "shop": icon_shop, "city": icon_city,
-    "jukebox": icon_jukebox, "team": icon_team, "chart": icon_chart, "play": icon_play,
+    "map": icon_map, "jukebox": icon_jukebox, "team": icon_team, "chart": icon_chart, "play": icon_play,
     "retry": icon_retry, "home": icon_home, "music_on": lambda: icon_music(True),
     "music_off": lambda: icon_music(False), "sound_on": lambda: icon_sound(True),
     "sound_off": lambda: icon_sound(False), "haptics": icon_haptics, "hand": icon_hand,

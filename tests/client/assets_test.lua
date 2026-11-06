@@ -18,11 +18,11 @@ describe("client.assets and the generated index", function()
 	it("lists every atlas image in its atlas and every other one as a file", function()
 		for key, e in pairs(index.images) do
 			if e.file then
-				-- loose images: districts and backgrounds, shipped as custom resources
+				-- loose images: districts, backgrounds and the backgrounds of the map, shipped as custom resources
 				assert_eq(e.atlas, nil, key)
 				assert_eq(e.file, "/assets/images/" .. key .. ".png")
 				local top = string.match(key, "^([^/]+)/")
-				assert_true(top == "districts" or top == "backgrounds" or top == "bit" or top == "logo", key)
+				assert_true(top == "districts" or top == "backgrounds" or top == "bit" or top == "logo" or top == "mapbg", key)
 			else
 				local atlas = index.atlases[e.atlas]
 				assert_true(atlas ~= nil, key .. " -> missing atlas " .. tostring(e.atlas))
