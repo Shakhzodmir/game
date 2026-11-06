@@ -409,7 +409,7 @@ def ko_content_chars():
     """Hangul syllables of every text, plus the other non-ASCII marks of the Korean texts only: the glyphs the ko
     fonts get (Latin accents and Cyrillic of the other languages are not in them)."""
     hangul = {c for c in _file_chars((rel("client", "i18n.lua"), rel("client", "i18n_ko.lua"),
-                                       rel("content", "districts.json"))) if is_hangul(c)}
+                                       rel("content", "districts.json"), rel("content", "genres.json"))) if is_hangul(c)}
     marks = {c for c in _file_chars((rel("client", "i18n_ko.lua"),)) if not is_hangul(c) and not 0x400 <= ord(c) <= 0x4FF}
     return "".join(sorted(hangul | marks))
 

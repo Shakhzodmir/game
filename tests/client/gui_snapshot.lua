@@ -21,6 +21,8 @@
 --   jukebox_locked  the tab of a genre that is not open yet: dark silhouettes and what opens it
 --   chest_level / chest_level_open / chest_district / gift / gift_open
 --   concert         the district concert
+--   chart / chart_climb / chart_signin / profile   the chart (120 players, my row pinned; the climb; no account; the name picker)
+--   band / band_none                                 the band card of 20 members with the goal bar; no band yet
 --   splash
 --   toast / modal   the overlay over the town
 -- What is drawn is what the scripts hand to the engine: positions, scales, tints, texts. The
@@ -176,6 +178,69 @@ end
 function S.modal()
 	app.modal({ id = "qa", title = { key = "settings.title" }, text = { key = "lives.full" },
 		buttons = { { id = "ok", text = { key = "common.ok" } } } })
+end
+-- chart and bands (WP-11): the mock server and a signed-in test player
+local function social_env(opts)
+	opts = opts or {}
+	local auth = require("client.services.auth")
+	local rules = require("meta.social")
+	local clock = { t = app.now() }
+	local m = require("client.services.social_mock").new({ now = function() return clock.t end })
+	m:seed(opts.bots or 0)
+	local a = require("client.services.auth_mock").new()
+	auth.set_provider(a)
+	require("client.social").reset()
+	require("client.services.social").set_provider(m)
+	if opts.signed ~= false then
+		a.google_next = { sub = "me", email = "me@gmail.com" }
+		auth.sign_in_google(function() end)
+	end
+	if opts.profile then m:profile_set(auth.user().uid, rules.suggest_name(7), 4, function() end) end
+	return m, clock, rules, auth
+end
+function S.chart()
+	win(12)
+	social_env({ bots = 120, profile = true })
+	popup(main, "chart")
+end
+function S.chart_climb()
+	win(12)
+	local m, clock, rules, auth = social_env({ bots = 60, profile = true })
+	popup(main, "chart")
+	app.close_popup()
+	E.step(20)
+	clock.t = clock.t + 3600
+	m.players[auth.user().uid].rec = { total = 80, level = 40, day = rules.day_id(clock.t), day_gain = 0,
+		week = rules.week_id(clock.t), week_base = 0, flags = 0 }
+	popup(main, "chart")
+end
+function S.chart_signin()
+	social_env({ signed = false })
+	popup(main, "chart")
+end
+function S.profile()
+	social_env({})
+	popup(main, "chart")
+end
+function S.band()
+	win(12)
+	local m, _, rules, auth = social_env({ profile = true })
+	local uid = auth.user().uid
+	m:band_create(uid, { a = 4, n = 1 }, function() end)
+	local code = m.players[uid].band
+	for i = 1, rules.BAND_MAX - 1 do
+		local id = "m" .. i
+		m.players[id] = { uid = id, seen = {}, day_sent = 0, day_got = 0, day = -1, inbox = 0, helped_by = {}, help_req = i % 5 == 0,
+			profile = { name = rules.suggest_name(i * 2), avatar = i % 12 + 1 }, band = code, district = 1 + i % 3,
+			rec = { total = 20 * i, level = 20, day = 0, day_gain = 0, week = rules.week_id(app.now()),
+				week_base = 20 * i - (i * 3) % 14, flags = 0 } }
+		m.bands[code].members[id] = { seq = 10 + i }
+	end
+	popup(main, "band")
+end
+function S.band_none()
+	social_env({ profile = true })
+	popup(main, "band")
 end
 function S.splash()
 	main:final()
