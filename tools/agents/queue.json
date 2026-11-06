@@ -126,6 +126,59 @@
     "WP-9"
    ],
    "model": "claude-haiku-5-5"
+  },
+  {
+   "id": "WP-13",
+   "wave": 5,
+   "title": "Открытый контент: уровни и районы без потолка 100",
+   "spec": "tasks/WP-13-open-content.md",
+   "model": "claude-sonnet-5-5",
+   "max_budget_usd": 25
+  },
+  {
+   "id": "WP-14",
+   "wave": 5,
+   "title": "Концерт в конце каждого района",
+   "spec": "tasks/WP-14-district-concerts.md",
+   "model": "claude-sonnet-5-5",
+   "max_budget_usd": 15,
+   "depends_on": [
+    "WP-13"
+   ]
+  },
+  {
+   "id": "WP-15",
+   "wave": 5,
+   "title": "Экономика: цены районов и монеты за улучшенный повтор",
+   "spec": "tasks/WP-15-economy-prices.md",
+   "model": "claude-sonnet-5-5",
+   "max_budget_usd": 12,
+   "depends_on": [
+    "WP-14"
+   ]
+  },
+  {
+   "id": "WP-16",
+   "wave": 5,
+   "title": "Карта вместо кнопки «Уровень N»",
+   "spec": "tasks/WP-16-map-entry.md",
+   "model": "claude-sonnet-5-5",
+   "max_budget_usd": 8,
+   "depends_on": [
+    "WP-13"
+   ]
+  },
+  {
+   "id": "WP-17",
+   "wave": 6,
+   "title": "Уровни 101–200 и районы 6–10",
+   "spec": "tasks/WP-17-levels-101-200.md",
+   "model": "claude-sonnet-5-5",
+   "max_budget_usd": 55,
+   "depends_on": [
+    "WP-13",
+    "WP-14"
+   ]
   }
  ]
 }
