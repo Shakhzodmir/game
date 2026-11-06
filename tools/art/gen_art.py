@@ -69,7 +69,7 @@ EDGE_EXEMPT = ("board/cell_", "board/edge_", "blockers/wires_", "ui/bunting", "/
                "/garage_door")   # ... except art meant to tile or to run off the edge
 GHOST_ALPHA = 0.75
 BG_DITHER = 0.5       # ordered dither on the opaque backgrounds (breaks gradient banding)
-BUDGET_MB = 10.0
+BUDGET_MB = 12.5   # 10 until the 48 flipbook frames of Bit (WP-8) joined: ~55 KB each
 GROUPS = ["pieces", "specials", "blockers", "board", "fx", "ui", "icons", "bit", "logo", "backgrounds", "districts", "map", "mapbg"]
 
 
@@ -131,6 +131,9 @@ def build_jobs():
         J.append(("icons", f"ui/icons/{k}.png", "ui", "ICON_FUNCS", k, {}))
     for p in bit.POSE_ORDER:
         J.append(("bit", f"bit/{p}.png", "bit", "draw_bit", (p,), {}))
+    for a in bit.FRAME_ANIMS:
+        for n in range(1, len(bit.FRAMES[a]) + 1):
+            J.append(("bit", f"bit/{a}_{n}.png", "bit", "draw_frame", (a, n), {}))
     J.append(("logo", "logo/logo.png", "logo", "draw_logo", (), {}))
     bg = {"opaque": True, "dither": BG_DITHER}
     J.append(("backgrounds", "backgrounds/level_bg.png", "districts", "bg_level", (), bg))

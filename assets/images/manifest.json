@@ -35,17 +35,125 @@
       "alpha": false,
       "bytes": 199371
     },
+    "bit/cheer_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54409
+    },
+    "bit/cheer_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54126
+    },
+    "bit/cheer_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58036
+    },
+    "bit/cheer_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 57961
+    },
+    "bit/cheer_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58056
+    },
+    "bit/cheer_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54392
+    },
     "bit/dance_a.png": {
       "w": 256,
       "h": 256,
       "alpha": true,
       "bytes": 62010
     },
+    "bit/dance_a_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62010
+    },
+    "bit/dance_a_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61503
+    },
+    "bit/dance_a_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 63267
+    },
+    "bit/dance_a_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62258
+    },
+    "bit/dance_a_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62107
+    },
+    "bit/dance_a_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61901
+    },
     "bit/dance_b.png": {
       "w": 256,
       "h": 256,
       "alpha": true,
       "bytes": 62625
+    },
+    "bit/dance_b_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 62625
+    },
+    "bit/dance_b_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61354
+    },
+    "bit/dance_b_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 59785
+    },
+    "bit/dance_b_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 60552
+    },
+    "bit/dance_b_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61563
+    },
+    "bit/dance_b_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 61130
     },
     "bit/happy.png": {
       "w": 256,
@@ -59,6 +167,78 @@
       "alpha": true,
       "bytes": 55500
     },
+    "bit/idle_breathe_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55500
+    },
+    "bit/idle_breathe_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55554
+    },
+    "bit/idle_breathe_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55193
+    },
+    "bit/idle_breathe_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55554
+    },
+    "bit/idle_look_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55471
+    },
+    "bit/idle_look_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55500
+    },
+    "bit/idle_look_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55660
+    },
+    "bit/idle_look_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54616
+    },
+    "bit/listen_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 60239
+    },
+    "bit/listen_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58050
+    },
+    "bit/listen_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 59625
+    },
+    "bit/listen_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 58051
+    },
     "bit/sad.png": {
       "w": 256,
       "h": 256,
@@ -71,11 +251,119 @@
       "alpha": true,
       "bytes": 63498
     },
+    "bit/sleepy_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55336
+    },
+    "bit/sleepy_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 56953
+    },
+    "bit/sleepy_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55993
+    },
+    "bit/sleepy_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 57522
+    },
+    "bit/surprised_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55500
+    },
+    "bit/surprised_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54603
+    },
+    "bit/surprised_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55019
+    },
+    "bit/surprised_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 56400
+    },
+    "bit/wave_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 54788
+    },
+    "bit/wave_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55285
+    },
+    "bit/wave_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55223
+    },
+    "bit/wave_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 55285
+    },
     "bit/worried.png": {
       "w": 256,
       "h": 256,
       "alpha": true,
       "bytes": 58237
+    },
+    "bit/write_1.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 50876
+    },
+    "bit/write_2.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 51192
+    },
+    "bit/write_3.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 50586
+    },
+    "bit/write_4.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 51710
+    },
+    "bit/write_5.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 50710
+    },
+    "bit/write_6.png": {
+      "w": 256,
+      "h": 256,
+      "alpha": true,
+      "bytes": 51021
     },
     "blockers/balloon_blue.png": {
       "w": 160,
