@@ -412,6 +412,9 @@ function M.install(opts)
 		if parent then parent.children[#parent.children + 1] = n end
 	end
 	function gui.get_parent(n) return live(n).parent end
+	gui.TYPE_BOX, gui.TYPE_TEXT = "box", "text"
+	function gui.get_type(n) return live(n).kind end
+	function gui.get_line_break(n) return live(n).line_break and true or false end
 	function gui.set_position(n, v) live(n).pos = vmath.vector3(vec_arg(v, "set_position").x, v.y, v.z or 0) end
 	function gui.get_position(n) return vmath.vector3(live(n).pos) end
 	function gui.set_scale(n, v) live(n).scale = vmath.vector3(vec_arg(v, "set_scale").x, v.y, v.z or 1) end
@@ -595,6 +598,12 @@ function M.install(opts)
 		return px + n.pos.x * psx, py + n.pos.y * psy, psx * n.scale.x, psy * n.scale.y
 	end
 	E.world = world
+	-- the engine's screen position of a node: its pivot point in window px (y up)
+	function gui.get_screen_position(n)
+		live(n)
+		local wx, wy = world(n)
+		return vmath.vector3(wx, wy, 0)
+	end
 
 	-- Window-pixel rectangle of a node: x0, y0, x1, y1 (the node's own size; text nodes without a size
 	-- use their measured text).
@@ -613,6 +622,11 @@ function M.install(opts)
 		return x0, y0, x0 + w * sx, y0 + h * sy
 	end
 	E.rect = rect
+
+	-- the pivot of a node as a fraction of its size (x, y), for the layout audit
+	function E.pivot_fraction(n) return PIVOT_FRACTION[PIVOT_NAME[n.pivot]] end
+	-- the scale the scene root is fitted with (logical px -> window px)
+	function E.fit_scale() return require("client.layout").fit(E.window.w, E.window.h).scale end
 
 	function gui.pick_node(n, x, y)
 		live(n)
@@ -844,6 +858,30 @@ function M.install(opts)
 		local name = type(font_res) == "table" and font_res.font or nil
 		local f = name and font_for(name)
 		if not f then error("resource.get_text_metrics: a font resource was expected, got " .. tostring(font_res), 2) end
+		if type(options) == "table" and options.line_break and (options.width or 0) > 0 then
+			-- greedy word wrap at options.width, like the engine
+			local function adv(str)
+				local w = 0
+				for _, cp in ipairs(utf8_codepoints(str)) do w = w + (f.advances[cp] or f.size * 0.55) end
+				return w
+			end
+			local space, lines, longest = adv(" "), 0, 0
+			for para in (tostring(text or "") .. "\n"):gmatch("(.-)\n") do
+				local cur, curw = nil, 0
+				for word in para:gmatch("%S+") do
+					local w = adv(word)
+					if cur and curw + space + w <= options.width then
+						curw = curw + space + w
+					else
+						if cur then lines = lines + 1; longest = math.max(longest, curw) end
+						cur, curw = word, w
+					end
+				end
+				lines = lines + 1
+				longest = math.max(longest, curw)
+			end
+			return { width = longest, height = lines * f.size * 1.25, max_ascent = f.size * 0.95, max_descent = f.size * 0.3 }
+		end
 		local width = 0
 		local longest = 0
 		for _, cp in ipairs(utf8_codepoints(tostring(text or ""))) do

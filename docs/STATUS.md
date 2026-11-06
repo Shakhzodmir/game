@@ -33,4 +33,4 @@
 4. Софт-лонч по KPI раздела 6 плана v2, затем уровни 101+ вместе с районом 6 (126★ против 124★ города).
 
 ## Окружение для новой сессии
-`lua5.1`, `luajit`, python3 (`numpy pillow scipy soundfile fonttools`), node (для `tools/qa`). Для локальной сборки — JDK 25 и `bob.jar` 1.13.1 (инструкция в `README.md`); без них сборку проверяет CI. Быстрые проверки: `./tools/test.sh` (около 2 минут на двух ВМ), `./tools/check_syntax.sh`, `luajit tools/check_refs.lua`.
+`lua5.1`, `luajit`, python3 (`numpy pillow scipy soundfile fonttools`), node (для `tools/qa`). Для локальной сборки — JDK 25 и `bob.jar` 1.13.1 (инструкция в `README.md`); без них сборку проверяет CI. Раскладка текстов проверяет `tests/client/layout_audit_test.lua` (в `./tools/test.sh`); браузерная развёртка `tools/qa/layout_sweep.mjs` написана, но не запускалась (`docs/handoff/WP-2.md`). Быстрые проверки: `./tools/test.sh` (около 2 минут на двух ВМ), `./tools/check_syntax.sh`, `luajit tools/check_refs.lua`.
