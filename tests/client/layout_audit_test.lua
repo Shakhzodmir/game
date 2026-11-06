@@ -35,13 +35,63 @@ local SETUPS = {
 	fresh = function() end,
 }
 
+-- accounts (WP-10): the mock provider and a signed-in player, with the longest names the forms allow
+local function acct_env(app, bound_uid)
+	local auth = require("client.services.auth")
+	local cloud = require("client.cloud")
+	local m = require("client.services.auth_mock").new()
+	auth.set_provider(m)
+	local file = { data = bound_uid and { v = 1, uid = bound_uid, signed_out = true } or nil }
+	cloud.init({ app = app, auth = auth, now = function() return app.now() end, seed = function() return 5 end,
+		binding = { read = function() return file.data end, write = function(t) file.data = t; return true end } })
+	return m, auth, cloud
+end
+
+SETUPS.acct_guest = function(app) rich(app); acct_env(app) end
+SETUPS.acct_id = function(app)
+	rich(app)
+	local m, auth, cloud = acct_env(app)
+	m.form_next = { id = "a_login_of_twenty_ch", password = "secret123" }
+	auth.password_form("register", {}, function() end)
+	m.form_next = { email = "a_really_long_address_name@example-domain.com" }
+	auth.link_email_form({}, function() end)
+	cloud.on_signed_in()
+end
+SETUPS.acct_google = function(app)
+	rich(app)
+	local m, auth, cloud = acct_env(app)
+	m.google_next = { sub = "g1", email = "a_really_long_address_name@example-domain.com" }
+	auth.sign_in_google(function() end)
+	cloud.on_signed_in()
+end
+local function with_decision(bound_uid)
+	return function(app)
+		rich(app)
+		local m, auth, cloud = acct_env(app, bound_uid)
+		local savecode = require("meta.savecode")
+		local other = app.meta:serialize()
+		m.accounts.u001 = { uid = "u001", kind = "google", google_sub = "g1", verified = true, email = "a@gmail.com" }
+		m.docs.u001 = { code = savecode.encode(other) }
+		app.reset_save(7, app.now())
+		rich(app)
+		m.google_next = { sub = "g1", email = "a@gmail.com" }
+		auth.sign_in_google(function() end)
+		cloud.on_signed_in()
+		assert(cloud.decision(), "the audit needs a decision")
+	end
+end
+SETUPS.cloud_choose = with_decision(nil)
+SETUPS.cloud_foreign = with_decision("u999")
+
 -- town windows: {name, params, setup name}
 local CASES = {
 	{ "start" }, { "start", nil, "rich" }, { "start", nil, "nolives" }, { "start", nil, "late" }, { "start", nil, "fresh" },
 	{ "lives" }, { "lives", nil, "rich" }, { "lives", nil, "nolives" }, { "lives", nil, "infinite" },
 	{ "shop", { tab = "boosters" } }, { "shop", { tab = "boosters" }, "rich" }, { "shop", { tab = "boosters" }, "late" },
 	{ "shop", { tab = "coins" } }, { "shop", { tab = "coins" }, "rich" }, { "shop", { tab = "coins" }, "nolives" },
-	{ "settings" }, { "settings", nil, "fresh" }, { "jukebox" }, { "jukebox", nil, "late" },
+	{ "settings" }, { "settings", nil, "fresh" },
+	{ "account", nil, "acct_guest" }, { "account", { mode = "choice" }, "acct_guest" }, { "account", nil, "acct_id" },
+	{ "account", nil, "acct_google" }, { "cloud_choice", nil, "cloud_choose" }, { "cloud_choice", nil, "cloud_foreign" }, { "jukebox" }, { "jukebox", nil, "late" },
 	{ "concert", { district = "cafe" } }, { "concert", { district = "cafe" }, "late" },
 	{ "chest", { kind = "level", level_id = 10, chest = { coins = 9999, boosters = { "stick", "riff", "crossfader" }, infinite_minutes = 15 } } },
 	{ "gift", { id = "riff" } }, { "gift", { id = "crossfader" } },
@@ -77,6 +127,8 @@ describe("text layout audit: town windows", function()
 				assert_true(#A.texts(c, { window = true }) >= 1, name .. ": no texts measured")
 				report(name, A.check(c, { window = true }))
 			end)
+			require("client.cloud").reset()
+			require("client.services.auth").set_provider(nil)
 		end, CASES)
 		fail_on(bad, "texts out of their boxes")
 	end)

@@ -39,6 +39,8 @@ local rewards = require("client.rewards")
 local popups = require("client.popups")
 local flow = require("client.flow")
 local analytics = require("client.services.analytics")
+local auth = require("client.services.auth")
+local cloud = require("client.cloud")
 local scene_mod = require("screens.town.scene")
 local hud_mod = require("screens.town.hud")
 local show_mod = require("screens.town.show")
@@ -53,6 +55,8 @@ local REGISTRY = {
 	lives = require("gui.lives"),
 	shop = require("gui.shop"),
 	settings = require("gui.settings"),
+	account = require("gui.account"),
+	cloud_choice = require("gui.cloud_choice"),
 	jukebox = require("gui.jukebox"),
 	concert = require("gui.concert"),
 	chest = require("gui.chest"),
@@ -132,6 +136,30 @@ function Town:open_popup(name, params)
 		params.id = params.id or "riff"
 	end
 	return self.popups:open(name, params)
+end
+
+-- Account prompts, never over another window and never while a reward is on show: the sync question (a
+-- decision of client/cloud.lua, asked again after "not now" only when a sync finds one), the first-launch
+-- sign-in window (when sign-in is available and the player was not asked yet) and the guest reminder.
+function Town:account_prompts()
+	if self.show:busy() or self.sliding or app.ui.popup or self.leaving then return end
+	local d = cloud.decision()
+	if d and self.asked ~= d then
+		self.asked = d
+		self:open_popup("cloud_choice")
+		return
+	end
+	if self.prompted then return end
+	self.prompted = true
+	if auth.available() and not cloud.welcomed() then
+		self:open_popup("account", { mode = "choice" })
+		return
+	end
+	local n = app.beaten_count()
+	if cloud.guest_reminder_due(n) then
+		cloud.mark_reminded(n)
+		app.toast_key("account.reminder", nil, { color = "blue", duration = 5 })
+	end
 end
 
 -- actions -----------------------------------------------------------------------------------------
@@ -356,7 +384,7 @@ end
 local function new_town()
 	local t = setmetatable({}, Town)
 	t.sub = bus.subscribe({ "meta_changed", "lives_tick", "language_changed", "settings_changed", "save_reset",
-		"screen_leaving", "popup_request", "reward_pushed", "meta_qa" }, "town")
+		"screen_leaving", "popup_request", "reward_pushed", "meta_qa", "cloud_status", "cloud_decision", "auth_changed" }, "town")
 	t.on_bus = function(topic, p) on_bus(t, topic, p) end
 	t.ui = ui.scene({ gui = GUI })
 	t.disp = { coins = 0, stars = 0 }
@@ -414,6 +442,7 @@ function Town:update(dt)
 		if rewards.count() > 0 then self:queue_rewards() end
 		self:queue_pending_chests()
 	end
+	if self.enter_t > 1.0 then self:account_prompts() end
 	if self.pending_open and self.enter_t > 0.5 and not self.show:busy() then
 		local want = self.pending_open
 		self.pending_open = nil
