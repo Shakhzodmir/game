@@ -47,9 +47,9 @@ EXTS = (".png", ".jpg", ".jpeg", ".webp")
 def build_spec():
     S = {}
 
-    def add(name, group, kind, out, grid=None, names=None, uniform=False, anchor="center", aspect=None):
+    def add(name, group, kind, out, grid=None, names=None, uniform=False, anchor="center", aspect=None, align="cell"):
         S[name] = {"group": group, "kind": kind, "out": list(out), "grid": list(grid) if grid else None,
-                   "names": names, "uniform": uniform, "anchor": anchor, "aspect": aspect}
+                   "names": names, "uniform": uniform, "anchor": anchor, "aspect": aspect, "align": align}
 
     for name, grid in (("bit_idle_breathe", (2, 2)), ("bit_idle_look", (2, 2)), ("bit_dance_a", (3, 2)),
                        ("bit_dance_b", (3, 2)), ("bit_cheer", (3, 2)), ("bit_surprised", (2, 2)),
@@ -78,7 +78,7 @@ def build_spec():
     add("bonus_spark", "bonus", "set", (128, 128), (3, 2), [str(i) for i in range(1, 7)], True)
     add("super_star", "bonus", "set", (192, 192), (2, 2), ["full", "empty", "glow", "small"])
     for c in ("green", "blue", "gold", "pink", "purple"):
-        add("btn_" + c, "ui", "set", (384, 128), (2, 2), ["normal", "pressed", "disabled", "focus"], True)
+        add("btn_" + c, "ui", "set", (384, 128), (2, 2), ["normal", "pressed", "disabled", "focus"], True, align="center")
     add("panels", "ui", "set", (512, 512), (2, 2), ["window", "plain", "tint", "tab"])
     add("widgets", "ui", "set", (256, 256), (3, 3),
         ["close", "back", "toggle_on", "toggle_off", "slider", "check_on", "check_off", "bar_frame", "bar_fill"])
@@ -244,6 +244,29 @@ def cell_boxes(w, h, cols, rows):
             for r in range(rows) for c in range(cols)]
 
 
+def drop_intruders(a, ratio=0.03):
+    """Slivers and specks of the neighbouring cell that touch the cell border (and are far smaller than the biggest piece)
+    are removed, so that they neither stay in the frame nor stretch its bounding box."""
+    if _ndi is None:
+        return a
+    lab, n = _ndi.label(a > 0.2)
+    if n < 2:
+        return a
+    areas = np.bincount(lab.ravel(), minlength=n + 1)
+    areas[0] = 0
+    big = areas.max()
+    h, w = a.shape
+    out = a
+    for i, sl in enumerate(_ndi.find_objects(lab), start=1):
+        if sl is None or areas[i] >= ratio * big:
+            continue
+        if sl[0].start == 0 or sl[1].start == 0 or sl[0].stop == h or sl[1].stop == w:
+            if out is a:
+                out = a.copy()
+            out[lab == i] = 0
+    return out
+
+
 # -- one item -----------------------------------------------------------------------------------------------------------
 
 def load_input(path):
@@ -288,7 +311,7 @@ def process(path, name, spec):
     boxes = cell_boxes(w, h, cols, rows)
     frames = []
     for i, (x0, y0, x1, y1) in enumerate(boxes):
-        a = alpha[y0:y1, x0:x1]
+        a = drop_intruders(alpha[y0:y1, x0:x1])
         bb = bbox(a)
         label = (spec["names"][i] if spec["names"] else str(i + 1))
         if bb is None:
@@ -304,7 +327,13 @@ def process(path, name, spec):
         return [], warns, errs
     out = spec["out"]
     results = []
-    if spec["uniform"] and len(frames) > 1:
+    if spec["uniform"] and spec.get("align") == "center" and len(frames) > 1:
+        # states of one object (buttons): one scale for all, every frame centred on its own box (the positions in the sheet mean nothing)
+        s = fit_scale(max(f[2][2] - f[2][0] for f in frames), max(f[2][3] - f[2][1] for f in frames), out)
+        for c, a, (x0, y0, x1, y1) in frames:
+            size = (max(1, round((x1 - x0) * s)), max(1, round((y1 - y0) * s)))
+            results.append(place(resize_rgba(c[y0:y1, x0:x1], a[y0:y1, x0:x1], size), out, "center"))
+    elif spec["uniform"] and len(frames) > 1:
         ux0 = min(f[2][0] for f in frames)
         uy0 = min(f[2][1] for f in frames)
         ux1 = max(f[2][2] for f in frames)
@@ -567,6 +596,8 @@ def selftest():
             ImageDraw.Draw(shadow).ellipse([110, 400, 400, 450], fill=77)
             cell = Image.composite(Image.new("RGB", (512, 512), (0, 0, 0)), cell, shadow.filter(ImageFilter.GaussianBlur(6)))
             ImageDraw.Draw(cell).ellipse([150, 170, 360, 425], fill=(255, 201, 139), outline=(224, 135, 58), width=4)
+            if i == 1:
+                ImageDraw.Draw(cell).rectangle([0, 150, 5, 330], fill=(60, 200, 90))   # a sliver of the neighbouring cell
             sh_sheet.paste(cell, ((i % 2) * 512, (i // 2) * 512))
         sh_sheet.save(os.path.join(inp, "bit_surprised.png"))
         # 2e. a music note whose stem is 5 px wide and has no outline (single sprite)
@@ -645,6 +676,11 @@ def selftest():
                 if int(((op[:, 0] > 120) & (op[:, 2] > 120) & (op[:, 1] < 60)).sum()) > 30:
                     problems.append("the shadow stayed as opaque magenta in " + f)
                     break
+            f0 = np.asarray(Image.open(os.path.join(outdir, w5["files"][0])))
+            body = (f0[..., 3] >= 250) & (np.abs(f0[..., 0].astype(int) - 255) < 8) & (np.abs(f0[..., 1].astype(int) - 201) < 20)
+            rows = np.where(body.any(axis=1))[0]
+            if len(rows) == 0 or rows.max() - rows.min() < 190:
+                problems.append("a sliver of the neighbouring cell shrank the hero (body height %d px)" % ((rows.max() - rows.min()) if len(rows) else 0))
         # a thin stem without an outline survives: one piece
         nb = np.asarray(Image.open(os.path.join(outdir, "notebook", "notebook_closed.png")))
         if _ndi is not None:
