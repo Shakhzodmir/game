@@ -131,6 +131,13 @@ function View:build_world()
 	if self.world then s:clear(self.world) end
 	self.world = s:layer(self.c_world, "world")
 	self.c_bg = s:layer(self.world, "bg")
+	-- one layer per district stretch, upper stretches on top, and in each: tiles < decorations < gate; things are made
+	-- when they come near, in any order, and a tile that reaches into the next stretch stays under it
+	self.seg_layers = {}
+	for i = 1, #m.segments do
+		local l = s:layer(self.c_bg)
+		self.seg_layers[i] = { tiles = s:layer(l), deco = s:layer(l), gate = s:layer(l) }
+	end
 	self.c_path = s:layer(self.world, "path")
 	self.c_nodes = s:layer(self.world, "nodes")
 	self.c_bit = s:layer(self.world, "bit")
@@ -367,9 +374,10 @@ function View:make_tile(seg, idx)
 	local sg = m.segments[seg]
 	local th = m.tile_h
 	local y = sg.y0 + idx * th + th / 2
-	local node = s:image(self.c_bg, sg.bg, 360, y, { w = 720, h = th })
+	local parent = self.seg_layers[seg].tiles
+	local node = s:image(parent, sg.bg, 360, y, { w = 720, h = th })
 	if not node then
-		node = s:box(self.c_bg, 360, y, 720, th, { color = sg.tint or "#F4EEFF" })
+		node = s:box(parent, 360, y, 720, th, { color = sg.tint or "#F4EEFF" })
 	end
 	if idx % 2 == 1 then
 		-- every other tile is mirrored top to bottom, so the seams of a repeated picture meet
@@ -381,7 +389,7 @@ end
 function View:make_gate(seg)
 	local s, m = self.ui, self.model
 	local sg = m.segments[seg]
-	local holder = s:layer(self.c_bg)
+	local holder = s:layer(self.seg_layers[seg].gate)
 	local node = s:image(holder, sg.gate, 360, sg.gate_y, { w = 720, h = 480 })
 	if not node then
 		node = s:round(holder, 360, sg.gate_y, 520, 160, "#9B5CFF", { radius = 40 })
@@ -398,7 +406,7 @@ end
 function View:make_deco(seg, j)
 	local s = self.ui
 	local it = self.model.segments[seg].deco[j]
-	local node = s:image(self.c_bg, it.image, it.x, it.y, { scale = it.scale or 1 })
+	local node = s:image(self.seg_layers[seg].deco, it.image, it.x, it.y, { scale = it.scale or 1 })
 	return node or false
 end
 
