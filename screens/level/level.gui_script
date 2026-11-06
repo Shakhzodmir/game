@@ -56,6 +56,7 @@ local REGISTRY = {
 	lives = require("gui.lives"),
 	shop = require("gui.shop"),
 	settings = require("gui.settings"),
+	account = require("gui.account"), -- opened from the settings
 	confirm = require("gui.confirm"),
 	chest = require("gui.chest"), -- the results window opens the level chest
 }
@@ -535,7 +536,7 @@ local function new_level()
 	t.sub = bus.subscribe({
 		"level_ready", "level_moves", "level_goal", "level_score", "level_state", "level_result", "level_booster",
 		"level_special", "level_noise", "level_praise", "meta_changed", "language_changed", "settings_changed",
-		"screen_leaving", "lives_tick", "popup_request",
+		"screen_leaving", "lives_tick", "popup_request", "cloud_status", "auth_changed",
 	}, "level_hud")
 	t.bus_cb = function(topic, p) t:on_bus(topic, p) end
 	t.state, t.dirty, t.paused, t.ended = "playing", false, false, false

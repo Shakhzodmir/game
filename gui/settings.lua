@@ -1,6 +1,6 @@
 -- Settings: music and sound volumes (sliders: heard live while dragging,
 -- saved on release), vibration, reduced motion, controls (swipe / tap-tap),
--- language (auto / English / Russian / Korean), the save code (copy it, or enter one and
+-- language (auto / English / Russian / Korean), the account (a row that opens gui/account.lua), the save code (copy it, or enter one and
 -- replace the progress after a confirmation), reset progress (with a confirmation)
 -- and the version. Every value goes through app.set_setting (the meta
 -- validates it, the save follows).
@@ -11,10 +11,11 @@ local views = require("client.views")
 local audio = require("client.audio")
 local platform = require("client.platform")
 local kit = require("gui.kit")
+local account = require("client.account")
 
 local M = {}
 
-local W, H = 640, 1340
+local W, H = 640, 1450
 
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
 -- offers that has no label yet (a new language needs its strings first) is left out.
@@ -175,8 +176,14 @@ function M.build(e)
 		e:rebuild()
 	end, { h = 84, text_size = 26, targets = "lang" })
 
-	-- save code
+	-- account and cloud save (WP-10): one row, the window has the rest
 	y = y - 150
+	s:button({ parent = body, x = 0, y = y, w = 520, h = 92, style = "purple", icon = "ui/icons/city", icon_size = 46,
+		text = i18n.tr(account.who_spec()), text_size = 28, on_click = function() e:open("account") end })
+	e:target("account", 0, y)
+
+	-- save code
+	y = y - 110
 	kit.section(e, body, i18n.t("settings.code_section"), 0, y, W - 80)
 	s:button({ parent = body, x = 0, y = y - 90, w = 520, h = 92, style = "blue", icon = "ui/icons/city", icon_size = 46,
 		text = i18n.t("settings.code_copy"), text_size = 28, on_click = function() M.copy_code() end })
