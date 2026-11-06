@@ -14,7 +14,7 @@ local flow = require("client.flow")
 
 local WINDOWS = { { 720, 1280 }, { 390, 844 }, { 1280, 720 }, { 768, 1024 } }
 local DIRECTIONS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
-local HOPS = { "splash", "town", "level" }
+local HOPS = { "splash", "town", "level", "map" }
 local WINDOW_NAMES = { "start", "lives", "shop", "jukebox", "chest", "concert", "gift" }
 
 -- Park-Miller: exact in doubles, no bit operators, the same sequence on Lua 5.1 and LuaJIT

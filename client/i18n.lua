@@ -432,6 +432,25 @@ local S = {
 	["splash.gift"] = { en = "Gift: {name} boosters!", ru = "Подарок: бустеры «{name}»!" },
 	["splash.chest"] = { en = "{name}: the district chest is yours!", ru = "{name}: сундук района твой!" },
 
+	-- map (screens/map) ------------------------------------------------------------------------------------------------
+	["map.title"] = { en = "Map", ru = "Карта" },
+	["map.button"] = { en = "Map", ru = "Карта" },
+	["map.back"] = { en = "Town", ru = "Город" },
+	["map.to_current"] = { en = "My level", ru = "К моему уровню" },
+	["map.locked"] = { en = "Opens after level {n}", ru = "Откроется после уровня {n}" },
+	["map.soon"] = { en = "New levels soon!", ru = "Скоро новые уровни!" },
+	["map.soon_text"] = {
+		en = "Play the beaten levels again to win more stars.",
+		ru = "Пройденные уровни можно сыграть снова ради звёзд.",
+	},
+	["win.map"] = { en = "To the map", ru = "На карту" },
+	["start.replay"] = { en = "Play again", ru = "Играть снова" },
+	["start.replay_text"] = {
+		en = "Beat your best for more stars. No coins or lives are spent.",
+		ru = "Побей свой рекорд ради звёзд. Монеты и жизни не тратятся.",
+	},
+	["start.best_score"] = { en = "Best score: {n}", ru = "Рекорд: {n}" },
+
 	-- town: top bar, task card, level button, navigation, hints --------------------------------------------------------
 	["town.level"] = { en = "Level {n}", ru = "Уровень {n}" },
 	["town.hard"] = { en = "Hard", ru = "Сложный" },

@@ -6,7 +6,9 @@
 -- Play -> client/flow.lua start(n, picked, "town") -> meta:start_level ->
 -- the level screen (contract: client/flow.lua). "no_lives" opens the lives
 -- window on top.
--- params = {level = n (default: the next level)}
+-- params = {level = n (default: the next level), replay = true (a beaten level from the map: the window shows
+-- its best, no boosters or lives; Play starts a practice run that only raises the stars, like gui/replay.lua)}
+-- From the map the level screen returns to the map (flow.start gets back = "map").
 
 local app = require("client.app")
 local i18n = require("client.i18n")
@@ -104,12 +106,30 @@ function M.tap_slot(e, slot, face)
 	st.just = nil
 end
 
+-- Where the player comes from (client/flow.lua): the town, the map, or the level screen that hosts this window
+-- after a win or a defeat (Next level, Retry); `back` is the screen the level screen returns to.
+local function origin()
+	if app.screen == "level" then return "level", app.params and app.params.back end
+	if app.screen == "map" then return "map", "map" end
+	return "town", nil
+end
+
+local function play_replay(e, v)
+	if e.busy then return end
+	e.busy = true
+	kit.sfx("win")
+	if e.bit then e.bit:cheer(2, 2) end
+	if e.play_btn then e.fx:pop(e.play_btn.node, 0.12) end
+	app.show_screen("level", { level = v.level, from = "replay", back = select(2, origin()) })
+end
+
 local function play(e, v)
 	if e.busy then return end
 	local picked = views.picked(v.boosters, e.state.selected)
 	-- where the player comes from (client/flow.lua): the town, or the level screen that hosts this window
 	-- after a win or a defeat (Next level, Retry)
-	local ok, why = flow.start(v.level, picked, app.screen == "level" and "level" or "town")
+	local from, back = origin()
+	local ok, why = flow.start(v.level, picked, from, back)
 	if ok then
 		e.busy = true
 		kit.sfx("win")
@@ -129,6 +149,59 @@ local function play(e, v)
 	end
 end
 
+-- A beaten level opened from the map: goals, the best stars and score, Play.
+local function build_replay(e, n, info)
+	local s = e.ui
+	local v = views.start(app.meta, n, info, app.now(), levels, app.free_levels())
+	e.view = v
+	local H2 = 760
+	local body, hh = kit.panel(e, W, H2, { title = { key = "start.title", vars = { n = n } } })
+	kit.bit(e, body, -W / 2 + 70, hh + 34, 128, e.busy and "happy" or "idle")
+	local y = hh - 92
+	local concert = levels.is_concert(n)
+	local tag_key = concert and "town.concert" or v.tag
+	if tag_key then
+		local hard = concert or v.tag == "town.hard"
+		kit.badge(e, body, 0, y, i18n.t(tag_key), hard and "pink" or "purple",
+			{ w = 230, h = 50, size = 26, outline = hard and "#A8204F" or "#5220A6" })
+	end
+	y = hh - 160
+	kit.section(e, body, i18n.t("start.goals"), 0, y, W - 80)
+	local goals = v.goals
+	local gy = y - 104
+	if #goals == 0 then
+		kit.caption(e, body, i18n.t("start.no_goals"), 0, gy, { size = 26 })
+	else
+		local count = math.min(4, #goals)
+		for i = 1, count do
+			kit.goal(e, body, goals[i], (i - (count + 1) / 2) * 150, gy, 124)
+		end
+	end
+	if v.moves then
+		kit.caption(e, body, i18n.t("common.moves", { n = v.moves }), 0, gy - 94, { size = 24, color = "text_soft" })
+	end
+	-- the best result so far: three stars and the score
+	local sy = gy - 200
+	local got = app.meta:level_stars(n, v.difficulty)
+	for i = 1, 3 do
+		local x = (i - 2) * 96
+		local key = i <= got and "ui/icons/star" or "ui/icons/star_empty"
+		if not s:image(body, key, x, sy - (i == 2 and 0 or 10), { w = 84, h = 84 }) then
+			s:circle(body, x, sy, 64, i <= got and "yellow" or "lavender")
+		end
+	end
+	local score = app.meta:level_score(n)
+	if score > 0 then
+		kit.caption(e, body, i18n.t("start.best_score", { n = i18n.number(score) }), 0, sy - 72, { size = 26, color = "text_soft" })
+	end
+	kit.caption(e, body, i18n.t("start.replay_text"), 0, sy - 150, { size = 24, color = "green", max_width = W - 80 })
+	local py = -hh + 88
+	local pb = s:button({ parent = body, x = 0, y = py, w = 420, h = 124, style = "blue", text = i18n.t("start.replay"),
+		text_size = 48, enabled = not e.busy, on_click = function() play_replay(e, v) end })
+	e.play_btn = pb
+	e:target("play", 0, py)
+end
+
 function M.build(e)
 	local s = e.ui
 	local st = e.state
@@ -139,6 +212,9 @@ function M.build(e)
 		return
 	end
 	local info = levels.load(n)
+	if e.params.replay then
+		return build_replay(e, n, info)
+	end
 	local v = views.start(app.meta, n, info, app.now(), levels, app.free_levels())
 	e.view = v
 	local body, hh = kit.panel(e, W, H, { title = { key = "start.title", vars = { n = n } } })
