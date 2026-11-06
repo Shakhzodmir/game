@@ -193,6 +193,23 @@ describe("main/audio.script: one song at a time", function()
 		end)
 	end)
 
+	it("a song of a genre that is not a district plays in the key of its genre", function()
+		with_audio(function(E, a)
+			a:message("music", { district = "savanna_drums" }) -- folk, G
+			a:step(2)
+			assert_eq(audio.status.song, "savanna_drums")
+			assert_eq(audio.status.district, "folk")
+			assert_true(audio.status.single)
+			assert_eq(audio.status.semitones, -5)
+			a:message("music", { district = "trap_playground" }) -- hip-hop, Eb
+			a:step(2)
+			assert_eq(audio.status.district, "hiphop")
+			assert_eq(audio.status.semitones, 3)
+			a:message("sfx", { name = "tap" })
+			assert_near(audio.status.last_sfx_speed, audio.transpose_speed(3), 1e-9, "the tap is in C, the genre in Eb")
+		end)
+	end)
+
 	it("random switching: the invariant holds in every frame", function()
 		with_audio(function(E, a, app)
 			local owner = component_owner()
