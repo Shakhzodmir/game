@@ -159,7 +159,9 @@ function Stars.check(data, dir, opts)
 			for _, m in ipairs(stars.check_entry(e)) do bad(m) end
 			if #stars.check_entry(e) == 0 then
 				if e.sig ~= common.checksum(entry.text) then bad("the level file changed: regenerate the thresholds (tools/stars.lua gen)") end
-				local want = Stars.CONCERT[id] and "concert" or "normal"
+				-- the plan (Stars.CONCERT) covers the first 100 levels; the kind of a later level is data (WP-14 moves the
+				-- concerts to the end of every district)
+				local want = Stars.CONCERT[id] and "concert" or (id <= 100 and "normal" or e.kind)
 				if e.kind ~= want then bad("kind " .. tostring(e.kind) .. ", the plan says " .. want) end
 				if e.kind == "concert" and entry.difficulty ~= "super_hard" then bad("a concert level must be super_hard") end
 				if type(e.best) ~= "number" or e.t[3] > e.best then bad("3 stars (" .. e.t[3] .. ") are above the best bot score " .. tostring(e.best)) end
@@ -254,6 +256,8 @@ function Stars.main(argv)
 			total = total + mean[entry.id]
 		end
 		local d = common.decode(common.read_file(ROOT .. "content/districts.json"))
+		local count = 0 -- levels in the model: the highest id with a mean (every level of the directory)
+		for id in pairs(mean) do count = math.max(count, id) end -- order-free: a maximum
 		local cost, cum, at, floor_at = 0, 0, {}, {}
 		local c1, c2 = 0, 0
 		local k = 1
@@ -262,15 +266,15 @@ function Stars.main(argv)
 			-- first level where the cumulative stars reach the price so far
 			local level
 			cum = 0
-			for id = 1, 100 do
-				cum = cum + mean[id]
+			for id = 1, count do
+				cum = cum + (mean[id] or 0)
 				if cum >= cost then level = id break end
 			end
 			at[k] = level or "never"
-			floor_at[k] = cost <= 100 and cost or "never"
+			floor_at[k] = cost <= count and cost or "never"
 			k = k + 1
 		end
-		print(string.format("bot %s, %d games per level: mean stars per level %.2f, total %.1f (the town costs %d)", bot, n, total / 100, total, cost))
+		print(string.format("bot %s, %d games per level: mean stars per level %.2f, total %.1f (the town costs %d)", bot, n, total / math.max(1, count), total, cost))
 		print("district closed at level (mean bot): " .. table.concat(at, ", "))
 		print("district closed at level (1 star per win, no replay): " .. table.concat(floor_at, ", "))
 		return 0

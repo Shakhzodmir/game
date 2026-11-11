@@ -7,7 +7,9 @@
 The file is data, not code: the producer's art arrives later and the layout can be edited by hand
 (the tests only check the rules in tests/client/map_model_test.lua). Coordinates are world pixels,
 x to the right (0..720), y UP from the bottom of the map. The format is described in
-docs/handoff/WP-7.md. The five districts of content/districts.json take 20 levels each.
+docs/handoff/WP-7.md. The districts, their order and their stretch of levels (`first`, `last`) come from
+content/districts.json, the concert levels from content/levels/stars.json: a new batch of levels or a new
+district changes the data, then `python3 tools/gen_map.py` rewrites the map (WP-13).
 """
 import json
 import math
@@ -17,38 +19,64 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 OUT = os.path.join(ROOT, "content", "map.json")
 
-LEVELS = 100
-PER_SEGMENT = 20
+DEFAULT_TINT = "#E6E1F2"   # the map tint of a district without `map_tint` in districts.json
 STEP = 190          # vertical distance between two levels
 GAP = 480           # extra distance where the path crosses a district gate
 FIRST_Y = 430       # y of level 1
-TOP_ROOM = 800      # room above level 100 for the "new levels soon" sign
+TOP_ROOM = 800      # room above the last level for the "new levels soon" sign
 AMPLITUDE = 170     # how far the path swings to the sides
 DECO_PER_SEGMENT = 12
 
 
+def load_content():
+    """(districts = [{id, first, last, tint}], concerts = set of concert levels) from the content files."""
+    with open(os.path.join(ROOT, "content", "districts.json"), encoding="utf-8") as f:
+        src = json.load(f)["districts"]
+    districts, expect = [], 1
+    for d in src:
+        if "first" not in d or "last" not in d:
+            sys.exit("content/districts.json: district %s has no first/last" % d["id"])
+        if d["first"] != expect or d["last"] < d["first"]:
+            sys.exit("content/districts.json: district %s starts at %s, expected %d (stretches must follow each other)" % (d["id"], d["first"], expect))
+        districts.append({"id": d["id"], "first": d["first"], "last": d["last"], "tint": d.get("map_tint", DEFAULT_TINT)})
+        expect = d["last"] + 1
+    with open(os.path.join(ROOT, "content", "levels", "stars.json"), encoding="utf-8") as f:
+        stars = json.load(f)["levels"]
+    concerts = {int(k) for k, v in stars.items() if v.get("kind") == "concert"}
+    return districts, concerts
+
+
+DISTRICTS, CONCERTS = load_content()
+LEVELS = DISTRICTS[-1]["last"]
+FIRSTS = {d["first"] for d in DISTRICTS}
+LASTS = {d["last"] for d in DISTRICTS}
+
+
+def segment_of(n):
+    """Index of the district whose stretch holds level n."""
+    for i, d in enumerate(DISTRICTS):
+        if d["first"] <= n <= d["last"]:
+            return i
+    raise ValueError("level %d is in no district" % n)
+
+
 def level_y(n):
-    seg = (n - 1) // PER_SEGMENT
-    return FIRST_Y + (n - 1) * STEP + seg * GAP
+    return FIRST_Y + (n - 1) * STEP + segment_of(n) * GAP
 
 
 def level_x(n):
-    first = (n - 1) % PER_SEGMENT == 0
-    last = n % PER_SEGMENT == 0
-    if first or last or (n >= 60 and n % 10 == 0):     # at a gate and at the concert levels (60, 70 ... 100) the path is in the middle
+    if n in FIRSTS or n in LASTS or n in CONCERTS:     # at a gate and at a concert level the path is in the middle
         return 360
     return 360 + int(round(AMPLITUDE * math.sin(n * 0.8)))
 
 
 def build():
-    with open(os.path.join(ROOT, "content", "districts.json"), encoding="utf-8") as f:
-        ids = [d["id"] for d in json.load(f)["districts"]]
-    assert len(ids) * PER_SEGMENT == LEVELS, "five districts of 20 levels"
+    ids = [d["id"] for d in DISTRICTS]
     world_h = level_y(LEVELS) + TOP_ROOM
     nodes = [{"level": n, "x": level_x(n), "y": level_y(n)} for n in range(1, LEVELS + 1)]
     segments = []
-    for i, did in enumerate(ids):
-        first, last = i * PER_SEGMENT + 1, (i + 1) * PER_SEGMENT
+    for i, dist in enumerate(DISTRICTS):
+        did, first, last = dist["id"], dist["first"], dist["last"]
         y0 = 0 if i == 0 else (level_y(first - 1) + level_y(first)) // 2
         y1 = world_h if i == len(ids) - 1 else (level_y(last) + level_y(last + 1)) // 2
         gate_y = 230 if i == 0 else y0
@@ -66,7 +94,7 @@ def build():
         segments.append({
             "id": did, "district": did, "first": first, "last": last, "y0": y0, "y1": y1,
             "bg": "mapbg/bg_" + did, "gate": "mapbg/gate_" + did, "gate_y": gate_y,
-            "tint": {"cafe": "#F7D9B5", "jazz": "#CFC3F2", "square": "#BFE6D0", "stadium": "#CDEBFF", "garage": "#C5BFD9"}.get(did, "#E6E1F2"),
+            "tint": dist["tint"],
             "deco": deco,
         })
     return {

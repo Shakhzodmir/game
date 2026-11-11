@@ -7,7 +7,7 @@
 --             "social.noun.*", every language shows its own words) and a number 10..99. Nobody types a name,
 --             so no real name, e-mail, link or rude word can get in.
 --   avatar  = 1..#AVATARS (a colour and an icon the game already has)
---   district = 1..5 (the district of the town the player works on, the "badge")
+--   district = 1..number of districts of the town (the position of the district the player works on, the "badge")
 --   stars, total_stars, level, super (counters)
 -- Anti-cheat (the server cannot replay a level without the core, so it limits and flags instead):
 --   * total stars can never exceed 3 per level reached + the stars of concerts: MAX_PER_LEVEL * level;
