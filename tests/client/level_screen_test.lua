@@ -1167,7 +1167,9 @@ describe("level screen: the results", function()
 			c.tap_target("chest")
 			c.step(120)
 			local collect = c.app.ui.popup_targets.collect
-			assert_true(math.abs(collect.x - next_at.x) < 230 and math.abs(collect.y - next_at.y) < 62,
+			-- (level 20 is a concert since WP-14: its window has one more strip, Next level sits 63 px from Collect; the
+			-- buttons are 88 px high, so the two still overlap)
+			assert_true(math.abs(collect.x - next_at.x) < 230 and math.abs(collect.y - next_at.y) < 88,
 				"Collect lies over Next level in this window (" .. collect.x .. "," .. collect.y .. " vs " .. next_at.x .. "," .. next_at.y .. ")")
 			local coins = meta:coins()
 			c.tap(collect.x, collect.y) -- Collect
@@ -1381,10 +1383,11 @@ describe("level screen: the results window fits the screen", function()
 		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
 			win(c)
 			assert_false(c.has(i18n.t("win.stars_note")), "the streak, an older chest and a new booster crowd the window")
-			-- the score scale and the songbook strip (a finished song at level 20) are more strips: a crowded window shrinks a
-			-- little (kit.panel fit), never below 85%
+			-- the score scale, the songbook strip (a finished song at level 20) and the super stars of the concert (level 20
+			-- ends the first district, WP-14) are more strips: a crowded window shrinks a little (kit.panel fit), never
+			-- below 80%
 			local k = popups(c):find("result").fit_k
-			assert_true(k > 0.85 and k <= 1, "and without the note it shrinks only a little: " .. tostring(k))
+			assert_true(k > 0.8 and k <= 1, "and without the note it shrinks only a little: " .. tostring(k))
 		end)
 	end)
 
@@ -1396,7 +1399,7 @@ describe("level screen: the results window fits the screen", function()
 			c.hud:ctx(function() e:rebuild() end)
 			c.step(5)
 			assert_true(c.hud:find("^Returned to you:", true) ~= nil, "the refund strip")
-			assert_true(e.fit_k < 1 and e.fit_k > 0.78, "shrunk by a little: " .. tostring(e.fit_k))
+			assert_true(e.fit_k < 1 and e.fit_k > 0.72, "shrunk by a little: " .. tostring(e.fit_k))
 			check_fits(c, "level 20 with the refund strip")
 			-- the taps QA and the tests make are where the buttons are drawn
 			for target, label in pairs({ next = "Next level", town = "To town", chest = "Open" }) do

@@ -35,8 +35,25 @@ Stars.QUANTILES = {
 	normal = { 0.15, 0.50, 0.90 },
 	concert = { 0.25, 0.65, 0.95 },
 }
--- The concert levels: the super hard ones that close each block of ten from 60 on (levels-plan.md, 1).
+-- The concert levels (WP-14): the LAST level of every district of content/districts.json (20, 40, 60, 80, 100 ...);
+-- the rule lives here and in tools/check_content.lua, the game only reads `kind` from stars.json.
+-- Stars.CONCERT is the plan before WP-14 (60, 70 ... 100): the fallback for a directory without districts.json
+-- (a sample or a test fixture).
 Stars.CONCERT = { [60] = true, [70] = true, [80] = true, [90] = true, [100] = true }
+
+-- Set {[level] = true} of the concert levels of the level directory `dir` (its districts.json is next to it).
+function Stars.concert_levels(dir)
+	local text = common.read_file((dir or "content/levels") .. "/../districts.json")
+	local data = text and common.decode(text)
+	local list = type(data) == "table" and data.districts
+	if type(list) ~= "table" then return Stars.CONCERT end
+	local out = {}
+	for _, d in ipairs(list) do
+		if type(d) == "table" and type(d.last) == "number" then out[d.last] = true end
+	end
+	if next(out) == nil then return Stars.CONCERT end
+	return out
+end
 Stars.MAX_SHARE3 = 300 -- per mille of the won games that may reach t3 ("not trivial")
 Stars.MIN_REPLAYS = 1
 
@@ -67,6 +84,12 @@ local function Run_play_first_win(entry, g, bot)
 	return r.won and r.score or nil
 end
 
+-- Signature of a level file. Line endings are normalised first: the same level has the same signature in a
+-- working copy with CRLF (Windows, git autocrlf) and with LF (Linux, CI).
+function Stars.sig(text)
+	return common.checksum((text:gsub("\r\n", "\n")))
+end
+
 -- The thresholds of sorted winning scores for a kind: {t1, t2, t3}.
 function Stars.thresholds(sorted, kind)
 	local q = Stars.QUANTILES[kind]
@@ -77,7 +100,7 @@ function Stars.thresholds(sorted, kind)
 end
 
 -- The entry of one level.
-function Stars.level(entry)
+function Stars.level(entry, concerts)
 	local scores, best, witness = {}, -1, nil
 	local games = 0
 	while games < Stars.MAX_GAMES and (games < Stars.MIN_GAMES or #scores < Stars.MIN_WINS) do
@@ -90,14 +113,14 @@ function Stars.level(entry)
 	end
 	if #scores < 3 then return nil, "level " .. entry.id .. ": only " .. #scores .. " wins in " .. games .. " games" end
 	table.sort(scores)
-	local kind = Stars.CONCERT[entry.id] and "concert" or "normal"
+	local kind = (concerts or Stars.CONCERT)[entry.id] and "concert" or "normal"
 	local t = Stars.thresholds(scores, kind)
 	if t[3] > best then t[3] = round100(best, true) end
 	local above = 0
 	for _, v in ipairs(scores) do if v >= t[3] then above = above + 1 end end
 	return {
 		kind = kind, t = t, best = best, witness = witness, wins = #scores, games = games,
-		share3 = math.floor(above * 1000 / #scores + 0.5), sig = common.checksum(entry.text),
+		share3 = math.floor(above * 1000 / #scores + 0.5), sig = Stars.sig(entry.text),
 	}
 end
 
@@ -147,6 +170,7 @@ function Stars.check(data, dir, opts)
 		return { "stars.json: version 1 and a levels table expected" }
 	end
 	local entries = load_levels(dir)
+	local concerts = Stars.concert_levels(dir)
 	local seen = {}
 	for _, entry in ipairs(entries) do
 		local id = entry.id
@@ -158,10 +182,8 @@ function Stars.check(data, dir, opts)
 		else
 			for _, m in ipairs(stars.check_entry(e)) do bad(m) end
 			if #stars.check_entry(e) == 0 then
-				if e.sig ~= common.checksum(entry.text) then bad("the level file changed: regenerate the thresholds (tools/stars.lua gen)") end
-				-- the plan (Stars.CONCERT) covers the first 100 levels; the kind of a later level is data (WP-14 moves the
-				-- concerts to the end of every district)
-				local want = Stars.CONCERT[id] and "concert" or (id <= 100 and "normal" or e.kind)
+				if e.sig ~= Stars.sig(entry.text) then bad("the level file changed: regenerate the thresholds (tools/stars.lua gen)") end
+				local want = concerts[id] and "concert" or "normal"
 				if e.kind ~= want then bad("kind " .. tostring(e.kind) .. ", the plan says " .. want) end
 				if e.kind == "concert" and entry.difficulty ~= "super_hard" then bad("a concert level must be super_hard") end
 				if type(e.best) ~= "number" or e.t[3] > e.best then bad("3 stars (" .. e.t[3] .. ") are above the best bot score " .. tostring(e.best)) end
@@ -195,8 +217,9 @@ local USAGE = "usage: luajit tools/stars.lua gen [--jobs 4] [--out file] [--dir 
 
 local function worker(dir, ids, out)
 	local rows = {}
+	local concerts = Stars.concert_levels(dir)
 	for _, entry in ipairs(load_levels(dir, ids)) do
-		local e, err = Stars.level(entry)
+		local e, err = Stars.level(entry, concerts)
 		if not e then error(err) end
 		rows[entry.id] = e
 	end

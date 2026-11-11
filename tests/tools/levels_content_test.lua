@@ -102,15 +102,16 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 126 stars on the saw, more than the 124 of the town", function()
+	it("earns 130 stars on the saw, more than the 124 of the town", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
 			counts[f.raw.difficulty] = counts[f.raw.difficulty] + 1
 		end
-		assert_same(counts, { easy = 52, medium = 27, hard = 16, super_hard = 5 })
-		assert_eq(stars, 126)
+		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
+		assert_same(counts, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
+		assert_eq(stars, 130)
 		local town = json.decode(read("content/districts.json"))
 		local cost = 0
 		for _, d in ipairs(town.districts) do
