@@ -453,6 +453,7 @@ return {
 	["town.super_stars_hint"] = "슈퍼 별: {n}개. 콘서트 레벨에서 얻어요. 쓰임새는 곧 알려 줄게요.",
 	["win.max_stars"] = "별 3개 모두 모았어요!",
 	["win.new_record"] = "새 점수 기록!",
+	["win.record_coins"] = "기록 경신 코인 +{n}",
 	["win.next_star"] = "다음 별까지 {n}점 남았어요",
 	["win.stars_kept"] = "이 레벨 최고 기록: 3개 중 {n}개 (별은 줄어들지 않아요)",
 	["win.stars_new"] = "내 별 +{n}",
