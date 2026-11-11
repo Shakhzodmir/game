@@ -66,7 +66,7 @@ def build_spec():
     for d in ("cafe", "jazz", "square", "stadium", "garage"):
         add("map_bg_" + d, "map", "scene", (720, 1080), aspect=(2, 3))
         add("gate_" + d, "map", "single", (720, 480))
-        add("deco_" + d, "map", "set", (192, 192), (3, 2), ["d%d" % i for i in range(1, 7)])
+        add("deco_" + d, "map", "set", (160, 160), (3, 2), ["d%d" % i for i in range(1, 7)])
         add("room_%s_day" % d, "rooms", "scene", (720, 1280), aspect=(9, 16))
         add("room_%s_concert" % d, "rooms", "scene", (720, 1280), aspect=(9, 16))
     add("map_path", "map", "set", (256, 256), (2, 2), ["straight", "curve_l", "curve_r", "end"], True)
