@@ -4,6 +4,9 @@
   "districts": [
     {
       "id": "cafe",
+      "first": 1,
+      "last": 20,
+      "map_tint": "#F7D9B5",
       "name": {
         "ru": "Lo-fi-кафе",
         "en": "Lo-fi Café",
@@ -143,6 +146,9 @@
     },
     {
       "id": "jazz",
+      "first": 21,
+      "last": 40,
+      "map_tint": "#CFC3F2",
       "name": {
         "ru": "Джаз-бар",
         "en": "Jazz Bar",
@@ -293,6 +299,9 @@
     },
     {
       "id": "square",
+      "first": 41,
+      "last": 60,
+      "map_tint": "#BFE6D0",
       "name": {
         "ru": "Площадь уличного оркестра",
         "en": "Street Band Square",
@@ -454,6 +463,9 @@
     },
     {
       "id": "stadium",
+      "first": 61,
+      "last": 80,
+      "map_tint": "#CDEBFF",
       "name": {
         "ru": "K-pop-стадион",
         "en": "K-pop Stadium",
@@ -616,6 +628,9 @@
     },
     {
       "id": "garage",
+      "first": 81,
+      "last": 100,
+      "map_tint": "#C5BFD9",
       "name": {
         "ru": "Рок-гараж",
         "en": "Rock Garage",

@@ -53,8 +53,9 @@ describe("client.rewards", function()
 		end
 		assert_eq(gifts, 1)
 		assert_eq(chests, 2)
-		-- and the cap is above the number of levels the game ships (a level is won once)
-		assert_true(rewards.MAX > meta_config.levels.count)
+		-- and the cap is a safety net far above what a session queues (the town drains the queue after every win),
+		-- so it does not depend on the number of levels of the build (WP-13)
+		assert_true(rewards.MAX >= 1000)
 	end)
 
 	it("turns a result into steps: win, streak, chest, unlock / loss", function()

@@ -64,7 +64,7 @@ function M:seed(n)
 		local total = math.min(rules.MAX_PER_LEVEL * level, (i * 13) % (rules.MAX_PER_LEVEL * level + 1))
 		p.rec = { total = total, level = level, day = rules.day_id(now), day_gain = 0, week = rules.week_id(now),
 			week_base = math.max(0, total - (i * 5) % 70), flags = 0 }
-		p.district = math.min(5, 1 + math.floor(level / 21))
+		p.district = math.min(#require("meta.config").songbook.districts, 1 + math.floor(level / 21))
 	end
 end
 
@@ -88,7 +88,7 @@ function M:report(uid, claim, cb)
 	local rec, score, refused = rules.report(p.rec, claim or {}, self:now())
 	p.rec = rec
 	local d = math.floor(tonumber(claim and claim.district) or 1)
-	p.district = math.max(1, math.min(5, d))
+	p.district = math.max(1, math.min(#require("meta.config").songbook.districts, d))
 	reply(self, "report", cb, true, nil, { stars = score, total = rec.total, refused = refused, flagged = not rules.visible(rec) })
 end
 

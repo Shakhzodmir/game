@@ -49,7 +49,11 @@ function M.claim()
 	for i, d in ipairs(app.district_list or {}) do
 		if d.id == (cur or (app.focus_district and app.focus_district())) then district = i end
 	end
-	return { total = total, level = reached, super = meta:super_stars().earned, district = math.max(1, math.min(5, district)) }
+	-- the badge shows the position of the district in the town: 1..number of districts (a build with more districts
+	-- has a longer range; the server accepts any whole number from 1)
+	local districts = #(app.district_list or {})
+	return { total = total, level = reached, super = meta:super_stars().earned,
+		district = math.max(1, math.min(districts > 0 and districts or 5, district)) }
 end
 
 -- flow -------------------------------------------------------------------------------------------------

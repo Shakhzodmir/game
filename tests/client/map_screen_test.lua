@@ -355,3 +355,67 @@ describe("screens/map/map.gui_script", function()
 		end)
 	end)
 end)
+
+-- A map of a long game (WP-13): the screen is built from content/map.json, whatever the number of levels.
+describe("screens/map/map.gui_script with a long map (synthetic data)", function()
+	local synth = require("tests.client.map_synth")
+	local json = require("tools.lib.json")
+
+	-- Runs fn with content/map.json replaced by a synthetic map of `n` levels.
+	local function with_levels(n, opts, fn)
+		local map_model = require("client.map_model")
+		local text = json.encode(synth.make(n))
+		local setup = opts.setup
+		opts.setup = function(app, c)
+			map_model.read_file = function() return text end
+			if setup then setup(app, c) end
+		end
+		local reads = 0
+		local setup2 = opts.setup
+		opts.setup = function(app, c)
+			setup2(app, c)
+			local plain = map_model.read_file
+			map_model.read_file = function(path) reads = reads + 1; return plain(path) end
+		end
+		local ok, err = pcall(with_map, opts, fn)
+		map_model.read_file = nil
+		if not ok then error(err, 0) end
+		assert_true(reads >= 1, "the screen read the synthetic map")
+	end
+
+	for _, n in ipairs({ 120, 300, 1000 }) do
+		it("shows a " .. n .. "-level map with the GUI nodes of a 100-level map, scrolling to the end and back", function()
+			with_levels(n, { setup = function(app) G.win(app, 50) end }, function(c)
+				local peak = c.map:stats().nodes
+				-- up to the very end of the map: the last node is in the pools, the "new levels soon" end of the road
+				local notches = 0
+				while c.app.ui.map.last < n and notches < 900 do
+					c.E.input(hash("wheel_up"), { value = 1 })
+					c.step(3)
+					notches = notches + 1
+					peak = math.max(peak, c.map:stats().nodes)
+				end
+				c.run(2)
+				assert_eq(c.app.ui.map.last, n, "the screen scrolled to the last level of the map")
+				assert_true(c.map:stats().nodes < 700)
+				for _ = 1, 60 do
+					c.E.input(hash("wheel_down"), { value = 1 })
+					c.step(3)
+					peak = math.max(peak, c.map:stats().nodes)
+				end
+				c.run(4)
+				local s = c.map:stats()
+				assert_true(s.peak < 700, "peak nodes " .. s.peak)
+				assert_true(peak < 700, "peak nodes while scrolling " .. peak)
+				assert_same(c.E.audit(), {})
+				-- a map opened again starts at the level the player is on, and that node is tappable
+				c.map:final()
+				c.open()
+				assert_true(c.app.ui.map.first <= 51 and c.app.ui.map.last >= 51, "level 51 is in view")
+				tap_target(c, "node_51")
+				c.run(0.6)
+				assert_eq(c.app.ui.popup, "start")
+			end)
+		end)
+	end
+end)
