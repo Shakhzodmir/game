@@ -225,6 +225,7 @@ function M.result(meta, res, core_result, now)
 		stars = res.stars or core_result.stars or 0,
 		best = res.best or res.stars or 0,       -- best stars of the level now
 		gained = res.gained or 0,                -- stars new to the wallet
+		record_coins = res.record_coins or 0,    -- coins paid for a better star record of a replay (WP-15)
 		scale = stars_scale(res.level_id, core_result.score or 0),
 		concert = res.concert and true or false,
 		super_gained = res.super_gained or 0,

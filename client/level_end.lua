@@ -99,7 +99,7 @@ local function rate(level_id, core_result)
 end
 M.rate = rate
 
--- A win of an already beaten level (the practice run, "Replay"): the records rise, nothing is paid.
+-- A win of an already beaten level (the practice run, "Replay"): the records rise; a raised star record pays coins.
 -- Returns the meta's record_replay result or nil (a level not beaten yet, a debug start).
 local function record_replay(level_id, r)
 	local meta = app.meta
@@ -126,6 +126,7 @@ local function standalone(won, core_result, ctx)
 		won = won, standalone = true, level_id = ctx and ctx.level_id or 0,
 		coins = 0, stars = won and r.stars or 0, streak = 0, unlocked = {},
 		gained = rec and rec.gained or 0, best = rec and rec.best or nil, super_gained = rec and rec.super_gained or 0,
+		record_coins = rec and rec.coins or 0,
 		concert = won and r.concert or false, new_best_score = rec and rec.new_best_score or false,
 		next_level = won and next_replay(ctx and ctx.level_id or 0) or nil,
 		life_lost = false, streak_lost = 0, fails = 0, reason = "out_of_moves",

@@ -172,6 +172,12 @@ local function blocks(e, body, v, animate, alive, note)
 			s:text(body, i18n.t(record_key, record_vars), 0, y - GAP / 2, { font = "button", size = 24, color = "text_soft", max_width = W - 100 })
 		end)
 	end
+	-- a replay that raised the star record pays coins
+	if (v.record_coins or 0) > 0 then
+		add(40 + GAP, function(y)
+			s:text(body, i18n.t("win.record_coins", { n = v.record_coins }), 0, y - GAP / 2, { font = "button", size = 24, color = "gold", max_width = W - 100 })
+		end)
+	end
 	-- a concert level pays super stars
 	if v.concert then
 		add(76 + GAP, function(y)

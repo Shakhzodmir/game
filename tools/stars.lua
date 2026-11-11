@@ -54,6 +54,7 @@ function Stars.concert_levels(dir)
 	if next(out) == nil then return Stars.CONCERT end
 	return out
 end
+Stars.PRICE_SHARE = 0.8 -- the pricing rule of a district: the mean bot closes it at this share of its levels
 Stars.MAX_SHARE3 = 300 -- per mille of the won games that may reach t3 ("not trivial")
 Stars.MIN_REPLAYS = 1
 
@@ -235,7 +236,7 @@ end
 
 function Stars.main(argv)
 	local flags = { replay = true, worker = true }
-	local values = { n = true, bot = true, jobs = true, out = true, dir = true, stars = true, ids = true }
+	local values = { n = true, bot = true, jobs = true, out = true, dir = true, stars = true, ids = true, share = true }
 	local opts, pos, perr = common.parse_args(argv, flags, values)
 	if perr or #pos == 0 then
 		io.stderr:write((perr or "") .. "\n" .. USAGE .. "\n")
@@ -300,6 +301,20 @@ function Stars.main(argv)
 		print(string.format("bot %s, %d games per level: mean stars per level %.2f, total %.1f (the town costs %d)", bot, n, total / math.max(1, count), total, cost))
 		print("district closed at level (mean bot): " .. table.concat(at, ", "))
 		print("district closed at level (1 star per win, no replay): " .. table.concat(floor_at, ", "))
+		-- the pricing rule for a district (WP-15): the mean bot closes it at SHARE of its stretch of levels, so
+		-- price = round(SHARE x mean stars per level x levels of the district); the first task costs 1 star
+		local mean_per_level = total / math.max(1, count)
+		local share = tonumber(opts.share) or Stars.PRICE_SHARE
+		local sug, now = {}, {}
+		for _, dist in ipairs(d.districts or d) do
+			local sum = 0
+			for _, task in ipairs(dist.tasks) do sum = sum + task.cost end
+			now[#now + 1] = sum
+			local size = (dist.last or 0) - (dist.first or 0) + 1
+			sug[#sug + 1] = size > 0 and math.floor(share * mean_per_level * size + 0.5) or "?"
+		end
+		print(string.format("district price now (stars): %s", table.concat(now, ", ")))
+		print(string.format("district price by the rule (%d%% of the stretch for the mean bot): %s", share * 100, table.concat(sug, ", ")))
 		return 0
 	end
 	if cmd ~= "gen" then
