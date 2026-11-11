@@ -105,8 +105,26 @@ local function validate_songs(src, data)
 	end
 end
 
+-- `first` / `last` of every district -> level count and songbook stretches (meta/config.lua).
+local function bind_levels(src)
+	local with, without = 0, 0
+	for _, d in ipairs(src.districts) do
+		if d.first ~= nil or d.last ~= nil then with = with + 1 else without = without + 1 end
+	end
+	if with == 0 then
+		C.bind_districts(nil)
+		return
+	end
+	if without > 0 then fail("either every district has 'first' and 'last' or none has") end
+	local ok, why = C.bind_districts(src.districts)
+	if not ok then fail(why) end
+end
+
 -- Checks the decoded districts.json and returns the data the meta works with:
 -- {list = {district...}, by_id = {[id] = district}, songs = {by_id}}; district.index is its position.
+-- Also binds the level count and the songbook stretches of meta/config.lua to the districts' `first` / `last`
+-- (the last level of the last district is the number of levels). Either every district has both or none has:
+-- without them the config defaults stay (a small fixture in a test).
 function M.validate(src)
 	if type(src) ~= "table" or type(src.districts) ~= "table" or #src.districts == 0 then
 		fail("expected a table with a non-empty 'districts' array")
@@ -138,6 +156,7 @@ function M.validate(src)
 		data.by_id[d.id] = district
 	end
 	validate_songs(src, data)
+	bind_levels(src)
 	return data
 end
 

@@ -20,14 +20,19 @@ local function model()
 end
 
 describe("content/map.json", function()
-	it("passes the validator and holds 100 levels in 5 district stretches of 20", function()
+	it("passes the validator and its stretches are the districts of districts.json (first, last)", function()
 		local d = read_data()
 		assert_true(map_model.validate(d))
-		assert_eq(#d.nodes, 100)
-		assert_eq(#d.segments, 5)
+		local f = assert(io.open("content/districts.json", "rb"))
+		local districts = json.decode(f:read("*a")).districts
+		f:close()
+		assert_eq(#d.segments, #districts)
+		assert_eq(#d.nodes, districts[#districts].last)
+		assert_eq(d.level_count, districts[#districts].last)
 		for i, s in ipairs(d.segments) do
-			assert_eq(s.first, (i - 1) * 20 + 1)
-			assert_eq(s.last, i * 20)
+			assert_eq(s.district, districts[i].id)
+			assert_eq(s.first, districts[i].first)
+			assert_eq(s.last, districts[i].last)
 		end
 	end)
 

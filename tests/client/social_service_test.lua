@@ -348,3 +348,33 @@ describe("social service: help with lives", function()
 		end)
 	end)
 end)
+
+describe("the district badge follows the number of districts (WP-13)", function()
+	it("the mock accepts the position of any district of the build, and clamps to the first and the last", function()
+		local C = require("meta.config")
+		local town = require("meta.town")
+		local H = require("tests.meta.helper")
+		local d = require("meta.util").copy(H.districts())
+		for i = 6, 10 do
+			d.districts[i] = { id = "x" .. i, first = 20 * (i - 1) + 1, last = 20 * i, name = { en = "X" },
+				chest = { coins = 1, boosters = {} }, tasks = { { id = "t" .. i, cost = 1, stem = "beat" } } }
+		end
+		local ok, err = pcall(function()
+			town.validate(d)
+			assert_eq(#C.songbook.districts, 10)
+			local m = mock_mod.new({ now = function() return NOW end })
+			m:profile_set("p1", { a = 1, n = 1, d = 10 }, 1, function() end)
+			local function badge(n)
+				m:report("p1", { total = 0, level = 0, district = n }, function() end)
+				return m.players.p1.district
+			end
+			assert_eq(badge(8), 8)
+			assert_eq(badge(10), 10)
+			assert_eq(badge(99), 10)
+			assert_eq(badge(0), 1)
+		end)
+		town.validate(H.districts())
+		if not ok then error(err, 0) end
+	end)
+end)
+
