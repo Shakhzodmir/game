@@ -7,7 +7,8 @@
 -- `validate` loads every level through core.load_level (the full rule set of
 -- core-rules 2.1) and prints its errors; it also checks that the id matches
 -- the file name. Plan checks (levels-plan.md: difficulty saw, colour counts,
--- moves 20-35, and for a whole directory the missing files among 1..100) are
+-- moves 20-35, and for a whole directory the missing files among 1..N, N = the last level of the last district
+-- of content/districts.json, 100 without it) are
 -- warnings; --strict turns them into errors. Exit code 1 when any level
 -- fails, 2 for a bad command line.
 -- `preview` draws the level from its JSON (coordinates as in the JSON, from
@@ -31,7 +32,8 @@ local Levels = {}
 local SAW_21_50 = { "easy", "medium", "easy", "hard", "medium", "easy", "medium", "hard", "easy", "medium" }
 local SAW_51_100 = { "easy", "medium", "easy", "hard", "medium", "easy", "medium", "hard", "easy", "super_hard" }
 
--- Planned difficulty of a level id (section 1), nil beyond 100.
+-- Planned difficulty of a level id (section 1), nil beyond 100 (the plan of levels 101+ is a data decision: no
+-- difficulty is expected, only the file and its stars are checked).
 function Levels.plan_difficulty(id)
 	if id < 1 or id > 100 then return nil end
 	if id <= 20 then return "easy" end
@@ -304,6 +306,20 @@ local function files_from(pos, dir)
 	return out
 end
 
+-- The number of levels of the content: the last level of the last district of districts.json next to the level
+-- directory (`dir` = content/levels -> content/districts.json); 100 when the file is missing or has no `last`.
+function Levels.count_from(text)
+	local data = text and common.decode(text)
+	local list = type(data) == "table" and data.districts
+	local last = type(list) == "table" and #list > 0 and type(list[#list]) == "table" and list[#list].last
+	if type(last) == "number" and last >= 1 then return last end
+	return 100
+end
+
+function Levels.content_count(dir)
+	return Levels.count_from(common.read_file((dir or "content/levels") .. "/../districts.json"))
+end
+
 -- Ids in 1..upto without a file, as ranges ("71-100", "5", "8-9").
 function Levels.missing_ranges(ids, upto)
 	local have = {}
@@ -355,10 +371,10 @@ local function cmd_validate(opts, pos, dir)
 		local num = f:match("level_(%d+)%.json$")
 		if num then present[#present + 1] = tonumber(num) end
 	end
-	-- a whole directory is the 100-level game: say which files are missing
+	-- a whole directory is the whole game: say which files are missing (N levels, from districts.json)
 	local gaps = 0
 	if #pos == 0 then
-		local missing = Levels.missing_ranges(present, 100)
+		local missing = Levels.missing_ranges(present, Levels.content_count(dir))
 		if #missing > 0 then
 			gaps = 1
 			print((opts.strict and "FAIL " or "warning: ") .. "plan: level files missing: " .. table.concat(missing, ", "))

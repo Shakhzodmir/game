@@ -5,6 +5,7 @@
 | Файл | Что делает |
 |---|---|
 | `tools/levels.lua` | проверка уровней, статистика, ASCII-превью |
+| `tools/check_content.lua` | согласованность содержимого: уровни, звёзды, карта, районы и тексты блокнота (число уровней берётся из `content/districts.json`); `luajit tools/check_content.lua`, как добавить партию: `content/levels/README.md` |
 | `tools/bot/bot.lua` | боты `greedy` (средний игрок) и `strong` (опытный) |
 | `tools/bot/run.lua` | одна партия бота: результат, `moves_to_win`, след по ходам |
 | `tools/bot/tune.lua` | подбор ходов по распределению `moves_to_win`, отчёт, `--write` |

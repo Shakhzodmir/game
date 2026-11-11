@@ -10,6 +10,8 @@ local C = {}
 C.levels = {
 	-- Levels shipped; after the last one the meta is "all_done". A save from a
 	-- build with more levels keeps its progress past `count` untouched.
+	-- This is only the default: the real number is the last level of the last district of
+	-- content/districts.json (C.bind_districts, called by meta/town.lua when the meta is built).
 	count = 100,
 	free_up_to = 20,  -- levels 1..20 never cost a life and ignore the lives counter
 }
@@ -37,6 +39,9 @@ C.super_stars = {
 -- keeps them equal); a song is ready when all its levels are beaten. `pool` = lines to choose from per district
 -- (client/i18n_songbook.lua holds exactly that many `sb.<district>.<n>` keys), `titles` = titles per district
 -- (`sbt.<district>.<n>`). A song pays nothing: it is only decoration.
+-- `districts` below is the default (the five districts of the first 100 levels); the real list comes from
+-- the `first` / `last` of every district in content/districts.json (C.bind_districts). A district has one
+-- line per level, so a district can hold at most `pool` levels.
 C.songbook = {
 	districts = {
 		{ id = "cafe", first = 1, last = 20 },
@@ -144,5 +149,58 @@ C.views = { "day", "concert" }
 C.genres_unlock = "districts"
 
 C.save_version = 1
+
+-- Content binding ----------------------------------------------------------------------------------------------
+-- The number of levels and the stretch of levels of every district are data (content/districts.json: `first`,
+-- `last` of each district, in the order the districts open); the meta reads them from here. A build with more
+-- levels or districts changes the data, not the code.
+local DEFAULT_COUNT = C.levels.count
+local DEFAULT_DISTRICTS = C.songbook.districts
+
+-- Checks the stretches {id, first, last} (in order) and returns the list that is bound, or nil and a message:
+-- the first district starts at level 1, every next one at the level after the last, no gaps, no overlaps,
+-- and a district holds at most C.songbook.pool levels (one songbook line per level).
+function C.check_districts(list)
+	if type(list) ~= "table" or #list == 0 then return nil, "no districts" end
+	local out, expect, seen = {}, 1, {}
+	for i, d in ipairs(list) do
+		local id = type(d) == "table" and d.id or nil
+		if type(id) ~= "string" or id == "" then return nil, "district " .. i .. " has no id" end
+		if seen[id] then return nil, id .. ": the id repeats district " .. seen[id] end
+		seen[id] = i
+		local first, last = d.first, d.last
+		local function int(v) return type(v) == "number" and v % 1 == 0 and v >= 1 end
+		if not int(first) or not int(last) then
+			return nil, id .. ": 'first' and 'last' must be whole levels >= 1"
+		end
+		if first ~= expect then
+			return nil, id .. ": first level is " .. first .. ", expected " .. expect
+				.. (first > expect and " (a gap: those levels belong to no district)" or " (an overlap with the district before it)")
+		end
+		if last < first then return nil, id .. ": last level " .. last .. " is before the first " .. first end
+		if last - first + 1 > C.songbook.pool then
+			return nil, id .. ": " .. (last - first + 1) .. " levels, but a district song has only " .. C.songbook.pool
+				.. " lines (one per level)"
+		end
+		out[i] = { id = id, first = first, last = last }
+		expect = last + 1
+	end
+	return out
+end
+
+-- Binds the level count and the songbook stretches to the districts of the content. `list` is a list of
+-- {id, first, last}; nil puts the defaults back. Returns true, or false and a message (nothing changes then).
+function C.bind_districts(list)
+	if list == nil then
+		C.levels.count = DEFAULT_COUNT
+		C.songbook.districts = DEFAULT_DISTRICTS
+		return true
+	end
+	local out, why = C.check_districts(list)
+	if not out then return false, why end
+	C.songbook.districts = out
+	C.levels.count = out[#out].last
+	return true
+end
 
 return C

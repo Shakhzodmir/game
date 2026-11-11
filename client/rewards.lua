@@ -27,7 +27,7 @@ local M = {}
 -- dropped result would lose. A level is won once and the game ships 100, so no real session gets near this
 -- cap: it only stops a runaway producer from growing the queue without bound (the oldest is dropped). The
 -- level chests do not depend on it: they wait in the meta.
-M.MAX = 128
+M.MAX = 1024
 
 local queue = {}
 

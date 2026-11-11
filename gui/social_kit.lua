@@ -21,10 +21,10 @@ function M.avatar(e, parent, x, y, size, index)
 	return disc
 end
 
--- The district badge: a small coloured disc with the number of the district.
+-- The district badge: a small coloured disc with the number of the district (the colours repeat past the fifth).
 function M.district(e, parent, x, y, n)
 	local s = e.ui
-	local d = s:circle(parent, x, y, 40, M.DISTRICT_COLORS[n] or M.DISTRICT_COLORS[1])
+	local d = s:circle(parent, x, y, 40, M.DISTRICT_COLORS[((n or 1) - 1) % #M.DISTRICT_COLORS + 1])
 	s:text(d, tostring(n), 0, 2, { font = "number", size = 26, color = "white", outline = "#5220A6", max_width = 30 })
 	return d
 end
