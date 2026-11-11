@@ -219,6 +219,26 @@ describe("super stars", function()
 		assert_same(m:super_stars().levels, { [1] = 3 })
 	end)
 
+	it("are kept for a level that stopped being a concert (WP-14: 70 and 90 were concerts, the district ends are now)", function()
+		-- the meta stores super stars by level id and knows nothing about which levels are concerts: that is the
+		-- `kind` of stars.json, read by the client. An old save with super stars at 70 and 90 loses none of them.
+		local m = H.new()
+		H.advance_to(m, 70)
+		local r = win(m, 24000, 3, { difficulty = "super_hard", concert = true }) -- level 70
+		assert_eq(r.super_gained, 3)
+		H.advance_to(m, 90)
+		r = win(m, 22000, 2, { difficulty = "super_hard", concert = true }) -- level 90
+		assert_eq(r.super_gained, 2)
+		local back = reload(m)
+		assert_same(back:super_stars().levels, { [70] = 3, [90] = 2 })
+		assert_eq(back:super_stars().earned, 5)
+		assert_eq(back:super_stars().balance, 5)
+		-- a replay of level 70 as a normal level (no concert flag) pays nothing and takes nothing
+		r = back:record_replay({ level_id = 70, difficulty = "super_hard", stars = 3, score = 24000 })
+		assert_eq(r.super_gained, 0)
+		assert_same(back:super_stars().levels, { [70] = 3, [90] = 2 })
+	end)
+
 	it("a normal level pays none", function()
 		local m = H.new()
 		local r = win(m, 100, 3)

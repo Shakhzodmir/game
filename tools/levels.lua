@@ -32,9 +32,23 @@ local Levels = {}
 local SAW_21_50 = { "easy", "medium", "easy", "hard", "medium", "easy", "medium", "hard", "easy", "medium" }
 local SAW_51_100 = { "easy", "medium", "easy", "hard", "medium", "easy", "medium", "hard", "easy", "super_hard" }
 
+-- The last level of every district of the districts.json next to the level directory `dir`: the concert levels
+-- (WP-14), as {[level] = true}; empty when there is no districts.json.
+function Levels.district_ends(dir)
+	local text = common.read_file((dir or "content/levels") .. "/../districts.json")
+	local data = text and common.decode(text)
+	local out = {}
+	for _, d in ipairs(type(data) == "table" and type(data.districts) == "table" and data.districts or {}) do
+		if type(d) == "table" and type(d.last) == "number" then out[d.last] = true end
+	end
+	return out
+end
+
 -- Planned difficulty of a level id (section 1), nil beyond 100 (the plan of levels 101+ is a data decision: no
--- difficulty is expected, only the file and its stars are checked).
-function Levels.plan_difficulty(id)
+-- difficulty is expected, only the file and its stars are checked). `ends` = Levels.district_ends(dir): the
+-- concert at the end of a district is always super hard (WP-14), whatever the saw says.
+function Levels.plan_difficulty(id, ends)
+	if ends and ends[id] then return "super_hard" end
 	if id < 1 or id > 100 then return nil end
 	if id <= 20 then return "easy" end
 	local pos = (id - 1) % 10 + 1
@@ -107,7 +121,7 @@ function Levels.validate_file(path, core)
 		if num and tonumber(num) ~= raw.id then
 			res.errors[#res.errors + 1] = string.format("file name says level %d, id is %d", tonumber(num), raw.id)
 		end
-		local want = Levels.plan_difficulty(raw.id)
+		local want = Levels.plan_difficulty(raw.id, Levels.district_ends(path:match("^(.*)[/\\]") or "."))
 		if want and raw.difficulty ~= want then
 			res.warnings[#res.warnings + 1] = string.format("plan: difficulty %s expected (saw), got %s", want, tostring(raw.difficulty))
 		end

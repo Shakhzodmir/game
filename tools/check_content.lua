@@ -8,7 +8,8 @@
 --     level 1, no gap, no overlap, at most C.songbook.pool levels each), names in ru / en / ko, a genre name in
 --     ru / en / ko, tasks (names in ru / en / ko), a chest and its songs (the rules of meta/town.lua)
 --   * content/levels/level_NNNN.json exists for every level 1..N, its id is NNNN, and there is no file beyond N
---   * content/levels/stars.json has the thresholds of every level 1..N and of no other
+--   * content/levels/stars.json has the thresholds of every level 1..N and of no other, and the concert levels
+--     (`kind` = "concert") are exactly the last level of every district (WP-14)
 --   * content/map.json: level_count is N, there is a node for every level 1..N, the segments are the districts
 --     (same id, first, last)
 --   * the songbook texts: sb.<district>.<1..pool> and sbt.<district>.<1..titles> in en, ru and ko
@@ -133,6 +134,8 @@ function Check.run(fs)
 	if not stars or type(stars.levels) ~= "table" then
 		add(errors, "content/levels/stars.json: missing, or not JSON with a 'levels' table")
 	else
+		local last_of = {} -- the concert levels: the last level of every district
+		for _, d in ipairs(bound) do last_of[d.last] = d.id end
 		for id = 1, n do
 			local e = stars.levels[tostring(id)]
 			if type(e) ~= "table" then
@@ -142,6 +145,13 @@ function Check.run(fs)
 				add(errors, "content/levels/stars.json: level " .. id .. ": t must be three growing score thresholds")
 			elseif e.kind ~= "normal" and e.kind ~= "concert" then
 				add(errors, "content/levels/stars.json: level " .. id .. ": kind must be normal or concert")
+			else
+				local want = last_of[id] and "concert" or "normal"
+				if e.kind ~= want then
+					add(errors, "content/levels/stars.json: level " .. id .. ": kind is " .. e.kind .. ", but it is "
+						.. (last_of[id] and ("the last level of district " .. last_of[id] .. ", so a concert")
+						or "not the last level of a district, so a normal level"))
+				end
 			end
 		end
 		local extra = {}

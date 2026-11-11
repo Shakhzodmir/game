@@ -31,10 +31,14 @@ describe("star thresholds (content/levels/stars.json)", function()
 		end
 	end)
 
-	it("name the five super hard levels of 60, 70, 80, 90 and 100 as concerts, and only them", function()
+	it("name the last level of every district (20, 40, 60, 80, 100) as a concert, and only them (WP-14)", function()
 		local data = load()
+		local ends = {}
+		local districts = common.decode(assert(common.read_file("content/districts.json"))).districts
+		for _, d in ipairs(districts) do ends[d.last] = true end
+		assert_same({ ends[20], ends[40], ends[60], ends[80], ends[100] }, { true, true, true, true, true })
 		for id = 1, 100 do
-			local want = (id >= 60 and id % 10 == 0) and "concert" or "normal"
+			local want = ends[id] and "concert" or "normal"
 			assert_eq(data.levels[tostring(id)].kind, want, "level " .. id)
 			assert_eq(stars.is_concert(data, id), want == "concert")
 		end
@@ -61,9 +65,10 @@ describe("star thresholds (content/levels/stars.json)", function()
 
 	it("are reproduced by the generator (a concert and a normal level, fixed seeds)", function()
 		local data = load()
-		for _, id in ipairs({ 7, 70 }) do
+		local concerts = Stars.concert_levels(DIR)
+		for _, id in ipairs({ 7, 60 }) do
 			local entry = assert(common.load_entry(common.level_path(tostring(id), DIR)))
-			local e = assert(Stars.level(entry))
+			local e = assert(Stars.level(entry, concerts))
 			local stored = data.levels[tostring(id)]
 			assert_same(e.t, stored.t, "level " .. id)
 			assert_eq(e.best, stored.best)

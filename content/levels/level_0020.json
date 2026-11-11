@@ -1,13 +1,13 @@
 {
   "id": 20, "version": 1,
   "size": [9, 11],
-  "moves": 28,
-  "difficulty": "easy",
+  "moves": 23,
+  "difficulty": "super_hard",
   "colors": ["red", "orange", "green", "blue", "purple"],
   "goals": [
     {"type": "break", "item": "record_box", "count": 12},
     {"type": "light"},
-    {"type": "collect", "color": "purple", "count": 40}
+    {"type": "collect", "color": "purple", "count": 100}
   ],
   "cells": [
     "..#####..",
@@ -40,17 +40,17 @@
     {"at": [6, 10], "hp": 1}
   ],
   "slots": [
-    {"at": [1, 5], "type": "record_box", "hp": 2},
-    {"at": [2, 5], "type": "record_box", "hp": 2},
-    {"at": [6, 5], "type": "record_box", "hp": 2},
-    {"at": [7, 5], "type": "record_box", "hp": 2},
-    {"at": [1, 6], "type": "record_box", "hp": 2},
-    {"at": [2, 6], "type": "record_box", "hp": 2},
-    {"at": [6, 6], "type": "record_box", "hp": 2},
-    {"at": [7, 6], "type": "record_box", "hp": 2},
-    {"at": [1, 7], "type": "record_box", "hp": 2},
-    {"at": [2, 7], "type": "record_box", "hp": 2},
-    {"at": [6, 7], "type": "record_box", "hp": 2},
-    {"at": [7, 7], "type": "record_box", "hp": 2}
+    {"at": [1, 5], "type": "record_box", "hp": 3},
+    {"at": [2, 5], "type": "record_box", "hp": 3},
+    {"at": [6, 5], "type": "record_box", "hp": 3},
+    {"at": [7, 5], "type": "record_box", "hp": 3},
+    {"at": [1, 6], "type": "record_box", "hp": 3},
+    {"at": [2, 6], "type": "record_box", "hp": 3},
+    {"at": [6, 6], "type": "record_box", "hp": 3},
+    {"at": [7, 6], "type": "record_box", "hp": 3},
+    {"at": [1, 7], "type": "record_box", "hp": 3},
+    {"at": [2, 7], "type": "record_box", "hp": 3},
+    {"at": [6, 7], "type": "record_box", "hp": 3},
+    {"at": [7, 7], "type": "record_box", "hp": 3}
   ]
 }
