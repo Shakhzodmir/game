@@ -210,7 +210,6 @@ function M.build(e)
 		end
 		s:text(body, i18n.t("notebook.progress", { n = song.count, total = song.total }), -40, by - 12,
 			{ font = "button", size = 26, color = "text", max_width = 400 })
-		kit.label(e, body, i18n.t("notebook.hint"), -40, by - 48, { font = "small", size = 20, color = "text_soft", max_width = 400, lines = 2 })
 	end
 	kit.bit(e, body, W / 2 - 90, by + 8, 130, song.ready and "happy" or "idle")
 	if e.bit then

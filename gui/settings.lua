@@ -15,7 +15,7 @@ local account = require("client.account")
 
 local M = {}
 
-local W, H = 640, 1450
+local W, H = 640, 1490
 
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
 -- offers that has no label yet (a new language needs its strings first) is left out.
@@ -177,8 +177,8 @@ function M.build(e)
 	end, { h = 84, text_size = 26, targets = "lang" })
 
 	-- account and cloud save (WP-10): one row, the window has the rest
-	y = y - 150
-	s:button({ parent = body, x = 0, y = y, w = 520, h = 92, style = "purple", icon = "ui/icons/city", icon_size = 46,
+	y = y - 190 -- (clear of the language row above: the two overlapped)
+	s:button({ parent = body, x = 0, y = y, w = 520, h = 92, style = "purple", icon = "ui/icons/team", icon_size = 46,
 		text = i18n.tr(account.who_spec()), text_size = 28, on_click = function() e:open("account") end })
 	e:target("account", 0, y)
 

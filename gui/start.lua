@@ -305,9 +305,7 @@ function M.build(e)
 			font = "small", size = 21, color = "text_soft", pivot = gui.PIVOT_W, max_width = 340,
 		})
 	elseif v.life_cost then
-		local heart = kit.icon(e, body, "ui/icons/heart", -150, ly, 40, "pink")
-		s:text(body, i18n.t("start.life_cost"), -122, ly, { font = "button", size = 24, color = "pink", pivot = gui.PIVOT_W, max_width = 330 })
-		if not kit.reduced() then require("client.ui").pulse(heart, 0.1, 0.6) end
+		-- nothing is written: that a loss costs a life is known (producer, 12.11.2026)
 	else
 		s:text(body, i18n.t("start.safe"), 0, ly, { font = "button", size = 24, color = "green", max_width = W - 80 })
 	end

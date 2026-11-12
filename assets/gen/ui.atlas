@@ -357,6 +357,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "ui_icons_notebook"
+  images {
+    image: "/assets/images/ui/icons/notebook.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "ui_icons_pause"
   images {
     image: "/assets/images/ui/icons/pause.png"
