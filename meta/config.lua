@@ -55,6 +55,14 @@ C.songbook = {
 	group = 4,  -- lines of a verse / a chorus
 }
 
+-- Coins for an improved replay (WP-15): when a replay of a beaten level raises the best stars of that level, the
+-- player is paid `coins_per_star` for every star the record gained, times the level's difficulty multiplier
+-- (C.coins.win_mult: a harder level pays more). A replay that does not raise the record pays nothing and takes
+-- nothing; lives and the streak are never touched by a replay.
+C.replay = {
+	coins_per_star = 30,
+}
+
 C.coins = {
 	start = 500,
 	win_base = 25,

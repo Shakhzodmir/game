@@ -649,7 +649,17 @@ describe("client.level_end stars by score", function()
 		assert_eq(better.gained, 2)
 		assert_eq(better.best, 3)
 		assert_eq(app.meta:stars(), base + 3)
-		assert_eq(app.meta:coins(), coins, "no coins for a replay")
+		-- the record coins (WP-15) are paid, the win coins are not, and the window gets the number to show
+		local cfg = require("meta.config")
+		local want = cfg.replay.coins_per_star * 2 * cfg.coins.win_mult[levels.difficulty(id)]
+		assert_eq(better.record_coins, want)
+		assert_eq(app.meta:coins(), coins + want)
+		local view = lw.result(app.meta, better, { moves_at_win = 5, score = t[3] }, NOW)
+		assert_eq(view.record_coins, want)
+		-- an equal replay pays nothing
+		local equal = level_end.win({ moves_at_win = 5, score = t[3] }, { level_id = id })
+		assert_eq(equal.record_coins, 0)
+		assert_eq(app.meta:coins(), coins + want)
 	end)
 
 	it("pays super stars for the concert level 60 and shows them in the results", function()

@@ -479,9 +479,9 @@ function Meta:songbook_seen(district_id)
 	return false
 end
 
--- A win of a level the player has already beaten (a replay): no coins, no life, no streak; only the
--- records rise. result = {level_id, difficulty, stars (1..3), score, concert}. Returns {stars, gained,
--- best, super_gained, new_best_score} or false, "not_beaten" | "running".
+-- A win of a level the player has already beaten (a replay): no life, no streak, no win coins; the records
+-- rise, and a raised star record pays coins (C.replay). result = {level_id, difficulty, stars (1..3), score,
+-- concert}. Returns {stars, gained, best, super_gained, new_best_score, coins} or false, "not_beaten" | "running".
 function Meta:record_replay(result)
 	if type(result) ~= "table" or not util.is_int(result.level_id) then
 		error("meta: record_replay needs {level_id, difficulty, stars}", 2)
@@ -494,9 +494,14 @@ function Meta:record_replay(result)
 	if p.run then return false, "running" end
 	local rec = record.gain(self.s, result.level_id, result.difficulty, result.stars, result.score, result.concert)
 	if rec.gained > 0 or rec.super_gained > 0 or rec.new_best_score then self:_touch() end
-	if rec.gained > 0 then self:_change("level_stars_up", { { "stars", rec.gained } }) end
+	-- a better record pays the new stars and coins for them (C.replay); an equal or worse replay pays nothing
+	local coins = 0
+	if rec.gained > 0 then
+		coins = C.replay.coins_per_star * rec.gained * C.coins.win_mult[result.difficulty]
+		self:_change("level_stars_up", { { "stars", rec.gained }, { "coins", coins } })
+	end
 	return { stars = result.stars, gained = rec.gained, best = rec.best, super_gained = rec.super_gained,
-		new_best_score = rec.new_best_score }
+		new_best_score = rec.new_best_score, coins = coins }
 end
 
 -- Best stars of a level (0 when never won). Pass the level's difficulty to also count a level won before

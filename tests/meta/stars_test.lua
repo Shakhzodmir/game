@@ -101,12 +101,13 @@ describe("star records in the meta", function()
 		assert_eq(m:stars(), 3)
 	end)
 
-	it("pays nothing but stars for a replay: no coins, lives or streak", function()
+	it("a replay pays no win coins, no life and no streak (a raised star record pays record coins, WP-15)", function()
 		local m = H.new()
 		win(m, 100, 1)
 		local coins, wins = m:coins(), m:stats().wins
-		m:record_replay({ level_id = 1, difficulty = "easy", stars = 3, score = 5000 })
-		assert_eq(m:coins(), coins)
+		local r = m:record_replay({ level_id = 1, difficulty = "easy", stars = 3, score = 5000 })
+		assert_eq(m:coins(), coins + r.coins) -- only the record coins, not the win coins of the level
+		assert_true(r.coins < require("meta.config").coins.win_base * 3)
 		assert_eq(m:stats().wins, wins)
 	end)
 
@@ -200,6 +201,86 @@ describe("star records in the meta", function()
 		assert_eq(back:level_score(1), 0)
 		assert_eq(back:super_stars().spent, 0)
 		assert_eq(back:super_stars().balance, 3)
+	end)
+end)
+
+describe("coins for an improved replay (WP-15)", function()
+	local C = require("meta.config")
+
+	it("pays coins for the stars a better replay adds, and nothing for an equal or worse one", function()
+		local m = H.new()
+		win(m, 100, 1) -- level 1, easy, 1 star
+		local coins, st = m:coins(), m:stars()
+		local r = m:record_replay({ level_id = 1, difficulty = "easy", stars = 3, score = 5000 })
+		assert_eq(r.gained, 2)
+		assert_eq(r.coins, C.replay.coins_per_star * 2 * C.coins.win_mult.easy)
+		assert_eq(m:coins(), coins + r.coins)
+		assert_eq(m:stars(), st + 2)
+		-- the same record again, and a worse one: nothing is paid, nothing is taken
+		for _, stars in ipairs({ 3, 2, 1 }) do
+			local again = m:record_replay({ level_id = 1, difficulty = "easy", stars = stars, score = 6000 })
+			assert_eq(again.gained, 0)
+			assert_eq(again.coins, 0)
+		end
+		assert_eq(m:coins(), coins + r.coins)
+		assert_eq(m:stars(), st + 2)
+	end)
+
+	it("pays more on a harder level (the difficulty multiplier) and one star at a time", function()
+		local m = H.new()
+		win(m, 100, 1, { difficulty = "hard" })
+		local r = m:record_replay({ level_id = 1, difficulty = "hard", stars = 2, score = 3000 })
+		assert_eq(r.coins, C.replay.coins_per_star * 1 * C.coins.win_mult.hard)
+		r = m:record_replay({ level_id = 1, difficulty = "hard", stars = 3, score = 4000 })
+		assert_eq(r.coins, C.replay.coins_per_star * 1 * C.coins.win_mult.hard)
+		assert_true(C.coins.win_mult.hard > C.coins.win_mult.easy)
+	end)
+
+	it("writes the coins to the ledger under the record reason and touches neither lives nor the streak", function()
+		local m = H.new()
+		win(m, 100, 1)
+		m:drain_ledger()
+		local lives, streak = m:lives(T).count, m:streak().count
+		local r = m:record_replay({ level_id = 1, difficulty = "easy", stars = 3, score = 5000 })
+		local sum = H.ledger_sum(m:drain_ledger(), "coins", "level_stars_up")
+		assert_eq(sum, r.coins)
+		assert_eq(m:lives(T).count, lives)
+		assert_eq(m:streak().count, streak)
+	end)
+
+	it("keeps the coins when the save is loaded again", function()
+		local m = H.new()
+		win(m, 100, 1)
+		m:record_replay({ level_id = 1, difficulty = "easy", stars = 3, score = 5000 })
+		local back = reload(m)
+		assert_eq(back:coins(), m:coins())
+		assert_eq(back:level_stars(1, "easy"), 3)
+	end)
+end)
+
+describe("a save with 89 levels beaten (WP-15)", function()
+	it("loads whole: coins, stars, bought tasks stay, and a better replay pays record coins", function()
+		local m = H.new(3)
+		H.advance_to(m, 89)
+		H.give(m, "stars", 40)
+		local done = 0
+		for _ = 1, 4 do
+			local nt = m:next_task()
+			assert_true(nt ~= nil)
+			assert(m:complete_task(nt.district, nt.id))
+			done = done + 1
+		end
+		local coins, st = m:coins(), m:stars()
+		local back = reload(m)
+		assert_eq(back:coins(), coins)
+		assert_eq(back:stars(), st)
+		assert_eq(back:level_to_play(), 89)
+		local before = back:next_task()
+		assert_eq(before.id, m:next_task().id, "the tasks bought stay bought, the next one is the same")
+		local r = back:record_replay({ level_id = 5, difficulty = "easy", stars = 3, score = 9000 })
+		assert_true(r.gained >= 1 and r.coins > 0, "a level won before the stars by score is worth its old stars; a better replay pays")
+		assert_eq(back:coins(), coins + r.coins)
+		assert_eq(back:stars(), st + r.gained)
 	end)
 end)
 
