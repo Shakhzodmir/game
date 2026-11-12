@@ -123,7 +123,7 @@ describe("screens/town/town.gui_script", function()
 
 	it("builds a task: the stars fly, the item lights up and its stem joins the track (2-3 s)", function()
 		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
-			assert_true(c.town:has_text("Tap to build!", true))
+			assert_false(c.town:has_text("Tap to build!", true), "the card has no hint line (producer, 12.11.2026)")
 			local base = c.town:stats().nodes
 			tap_target(c, "task")
 			c.run(0.3)

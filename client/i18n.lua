@@ -287,7 +287,6 @@ local S = {
 	["win.record_coins"] = { en = "+{n} coins for a better record", ru = "+{n} монет за рекорд" },
 	["win.super_new"] = { en = "+{n} super stars", ru = "+{n} суперзвёзд" },
 	["win.super_have"] = { en = "Super stars: {n}", ru = "Суперзвёзды: {n}" },
-	["win.free_next"] = { en = "Free next start:", ru = "Бесплатно на старте:" },
 	["win.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
 	["win.refund"] = { en = "Returned to you: {names}", ru = "Возвращено тебе: {names}" },
 
@@ -555,7 +554,6 @@ local S = {
 	["town.hard"] = { en = "Hard", ru = "Сложный" },
 	["town.super_hard"] = { en = "Super Hard", ru = "Суперсложный" },
 	["town.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
-	["town.task_ready"] = { en = "Tap to build!", ru = "Нажми, чтобы построить!" },
 	["town.task_need"] = {
 		en = { one = "Need {n} more star", other = "Need {n} more stars" },
 		ru = { one = "Нужна ещё {n} звезда", few = "Нужно ещё {n} звезды", many = "Нужно ещё {n} звёзд" },
@@ -615,7 +613,6 @@ local S = {
 	["start.free"] = { en = "FREE", ru = "ДАРОМ" },
 	["start.free_hint"] = { en = "Free from your hit streak!", ru = "Бесплатно за серию хитов!" },
 	["start.all"] = { en = "all", ru = "все" },
-	["start.life_cost"] = { en = "A loss costs a life", ru = "Поражение отнимет жизнь" },
 	["start.pick_hint"] = { en = "Tap a booster to take it along", ru = "Нажми на бустер, чтобы взять его" },
 	["start.no_goals"] = { en = "Goals will be shown in the level", ru = "Цели покажем в уровне" },
 	["start.safe"] = { en = "A loss costs nothing here", ru = "Поражение здесь ничего не стоит" },
@@ -786,7 +783,6 @@ local S = {
 	["notebook.play"] = { en = "Listen", ru = "Прослушать" },
 	["notebook.stop"] = { en = "Stop", ru = "Остановить" },
 	["notebook.progress"] = { en = "Lines written: {n} of {total}", ru = "Записано строк: {n} из {total}" },
-	["notebook.hint"] = { en = "Beat a level and Bit writes the next line", ru = "Пройди уровень, и Бит запишет следующую строку" },
 	["win.song_line"] = { en = "Bit wrote a new line", ru = "Бит записал новую строку" },
 	["win.song_ready"] = { en = "Your song is ready!", ru = "Твоя песня готова!" },
 	["win.song_open"] = { en = "Listen", ru = "Слушать" },

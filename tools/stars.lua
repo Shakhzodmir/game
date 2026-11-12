@@ -31,10 +31,14 @@ Stars.SEED_BASE = 4100
 Stars.MIN_GAMES = 40
 Stars.MIN_WINS = 14
 Stars.MAX_GAMES = 200
+-- Stars are generous (producer, 12.11.2026: "stars are too hard to get, these are still the first levels"):
+-- on the first levels (id <= EARLY_UPTO) four bot wins of five reach 2 stars and almost half reach 3.
 Stars.QUANTILES = {
-	normal = { 0.15, 0.50, 0.90 },
-	concert = { 0.25, 0.65, 0.95 },
+	early = { 0.05, 0.20, 0.55 },
+	normal = { 0.10, 0.35, 0.75 },
+	concert = { 0.20, 0.50, 0.85 },
 }
+Stars.EARLY_UPTO = 40
 -- The concert levels (WP-14): the LAST level of every district of content/districts.json (20, 40, 60, 80, 100 ...);
 -- the rule lives here and in tools/check_content.lua, the game only reads `kind` from stars.json.
 -- Stars.CONCERT is the plan before WP-14 (60, 70 ... 100): the fallback for a directory without districts.json
@@ -55,7 +59,7 @@ function Stars.concert_levels(dir)
 	return out
 end
 Stars.PRICE_SHARE = 0.8 -- the pricing rule of a district: the mean bot closes it at this share of its levels
-Stars.MAX_SHARE3 = 300 -- per mille of the won games that may reach t3 ("not trivial")
+Stars.MAX_SHARE3 = 600 -- per mille of the won games that may reach t3 ("not trivial")
 Stars.MIN_REPLAYS = 1
 
 local function play(entry, g)
@@ -115,7 +119,7 @@ function Stars.level(entry, concerts)
 	if #scores < 3 then return nil, "level " .. entry.id .. ": only " .. #scores .. " wins in " .. games .. " games" end
 	table.sort(scores)
 	local kind = (concerts or Stars.CONCERT)[entry.id] and "concert" or "normal"
-	local t = Stars.thresholds(scores, kind)
+	local t = Stars.thresholds(scores, (kind == "normal" and entry.id <= Stars.EARLY_UPTO) and "early" or kind)
 	if t[3] > best then t[3] = round100(best, true) end
 	local above = 0
 	for _, v in ipairs(scores) do if v >= t[3] then above = above + 1 end end

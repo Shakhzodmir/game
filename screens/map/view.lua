@@ -379,10 +379,8 @@ function View:make_tile(seg, idx)
 	if not node then
 		node = s:box(parent, 360, y, 720, th, { color = sg.tint or "#F4EEFF" })
 	end
-	if idx % 2 == 1 then
-		-- every other tile is mirrored top to bottom, so the seams of a repeated picture meet
-		gui.set_scale(node, v3(1, -1, 1))
-	end
+	-- (the tiles are not mirrored: the producer's pictures have a sky, houses and cats, and upside down they look
+	-- broken; the picture repeats as it is)
 	return node
 end
 
