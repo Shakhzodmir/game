@@ -117,13 +117,14 @@ function Hud:build_top(parent)
 	local cp = pill(s, parent, M.COINS_X, 214)
 	self.coin_icon = icon(s, cp, "ui/icons/coin", -72, 2, 66, "coin")
 	self.coins_label, self.coins_info = s:text(cp, i18n.number(town.disp.coins), -34, 1, {
-		font = "number", size = 34, color = "text", pivot = gui.PIVOT_W, max_width = 96,
+		font = "number", size = 34, color = "text", pivot = gui.PIVOT_W, max_width = 92,
 	})
 	hit(s, cp, -30, 0, 150, 100, function() town:open_popup("shop", { tab = "coins" }) end)
-	local plus = s:image(cp, "ui/icons/plus", 78, 2, { w = 58, h = 58 })
+	-- a small "+" at the very end of the pill: it never covers the number (the number ends at x = 58)
+	local plus = s:image(cp, "ui/icons/plus", 83, 2, { w = 40, h = 40 })
 	if not plus then
-		plus = s:circle(cp, 78, 2, 50, "green")
-		s:text(plus, "+", 0, 2, { font = "button", size = 38, color = "white" })
+		plus = s:circle(cp, 83, 2, 36, "green")
+		s:text(plus, "+", 0, 2, { font = "button", size = 28, color = "white" })
 	end
 	self.plus = plus
 	hit(s, cp, 70, 0, 96, 100, function() town:open_popup("shop", { tab = "coins" }) end, "button")
@@ -251,9 +252,11 @@ end
 M.NOTEBOOK_X, M.NOTEBOOK_Y = 680, 1028
 function Hud:build_notebook_button(parent)
 	local s, town = self.ui, self.town
-	local has_icon = assets.has_image("notebook/closed")
-	local b = s:button({ parent = parent, x = M.NOTEBOOK_X, y = M.NOTEBOOK_Y, w = 80, h = 80, style = "purple",
-		icon = has_icon and "notebook/closed" or "ui/icons/note_on", icon_size = 58, sfx = "button",
+	-- the icon is in the UI atlas (a small copy of notebook/closed): a loose picture is a white square until it loads;
+	-- a gold button, because the lavender notebook does not show on a purple one
+	local has_icon = assets.has_image("ui/icons/notebook")
+	local b = s:button({ parent = parent, x = M.NOTEBOOK_X, y = M.NOTEBOOK_Y, w = 80, h = 80, style = "gold",
+		icon = has_icon and "ui/icons/notebook" or "ui/icons/note_on", icon_size = 58, sfx = "button",
 		on_click = function() town:open_popup("notebook") end })
 	s:anchor(b.node, "top")
 	self.notebook_btn = b.node
@@ -313,11 +316,7 @@ function Hud:build_task(parent)
 	s:text(card.node, i18n.t("town.task_adds", { stem = i18n.t("stem." .. task.stem) }), -168, -14, {
 		font = "small", size = 22, color = "purple", pivot = gui.PIVOT_W, max_width = 300,
 	})
-	if task.affordable then
-		s:text(card.node, i18n.t("town.task_ready"), -168, -44, {
-			font = "small", size = 19, color = "green", pivot = gui.PIVOT_W, max_width = 300,
-		})
-	else
+	if not task.affordable then
 		s:text(card.node, i18n.t("town.task_need", { n = task.need }), -168, -44, {
 			font = "small", size = 19, color = "text_soft", pivot = gui.PIVOT_W, max_width = 300,
 		})
