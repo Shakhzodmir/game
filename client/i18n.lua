@@ -284,6 +284,7 @@ local S = {
 	["win.stars_new"] = { en = "+{n} to your stars", ru = "+{n} к твоим звёздам" },
 	["win.stars_kept"] = { en = "Best on this level: {n} of 3 (stars never go down)", ru = "Лучший результат уровня: {n} из 3 (звёзды не отнимаются)" },
 	["win.new_record"] = { en = "New score record!", ru = "Новый рекорд очков!" },
+	["win.record_coins"] = { en = "+{n} coins for a better record", ru = "+{n} монет за рекорд" },
 	["win.super_new"] = { en = "+{n} super stars", ru = "+{n} суперзвёзд" },
 	["win.super_have"] = { en = "Super stars: {n}", ru = "Суперзвёзды: {n}" },
 	["win.free_next"] = { en = "Free next start:", ru = "Бесплатно на старте:" },
