@@ -37,6 +37,11 @@ function M.write_file_atomic(path, text)
 		return nil, err
 	end
 	local moved, rerr = os.rename(tmp, path)
+	if not moved and package.config:sub(1, 1) == "\\" and M.file_exists(path) then
+		-- Windows: rename does not replace an existing file; remove the old one and rename again
+		os.remove(path)
+		moved, rerr = os.rename(tmp, path)
+	end
 	if not moved then
 		os.remove(tmp)
 		return nil, rerr
@@ -52,13 +57,20 @@ end
 
 -- A string quoted for /bin/sh.
 function M.shell_quote(s)
+	if package.config:sub(1, 1) == "\\" then return '"' .. tostring(s):gsub('"', '\\"') .. '"' end -- Windows cmd.exe
 	return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
 end
 
 -- Sorted names (not paths) of the entries of `dir` that match a Lua pattern.
 function M.list_dir(dir, pattern)
 	local out = {}
-	local p = io.popen("ls " .. M.shell_quote(dir) .. " 2>/dev/null")
+	local cmd
+	if package.config:sub(1, 1) == "\\" then -- Windows: cmd.exe has no ls and no /dev/null
+		cmd = 'dir /b "' .. dir:gsub("/", "\\") .. '" 2>nul'
+	else
+		cmd = "ls " .. M.shell_quote(dir) .. " 2>/dev/null"
+	end
+	local p = io.popen(cmd)
 	if not p then return out end
 	for name in p:lines() do
 		if not pattern or name:match(pattern) then out[#out + 1] = name end

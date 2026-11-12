@@ -1,10 +1,10 @@
 {
   "id": 40, "version": 1,
   "size": [9, 10],
-  "moves": 26,
-  "difficulty": "medium",
+  "moves": 28,
+  "difficulty": "super_hard",
   "colors": ["red", "orange", "yellow", "green", "purple"],
-  "goals": [{"type": "break", "item": "concrete", "count": 12}],
+  "goals": [{"type": "break", "item": "concrete", "count": 12}, {"type": "collect", "color": "green", "count": 110}],
   "cells": [
     ".#######.",
     "#########",
