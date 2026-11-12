@@ -32,7 +32,7 @@ CI на каждый пуш запускает тесты и собирает HT
 ## Уровни и боты
 
 ```sh
-luajit tools/levels.lua stats                          # сложности, 126 звёзд, первое появление элементов
+luajit tools/levels.lua stats                          # сложности, 130 звёзд, первое появление элементов
 luajit tools/levels.lua preview 50                     # поле уровня в ASCII
 luajit tools/bot/run.lua 50 --games 8                  # партии бота
 luajit tools/bot/tune.lua --n 300 --jobs 3 --work /tmp/glow_tune   # подбор ходов, отчёт docs/levels/tuning.md

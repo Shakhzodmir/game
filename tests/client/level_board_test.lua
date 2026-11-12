@@ -1097,7 +1097,7 @@ describe("screens/level/board.script soak", function()
 
 	for _, n in ipairs({ 10, 15, 22, 30, 40, 50 }) do
 		it("plays level " .. n .. " to its final concert", function()
-			play_through({ level = n })
+			play_through({ level = n }, n == 40 and 6000 or nil) -- 40 is a concert (WP-14): a longer game
 		end)
 	end
 

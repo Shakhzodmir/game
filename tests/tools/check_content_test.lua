@@ -36,10 +36,12 @@ local function world(sizes)
 		n = n + size
 	end
 	files["content/districts.json"] = json.encode(districts)
+	local last_levels = {}
+	for _, d in ipairs(districts.districts) do last_levels[d.last] = true end
 	local stars, nodes = {}, {}
 	for id = 1, n do
 		files[string.format("content/levels/level_%04d.json", id)] = json.encode({ id = id })
-		stars[tostring(id)] = { kind = "normal", t = { 100, 200, 300 } }
+		stars[tostring(id)] = { kind = last_levels[id] and "concert" or "normal", t = { 100, 200, 300 } }
 		nodes[id] = { level = id, x = 360, y = id * 100 }
 	end
 	files["content/levels/stars.json"] = json.encode({ version = 1, levels = stars })
@@ -139,6 +141,15 @@ describe("tools/check_content", function()
 		w = world({ 20 })
 		w.rewrite("content/levels/stars.json", function(t) t.levels["4"].t = { 300, 200, 100 } end)
 		expect_error(w, "level 4: t must be three growing score thresholds")
+	end)
+
+	it("names a concert that is not the last level of a district and a district end that is not a concert", function()
+		local w = world({ 20, 20 })
+		w.rewrite("content/levels/stars.json", function(t) t.levels["30"].kind = "concert" end)
+		expect_error(w, "level 30: kind is concert, but it is not the last level of a district")
+		w = world({ 20, 20 })
+		w.rewrite("content/levels/stars.json", function(t) t.levels["20"].kind = "normal" end)
+		expect_error(w, "level 20: kind is normal, but it is the last level of district d1, so a concert")
 	end)
 
 	it("names a map that does not match the districts", function()
