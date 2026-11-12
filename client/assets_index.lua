@@ -4,6 +4,7 @@
 -- hard-coding names, so a missing image or sound is a nil, not a crash.
 return {
 	atlases = {
+		bonus = { path = "/assets/gen/bonus.atlas", anims = { "white", "bonus_bar_fill", "bonus_bar_frame", "bonus_gift_closed", "bonus_gift_glow", "bonus_gift_open", "bonus_gift_shake", "bonus_spark_1", "bonus_spark_2", "bonus_spark_3", "bonus_spark_4", "bonus_spark_5", "bonus_spark_6" } },
 		game = { path = "/assets/gen/game.atlas", anims = { "white", "blockers_balloon_blue", "blockers_balloon_green", "blockers_balloon_orange", "blockers_balloon_purple", "blockers_balloon_red", "blockers_balloon_yellow", "blockers_column_1", "blockers_column_2", "blockers_column_3", "blockers_column_on", "blockers_concrete_1", "blockers_concrete_2", "blockers_floor_1", "blockers_floor_2", "blockers_floor_half", "blockers_floor_lit", "blockers_mic", "blockers_mic_stand", "blockers_noise", "blockers_record_box_1", "blockers_record_box_2", "blockers_record_box_3", "blockers_wires_1", "blockers_wires_2", "board_board_frame", "board_cell_a", "board_cell_b", "board_edge_diag", "board_edge_full", "board_edge_inner", "board_edge_outer", "board_edge_side", "board_plate", "fx_bolt", "fx_cloud", "fx_confetti", "fx_dust", "fx_flash", "fx_glow_dot", "fx_note", "fx_ray", "fx_ring", "fx_shock", "fx_spark", "fx_star_particle", "pieces_blue", "pieces_green", "pieces_orange", "pieces_purple", "pieces_red", "pieces_yellow", "specials_bird", "specials_disco", "specials_riff", "specials_sub" } },
 		map = { path = "/assets/gen/map.atlas", anims = { "white", "map_deco_cafe_1", "map_deco_cafe_2", "map_deco_cafe_3", "map_deco_cafe_4", "map_deco_cafe_5", "map_deco_cafe_6", "map_deco_garage_1", "map_deco_garage_2", "map_deco_garage_3", "map_deco_garage_4", "map_deco_garage_5", "map_deco_garage_6", "map_deco_jazz_1", "map_deco_jazz_2", "map_deco_jazz_3", "map_deco_jazz_4", "map_deco_jazz_5", "map_deco_jazz_6", "map_deco_square_1", "map_deco_square_2", "map_deco_square_3", "map_deco_square_4", "map_deco_square_5", "map_deco_square_6", "map_deco_stadium_1", "map_deco_stadium_2", "map_deco_stadium_3", "map_deco_stadium_4", "map_deco_stadium_5", "map_deco_stadium_6", "map_node_concert_current", "map_node_concert_done", "map_node_concert_locked", "map_node_concert_open", "map_node_day_current", "map_node_day_done", "map_node_day_locked", "map_node_day_open", "map_path_dot", "map_path_dot_done" } },
 		meta = { path = "/assets/gen/meta.atlas", anims = { "white", "blockers_balloon_red", "blockers_column_1", "blockers_concrete_1", "blockers_mic", "blockers_noise", "blockers_record_box_1", "fx_confetti", "fx_glow_dot", "fx_note", "fx_ring", "fx_spark", "fx_star_particle", "pieces_blue", "pieces_green", "pieces_orange", "pieces_purple", "pieces_red", "pieces_yellow", "specials_disco", "specials_riff", "specials_sub" } },
@@ -101,6 +102,18 @@ return {
 		["board/edge_outer"] = { atlas = "game", anim = "board_edge_outer", w = 96, h = 96 },
 		["board/edge_side"] = { atlas = "game", anim = "board_edge_side", w = 96, h = 96 },
 		["board/plate"] = { atlas = "game", anim = "board_plate", w = 160, h = 160 },
+		["bonus/bar_fill"] = { atlas = "bonus", anim = "bonus_bar_fill", w = 640, h = 106 },
+		["bonus/bar_frame"] = { atlas = "bonus", anim = "bonus_bar_frame", w = 640, h = 106 },
+		["bonus/gift_closed"] = { atlas = "bonus", anim = "bonus_gift_closed", w = 192, h = 192 },
+		["bonus/gift_glow"] = { atlas = "bonus", anim = "bonus_gift_glow", w = 192, h = 192 },
+		["bonus/gift_open"] = { atlas = "bonus", anim = "bonus_gift_open", w = 192, h = 192 },
+		["bonus/gift_shake"] = { atlas = "bonus", anim = "bonus_gift_shake", w = 192, h = 192 },
+		["bonus/spark_1"] = { atlas = "bonus", anim = "bonus_spark_1", w = 128, h = 128 },
+		["bonus/spark_2"] = { atlas = "bonus", anim = "bonus_spark_2", w = 128, h = 128 },
+		["bonus/spark_3"] = { atlas = "bonus", anim = "bonus_spark_3", w = 128, h = 128 },
+		["bonus/spark_4"] = { atlas = "bonus", anim = "bonus_spark_4", w = 128, h = 128 },
+		["bonus/spark_5"] = { atlas = "bonus", anim = "bonus_spark_5", w = 128, h = 128 },
+		["bonus/spark_6"] = { atlas = "bonus", anim = "bonus_spark_6", w = 128, h = 128 },
 		["districts/cafe/bg"] = { file = "/assets/images/districts/cafe/bg.png", w = 720, h = 1280 },
 		["districts/cafe/bg_concert"] = { file = "/assets/images/districts/cafe/bg_concert.png", w = 720, h = 1280 },
 		["districts/cafe/cat"] = { file = "/assets/images/districts/cafe/cat.png", w = 195, h = 151 },
