@@ -80,11 +80,11 @@ function Hud:_goals(info, status)
 	self.goals_panel = panel
 	local tag = info.difficulty == "hard" and "hud.hard" or (info.difficulty == "super_hard" and "hud.super_hard" or nil)
 	-- the level, and how hard it is (an honest signal) at the other end of the same line
-	s:text(panel, i18n.t("hud.level", { n = info.level_id }), tag and (-g.w / 2 + 30) or 0, g.h / 2 - 24, {
+	s:text(panel, i18n.t("hud.level", { n = info.level_id }), tag and (-g.w / 2 + 40) or 0, g.h / 2 - 34, {
 		font = "button", size = 26, color = "text_soft", pivot = tag and gui.PIVOT_W or nil, max_width = tag and 190 or (g.w - 60),
 	})
 	if tag then
-		local pill = s:round(panel, g.w / 2 - 98, g.h / 2 - 24, 160, 34, info.difficulty == "hard" and "pink" or "purple", { radius = 17 })
+		local pill = s:round(panel, g.w / 2 - 108, g.h / 2 - 34, 160, 34, info.difficulty == "hard" and "pink" or "purple", { radius = 17 })
 		s:text(pill, i18n.t(tag), 0, 1, { font = "button", size = 19, color = "white", max_width = 148 })
 	end
 	local goals = levels.goals({ goals = info.goals })
@@ -96,11 +96,12 @@ function Hud:_goals(info, status)
 		local left = status and status.goals and status.goals[k] or gdef.count or 0
 		counts[k] = left
 		local x = slots.xs[k]
-		local ic = icon(s, panel, gdef.image, x, 6, slots.icon, "lavender")
-		local txt, tinfo = s:text(panel, tostring(left), x, -g.h / 2 + 32, {
+		-- the title, the icon and the counter keep clear of the frame of the panel picture (14 px of border)
+		local ic = icon(s, panel, gdef.image, x, 4, slots.icon * 0.88, "lavender")
+		local txt, tinfo = s:text(panel, tostring(left), x, -g.h / 2 + 42, {
 			font = "number", size = slots.text, color = "text", max_width = 120,
 		})
-		local check = s:image(panel, "ui/icons/check", x, -g.h / 2 + 32, { w = 54, h = 54 }) or s:circle(panel, x, -g.h / 2 + 32, 40, "green")
+		local check = s:image(panel, "ui/icons/check", x, -g.h / 2 + 42, { w = 48, h = 48 }) or s:circle(panel, x, -g.h / 2 + 42, 36, "green")
 		gui.set_enabled(check, false)
 		self.goal_nodes[k] = { icon = ic, text = txt, info = tinfo, check = check, x = x }
 	end

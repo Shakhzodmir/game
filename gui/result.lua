@@ -291,10 +291,8 @@ local function blocks(e, body, v, animate, alive, note)
 			local free = v.streak.free or {}
 			if #free > 0 then
 				local lx = -sw / 2 + 108
-				local label = s:text(strip, i18n.t("win.free_next"), lx, -20, {
-					font = "small", size = 21, color = "text_soft", pivot = gui.PIVOT_W, max_width = math.min(200, 280 - 38 * #free),
-				})
-				local x = lx + lkit.width(label, 150) + 10
+				-- (no "Free next start:" label: the start window already marks them as free)
+				local x = lx
 				for i, id in ipairs(free) do kit.booster_icon(e, strip, id, x + 17 + (i - 1) * 38, -20, 34) end
 			end
 			local notes = kit.notes(e, strip, 200, 2, v.streak.notes, 46, 52)

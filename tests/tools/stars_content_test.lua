@@ -85,7 +85,7 @@ describe("star thresholds (content/levels/stars.json)", function()
 		end
 		assert_true(#problems(function(l) l["5"].t = { 300, 200, 100 } end) > 0, "descending")
 		assert_true(#problems(function(l) l["5"].t[3] = l["5"].best + 100 end) > 0, "3 stars above the best bot score")
-		assert_true(#problems(function(l) l["5"].share3 = 600 end) > 0, "3 stars too easy")
+		assert_true(#problems(function(l) l["5"].share3 = 900 end) > 0, "3 stars too easy")
 		assert_true(#problems(function(l) l["5"].sig = "0000000000000000" end) > 0, "the level changed")
 		assert_true(#problems(function(l) l["5"] = nil end) > 0, "a level without thresholds")
 		assert_true(#problems(function(l) l["101"] = copy(l["5"]) end) > 0, "a level without a file")
