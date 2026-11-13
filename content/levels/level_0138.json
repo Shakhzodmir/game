@@ -1,0 +1,40 @@
+{
+  "id": 138, "version": 1,
+  "size": [9, 9],
+  "moves": 26,
+  "difficulty": "medium",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "drop", "count": 4},
+    {"type": "chains", "count": 6}
+  ],
+  "cells": [
+    "...###...",
+    "..#####..",
+    "..#####..",
+    ".#######.",
+    ".#######.",
+    ".#######.",
+    "#########",
+    "#########",
+    "...###..."
+  ],
+  "overlay": [
+    {"at": [2, 1], "type": "chain", "hp": 1},
+    {"at": [6, 1], "type": "chain", "hp": 1},
+    {"at": [1, 5], "type": "chain", "hp": 1},
+    {"at": [7, 5], "type": "chain", "hp": 1},
+    {"at": [3, 8], "type": "chain", "hp": 1},
+    {"at": [5, 8], "type": "chain", "hp": 1}
+  ],
+  "slots": [
+    {"at": [2, 1], "type": "piece", "color": "yellow"},
+    {"at": [4, 1], "type": "coconut"},
+    {"at": [6, 1], "type": "piece", "color": "green"},
+    {"at": [1, 5], "type": "piece", "color": "blue"},
+    {"at": [7, 5], "type": "piece", "color": "purple"},
+    {"at": [3, 8], "type": "piece", "color": "red"},
+    {"at": [5, 8], "type": "piece", "color": "red"}
+  ],
+  "coconut": {"total": 4, "on_board_max": 2, "gap_moves": 2, "columns": [3, 4, 5]}
+}

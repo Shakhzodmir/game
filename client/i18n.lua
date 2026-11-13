@@ -384,6 +384,10 @@ local S = {
 		en = "Match their colour next to a balloon to pop it",
 		ru = "Собери рядом фишки его цвета — шарик лопнет",
 	},
+	["tutorial.chain_match"] = {
+		en = "Line up its colour with the piece and the chain breaks",
+		ru = "Собери ряд с этой фишкой — цепь лопнет",
+	},
 	["tutorial.coconut_drop"] = {
 		en = "Match the pieces under the coconut and it drops",
 		ru = "Собери фишки под кокосом — он упадёт",

@@ -1,0 +1,56 @@
+{
+  "id": 129, "version": 1,
+  "size": [9, 10],
+  "moves": 24,
+  "difficulty": "hard",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "chains", "count": 8},
+    {"type": "collect", "color": "purple", "count": 30}
+  ],
+  "cells": [
+    "##.....##",
+    "###...###",
+    "###...###",
+    "###...###",
+    "####.####",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####..",
+    "...###..."
+  ],
+  "overlay": [
+    {"at": [0, 0], "type": "chain", "hp": 1},
+    {"at": [8, 0], "type": "chain", "hp": 1},
+    {"at": [1, 2], "type": "chain", "hp": 1},
+    {"at": [7, 2], "type": "chain", "hp": 1},
+    {"at": [2, 3], "type": "wires", "hp": 1},
+    {"at": [6, 3], "type": "wires", "hp": 1},
+    {"at": [0, 4], "type": "chain", "hp": 1},
+    {"at": [8, 4], "type": "chain", "hp": 1},
+    {"at": [4, 5], "type": "wires", "hp": 1},
+    {"at": [2, 6], "type": "wires", "hp": 1},
+    {"at": [6, 6], "type": "wires", "hp": 1},
+    {"at": [3, 7], "type": "chain", "hp": 1},
+    {"at": [5, 7], "type": "chain", "hp": 1},
+    {"at": [4, 8], "type": "wires", "hp": 1}
+  ],
+  "slots": [
+    {"at": [0, 0], "type": "piece", "color": "purple"},
+    {"at": [8, 0], "type": "piece", "color": "purple"},
+    {"at": [1, 2], "type": "piece", "color": "purple"},
+    {"at": [7, 2], "type": "piece", "color": "purple"},
+    {"at": [2, 3], "type": "piece", "color": "purple"},
+    {"at": [6, 3], "type": "piece", "color": "purple"},
+    {"at": [0, 4], "type": "piece", "color": "purple"},
+    {"at": [8, 4], "type": "piece", "color": "purple"},
+    {"at": [4, 5], "type": "piece", "color": "purple"},
+    {"at": [2, 6], "type": "piece", "color": "purple"},
+    {"at": [6, 6], "type": "piece", "color": "purple"},
+    {"at": [3, 7], "type": "piece", "color": "purple"},
+    {"at": [5, 7], "type": "piece", "color": "purple"},
+    {"at": [4, 8], "type": "piece", "color": "purple"}
+  ],
+  "spawn_weights": {"red": 3, "yellow": 3, "green": 3, "blue": 3, "purple": 2}
+}

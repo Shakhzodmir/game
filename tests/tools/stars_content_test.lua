@@ -21,7 +21,7 @@ end
 describe("star thresholds (content/levels/stars.json)", function()
 	it("pass the validator for every shipped level", function()
 		local data = load()
-		assert_eq(LAST, 120, "six districts of 20 levels")
+		assert_eq(LAST, 140, "seven districts of 20 levels")
 		local errs = Stars.check(data, DIR)
 		assert_same(errs, {})
 	end)
@@ -35,11 +35,12 @@ describe("star thresholds (content/levels/stars.json)", function()
 		end
 	end)
 
-	it("name the last level of every district (20, 40, 60, 80, 100, 120) as a concert, and only them (WP-14)", function()
+	it("name the last level of every district (20, 40, 60, 80, 100, 120, 140) as a concert, and only them (WP-14)", function()
 		local data = load()
 		local ends = {}
 		for _, d in ipairs(DISTRICTS) do ends[d.last] = true end
-		assert_same({ ends[20], ends[40], ends[60], ends[80], ends[100], ends[120] }, { true, true, true, true, true, true })
+		assert_same({ ends[20], ends[40], ends[60], ends[80], ends[100], ends[120], ends[140] },
+			{ true, true, true, true, true, true, true })
 		for id = 1, LAST do
 			local want = ends[id] and "concert" or "normal"
 			assert_eq(data.levels[tostring(id)].kind, want, "level " .. id)
@@ -111,7 +112,7 @@ describe("star thresholds (content/levels/stars.json)", function()
 		assert_eq(r.score, only.levels["3"].best)
 	end)
 
-	it("keep the economy facts of the handoff true: 120 to 360 stars in the game, 155 for the town", function()
+	it("keep the economy facts of the handoff true: 140 to 420 stars in the game, 186 for the town", function()
 		local json = require("tools.lib.json")
 		local f = assert(io.open("content/districts.json", "r"))
 		local town = json.decode(f:read("*a"))
@@ -120,7 +121,8 @@ describe("star thresholds (content/levels/stars.json)", function()
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 155) -- 124 for the first five districts, 31 for the sixth (the price rule of docs/handoff/WP-15.md)
+		-- 124 for the first five districts, 31 for the sixth and 31 for the seventh (the price rule of docs/handoff/WP-15.md)
+		assert_eq(cost, 186)
 		-- 1 star per win is not enough for the whole town (the last districts need better scores or replays),
 		-- 3 stars per level is far more than enough: if the prices change, docs/handoff/WP-4.md must change with them
 		assert_true(LAST < cost and cost < 3 * LAST)

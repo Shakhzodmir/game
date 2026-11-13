@@ -76,5 +76,9 @@
   "101": {"steps": [
     {"kind": "tip", "at": [3, 6], "text": "tutorial.coconut"},
     {"kind": "swap", "from": [4, 6], "to": [4, 7], "text": "tutorial.coconut_drop"}
+  ]},
+  "121": {"steps": [
+    {"kind": "tip", "at": [3, 5], "text": "tutorial.chain"},
+    {"kind": "swap", "from": [4, 4], "to": [4, 5], "text": "tutorial.chain_match"}
   ]}
 }
