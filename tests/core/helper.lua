@@ -4,7 +4,7 @@
 -- picture, one character per cell:
 --   .   void                 #   cell filled at random at the start
 --   r o y g b p   a preset regular piece ("piece") of that colour
---   R   riff h   V riff v   S sub   B bird   D disco   M mic
+--   R   riff h   V riff v   S sub   B bird   D disco   M mic   C coconut
 --   X   record_box hp 1     K concrete hp 1   N noise
 --   A..F  balloon red/orange/yellow/green/blue/purple
 -- `extra` overrides or adds top-level keys (goals, moves, floor, ...).
@@ -18,6 +18,7 @@ local H = {}
 local PIECE = { r = "red", o = "orange", y = "yellow", g = "green", b = "blue", p = "purple" }
 local SPECIAL = { R = { type = "riff", axis = "h" }, V = { type = "riff", axis = "v" },
 	S = { type = "sub" }, B = { type = "bird" }, D = { type = "disco" }, M = { type = "mic" },
+	C = { type = "coconut" },
 	X = { type = "record_box", hp = 1 }, K = { type = "concrete", hp = 1 }, N = { type = "noise" },
 	A = { type = "balloon", color = "red" }, E = { type = "balloon", color = "blue" } }
 
@@ -75,7 +76,7 @@ function H.game(rows, extra, opts)
 end
 
 -- Picture of the board: colour letter for regular pieces, the special
--- letter for specials, '.' for empty/void, 'M' mic, '*' blocker.
+-- letter for specials, '.' for empty/void, 'M' mic, 'C' coconut, '*' blocker.
 function H.picture(g)
 	local s = g.s
 	local LET = { "r", "o", "y", "g", "b", "p" }
@@ -92,6 +93,7 @@ function H.picture(g)
 				if o.kind == 1 then ch = LET[o.color] or "?"
 				elseif o.kind == 2 then ch = SP[o.special]
 				elseif o.kind == 3 then ch = "M"
+				elseif o.kind == 5 then ch = "C"
 				else ch = "*" end
 			end
 			line[x] = ch
@@ -135,6 +137,7 @@ function H.board(g, rows)
 			elseif COLOR[ch] then o = { kind = 1, color = COLOR[ch] }
 			elseif SPEC[ch] then o = { kind = 2, special = SPEC[ch][1], axis = SPEC[ch][2] }
 			elseif ch == "M" then o = { kind = 3 }
+			elseif ch == "C" then o = { kind = 5 }
 			elseif BLOCK[ch] then o = { kind = 4, blocker = BLOCK[ch][1], hp = BLOCK[ch][2], color = BLOCK[ch][3] }
 			end
 			if o then

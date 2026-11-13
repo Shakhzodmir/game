@@ -37,6 +37,7 @@ local function progress(s, g)
 	if B.goal_open(s, C.GOAL_COLLECT, g.color) then return true end
 	local light = B.goal_open(s, C.GOAL_LIGHT, 0)
 	local deliver = B.goal_open(s, C.GOAL_DELIVER, 0)
+	local drop = B.goal_open(s, C.GOAL_DROP, 0)
 	for k = 1, #g.cells do
 		local i = g.cells[k]
 		if light and s.floor[i] > 0 then return true end
@@ -44,6 +45,10 @@ local function progress(s, g)
 		if deliver and y > 1 then
 			local above = B.get(s, i - W)
 			if above and above.kind == K_MIC then return true end
+		end
+		if drop and y > 1 then
+			local above = B.get(s, i - W)
+			if above and above.kind == C.K_COCONUT then return true end
 		end
 		local nb = { y > 1 and i - W or 0, x > 1 and i - 1 or 0, x < W and i + 1 or 0, y < H and i + W or 0 }
 		for j = 1, 4 do

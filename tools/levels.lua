@@ -65,16 +65,19 @@ function Levels.plan_colors(id, difficulty)
 end
 
 -- Elements counted by rule 2.1.6, present in a raw level.
-Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column" }
+Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut" }
 
 -- Like the core's rule 2.1.6: a `mic` counts when there is a deliver goal, a
--- mic block or a starting mic piece.
+-- mic block or a starting mic piece; a `coconut` likewise with a drop goal,
+-- a coconut block or a starting coconut.
 function Levels.elements(raw)
 	local has = {}
 	for _, f in ipairs(raw.floor or {}) do if f then has.dancefloor = true end end
 	for _, o in ipairs(raw.overlay or {}) do if o.type == "wires" then has.wires = true end end
 	for _, g in ipairs(raw.goals or {}) do if g.type == "deliver" then has.mic = true end end
 	if raw.mic ~= nil then has.mic = true end
+	for _, g in ipairs(raw.goals or {}) do if g.type == "drop" then has.coconut = true end end
+	if raw.coconut ~= nil then has.coconut = true end
 	local specials = 0
 	for _, s in ipairs(raw.slots or {}) do
 		if s.type == "riff" or s.type == "sub" or s.type == "bird" or s.type == "disco" then
@@ -94,6 +97,7 @@ function Levels.goals_text(raw)
 		if g.type == "collect" then parts[#parts + 1] = string.format("collect %s %d", g.color, g.count)
 		elseif g.type == "break" then parts[#parts + 1] = string.format("break %s %d", g.item, g.count)
 		elseif g.type == "deliver" then parts[#parts + 1] = string.format("deliver %d", g.count)
+		elseif g.type == "drop" then parts[#parts + 1] = string.format("drop %d", g.count)
 		else parts[#parts + 1] = tostring(g.type) end
 	end
 	return table.concat(parts, ", ")
@@ -186,7 +190,7 @@ local function draw_grid(g, W, H, marks)
 end
 
 Levels.LEGEND = "legend: r o y g b p piece colour, + random piece, R/S/B/D riff/sub/bird/disco (riff axis - or |),"
-	.. " M mic, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), 3rd char floor (_ hp1, = hp2),"
+	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), 3rd char floor (_ hp1, = hp2),"
 	.. " 4th char wires (w hp1, W hp2), v spawner, e exit (2nd char), . void"
 
 -- Static preview from the JSON.
@@ -220,6 +224,7 @@ function Levels.preview_raw(raw)
 				c[1] = SPEC[s.type]
 				if s.type == "riff" then c[2] = s.axis == "v" and "|" or "-" end
 			elseif s.type == "mic" then c[1] = "M"
+			elseif s.type == "coconut" then c[1] = "O"
 			elseif s.type == "balloon" then c[1], c[2] = "A", LETTER[s.color] or "?"
 			elseif ITEM[s.type] then
 				c[1] = ITEM[s.type]
@@ -282,6 +287,7 @@ function Levels.preview_game(game, W, H)
 				c[1] = SPEC[p.special] or "?"
 				if p.special == "riff" then c[2] = p.axis == "v" and "|" or "-" end
 			elseif p.kind == "mic" then c[1] = "M"
+			elseif p.kind == "coconut" then c[1] = "O"
 			elseif p.kind == "blocker" then
 				c[1] = ITEM[p.item] or "?"
 				if p.item == "balloon" then c[2] = LETTER[p.color] or "?"

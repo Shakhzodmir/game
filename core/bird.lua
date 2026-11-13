@@ -28,7 +28,7 @@ local CARGO_SPECIAL = { C.SP_RIFF, C.SP_SUB }
 
 -- Open goals that matter for the level table.
 local function goal_ctx(s)
-	local ctx = { brk = {}, col = {}, light = false, deliver = false }
+	local ctx = { brk = {}, col = {}, light = false, deliver = false, drop = false }
 	local goals, left = s.level.goals, s.goal_left
 	for k = 1, #goals do
 		if left[k] > 0 then
@@ -36,7 +36,8 @@ local function goal_ctx(s)
 			if g.type == C.GOAL_BREAK then ctx.brk[g.param] = true
 			elseif g.type == C.GOAL_COLLECT then ctx.col[g.param] = true
 			elseif g.type == C.GOAL_LIGHT then ctx.light = true
-			elseif g.type == C.GOAL_DELIVER then ctx.deliver = true end
+			elseif g.type == C.GOAL_DELIVER then ctx.deliver = true
+			elseif g.type == C.GOAL_DROP then ctx.drop = true end
 		end
 	end
 	return ctx
@@ -76,17 +77,18 @@ function BD.levels(s)
 					elseif k == K_SPECIAL then
 						l = 2
 					end
-					-- K_MIC: 0
+					-- K_MIC, K_COCONUT: 0
 				end
 				-- an unlit tile the hit will damage
 				if l < 4 and ctx.light and s.floor[i] > 0 and s.wires[i] == 0
 					and (not idle or o.kind == K_REGULAR or weak_blocker(o)) then
 					l = 4
 				end
-				-- the cell right under an idle mic, if the hit frees it
-				if l < 3 and ctx.deliver and idle and i > W then
+				-- the cell right under an idle mic (coconut), if the hit frees it
+				if l < 3 and (ctx.deliver or ctx.drop) and idle and i > W then
 					local m = B.get(s, i - W)
-					if m and m.kind == K_MIC and m.state == S_IDLE
+					if m and ((ctx.deliver and m.kind == K_MIC) or (ctx.drop and m.kind == C.K_COCONUT))
+						and m.state == S_IDLE
 						and ((o.kind == K_REGULAR and s.wires[i] == 0) or weak_blocker(o)) then
 						l = 3
 					end
