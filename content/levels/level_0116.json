@@ -1,0 +1,29 @@
+{
+  "id": 116, "version": 1,
+  "size": [9, 8],
+  "moves": 30,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "noise", "count": 5},
+    {"type": "collect", "color": "red", "count": 34}
+  ],
+  "cells": [
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "##.###.##",
+    "##.###.##",
+    "##.###.##"
+  ],
+  "slots": [
+    {"at": [1, 5], "type": "noise"},
+    {"at": [4, 5], "type": "noise"},
+    {"at": [7, 5], "type": "noise"},
+    {"at": [0, 7], "type": "noise"},
+    {"at": [8, 7], "type": "noise"}
+  ],
+  "spawn_weights": {"red": 2, "orange": 3, "green": 3, "blue": 3, "purple": 3}
+}

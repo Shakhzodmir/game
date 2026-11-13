@@ -402,6 +402,12 @@
       "alpha": true,
       "bytes": 15252
     },
+    "blockers/coconut.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 28100
+    },
     "blockers/column_1.png": {
       "w": 320,
       "h": 320,

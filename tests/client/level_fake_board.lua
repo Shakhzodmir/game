@@ -24,7 +24,8 @@ local level_session = require("client.level_session")
 
 local M = {}
 
-local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, transform = true }
+local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, coconut_collected = true,
+	transform = true }
 local PRAISE_INDEX = { juicy = 1, hit = 2, drive = 3, vibe = 4, legend = 5 }
 
 local FB = {}

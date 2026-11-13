@@ -1182,3 +1182,87 @@ describe("screens/level/board.script bus contract", function()
 		end)
 	end)
 end)
+
+-- a coconut one row above the bottom of column 5; the swipe (6,8) -> (6,9) clears the three cells under it
+local function coconut_level()
+	return core_helper.level({
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyrgbpyr",
+		"pyrgbypyr",
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyCgbpy",
+		"bpyggbpyr",
+	}, { moves = 10, goals = { { type = "drop", count = 2 } }, coconut = { total = 2, on_board_max = 1, gap_moves = 0 } })
+end
+
+describe("screens/level/board.script with coconuts (core-rules 10.5)", function()
+	local function coconut_sprites(E)
+		local list = {}
+		for _, o in ipairs(E.by_factory("piece_factory")) do
+			if E.visible(o) and E.sprite_of(o).anim == "blockers_coconut" then list[#list + 1] = o end
+		end
+		return list
+	end
+
+	it("draws the coconut with its own picture and no plate, and lets a swipe move it", function()
+		with_board({ level = 1, level_text = coconut_level() }, function(E, script, self, d)
+			d.frame(90)
+			assert_eq(#coconut_sprites(E), 1)
+			for _, o in ipairs(E.by_factory("piece_factory")) do
+				if E.visible(o) and E.sprite_of(o).anim == "board_plate" then error("a coconut is no fixed thing: no plate") end
+			end
+			-- a swipe of the coconut that makes no match is a bounce of the core, not a refusal of the board
+			d.swipe(5, 8, 5, 7)
+			d.frame(1)
+			assert_eq(self.session.game:status().moves_left, 10)
+			assert_true(d.settle())
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("the coconut falls to the bottom, is collected and counted; the next one comes from above", function()
+		with_board({ level = 1, level_text = coconut_level() }, function(E, script, self, d)
+			d.frame(90)
+			d.swipe(6, 8, 6, 9)
+			d.frame(1)
+			assert_eq(self.session.game:status().moves_left, 9)
+			assert_true(d.settle())
+			d.frame(30)
+			assert_same(self.session.game:status().goals, { 1 })
+			local goal
+			for _, e in ipairs(d.events) do
+				if e.topic == "level_goal" then goal = goal or e.payload end
+			end
+			assert_true(goal ~= nil, "the HUD is told")
+			assert_same({ goal.index, goal.left, goal.kind, goal.x, goal.y }, { 1, 1, "drop", 5, 9 })
+			assert_true(goal.lx ~= nil and goal.ly ~= nil, "where to fly the icon from")
+			-- the second coconut was released by a spawner in the same cascade
+			local on_board = 0
+			for _, p in ipairs(self.session.game:pieces()) do
+				if p.kind == "coconut" then on_board = on_board + 1 end
+			end
+			assert_eq(on_board, 1)
+			assert_eq(#coconut_sprites(E), 1)
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("plays a coconut level to its final concert without an engine error", function()
+		with_board({ level = 1, level_text = coconut_level() }, function(E, script, self, d)
+			self.session:autoplay(nil, { free_moves = true })
+			local state
+			for _ = 1, 4000 do
+				d.frame(1)
+				state = self.session.game:status().state
+				if state == "complete" or state == "lost" then break end
+			end
+			assert_eq(state, "complete")
+			d.frame(60)
+			assert_eq(self.errors or 0, 0)
+			assert_eq(d.topics.level_result, 1)
+		end)
+	end)
+end)

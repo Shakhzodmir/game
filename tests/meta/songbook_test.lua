@@ -48,7 +48,7 @@ describe("songbook model", function()
 	it("never repeats a line inside a song, for many players", function()
 		for salt = 1, 60 do
 			local st = songbook.fresh()
-			songbook.sync(st, salt * 7919, 100)
+			songbook.sync(st, salt * 7919, C.levels.count)
 			for _, d in ipairs(C.songbook.districts) do
 				local seen = {}
 				assert_eq(#st.lines[d.id], d.last - d.first + 1)

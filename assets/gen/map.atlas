@@ -7,6 +7,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_beach_1"
+  images {
+    image: "/assets/images/map/deco_beach_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_beach_2"
+  images {
+    image: "/assets/images/map/deco_beach_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_beach_3"
+  images {
+    image: "/assets/images/map/deco_beach_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_beach_4"
+  images {
+    image: "/assets/images/map/deco_beach_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_beach_5"
+  images {
+    image: "/assets/images/map/deco_beach_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_beach_6"
+  images {
+    image: "/assets/images/map/deco_beach_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_cafe_1"
   images {
     image: "/assets/images/map/deco_cafe_1.png"

@@ -1,0 +1,33 @@
+{
+  "id": 109, "version": 1,
+  "size": [9, 8],
+  "moves": 22,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "drop", "count": 5},
+    {"type": "break", "item": "noise", "count": 8}
+  ],
+  "cells": [
+    "##.....##",
+    "##.....##",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    ".#.#.#.#."
+  ],
+  "slots": [
+    {"at": [0, 1], "type": "noise"},
+    {"at": [8, 1], "type": "noise"},
+    {"at": [4, 2], "type": "coconut"},
+    {"at": [1, 4], "type": "noise"},
+    {"at": [7, 4], "type": "noise"},
+    {"at": [3, 5], "type": "noise"},
+    {"at": [5, 5], "type": "noise"},
+    {"at": [2, 6], "type": "noise"},
+    {"at": [6, 6], "type": "noise"}
+  ],
+  "coconut": {"total": 5, "on_board_max": 2, "gap_moves": 2, "columns": [2, 3, 4, 5, 6]}
+}

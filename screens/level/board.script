@@ -128,7 +128,8 @@ local function refresh_cells(self)
 end
 
 -- where the last collected thing was (a goal event has no position)
-local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, transform = true }
+local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, coconut_collected = true,
+	transform = true }
 
 local function on_event(self, e)
 	local ty = e.type

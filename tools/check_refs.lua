@@ -965,6 +965,7 @@ local function key_families(data)
 	local blockers = {}
 	for _, b in ipairs(const.BLOCKER_NAME) do blockers[#blockers + 1] = b end
 	blockers[#blockers + 1] = "mic"
+	blockers[#blockers + 1] = "coconut"
 	fam["blocker."] = blockers
 	fam["praise."] = { "1", "2", "3", "4", "5" }
 	local stems = {}

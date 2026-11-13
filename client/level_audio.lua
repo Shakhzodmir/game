@@ -212,7 +212,7 @@ function LA:event(e)
 		self:_moves(e.left or 0)
 	elseif ty == "state" then
 		self:_state(e.state)
-	elseif ty == "mic_delivered" then
+	elseif ty == "mic_delivered" or ty == "coconut_collected" then
 		self:sfx("mic_collect", nil, 0.1)
 	elseif ty == "noise_spread" then
 		self:sfx("noise_fizz", nil, 0.1)

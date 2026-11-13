@@ -185,7 +185,7 @@ describe("client.i18n", function()
 	end)
 
 	it("has a description and a tutorial line for every blocker", function()
-		for _, id in ipairs({ "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column" }) do
+		for _, id in ipairs({ "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut" }) do
 			assert_true(i18n.has("blocker." .. id), id)
 			assert_true(i18n.has("blocker." .. id .. "_desc"), id .. "_desc")
 			assert_true(i18n.has("tutorial." .. id), "tutorial." .. id)
