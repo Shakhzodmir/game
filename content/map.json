@@ -1,8 +1,8 @@
 {
  "version": 1,
  "width": 720,
- "world_height": 26240,
- "level_count": 120,
+ "world_height": 30520,
+ "level_count": 140,
  "tile_h": 1080,
  "node": {
   "day": {
@@ -37,7 +37,7 @@
   "dy": 96
  },
  "soon": {
-  "y": 25910
+  "y": 30190
  },
  "segments": [
   {
@@ -476,7 +476,7 @@
    "first": 101,
    "last": 120,
    "y0": 21495,
-   "y1": 26240,
+   "y1": 25775,
    "bg": "mapbg/bg_beach",
    "gate": "mapbg/gate_beach",
    "gate_y": 21495,
@@ -485,73 +485,159 @@
     {
      "image": "map/deco_beach_1",
      "x": 90,
-     "y": 21879,
+     "y": 21855,
      "scale": 0.8
     },
     {
      "image": "map/deco_beach_2",
      "x": 647,
-     "y": 22208,
+     "y": 22137,
      "scale": 0.92
     },
     {
      "image": "map/deco_beach_3",
      "x": 76,
-     "y": 22536,
+     "y": 22419,
      "scale": 1.04
     },
     {
      "image": "map/deco_beach_4",
      "x": 641,
-     "y": 22865,
+     "y": 22700,
      "scale": 0.86
     },
     {
      "image": "map/deco_beach_5",
      "x": 82,
-     "y": 23194,
+     "y": 22982,
      "scale": 0.98
     },
     {
      "image": "map/deco_beach_6",
      "x": 635,
-     "y": 23523,
+     "y": 23264,
      "scale": 0.8
     },
     {
      "image": "map/deco_beach_1",
      "x": 88,
-     "y": 23851,
+     "y": 23545,
      "scale": 0.92
     },
     {
      "image": "map/deco_beach_2",
      "x": 649,
-     "y": 24180,
+     "y": 23827,
      "scale": 1.04
     },
     {
      "image": "map/deco_beach_3",
      "x": 74,
-     "y": 24509,
+     "y": 24109,
      "scale": 0.86
     },
     {
      "image": "map/deco_beach_4",
      "x": 643,
-     "y": 24838,
+     "y": 24390,
      "scale": 0.98
     },
     {
      "image": "map/deco_beach_5",
      "x": 80,
-     "y": 25166,
+     "y": 24672,
      "scale": 0.8
     },
     {
      "image": "map/deco_beach_6",
      "x": 637,
-     "y": 25495,
+     "y": 24954,
+     "scale": 0.92
+    }
+   ]
+  },
+  {
+   "id": "carnival",
+   "district": "carnival",
+   "first": 121,
+   "last": 140,
+   "y0": 25775,
+   "y1": 30520,
+   "bg": "mapbg/bg_carnival",
+   "gate": "mapbg/gate_carnival",
+   "gate_y": 25775,
+   "tint": "#FBE3C8",
+   "deco": [
+    {
+     "image": "map/deco_carnival_1",
+     "x": 90,
+     "y": 26159,
+     "scale": 0.8
+    },
+    {
+     "image": "map/deco_carnival_2",
+     "x": 647,
+     "y": 26488,
+     "scale": 0.92
+    },
+    {
+     "image": "map/deco_carnival_3",
+     "x": 76,
+     "y": 26816,
+     "scale": 1.04
+    },
+    {
+     "image": "map/deco_carnival_4",
+     "x": 641,
+     "y": 27145,
+     "scale": 0.86
+    },
+    {
+     "image": "map/deco_carnival_5",
+     "x": 82,
+     "y": 27474,
+     "scale": 0.98
+    },
+    {
+     "image": "map/deco_carnival_6",
+     "x": 635,
+     "y": 27803,
+     "scale": 0.8
+    },
+    {
+     "image": "map/deco_carnival_1",
+     "x": 88,
+     "y": 28131,
+     "scale": 0.92
+    },
+    {
+     "image": "map/deco_carnival_2",
+     "x": 649,
+     "y": 28460,
+     "scale": 1.04
+    },
+    {
+     "image": "map/deco_carnival_3",
+     "x": 74,
+     "y": 28789,
+     "scale": 0.86
+    },
+    {
+     "image": "map/deco_carnival_4",
+     "x": 643,
+     "y": 29118,
+     "scale": 0.98
+    },
+    {
+     "image": "map/deco_carnival_5",
+     "x": 80,
+     "y": 29446,
+     "scale": 0.8
+    },
+    {
+     "image": "map/deco_carnival_6",
+     "x": 637,
+     "y": 29775,
      "scale": 0.92
     }
    ]
@@ -1157,6 +1243,106 @@
    "level": 120,
    "x": 360,
    "y": 25440
+  },
+  {
+   "level": 121,
+   "x": 360,
+   "y": 26110
+  },
+  {
+   "level": 122,
+   "x": 324,
+   "y": 26300
+  },
+  {
+   "level": 123,
+   "x": 216,
+   "y": 26490
+  },
+  {
+   "level": 124,
+   "x": 195,
+   "y": 26680
+  },
+  {
+   "level": 125,
+   "x": 274,
+   "y": 26870
+  },
+  {
+   "level": 126,
+   "x": 405,
+   "y": 27060
+  },
+  {
+   "level": 127,
+   "x": 509,
+   "y": 27250
+  },
+  {
+   "level": 128,
+   "x": 522,
+   "y": 27440
+  },
+  {
+   "level": 129,
+   "x": 437,
+   "y": 27630
+  },
+  {
+   "level": 130,
+   "x": 305,
+   "y": 27820
+  },
+  {
+   "level": 131,
+   "x": 206,
+   "y": 28010
+  },
+  {
+   "level": 132,
+   "x": 201,
+   "y": 28200
+  },
+  {
+   "level": 133,
+   "x": 292,
+   "y": 28390
+  },
+  {
+   "level": 134,
+   "x": 424,
+   "y": 28580
+  },
+  {
+   "level": 135,
+   "x": 518,
+   "y": 28770
+  },
+  {
+   "level": 136,
+   "x": 516,
+   "y": 28960
+  },
+  {
+   "level": 137,
+   "x": 419,
+   "y": 29150
+  },
+  {
+   "level": 138,
+   "x": 287,
+   "y": 29340
+  },
+  {
+   "level": 139,
+   "x": 199,
+   "y": 29530
+  },
+  {
+   "level": 140,
+   "x": 360,
+   "y": 29720
   }
  ]
 }

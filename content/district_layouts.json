@@ -436,5 +436,66 @@
         "h": 235
       }
     }
+  },
+  "carnival": {
+    "bg": "assets/images/districts/carnival/bg.png",
+    "bg_concert": "assets/images/districts/carnival/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "congas": {
+        "image": "assets/images/districts/carnival/congas.png",
+        "ghost": "assets/images/districts/carnival/congas_ghost.png",
+        "x": 210,
+        "y": 800,
+        "scale": 0.7,
+        "w": 214,
+        "h": 210
+      },
+      "maracas": {
+        "image": "assets/images/districts/carnival/maracas.png",
+        "ghost": "assets/images/districts/carnival/maracas_ghost.png",
+        "x": 520,
+        "y": 812,
+        "scale": 0.7,
+        "w": 183,
+        "h": 180
+      },
+      "headdress": {
+        "image": "assets/images/districts/carnival/headdress.png",
+        "ghost": "assets/images/districts/carnival/headdress_ghost.png",
+        "x": 452,
+        "y": 716,
+        "scale": 0.7,
+        "w": 214,
+        "h": 218
+      },
+      "banner": {
+        "image": "assets/images/districts/carnival/banner.png",
+        "ghost": "assets/images/districts/carnival/banner_ghost.png",
+        "x": 272,
+        "y": 722,
+        "scale": 0.7,
+        "w": 286,
+        "h": 180
+      },
+      "pinata": {
+        "image": "assets/images/districts/carnival/pinata.png",
+        "ghost": "assets/images/districts/carnival/pinata_ghost.png",
+        "x": 92,
+        "y": 716,
+        "scale": 0.7,
+        "w": 194,
+        "h": 217
+      },
+      "trumpet": {
+        "image": "assets/images/districts/carnival/trumpet.png",
+        "ghost": "assets/images/districts/carnival/trumpet_ghost.png",
+        "x": 628,
+        "y": 700,
+        "scale": 0.7,
+        "w": 117,
+        "h": 261
+      }
+    }
   }
 }
