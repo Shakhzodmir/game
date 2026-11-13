@@ -375,5 +375,66 @@
         "h": 290
       }
     }
+  },
+  "beach": {
+    "bg": "assets/images/districts/beach/bg.png",
+    "bg_concert": "assets/images/districts/beach/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "cajon": {
+        "image": "assets/images/districts/beach/cajon.png",
+        "ghost": "assets/images/districts/beach/cajon_ghost.png",
+        "x": 478,
+        "y": 772,
+        "scale": 0.7,
+        "w": 169,
+        "h": 246
+      },
+      "guitar": {
+        "image": "assets/images/districts/beach/guitar.png",
+        "ghost": "assets/images/districts/beach/guitar_ghost.png",
+        "x": 384,
+        "y": 700,
+        "scale": 0.7,
+        "w": 126,
+        "h": 256
+      },
+      "surf_speaker": {
+        "image": "assets/images/districts/beach/surf_speaker.png",
+        "ghost": "assets/images/districts/beach/surf_speaker_ghost.png",
+        "x": 668,
+        "y": 694,
+        "scale": 0.7,
+        "w": 123,
+        "h": 271
+      },
+      "tiki_bar": {
+        "image": "assets/images/districts/beach/tiki_bar.png",
+        "ghost": "assets/images/districts/beach/tiki_bar_ghost.png",
+        "x": 250,
+        "y": 688,
+        "scale": 0.7,
+        "w": 300,
+        "h": 281
+      },
+      "hammock": {
+        "image": "assets/images/districts/beach/hammock.png",
+        "ghost": "assets/images/districts/beach/hammock_ghost.png",
+        "x": 596,
+        "y": 800,
+        "scale": 0.7,
+        "w": 286,
+        "h": 206
+      },
+      "palm_lights": {
+        "image": "assets/images/districts/beach/palm_lights.png",
+        "ghost": "assets/images/districts/beach/palm_lights_ghost.png",
+        "x": 76,
+        "y": 694,
+        "scale": 0.7,
+        "w": 214,
+        "h": 235
+      }
+    }
   }
 }
