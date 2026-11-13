@@ -35,7 +35,7 @@ describe("the map at many levels", function()
 					peak_tiles = math.max(peak_tiles, b - a + 1)
 				end
 			end
-			assert_true(peak_tiles <= 3, "tiles in a window: " .. peak_tiles)
+			assert_true(peak_tiles <= 4, "tiles in a window: " .. peak_tiles) -- 4: the tiles overlap (tile_step)
 		end)
 
 		it("finds the visible nodes, the path and the tap target at every height of a " .. n .. "-level map", function()

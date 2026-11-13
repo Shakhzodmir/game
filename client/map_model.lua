@@ -104,6 +104,11 @@ function M.new(data, opts)
 	self.world_h = data.world_height
 	self.width = data.width or 720
 	self.tile_h = data.tile_h
+	-- The tiles of a district overlap: a tile starts tile_step above the one below it and its faded bottom edge
+	-- (tile_feather px, transparent in the picture) lies over the top of that one, so the sky at the top of the
+	-- picture is never seen in the middle of the map. Without these fields the tiles stand edge to edge.
+	self.tile_step = data.tile_step or data.tile_h
+	self.tile_feather = data.tile_feather or 0
 	self.nodes = data.nodes
 	self.segments = data.segments
 	self.kind_of = opts.kind_of
@@ -268,13 +273,21 @@ function Map:segment_at(y)
 	return #self.segments
 end
 
--- Background tiles of segment `seg` (first, last; tile 0 starts at the segment's bottom) that touch the window.
+-- World y of the bottom edge of tile `idx` of segment `seg` (tile 0 starts tile_feather below the segment).
+function Map:tile_y(seg, idx)
+	return self.segments[seg].y0 - self.tile_feather + idx * self.tile_step
+end
+
+-- Background tiles of segment `seg` (first, last; tile 0 is the lowest) that touch the window.
 function Map:tiles(seg, off, view_h, margin)
 	local s = self.segments[seg]
 	local lo, hi = off - margin, off + view_h + margin
-	if hi <= s.y0 or lo >= s.y1 then return 1, 0 end
-	lo, hi = math.max(lo, s.y0), math.min(hi, s.y1 - 1)
-	return math.floor((lo - s.y0) / self.tile_h), math.floor((hi - s.y0) / self.tile_h)
+	local base = s.y0 - self.tile_feather
+	if hi <= base or lo >= s.y1 then return 1, 0 end
+	lo, hi = math.max(lo, base), math.min(hi, s.y1 - 1)
+	-- tile i covers base + i * step .. base + i * step + tile_h
+	local first = math.max(0, math.floor((lo - base - self.tile_h) / self.tile_step) + 1)
+	return first, math.floor((hi - base) / self.tile_step)
 end
 
 -- Highest scroll offset for a window of view_h px.

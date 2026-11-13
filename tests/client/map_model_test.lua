@@ -198,7 +198,17 @@ describe("client.map_model", function()
 		local seg = m.segments[2]
 		local a, b = m:tiles(2, seg.y0 + 100, 1280, 0)
 		assert_eq(a, 0)
-		assert_eq(b, 1)
+		-- the tiles overlap (a tile hides the sky of the one below): every tile that touches the window is listed
+		assert_true(m.tile_step < m.tile_h and m.tile_feather > 0, "overlapping tiles")
+		assert_eq(m:tile_y(2, 0), seg.y0 - m.tile_feather)
+		assert_eq(m:tile_y(2, 3) - m:tile_y(2, 2), m.tile_step)
+		for i = a, b do
+			assert_true(m:tile_y(2, i) < seg.y0 + 100 + 1280 and m:tile_y(2, i) + m.tile_h > seg.y0 + 100, "tile " .. i .. " touches")
+		end
+		assert_true(m:tile_y(2, b + 1) >= seg.y0 + 100 + 1280, "no tile is left out above")
+		a, b = m:tiles(2, seg.y0 + 2000, 1280, 0)
+		assert_true(m:tile_y(2, a - 1) + m.tile_h <= seg.y0 + 2000, "no tile is left out below")
+		assert_true(m:tile_y(2, a) + m.tile_h > seg.y0 + 2000)
 		a, b = m:tiles(2, 0, 1280, 0)
 		assert_true(a > b, "a stretch far below has no tile")
 		a, b = m:tiles(1, 0, 1280, 0)
