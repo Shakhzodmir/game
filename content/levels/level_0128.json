@@ -1,0 +1,32 @@
+{
+  "id": 128, "version": 1,
+  "size": [9, 8],
+  "moves": 30,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 3},
+    {"type": "break", "item": "record_box", "count": 7}
+  ],
+  "cells": [
+    ".#.#.#.##",
+    ".#.#.#.##",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "......###",
+    ".......##"
+  ],
+  "slots": [
+    {"at": [3, 0], "type": "mic"},
+    {"at": [0, 5], "type": "record_box", "hp": 1},
+    {"at": [1, 5], "type": "record_box", "hp": 1},
+    {"at": [6, 6], "type": "record_box", "hp": 1},
+    {"at": [7, 6], "type": "record_box", "hp": 1},
+    {"at": [8, 6], "type": "record_box", "hp": 1},
+    {"at": [7, 7], "type": "record_box", "hp": 1},
+    {"at": [8, 7], "type": "record_box", "hp": 1}
+  ],
+  "mic": {"total": 3, "on_board_max": 2, "gap_moves": 2}
+}

@@ -95,7 +95,7 @@ local function play(level, defs, mode)
 end
 
 -- The first level that has each of the elements of the plan (slots, floor tiles, overlay): the level that brings it.
-local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut" }
+local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain" }
 
 -- the last level of the game: the `last` of the last district of content/districts.json
 local function last_level()

@@ -1,0 +1,48 @@
+{
+  "id": 127, "version": 1,
+  "size": [9, 9],
+  "moves": 29,
+  "difficulty": "hard",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "chains", "count": 8},
+    {"type": "break", "item": "noise", "count": 6}
+  ],
+  "cells": [
+    "...###...",
+    "..#####..",
+    "..#####..",
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    ".#######."
+  ],
+  "overlay": [
+    {"at": [4, 0], "type": "chain", "hp": 2},
+    {"at": [3, 2], "type": "chain", "hp": 2},
+    {"at": [5, 2], "type": "chain", "hp": 2},
+    {"at": [0, 5], "type": "chain", "hp": 1},
+    {"at": [8, 5], "type": "chain", "hp": 1},
+    {"at": [2, 8], "type": "chain", "hp": 2},
+    {"at": [4, 8], "type": "chain", "hp": 2},
+    {"at": [6, 8], "type": "chain", "hp": 2}
+  ],
+  "slots": [
+    {"at": [4, 0], "type": "piece", "color": "red"},
+    {"at": [3, 2], "type": "piece", "color": "blue"},
+    {"at": [5, 2], "type": "piece", "color": "blue"},
+    {"at": [0, 5], "type": "piece", "color": "red"},
+    {"at": [8, 5], "type": "piece", "color": "red"},
+    {"at": [0, 7], "type": "noise"},
+    {"at": [8, 7], "type": "noise"},
+    {"at": [1, 8], "type": "noise"},
+    {"at": [2, 8], "type": "piece", "color": "yellow"},
+    {"at": [3, 8], "type": "noise"},
+    {"at": [4, 8], "type": "piece", "color": "blue"},
+    {"at": [5, 8], "type": "noise"},
+    {"at": [6, 8], "type": "piece", "color": "yellow"},
+    {"at": [7, 8], "type": "noise"}
+  ]
+}

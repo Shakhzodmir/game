@@ -1,5 +1,6 @@
 local Meta = require("meta.meta")
 local H = require("tests.meta.helper")
+local C = require("meta.config")
 
 local T = H.T0
 -- levels 10 and 20 give 45 minutes of infinite lives; lives are tested after that
@@ -178,14 +179,15 @@ describe("progress restore", function()
 		local m = H.new()
 		H.advance_to(m, 25)
 		local t = H.json_round_trip(m:serialize())
-		t.progress.beaten = 120
-		t.progress.run = { level_id = 121, difficulty = "hard", attempt = 1, moved = true }
+		local N = C.levels.count -- the last level of this build (content/districts.json)
+		t.progress.beaten = N + 20
+		t.progress.run = { level_id = N + 21, difficulty = "hard", attempt = 1, moved = true }
 		t.checksum = require("meta.save").checksum(t)
 		local m2, info = Meta.load(H.districts(), t, nil, 1, P)
 		assert_eq(info.interrupted, "loss", "the attempt of the newer build is settled like any other")
 		assert_true(m2:all_done())
 		assert_eq(m2:level_to_play(), nil)
-		assert_eq(m2:serialize().progress.beaten, 120, "not cut down to 100")
+		assert_eq(m2:serialize().progress.beaten, N + 20, "not cut down to the last level of this build")
 		local ok, why = m2:can_start(101, P)
 		assert_false(ok)
 		assert_eq(why, "all_done")

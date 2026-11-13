@@ -72,7 +72,7 @@ describe("songbook window", function()
 			c.step(40)
 			local list = c.app.meta:districts()
 			assert_eq(c.app.ui.notebook.district, list[#list].id, "back from the first district is the last one")
-			assert_eq(c.app.ui.notebook.district, "beach")
+			assert_eq(c.app.ui.notebook.district, "carnival")
 		end)
 	end)
 

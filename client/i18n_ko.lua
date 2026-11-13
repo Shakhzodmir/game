@@ -409,6 +409,7 @@ return {
 	["tutorial.bird"] = "2×2 정사각형을 맞추면 노래새가 나와요!",
 	["tutorial.booster"] = "부스터를 누르고 대상을 고르세요",
 	["tutorial.chain"] = "사슬이 조각을 붙잡고 있어요. 줄을 맞춰 끊어요!",
+	["tutorial.chain_match"] = "이 조각과 같은 색을 맞추면 사슬이 끊어져요",
 	["tutorial.coconut"] = "코코넛은 터지지 않아요. 맨 아랫줄까지 내려 주세요!",
 	["tutorial.coconut_drop"] = "코코넛 아래 조각을 맞추면 아래로 떨어져요",
 	["tutorial.column"] = "커다란 스피커의 먼지를 털어 내세요!",

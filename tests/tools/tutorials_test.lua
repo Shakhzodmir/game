@@ -31,6 +31,7 @@ local PLAN_LESSONS = { 1, 2, 4, 6, 8, 9, 11, 12 }
 local PLAN_ELEMENTS = {
 	record_box = 10, dancefloor = 15, wires = 22, mic = 30, concrete = 40, noise = 50, balloon = 65, column = 90,
 	coconut = 101, -- district 6 (WP-17)
+	chain = 121, -- district 7 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -102,7 +103,7 @@ local function level_of(n)
 	if not raw then return nil end
 	local level, errs = core.load_level(text)
 	assert_true(level ~= nil, "level " .. n .. " does not load: " .. table.concat(errs or {}, "; "))
-	local info = { n = n, raw = raw, level = level, W = raw.size[1], H = raw.size[2], slot = {}, floor = {}, wires = {} }
+	local info = { n = n, raw = raw, level = level, W = raw.size[1], H = raw.size[2], slot = {}, floor = {}, wires = {}, chain = {} }
 	for _, s in ipairs(raw.slots or {}) do
 		if s.type == "column" then -- 2x2 from the top-left cell
 			for dx = 0, 1 do
@@ -113,10 +114,13 @@ local function level_of(n)
 		end
 	end
 	for _, t in ipairs(raw.floor or {}) do info.floor[key(t.at[1], t.at[2])] = t.hp end
-	for _, t in ipairs(raw.overlay or {}) do info.wires[key(t.at[1], t.at[2])] = t.hp end
+	for _, t in ipairs(raw.overlay or {}) do
+		if t.type == "chain" then info.chain[key(t.at[1], t.at[2])] = t.hp else info.wires[key(t.at[1], t.at[2])] = t.hp end
+	end
 	for k, g in ipairs(raw.goals) do
 		if g.type == "deliver" then info.deliver_goal = k end
 		if g.type == "drop" then info.drop_goal = k end
+		if g.type == "chains" then info.chains_goal = k end
 	end
 	levels[n] = info
 	return info
@@ -148,13 +152,15 @@ local function elements_of(raw)
 	end
 	if raw.floor and #raw.floor > 0 then kinds.dancefloor = true end
 	for _, o in ipairs(raw.overlay or {}) do
-		if o.type == "wires" then kinds.wires = true end -- (a chain, 10.6, is another element: its lesson comes with its levels)
+		if o.type == "wires" then kinds.wires = true end
+		if o.type == "chain" then kinds.chain = true end -- (10.6: another element of the same layer)
 	end
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
 		if g.type == "deliver" then kinds.mic = true end
 		if g.type == "drop" then kinds.coconut = true end
+		if g.type == "chains" then kinds.chain = true end
 	end
 	return kinds
 end
@@ -356,6 +362,7 @@ local TIPS = {
 	["tutorial.balloon"] = function(info, st) return slot_of(info, st, "balloon") ~= false or "no balloon there" end,
 	["tutorial.column"] = function(info, st) return slot_of(info, st, "column") ~= false or "no speaker column there" end,
 	["tutorial.coconut"] = function(info, st) return slot_of(info, st, "coconut") ~= false or "no coconut there" end,
+	["tutorial.chain"] = function(info, st) return info.chain[key(st.at[1], st.at[2])] ~= nil or "no chained piece there" end,
 }
 
 -- playing the steps ---------------------------------------------------------------------------------------------
@@ -409,6 +416,10 @@ local EFFECTS = {
 	["tutorial.coconut_drop"] = function(a, b, info)
 		local k = info.drop_goal
 		return (k and b.goals[k] < a.goals[k]) or "no coconut reached the bottom"
+	end,
+	["tutorial.chain_match"] = function(a, b, info)
+		local k = info.chains_goal
+		return (k and b.goals[k] < a.goals[k]) or "no chain was broken"
 	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
@@ -681,11 +692,12 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].booster, "swap", "it lights the button of the bar")
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
-		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101 }) do
+		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101 and the
+		-- chain of 121, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 20)
+		assert_eq(#ids_of(defs), 21)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()
