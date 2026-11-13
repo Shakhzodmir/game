@@ -4,6 +4,8 @@
  "world_height": 21960,
  "level_count": 100,
  "tile_h": 1080,
+ "tile_step": 740,
+ "tile_feather": 110,
  "node": {
   "day": {
    "size": 160,

@@ -26,6 +26,8 @@ FIRST_Y = 430       # y of level 1
 TOP_ROOM = 800      # room above the last level for the "new levels soon" sign
 AMPLITUDE = 170     # how far the path swings to the sides
 DECO_PER_SEGMENT = 12
+TILE_FEATHER = 110  # px at the bottom of a background tile that fade out (tools/art/feather_mapbg.py)
+TILE_STEP = 740     # a tile starts this far above the one below: it covers the sky (the top 230 px) of that one
 
 
 def load_content():
@@ -103,6 +105,8 @@ def build():
         "world_height": world_h,
         "level_count": LEVELS,
         "tile_h": 1080,
+        "tile_step": TILE_STEP,
+        "tile_feather": TILE_FEATHER,
         "node": {
             "day": {"size": 160, "hit": 52, "states": {s: "map/node_day_" + s for s in ("locked", "open", "current", "done")}},
             "concert": {"size": 224, "hit": 66, "states": {s: "map/node_concert_" + s for s in ("locked", "open", "current", "done")}},
