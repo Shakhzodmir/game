@@ -136,19 +136,36 @@ describe("client.views (meta screens)", function()
 		local by_id = {}
 		for _, d in ipairs(H.districts().districts) do by_id[d.id] = d end
 		local vm = views.jukebox(m, by_id)
-		assert_eq(#vm.tabs, 6)
+		assert_eq(#vm.tabs, 7)
 		assert_eq(vm.chosen, nil)
 		local ids = {}
 		for i, tab in ipairs(vm.tabs) do ids[i] = tab.id end
-		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage", "beach" })
+		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage", "beach", "carnival" })
 		-- the district being built: its genre is open, the rest are dark
 		assert_eq(vm.tabs[1].state, "current")
 		assert_eq(vm.tabs[2].state, "locked")
 		assert_eq(vm.tabs[5].state, "locked")
 		assert_eq(vm.tabs[6].state, "locked")
 		assert_eq(vm.tabs[6].count, 5, "the sixth district has its theme and four songs too")
+		assert_eq(vm.tabs[7].state, "locked")
+		assert_eq(vm.tabs[7].count, 5, "and so has the seventh")
+		assert_same(vm.tabs[7].genre, { en = "Latin", ru = "Латина", ko = "라틴" })
+		local carnival = {}
+		for i, r in ipairs(vm.songs.carnival) do carnival[i] = r.id end
+		assert_same(carnival, { "carnival", "salsa_confetti", "moonlit_cumbia", "candlelight_bolero", "mambo_fireworks" })
 		assert_same(vm.tabs[1].genre, { en = "Lo-fi", ru = "Лоу-фай", ko = "로파이" })
 		assert_eq(vm.tabs[1].color, views.district_color(1))
+		-- every district has a tab colour of its own (the list is as long as the town)
+		assert_eq(#views.DISTRICT_COLORS, #vm.tabs)
+		local colors = {}
+		for i, tab in ipairs(vm.tabs) do
+			assert_eq(tab.color, views.DISTRICT_COLORS[i])
+			assert_true(string.match(tab.color, "^#%x%x%x%x%x%x$") ~= nil, tab.id .. " colour " .. tostring(tab.color))
+			assert_true(colors[tab.color] == nil, tab.id .. " shares its colour with " .. tostring(colors[tab.color]))
+			colors[tab.color] = tab.id
+		end
+		assert_eq(vm.tabs[6].color, "#4FD1C5", "the beach is turquoise")
+		assert_eq(vm.tabs[7].color, "#FF8A5C", "the carnival is orange-red")
 		assert_eq(vm.tabs[2].prev_name.en, "Lo-fi Café", "what opens the jazz genre")
 		assert_eq(vm.tabs[1].count, 5, "the theme and four songs")
 		assert_false(vm.tabs[1].playing)

@@ -35,6 +35,7 @@ HI_RATE = {
     "stadium": {"arp", "snaps", "party"},
     "garage": {"tamb", "party"},
     "beach": {"shaker", "party"},
+    "carnival": {"shaker", "party"},
 }
 
 
@@ -392,6 +393,22 @@ def kit(name, sr):
             k["shaker"] = [ins.shaker(sr, key=20 + i, dur=0.07) for i in range(4)]
             k["maraca"] = [dsp.highpass(ins.shaker(sr, key=30 + i, dur=0.14), 5200, sr, 2) for i in range(3)]
             k["hat"] = [ins.shaker(sr, key=40 + i, dur=0.05) for i in range(3)]
+        elif name == "carnival":
+            unit = lambda x: x / dsp.peak(x)  # noqa: E731
+            hi, lo = float(midi_hz(60)), float(midi_hz(55))  # conga on C4, tumba on G3: the root and the fifth of the key
+            k["open"] = [conga(sr, hi, "open", key=i) for i in range(2)]
+            k["tumba"] = [conga(sr, lo, "open", key=10 + i) for i in range(2)]
+            k["slap"] = [conga(sr, hi, "slap", key=20 + i) for i in range(2)]
+            k["heel"] = [conga(sr, hi, "heel", key=30 + i) for i in range(2)]
+            k["toe"] = [conga(sr, hi, "toe", key=40 + i) for i in range(3)]
+            k["clave"] = [unit(ins.woodblock(sr, f=float(midi_hz(96)), key=60 + i, t=0.09)) for i in range(2)]
+            k["kick"] = [unit(dsp.lowpass(ins.kick(sr, 110.0, float(midi_hz(36)), 0.03, 0.3, 0.0, 1.2, key=70 + i),
+                                          1800, sr)) for i in range(2)]
+            k["maraca"] = [unit(dsp.highpass(ins.shaker(sr, key=80 + i, dur=0.07), 4500, sr, 2)) for i in range(4)]
+            k["guiro"] = [guiro_scrape(sr, 0.2, key=i) for i in range(2)]
+            k["guiro_short"] = [guiro_scrape(sr, 0.07, key=10 + i) for i in range(3)]
+            k["hat"] = [ins.shaker(sr, key=90 + i, dur=0.05) for i in range(3)]
+            k["bell"] = [unit(ins.cowbell(sr, key=5, f1=float(midi_hz(72)), f2=float(midi_hz(79)), t60=0.3))]
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -417,6 +434,56 @@ def cross_stick(sr, key=0):
     x = ins.rim(sr, key=key, f=float(midi_hz(93)))
     w = ins.woodblock(sr, f=float(midi_hz(74)), key=key, t=0.06)
     return dsp.mix(x, 0.45 * w)
+
+
+def conga(sr, f, stroke, key=0):
+    """One stroke on a conga tuned to f: 'open' (the ringing tone of the drum), 'slap' (a dry crack), 'heel' and
+    'toe' (the muted palm and finger strokes that keep the 8ths going between the accents)."""
+    r = dsp.rng("conga", stroke, key)
+    n = nsamp({"open": 0.42, "slap": 0.09, "heel": 0.09, "toe": 0.06}[stroke], sr)
+    t = np.arange(n) / sr
+    nz = r.standard_normal(n)
+    if stroke == "open":
+        ph = TAU * np.cumsum(f * (1.0 + 0.06 * np.exp(-t / 0.018))) / sr
+        x = (np.sin(ph) + 0.3 * np.sin(1.5 * ph) * np.exp(-t / 0.05)) * dsp.env_perc(n, sr, 0.36, 0.001)
+        skin = dsp.bandpass(nz, 500, 3500, sr) * np.exp(-t / 0.007)
+        x = x + 0.35 * skin / dsp.peak(skin)
+    elif stroke == "slap":
+        crack = dsp.bandpass(nz, 900, 5000, sr) * np.exp(-t / 0.011)
+        x = crack / dsp.peak(crack) + 0.45 * np.sin(TAU * 3.0 * f * t) * np.exp(-t / 0.016)
+    elif stroke == "heel":
+        thud = dsp.lowpass(nz, 700, sr, 2) * np.exp(-t / 0.012)
+        x = np.sin(TAU * 0.5 * f * t) * np.exp(-t / 0.028) + 0.5 * thud / dsp.peak(thud)
+    else:
+        tick = dsp.bandpass(nz, 600, 2600, sr) * np.exp(-t / 0.007)
+        x = tick / dsp.peak(tick) + 0.3 * np.sin(TAU * f * t) * np.exp(-t / 0.014)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.02)
+
+
+def guiro_scrape(sr, dur, key=0):
+    """A scraped gourd: band-passed noise chopped by the ridges (about 42 a second) under one stroke of the stick."""
+    n = nsamp(dur, sr)
+    t = np.arange(n) / sr
+    x = dsp.bandpass(dsp.rng("guiro_scrape", key).standard_normal(n), 2200, min(9000, 0.44 * sr), sr)
+    x = x * (0.3 + 0.7 * (0.5 + 0.5 * np.sin(TAU * 42 * t)) ** 2) * np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 0.6
+    return dsp.fade(x / dsp.peak(x), sr, 0.002, 0.01)
+
+
+def baby_bass(midi, dur, sr, key=0):
+    """The 'baby bass' of a salsa band: a dark plucked string over a round sine fundamental (and a little of its
+    octave, which is what a phone speaker plays of it), lightly overdriven."""
+    def mk():
+        y = ins.guitar(midi, dur, sr, bright=0.2, t60=1.1, pick=0.3, mute=0.09, key=key, damp=0.55).copy()
+        n = len(y)
+        t = np.arange(n) / sr
+        f = float(midi_hz(midi))
+        gate = np.exp(-dsp.LN1000 * np.maximum(t - dur, 0.0) / 0.09)
+        sub = (np.sin(TAU * f * t) + 0.3 * np.sin(2 * TAU * f * t)) * (1.0 - np.exp(-t / 0.012)) * np.exp(-t / 0.5)
+        y = y / (dsp.peak(y) + 1e-9) + 0.7 * sub * gate
+        y = dsp.tube(y / dsp.peak(y) * 1.2, 1.4, sr, 0.1)
+        y = dsp.filt(y, "peak", 800, sr, q=1.0, gain_db=2.0)
+        return dsp.fade(y, sr, 0.001, 0.01)
+    return cached(("babybass", midi, round(dur, 3), sr, key), mk)
 
 
 def hit(s, buf, samples, beat, vel, r, jitter=0.004, key=None):
@@ -1472,6 +1539,220 @@ def beach_flute(s):
     return room(s, b, 0.25, 1.5, "flute", damp=5000)
 
 
+# ==================================================== CARNIVAL (C major)
+
+def carnival_song(d):
+    # salsa / son montuno in C on a grid of 8ths: the guajeo I-IV-V-IV with two chords a bar, then vi-ii-V-I and
+    # IV-ii-V-I. Triads and one dominant 7th, all diatonic. The last half bar is the tonic: the trumpet lands on C
+    # there and the bass has already played the C of bar 1 on beat 4 (the anticipated tumbao)
+    C, D, F, G, A = 0, 2, 5, 7, 9
+    maj, mnr, dom7, m7 = [0, 4, 7], [0, 3, 7], [0, 4, 7, 10], [0, 3, 7, 10]
+    return Song(d, progression([
+        (2, C, maj, "C"), (2, F, maj, "F"), (2, G, dom7, "G7"), (2, F, maj, "F"),
+        (2, C, maj, "C"), (2, F, maj, "F"), (4, G, dom7, "G7"),
+        (2, A, mnr, "Am"), (2, D, m7, "Dm7"), (2, G, dom7, "G7"), (2, C, maj, "C"),
+        (2, F, maj, "F"), (2, D, m7, "Dm7"), (2, G, dom7, "G7"), (2, C, maj, "C"),
+    ]))
+
+
+# The 2-3 son clave over two bars (beats): two strokes in the first bar, three in the second. Every stem of the
+# district is written against it: the low drum of the congas, the piano montuno and the phrases of the trumpet.
+CARNIVAL_CLAVE = ((1.0, 2.0), (0.0, 1.5, 3.0))
+
+
+def carnival_congas(s):
+    """Conga tumbao (heel-toe-slap-toe, two open tones on beat 4; the low drum answers on beat 3 of the three-side
+    bars), the 2-3 son clave on a pair of claves and a soft kick on beats 1 and 3. The first layer: it grooves
+    alone."""
+    k = kit("carnival", s.sr)
+    r = dsp.rng(s.id, "congas")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        three = bar % 2 == 1
+        for bt, v in ((0, 0.8), (2, 0.5)):
+            hit(s, b, k["kick"], o + bt, v, r, 0.002)
+        for bt in CARNIVAL_CLAVE[bar % 2]:
+            hit(s, b, k["clave"], o + bt, 0.5, r, 0.002)
+        tumbao = [(0.0, "heel", 0.34), (0.5, "toe", 0.26), (1.0, "slap", 0.8), (1.5, "toe", 0.26),
+                  (2.0, "tumba", 0.85) if three else (2.0, "heel", 0.34),
+                  (2.5, "tumba", 0.7) if three else (2.5, "toe", 0.26),
+                  (3.0, "open", 0.95), (3.5, "open", 0.8)]
+        if bar == 3:  # a quick extra tone at the end of the first phrase
+            tumbao.append((3.25, "open", 0.5))
+        if bar == s.bars - 1:  # and a roll down the two drums into the repeat
+            tumbao = tumbao[:7] + [(3.25, "open", 0.6), (3.5, "tumba", 0.85), (3.75, "tumba", 0.7)]
+        for bt, name, v in tumbao:
+            hit(s, b, k[name], o + bt, v, r, 0.004)
+    b = dsp.drive(b / dsp.peak(b) * 1.2, 1.3)
+    b = loop_eq(s, b, "highshelf", 4000, 2.0)
+    return room(s, b, 0.12, 0.7, "congas", damp=6000)
+
+
+def carnival_shaker(s):
+    """Maracas on the 8ths (the beats a little stronger, a grace note before each beat) and the guiro: a long
+    scrape on beats 1 and 3, two short ones on 2 and 4 (the 'scraaape - chi - chi' of the cha-cha and the son)."""
+    k = kit("carnival", s.sr)
+    r = dsp.rng(s.id, "shaker")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for i in range(8):
+            hit(s, b, k["maraca"], o + i * 0.5, 0.8 if i % 2 == 0 else 0.52, r, 0.004)
+            if i % 2 == 1:
+                hit(s, b, k["maraca"], o + i * 0.5 + 0.25, 0.22, r, 0.004)
+        for half in (0, 2):
+            hit(s, b, k["guiro"], o + half, 0.6, r, 0.004)
+            hit(s, b, k["guiro_short"], o + half + 1.0, 0.5, r, 0.004)
+            hit(s, b, k["guiro_short"], o + half + 1.5, 0.42, r, 0.004)
+    return room(s, b, 0.1, 0.8, "shaker", damp=7000)
+
+
+def carnival_bass_line(s):
+    """The salsa tumbao: nothing on beat 1. The 'and of 2' plays the root of the chord that starts on beat 3 (the
+    fifth when the chord stays) and beat 4 already plays the root of the next bar, tied over the bar line."""
+    ev = []
+    root = lambda c: nearest(c.root, 41, 36, 47)  # noqa: E731
+    fifth = lambda m: m + 7 if m + 7 <= 48 else m - 5  # noqa: E731
+    for bar in range(s.bars):
+        o = bar * 4
+        c0, c2, nx = s.chord_at(o), s.chord_at(o + 2), s.chord_at(o + 4)
+        mid = root(c2) if c2 is not c0 else fifth(root(c0))
+        if root(nx) == mid:  # the same root twice (the tonic of the last bar): fifth, then root
+            mid = fifth(mid)
+        if c2 is c0:  # a whole bar on one chord (the G7 that ends the first phrase): its root on the and of 3
+            ev += [(o + 1.5, 0.9, mid, 0.85), (o + 2.5, 0.45, root(c0), 0.65)]
+        else:
+            ev.append((o + 1.5, 1.4, mid, 0.85))
+        ev.append((o + 3.0, 2.4, root(nx), 0.95))
+    return ev
+
+
+def carnival_bass(s):
+    b = s.zeros()
+    r = dsp.rng(s.id, "bass")
+    for j, (bt, du, m, v) in enumerate(carnival_bass_line(s)):
+        s.add(b, baby_bass(m, s.sec(du), s.sr, key=j % 3), bt, v, dt=r.normal(0.002, 0.003))
+    b = loop_filter(s, b, "lp", 1500)
+    return room(s, b, 0.06, 0.6, "bass", damp=2500)
+
+
+# The right hand of the montuno: the note it plays in octaves (a line that moves by step: E F G F ...) and the
+# dyad it plays inside that octave. The left hand doubles an octave below: octaves, and tenths under the dyads.
+CARNIVAL_MONTUNO = {
+    "C": (64, (67, 72)), "F": (65, (69, 72)), "G7": (67, (71, 74)), "Am": (64, (69, 72)), "Dm7": (65, (69, 72)),
+}
+
+
+def carnival_piano(s):
+    """Piano montuno in 2-3: the bar of the two-side starts on the beat (1, 2, the and of 2, of 3, of 4), the bar
+    of the three-side plays only off-beats. Octaves and inner dyads alternate; the octaves on the and of 2 and
+    of 4 already belong to the next chord, like the bass."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "piano")
+    pats = (((0.0, "o"), (1.0, "i"), (1.5, "o"), (2.5, "i"), (3.5, "o")),
+            ((0.5, "i"), (1.5, "o"), (2.5, "i"), (3.5, "o")))
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, kind in pats[bar % 2]:
+            c = s.chord_at(o + bt + (0.5 if bt in (1.5, 3.5) else 0.0))
+            octave, dyad = CARNIVAL_MONTUNO[c.name]
+            if kind == "o":
+                notes, du, vel = ((octave - 12, 0.55), (octave, 0.85), (octave + 12, 1.0)), 0.9, 0.8
+            else:
+                notes, du, vel = ((dyad[0] - 12, 0.5), (dyad[0], 0.9), (dyad[1], 1.0)), 0.45, 0.6
+            dt = r.normal(0.003, 0.003)
+            for j, (m, g) in enumerate(notes):
+                x = ins.piano(m, round(s.sec(du), 4), s.sr, vel=vel, bright=1.0, release=0.12, key=j)
+                s.add(b, x, o + bt, g, dt=dt + j * 0.003)
+    b = loop_filter(s, b, "hp", 180)
+    b = loop_eq(s, b, "peak", 2500, 3.0, 0.9)
+    return room(s, b, 0.12, 0.9, "piano", damp=5500)
+
+
+# The top strings of the guitar: small bright shapes (the G7 keeps its 7th, the Dm7 its root)
+CARNIVAL_GRIPS = {
+    "C": [67, 72, 76], "F": [69, 72, 77], "G7": [67, 71, 74, 77], "Am": [69, 72, 76], "Dm7": [69, 72, 74, 77],
+}
+
+# Fills in thirds at the end of both phrases (where the trumpet rests or holds): bar -> (beat, top note, lower note)
+CARNIVAL_FILLS = {
+    3: [(2.0, 77, 74), (2.5, 76, 72), (3.0, 74, 71), (3.5, 72, 69)],
+    7: [(2.0, 79, 76), (2.5, 77, 74), (3.0, 76, 72), (3.5, 72, 67)],
+}
+
+
+def carnival_guitar(s):
+    """Bright nylon guitar: short up-strokes on the off-beats, accented down-strokes on beats 2 and 4, a muted
+    stroke on 3 (the cumbia 'chk-a'), and a run in thirds down to the next chord at the end of each phrase."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "guitar")
+    pat = ((0.5, "up", 0.55), (1.0, "down", 0.9), (2.0, "mute", 0.4), (2.5, "up", 0.55), (3.0, "down", 0.9),
+           (3.5, "up", 0.5))
+    for bar in range(s.bars):
+        o = bar * 4
+        fill = CARNIVAL_FILLS.get(bar)
+        for bt, kind, v in pat:
+            if fill and bt >= 2.0:
+                continue
+            notes = CARNIVAL_GRIPS[s.chord_at(o + bt + (0.5 if bt == 3.5 else 0.0)).name]
+            if kind == "mute":
+                x = ins.strum(notes, 0.02, s.sr, spread=0.004, bright=0.85, t60=0.05, pick=0.1, mute=0.015, key=3,
+                              damp=0.3)
+            else:
+                x = ins.strum(notes, s.sec(0.4 if kind == "down" else 0.22), s.sr, spread=0.008, up=kind == "up",
+                              bright=0.65, t60=0.8, pick=0.13, mute=0.04, key=bar % 2, damp=0.4)
+            s.add(b, x, o + bt, v, dt=r.normal(0, 0.003))
+        for i, (bt, top, low) in enumerate(fill or ()):
+            for m, g in ((top, 1.0), (low, 0.7)):
+                x = ins.guitar(m, s.sec(0.6), s.sr, bright=0.7, t60=0.9, pick=0.12, mute=0.05, key=4 + i % 2)
+                s.add(b, x, o + bt, (0.8 + 0.05 * i) * g, dt=r.normal(0.002, 0.002))
+    b = loop_filter(s, b, "hp", 200)
+    b = loop_eq(s, b, "peak", 3000, 3.0, 0.9)
+    b = dsp.drive(b / dsp.peak(b) * 1.4, 1.4)  # rounds the pick transients: the strums stay loud enough to hear
+    return room(s, b, 0.14, 0.9, "guitar", damp=5500)
+
+
+SHAKE = {"vib": 0.9}  # a lip shake: a wide, fast wobble that grows on a long note
+SING = {"vib": 0.1}
+
+# Two four-bar phrases. The long notes arrive an 8th early (on the and of 2 and of 4, with the bass and the piano);
+# "fall" lets the note drop away at its end. C5-C6: the tune climbs to C6 in the second phrase and ends its
+# 'sol la ti do' on the tonic over the last C chord.
+CARNIVAL_TPT = {
+    0: [(0.0, 0.5, 76), (0.5, 0.5, 79), (1.5, 1.0, 81), (2.5, 0.5, 79), (3.0, 0.5, 77), (3.5, 1.5, 79, 0.9, SHAKE)],
+    1: [(1.5, 0.5, 81), (2.0, 0.5, 79), (2.5, 1.0, 77, 0.8, SING)],
+    2: [(0.0, 0.5, 76), (0.5, 0.5, 79), (1.5, 1.0, 81), (2.5, 0.5, 79), (3.0, 0.5, 77),
+        (3.5, 1.75, 74, 0.85, SING, "fall")],
+    4: [(0.0, 0.5, 84, 0.95), (0.5, 0.5, 83), (1.0, 0.5, 81), (1.5, 1.0, 81), (2.5, 0.5, 77), (3.0, 0.5, 81),
+        (3.5, 1.5, 79, 0.9, SHAKE)],
+    5: [(1.5, 1.0, 76), (2.5, 0.5, 72), (3.0, 0.5, 74), (3.5, 1.0, 77)],
+    6: [(0.5, 0.5, 81), (1.0, 0.5, 84), (1.5, 1.0, 81), (2.5, 0.5, 77), (3.0, 1.0, 74, 0.8, SING)],
+    7: [(0.0, 0.5, 79), (0.5, 0.5, 81), (1.0, 0.5, 83), (1.5, 1.75, 84, 0.95, SHAKE, "fall")],
+}
+
+
+def carnival_trumpet(s):
+    """Salsa trumpet: a bright saw whose filter opens with the breath, a little scoop into every note, shakes on
+    the long notes and a fall (a quieter note glued to the end that slides a fifth down) after the two phrases."""
+    ev = []
+    for e in bars(CARNIVAL_TPT):
+        ev.append(e[:5] if len(e) > 3 else e[:3] + (0.8,))
+        if len(e) > 5:
+            ev.append((e[0] + e[1] * 0.97, 0.45, e[2] - 7, 0.4,
+                       {"bend": -7.0, "bend_t": s.sec(0.4), "vib": 0.0, "scoop": 0.0}))
+    src, env, onset = render_line(s, events(s, ev), osc="saw", glide=0.005, legato_gap=0.005, attack=0.016,
+                                  release=0.06, vib_rate=6.8, vib_depth=0.0, vib_delay=0.12, scoop=0.25, key="ctpt")
+    x = src * env
+    x = dsp.sweep_filter(x, 1200.0 + 3600.0 * np.clip(env, 0, 1) + 1200.0 * onset, s.sr, q=0.8)
+    x = dsp.highpass(x, 500, s.sr, 2)
+    x = dsp.filt(x, "peak", 1500, s.sr, q=1.4, gain_db=7.0)
+    x = dsp.filt(x, "peak", 2800, s.sr, q=2.0, gain_db=4.0)
+    b = wrap(s, x / dsp.peak(x))
+    b = echo(s, b, 0.75, 0.1, 0.3, 2, 3500)
+    return room(s, b, 0.2, 1.2, "trumpet", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -1489,7 +1770,7 @@ def tension_stem(s, style):
     r = dsp.rng(s.id, "tension")
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach"}
+            "beach": "beach", "carnival": "carnival"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -1508,6 +1789,8 @@ def tension_stem(s, style):
             x = ins.epiano(m, s.sec(0.25), s.sr, vel=0.6, bright=1.0, release=0.08)
         elif style == "beach":  # palm-muted nylon string on the chord roots
             x = ins.guitar(m, s.sec(0.3), s.sr, bright=0.45, t60=0.55, pick=0.18, mute=0.04, key=7)
+        elif style == "carnival":  # the left hand of the piano, staccato
+            x = ins.piano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.8, release=0.06)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -1527,13 +1810,17 @@ def tension_stem(s, style):
 def party_chords(s, style):
     """Chords for the finale: the song's chords, except that jazz plays plain
     G13 instead of the altered G7s and Bbmaj9 (the tonic) where the song has
-    Dm7(11) (Bbmaj9 contains it): triumphant and clearly in Bb, not G minor."""
+    Dm7(11) (Bbmaj9 contains it): triumphant and clearly in Bb, not G minor;
+    and the carnival plays its dominant as a plain G triad (the F of every G7
+    on top of the F and Dm7 chords would make the finale read as F major)."""
     out = []
     for c in s.chords:
         if style == "jazz" and c.name.startswith("G7("):
             c = Chord(c.start, c.dur, c.root, [4, 10, 14, 21], "G13")
         elif style == "jazz" and c.name == "Dm7(11)":
             c = Chord(c.start, c.dur, (c.root + 8) % 12, [4, 7, 11, 14], "Bbmaj9")
+        elif style == "carnival" and c.name == "G7":
+            c = Chord(c.start, c.dur, c.root, [0, 4, 7], "G")
         out.append(c)
     return out
 
@@ -1567,7 +1854,7 @@ def party_stem(s, style):
     """Final concert: crashes, claps, 16th percussion, stabs and a bright arp."""
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach"}
+            "beach": "beach", "carnival": "carnival"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -1587,6 +1874,9 @@ def party_stem(s, style):
         if style in ("stadium", "garage", "square"):
             for bt in range(4):
                 hit(s, b, dk["kick"], o + bt, 0.5, r, 0.0)
+        if style == "carnival":  # the bongo bell of the mambo section: the beats, and the off-beats of 2 and 4
+            for bt, v in ((0, 0.9), (1, 0.6), (1.5, 0.45), (2, 0.9), (3, 0.6), (3.5, 0.45)):
+                hit(s, b, k["bell"], o + bt, 0.4 * v, r, 0.002)
         if bar in (3, 7):
             for j in range(8):
                 hit(s, b, dk["snare"], o + 2 + j * 0.25, 0.3 + 0.06 * j, r, 0.002)
@@ -1618,6 +1908,8 @@ def party_stem(s, style):
                 x = ins.vibes(m, s.sr, vel=0.6, dur=0.8, release=0.3)
             elif style == "beach":  # a marimba on the beach instead of the glockenspiel
                 x = ins.marimba(m, s.sr, vel=0.8, dur=0.8)
+            elif style == "carnival":  # the top of the piano
+                x = ins.piano(m, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
             else:
                 x = ins.glock(m, s.sr, vel=0.7, dur=0.8, octave_up=False)
             s.add(arp, x, c.start + i * 0.5, 0.8 if i % 2 == 0 else 0.6)
@@ -1647,6 +1939,9 @@ DISTRICTS = {
     "beach": dict(song=beach_song, stems={
         "perc": beach_perc, "guitar": beach_guitar, "bass": beach_bass, "shaker": beach_shaker,
         "keys": beach_keys, "flute": beach_flute}),
+    "carnival": dict(song=carnival_song, stems={
+        "congas": carnival_congas, "shaker": carnival_shaker, "bass": carnival_bass, "piano": carnival_piano,
+        "guitar": carnival_guitar, "trumpet": carnival_trumpet}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -1668,6 +1963,8 @@ LOUDNESS = {
                "toms": -15, "strings": -19, "gang": -15, "tension": -18, "party": -16},
     "beach": {"perc": -17, "guitar": -18, "bass": -19, "shaker": -20, "keys": -20, "flute": -18,
               "tension": -18, "party": -16},
+    "carnival": {"congas": -17, "shaker": -20, "bass": -19, "piano": -19, "guitar": -19, "trumpet": -18,
+                 "tension": -18, "party": -16},
 }
 
 
