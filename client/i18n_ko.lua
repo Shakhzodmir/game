@@ -18,6 +18,8 @@ return {
 	["blocker.dancefloor"] = "댄스 플로어",
 	["blocker.dancefloor_desc"] = "보라색 타일 위에서 매치하면 금빛으로 켜져요. 이중 테두리는 두 번 맞춰야 해요.",
 	["blocker.mic"] = "마이크",
+	["blocker.chain"] = "사슬",
+	["blocker.chain_desc"] = "사슬에 묶인 조각은 직접 옮길 수 없어요. 같은 색으로 줄을 맞추면 사슬이 끊어져요.",
 	["blocker.coconut"] = "코코넛",
 	["blocker.coconut_desc"] = "코코넛은 터지지 않아요. 아래 조각을 없애서 맨 아랫줄까지 내려 주세요.",
 	["blocker.mic_desc"] = "마이크를 판 아래쪽 스탠드까지 내려 주세요.",
@@ -168,6 +170,7 @@ return {
 	["jukebox.title"] = "주크박스",
 
 	["level.fixed_blocker"] = "움직이지 않아요. 옆에서 매치해서 부수세요",
+	["level.fixed_chained"] = "사슬에 묶인 조각은 옮길 수 없어요. 같은 색으로 줄을 맞추세요",
 	["level.fixed_wired"] = "전선에 묶인 조각은 움직이지 않아요. 그 자리에서 맞추세요",
 
 	["lives.free_levels"] = "1~{n}레벨은 하트가 들지 않아요",
@@ -405,6 +408,7 @@ return {
 	["tutorial.balloon_match"] = "풍선 옆에서 같은 색을 맞추면 터져요",
 	["tutorial.bird"] = "2×2 정사각형을 맞추면 노래새가 나와요!",
 	["tutorial.booster"] = "부스터를 누르고 대상을 고르세요",
+	["tutorial.chain"] = "사슬이 조각을 붙잡고 있어요. 줄을 맞춰 끊어요!",
 	["tutorial.coconut"] = "코코넛은 터지지 않아요. 맨 아랫줄까지 내려 주세요!",
 	["tutorial.coconut_drop"] = "코코넛 아래 조각을 맞추면 아래로 떨어져요",
 	["tutorial.column"] = "커다란 스피커의 먼지를 털어 내세요!",

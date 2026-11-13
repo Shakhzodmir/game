@@ -36,7 +36,7 @@ function SP.disco(s, src, o, cell, X)
 		for i = 1, s.N do
 			local p = B.get(s, i)
 			if p and p.cell == i and p.state == S_IDLE and p.color == X
-				and ((p.kind == K_REGULAR and p.pins[1] == nil)
+				and ((p.kind == K_REGULAR and p.pins[1] == nil and p.chain == 0)
 					or (p.kind == K_BLOCKER and p.blocker == C.BK_BALLOON)) then
 				local px, py = U.xy(s.W, i)
 				L[#L + 1] = { math.max(math.abs(px - x), math.abs(py - y)), p }

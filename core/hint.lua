@@ -38,9 +38,11 @@ local function progress(s, g)
 	local light = B.goal_open(s, C.GOAL_LIGHT, 0)
 	local deliver = B.goal_open(s, C.GOAL_DELIVER, 0)
 	local drop = B.goal_open(s, C.GOAL_DROP, 0)
+	local chains = B.goal_open(s, C.GOAL_CHAINS, 0)
 	for k = 1, #g.cells do
 		local i = g.cells[k]
 		if light and s.floor[i] > 0 then return true end
+		if chains and B.get(s, i).chain > 0 then return true end
 		local x, y = U.xy(W, i)
 		if deliver and y > 1 then
 			local above = B.get(s, i - W)

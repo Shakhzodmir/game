@@ -13,6 +13,7 @@
     "blockers/mic_stand.png": "exit marker drawn under the bottom cell of an exit column",
     "blockers/column_*.png": "2x2 cells",
     "blockers/wires_*.png": "overlay drawn above the piece; the centre stays transparent",
+    "blockers/chain_*.png": "PLACEHOLDER (PIL). Overlay drawn above a chained piece and moving with it; the number is the hp left: chain_1 one golden chain with a padlock, chain_2 the stronger one (a steel chain behind it)",
     "blockers/floor_*.png": "opaque dance-floor tiles drawn instead of the cell tile, edge to edge so neighbours join. VIOLET = still to light (floor_2 two layers: double outline; floor_1 one layer), floor_half = a two-layer tile after its first hit (violet frame, gold core), floor_lit = lit (gold)",
     "ui/button_*.png": "nine-slice [left, top, right, bottom]; the bottom border holds the darker shelf",
     "ui/button_small_*.png": "64px nine-slice [16, 16, 16, 22] for small buttons (smallest size 32x38), e.g. the 46px '+' button",
@@ -401,6 +402,20 @@
       "h": 160,
       "alpha": true,
       "bytes": 15252
+    },
+    "blockers/chain_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12867,
+      "placeholder": true
+    },
+    "blockers/chain_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 18482,
+      "placeholder": true
     },
     "blockers/coconut.png": {
       "w": 160,

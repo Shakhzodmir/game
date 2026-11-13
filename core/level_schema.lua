@@ -127,6 +127,7 @@ local GOAL_KEYS = {
 	light = { type = true },
 	deliver = { type = true, count = true },
 	drop = { type = true, count = true },
+	chains = { type = true, count = true },
 }
 
 -- slot type -> {fields = {name = checker}}
@@ -200,7 +201,7 @@ function LS.check(raw, errs)
 			local g = raw.goals[k]
 			local path = "goals[" .. k .. "]"
 			if not is_object(g) or type(g.type) ~= "string" or not GOAL_KEYS[g.type] then
-				e(path .. ": goal type collect|break|light|deliver|drop required")
+				e(path .. ": goal type collect|break|light|deliver|drop|chains required")
 			else
 				check_keys(g, GOAL_KEYS[g.type], path, errs)
 				if g.type == "collect" and not is_color(g.color) then e(path .. ": color required") end
@@ -260,7 +261,7 @@ function LS.check(raw, errs)
 	end)
 	list("overlay", function(item, path)
 		check_keys(item, { at = true, type = true, hp = true }, path, errs)
-		if item.type ~= "wires" then e(path .. ": type 'wires' required") end
+		if item.type ~= "wires" and item.type ~= "chain" then e(path .. ": type 'wires' or 'chain' required") end
 		if not hp_range(1, 2)(item.hp) then e(path .. ": hp 1..2 required") end
 	end)
 	list("slots", function(item, path)

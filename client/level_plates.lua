@@ -5,8 +5,9 @@
 -- where it is (it still matches in place). Pieces, specials and microphones move. The client only has to look
 -- different and to answer an attempt:
 --
---   fixed-ness .... M.kind(p, wired) -> "blocker" | "wired" | nil: the one answer the input, the refusal
---                   feedback and the plates share (p = an entry of game:pieces(), wired = the cell has wires)
+--   fixed-ness .... M.kind(p, wired) -> "blocker" | "wired" | "chained" | nil: the one answer the input, the
+--                   refusal feedback and the plates share (p = an entry of game:pieces(), wired = the cell has
+--                   wires). "chained" (core-rules 10.6) is refused like the others but has no plate: it falls
 --   plates ........ a cool, sunken, bolted plate (board/plate.png) under every such object, drawn as a "mark"
 --                   of client/level_view.lua below the object: one per cell, one at twice the size for the
 --                   column. It goes with the object: it blooms in with it, shrinks away with a destroyed
@@ -34,7 +35,7 @@ M.FADE_OUT = 0.2          -- seconds a plate takes to go once its object is gone
 M.COLUMN_CELLS = 2
 
 -- Toast of the first refusal, by kind (literal keys: tools/check_refs.lua follows them).
-M.TOAST = { blocker = "level.fixed_blocker", wired = "level.fixed_wired" }
+M.TOAST = { blocker = "level.fixed_blocker", wired = "level.fixed_wired", chained = "level.fixed_chained" }
 
 -- what makes an object fixed for good (not a passing state: falling, swapping, clearing, pinned pieces
 -- refuse too, but they do not sit on a plate)
@@ -42,6 +43,7 @@ function M.kind(p, wired)
 	if not p then return nil end
 	if p.kind == "blocker" then return "blocker" end
 	if wired and p.kind == "regular" then return "wired" end
+	if p.chain and p.kind == "regular" then return "chained" end
 	return nil
 end
 
@@ -91,7 +93,7 @@ function Plates:fill(list, n, pieces, cells, geom, anim, t, sx, sy)
 			local idx = (p.y - 1) * W + p.x
 			local c = cells and cells[idx]
 			local kind = M.kind(p, c ~= nil and (c.wires or 0) > 0)
-			if kind and not p.hidden then
+			if kind and kind ~= "chained" and not p.hidden then
 				-- how the object looks now: the plate blooms with it and shrinks with it, and waits while
 				-- the noise creeps over a piece that is still drawn as it was
 				local v = anim and anim:record(p.id)

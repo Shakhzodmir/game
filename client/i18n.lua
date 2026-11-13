@@ -98,6 +98,10 @@ local S = {
 		en = "Wired pieces can't move — match them where they stand",
 		ru = "Фишка в проводах не двигается — собери её на месте",
 	},
+	["level.fixed_chained"] = {
+		en = "A chained piece can't be moved — make a match with it",
+		ru = "Фишку на цепи не сдвинуть — собери с ней ряд",
+	},
 
 	-- level effects: combo titles over the board, the final concert (screens/level/level_fx.gui_script) --
 	["combo.cross"] = { en = "Cross!", ru = "Крест!" },
@@ -159,6 +163,7 @@ local S = {
 	["blocker.wires"] = { en = "Wires", ru = "Провода" },
 	["blocker.mic"] = { en = "Microphone", ru = "Микрофон" },
 	["blocker.coconut"] = { en = "Coconut", ru = "Кокос" },
+	["blocker.chain"] = { en = "Chain", ru = "Цепь" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -194,6 +199,10 @@ local S = {
 	["blocker.coconut_desc"] = {
 		en = "A coconut never pops. Clear the pieces under it and bring it down to the bottom row.",
 		ru = "Кокос не лопается. Убирай фишки под ним и доведи его до нижнего ряда.",
+	},
+	["blocker.chain_desc"] = {
+		en = "A chained piece won't move by itself. Make a match with it and the chain snaps.",
+		ru = "Фишка на цепи не двигается сама. Собери с ней ряд — цепь лопнет.",
 	},
 	["blocker.column_desc"] = {
 		en = "A big dusty speaker: every match next to it and every special knocks off one point.",
@@ -320,6 +329,10 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	["tutorial.chain"] = {
+		en = "A chain holds the piece. Make a match with it!",
+		ru = "Цепь держит фишку. Собери с ней ряд!",
+	},
 	["tutorial.coconut"] = {
 		en = "Coconuts don't pop: bring them down!",
 		ru = "Кокос не лопается: опусти его вниз!",
