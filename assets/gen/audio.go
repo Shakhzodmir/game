@@ -834,6 +834,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/bazaar_noon.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_beach_morning_samba"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/beach_morning_samba.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_bit_boss_battle"
   type: "sound"
   data: "sound: \"/assets/music/songs/bit_boss_battle.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -877,6 +882,11 @@ embedded_components {
   id: "song_city_lights_pop"
   type: "sound"
   data: "sound: \"/assets/music/songs/city_lights_pop.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_coconut_cha_cha"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/coconut_cha_cha.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_crossroad_stomp"
@@ -1002,6 +1012,11 @@ embedded_components {
   id: "song_neon_heartbeat"
   type: "sound"
   data: "sound: \"/assets/music/songs/neon_heartbeat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_night_tide"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/night_tide.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_oasis_nights"
@@ -1137,6 +1152,11 @@ embedded_components {
   id: "song_sunrise_ballad"
   type: "sound"
   data: "sound: \"/assets/music/songs/sunrise_ballad.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_sunset_hammock"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/sunset_hammock.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_surf_splash"

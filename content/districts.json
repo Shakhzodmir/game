@@ -822,7 +822,52 @@
       "semitones_from_c": 2,
       "bars": 8,
       "mood": "bossa nova on the beach, warm and breezy, nylon guitar and soft percussion",
-      "songs": [],
+      "songs": [
+        {
+          "id": "beach_morning_samba",
+          "name": {
+            "ru": "Утренняя самба",
+            "en": "Morning Samba",
+            "ko": "아침 삼바"
+          },
+          "bpm": 128,
+          "bars": 12,
+          "mood": "bright morning samba: tamborim and agogo, quick nylon strums, a busy clarinet tune, marimba answers"
+        },
+        {
+          "id": "sunset_hammock",
+          "name": {
+            "ru": "Гамак на закате",
+            "en": "Sunset Hammock",
+            "ko": "노을 해먹"
+          },
+          "bpm": 100,
+          "bars": 8,
+          "mood": "relaxed sunset bossa: finger-picked nylon guitar, cajon and cross-stick, e-piano, a slow tenor sax"
+        },
+        {
+          "id": "night_tide",
+          "name": {
+            "ru": "Ночной прилив",
+            "en": "Night Tide",
+            "ko": "밤의 밀물"
+          },
+          "bpm": 88,
+          "bars": 8,
+          "mood": "lullaby-bossa by the night sea: celesta tune, soft strums, vibraphone, a hummed voice, waves"
+        },
+        {
+          "id": "coconut_cha_cha",
+          "name": {
+            "ru": "Кокосовый ча-ча-ча",
+            "en": "Coconut Cha-Cha",
+            "ko": "코코넛 차차"
+          },
+          "bpm": 120,
+          "bars": 12,
+          "mood": "beach-party cha-cha-cha: guiro, cowbell and congas, piano stabs, a marimba tune in thirds"
+        }
+      ],
       "chest": {
         "coins": 1200,
         "boosters": [
