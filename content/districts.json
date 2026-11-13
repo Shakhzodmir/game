@@ -801,6 +801,104 @@
           "stem_desc": "gang vocal 'hey' shouts (synthesized vowel)"
         }
       ]
+    },
+    {
+      "id": "beach",
+      "first": 101,
+      "last": 120,
+      "map_tint": "#F6E3C0",
+      "name": {
+        "ru": "Босса-Бич",
+        "en": "Bossa Beach",
+        "ko": "보사 비치"
+      },
+      "genre": {
+        "ru": "Босса-нова",
+        "en": "Bossa nova",
+        "ko": "보사노바"
+      },
+      "bpm": 112,
+      "key": "D",
+      "semitones_from_c": 2,
+      "bars": 8,
+      "mood": "bossa nova on the beach, warm and breezy, nylon guitar and soft percussion",
+      "songs": [],
+      "chest": {
+        "coins": 1200,
+        "boosters": [
+          "disco",
+          "row_light",
+          "col_light"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "cajon",
+          "name": {
+            "ru": "Кахон и маракасы",
+            "en": "Cajon and maracas",
+            "ko": "카혼과 마라카스"
+          },
+          "cost": 1,
+          "stem": "perc",
+          "stem_desc": "bossa clave on cajon and rim, soft kick"
+        },
+        {
+          "id": "guitar",
+          "name": {
+            "ru": "Гитара",
+            "en": "Nylon guitar",
+            "ko": "나일론 기타"
+          },
+          "cost": 5,
+          "stem": "guitar",
+          "stem_desc": "nylon guitar comping, syncopated bossa chords"
+        },
+        {
+          "id": "surf_speaker",
+          "name": {
+            "ru": "Колонка-сёрф",
+            "en": "Surfboard speaker",
+            "ko": "서프보드 스피커"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "round upright-style bass, root and fifth"
+        },
+        {
+          "id": "tiki_bar",
+          "name": {
+            "ru": "Пляжный бар",
+            "en": "Beach bar",
+            "ko": "비치 바"
+          },
+          "cost": 6,
+          "stem": "shaker",
+          "stem_desc": "shaker 16ths and maracas accents"
+        },
+        {
+          "id": "hammock",
+          "name": {
+            "ru": "Гамак",
+            "en": "Hammock",
+            "ko": "해먹"
+          },
+          "cost": 7,
+          "stem": "keys",
+          "stem_desc": "soft electric piano chords and fills"
+        },
+        {
+          "id": "palm_lights",
+          "name": {
+            "ru": "Пальма с огоньками",
+            "en": "Palm with lights",
+            "ko": "전구 야자수"
+          },
+          "cost": 7,
+          "stem": "flute",
+          "stem_desc": "breathy flute melody"
+        }
+      ]
     }
   ],
   "level_stems": {
