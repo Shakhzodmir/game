@@ -75,6 +75,18 @@
         { "kind": "notes", "item": "surf_speaker", "x": 668, "y": 640, "count": 2, "layer": "over", "colors": ["#7CC8FF", "#FFD84D"], "rise": 170, "period": 4.2 },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "carnival": {
+      "mood": "festive",
+      "details": [
+        { "kind": "shaft", "x": 350, "y": 200, "w": 200, "h": 860, "angle": 12, "layer": "mid", "view": "day", "color": "#FFF1B8", "alpha": [0.1, 0.2], "period": 5.8 },
+        { "kind": "motes", "style": "dust", "rect": [140, 260, 440, 520], "count": 8, "layer": "mid", "view": "day", "color": "#FFE2A0" },
+        { "kind": "blink", "item": "banner", "points": [[218, 708], [270, 716], [322, 708]], "r": 22, "layer": "over", "colors": ["#3CF2FF", "#FFD84D", "#FF8FBE"], "period": 1.5, "alpha": [0.25, 0.7] },
+        { "kind": "notes", "item": "trumpet", "x": 628, "y": 610, "count": 3, "layer": "over", "colors": ["#FFD84D", "#FF8FBE", "#7BE8C0"], "rise": 190, "period": 3.2 },
+        { "kind": "notes", "item": "congas", "x": 210, "y": 730, "count": 2, "layer": "over", "colors": ["#FFB347", "#3CF2FF"], "rise": 170, "period": 4.0 },
+        { "kind": "motes", "style": "sparkle", "item": "pinata", "rect": [40, 640, 110, 150], "count": 4, "layer": "over", "color": "#FFFFFF" },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }
