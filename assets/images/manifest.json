@@ -406,8 +406,7 @@
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 16256,
-      "placeholder": true
+      "bytes": 28100
     },
     "blockers/column_1.png": {
       "w": 320,
