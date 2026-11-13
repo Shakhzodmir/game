@@ -12,7 +12,10 @@
 --   exit[i] (only with a deliver goal), floor[i], wires[i] (hp),
 --   seg_top[i], seg_bot[i] (rows of the segment of cell i),
 --   presets = {{cell, kind, color, special, axis, blocker, hp}} by cell,
---   mic = {total, on_board_max, gap_moves} or nil, canonical, hash.
+--   mic = {total, on_board_max, gap_moves} or nil,
+--   coconut = {total, on_board_max, gap_moves, cols[x]} or nil (cols: may a
+--   coconut enter in column x), canonical, hash.
+--   exit[i] is also kept with a drop goal (10.5).
 
 local C = require("core.const")
 local U = require("core.util")
@@ -58,7 +61,7 @@ local function where(W, i)
 end
 
 -- Normalization works on a context:
---   raw, lvl, errs, W, H, N, deliver, exits (all candidate exits, also
+--   raw, lvl, errs, W, H, N, deliver, drop, n_coconuts, exits (all candidate exits, also
 --   without deliver), slot_at[i] (preset covering cell i), counts[blocker],
 --   n_tiles, n_mics, in_colors[code].
 
@@ -117,15 +120,26 @@ local function read_colors_and_goals(ctx)
 		if t == C.GOAL_COLLECT then param = C.COLOR[g.color]
 		elseif t == C.GOAL_BREAK then param = C.BLOCKER[g.item] or -1 end
 		if t == C.GOAL_DELIVER then ctx.deliver = true end
+		if t == C.GOAL_DROP then ctx.drop = true end
 		lvl.goals[k] = { type = t, param = param, count = g.count or 1 }
 	end
 	if raw.mic then
 		lvl.mic = { total = raw.mic.total, on_board_max = raw.mic.on_board_max, gap_moves = raw.mic.gap_moves }
 	end
+	if raw.coconut then
+		local co = raw.coconut
+		local cols = {}
+		for x = 1, ctx.W do cols[x] = co.columns == nil end
+		if co.columns then
+			for k = 1, #co.columns do cols[co.columns[k] + 1] = true end
+		end
+		lvl.coconut = { total = co.total, on_board_max = co.on_board_max, gap_moves = co.gap_moves, cols = cols }
+	end
 end
 
 -- Spawners ("top" = topmost existing cell of each column) and exits
--- ("bottom" = bottom of every segment; kept only with a deliver goal).
+-- ("bottom" = bottom of every segment; kept only with a deliver or a drop
+-- goal).
 local function read_spawners_and_exits(ctx)
 	local raw, lvl, W, N = ctx.raw, ctx.lvl, ctx.W, ctx.N
 	if raw.spawners == nil or raw.spawners == "top" then
@@ -168,7 +182,7 @@ local function read_spawners_and_exits(ctx)
 	end
 	for i = 1, N do
 		if exits[i] then ctx.n_exits = ctx.n_exits + 1 end
-		if ctx.deliver then lvl.exit[i] = exits[i] == true end
+		if ctx.deliver or ctx.drop then lvl.exit[i] = exits[i] == true end
 	end
 end
 
@@ -210,6 +224,10 @@ local function preset_of(ctx, item, i)
 	elseif ty == "piece" then
 		p.kind = C.K_REGULAR
 		p.color = C.COLOR[item.color]
+	elseif ty == "coconut" then
+		p.kind = C.K_COCONUT
+		ctx.n_coconuts = ctx.n_coconuts + 1
+		if ctx.drop and ctx.exits[i] then err(ctx, "2.1.11", "starting coconut stands on an exit", i) end
 	else -- mic
 		p.kind = C.K_MIC
 		ctx.n_mics = ctx.n_mics + 1
@@ -279,9 +297,11 @@ local function static_rules(ctx)
 			errs[#errs + 1] = "2.1.5 light goal without floor tiles"
 		elseif g.type == C.GOAL_DELIVER and (not lvl.mic or ctx.n_exits == 0) then
 			errs[#errs + 1] = "2.1.5 deliver goal needs a mic block and an exit"
+		elseif g.type == C.GOAL_DROP and (not lvl.coconut or ctx.n_exits == 0) then
+			errs[#errs + 1] = "2.1.5 drop goal needs a coconut block and an exit"
 		end
 	end
-	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column
+	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut
 	local n_el = 0
 	for b = 1, 5 do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -294,6 +314,7 @@ local function static_rules(ctx)
 		end
 	end
 	if ctx.deliver or ctx.raw.mic ~= nil or ctx.n_mics > 0 then n_el = n_el + 1 end
+	if ctx.drop or ctx.raw.coconut ~= nil or ctx.n_coconuts > 0 then n_el = n_el + 1 end
 	if n_el > 3 then errs[#errs + 1] = "2.1.6 more than three different elements" end
 	-- 2.1.8, static part
 	if not ctx.deliver then
@@ -305,6 +326,31 @@ local function static_rules(ctx)
 		end
 		if lvl.mic and ctx.n_mics > math.min(lvl.mic.on_board_max, lvl.mic.total) then
 			errs[#errs + 1] = "2.1.8 more starting mics than min(on_board_max, total)"
+		end
+	end
+	-- 2.1.11: the coconuts, the mirror of 2.1.8
+	if not ctx.drop then
+		if ctx.raw.coconut ~= nil then errs[#errs + 1] = "2.1.11 coconut block without a drop goal" end
+		if ctx.n_coconuts > 0 then errs[#errs + 1] = "2.1.11 coconut pieces without a drop goal" end
+	else
+		if ctx.deliver then errs[#errs + 1] = "2.1.11 drop and deliver goals in one level" end
+		for i = 1, N do
+			if lvl.exit[i] and lvl.spawner[i] then err(ctx, "2.1.11", "exit is also a spawner", i) end
+		end
+		local co = lvl.coconut
+		if co and ctx.n_coconuts > math.min(co.on_board_max, co.total) then
+			errs[#errs + 1] = "2.1.11 more starting coconuts than min(on_board_max, total)"
+		end
+		if co and ctx.raw.coconut.columns then
+			for x = 1, ctx.W do
+				local has = false
+				for y = 1, ctx.H do
+					if lvl.spawner[(y - 1) * ctx.W + x] then has = true end
+				end
+				if co.cols[x] and not has then
+					errs[#errs + 1] = "2.1.11 coconut column " .. (x - 1) .. " has no spawner"
+				end
+			end
 		end
 	end
 	-- 2.1.9
@@ -324,13 +370,13 @@ local function normalize(raw, errs)
 	local ctx = {
 		raw = raw, errs = errs, W = W, H = H, N = W * H,
 		deliver = false, exits = {}, n_exits = 0, slot_at = {}, counts = { 0, 0, 0, 0, 0 },
-		n_tiles = 0, n_mics = 0, in_colors = {},
+		n_tiles = 0, n_mics = 0, n_coconuts = 0, drop = false, in_colors = {},
 		lvl = {
 			id = raw.id, version = raw.version, W = W, H = H, N = W * H, moves = raw.moves,
 			difficulty = C.DIFFICULTY[raw.difficulty],
 			colors = {}, weights = {}, goals = {},
 			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {},
-			seg_top = {}, seg_bot = {}, presets = {}, mic = nil,
+			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil,
 		},
 	}
 	read_cells(ctx)
@@ -401,12 +447,15 @@ local function fill_checks(lvl, slot_at, errs)
 	for k = 1, #lvl.goals do
 		if lvl.goals[k].type == C.GOAL_DELIVER then deliver = true end
 	end
+	local drop = lvl.coconut ~= nil
 	for i = 1, lvl.N do
 		if lvl.exists[i] then
 			if b1.slot[i] == 0 then
 				errs[#errs + 1] = "2.1.7 cell stays empty on board B1" .. where(W, i)
 			elseif deliver and not lvl.exit[i] and lvl.seg_bot[i] == row_of(W, i) then
 				errs[#errs + 1] = "2.1.8 segment bottom is not an exit" .. where(W, i)
+			elseif drop and not lvl.exit[i] and lvl.seg_bot[i] == row_of(W, i) then
+				errs[#errs + 1] = "2.1.11 segment bottom is not an exit" .. where(W, i)
 			end
 		end
 	end

@@ -13,7 +13,9 @@
 -- colours (17.3). The real game keeps its own timing.
 --
 -- Score (plan p.26): goal progress x10 + specials created x3 + cascade waves
--- (+ a bonus for a combo swap).
+-- (+ a bonus for a combo swap). On a level with a `drop` goal every row a
+-- coconut comes down adds Bot.W.lower: without it a coconut pays only in the
+-- move that brings it to the bottom, and the bot would not dig under it.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -38,7 +40,7 @@ local SPECIAL_RANK = { bird = 1, riff = 2, sub = 3, disco = 4 }
 -- adds best2 * second_ply_num / second_ply_den.
 Bot.SCALE = 1000
 Bot.W = {
-	progress = 10, special = 3, wave = 1,
+	progress = 10, special = 3, wave = 1, lower = 3,
 	combo_greedy = 5, combo_strong = 15, combo_disco_strong = 25,
 	win_strong = 1000, near_goal = 3, rank_strong = 1, second_ply_num = 1, second_ply_den = 2,
 }
@@ -58,9 +60,13 @@ function Bot.new(kind, opts)
 		goals = opts.goals or {},   -- goals of the level JSON (for goal targets)
 		width = opts.width or 9,    -- board width (cells() is indexed (y-1)*W+x)
 		totals = nil,               -- initial goal counts (first decision)
+		drop = false,               -- the level has a `drop` goal (coconuts)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
 	}, Bot)
+	for k = 1, #self.goals do
+		if self.goals[k].type == "drop" then self.drop = true end
+	end
 	return self
 end
 
@@ -144,20 +150,22 @@ function Bot.new_acc()
 end
 
 -- Goal targets of the strong bot: cells of open goals (unlit tiles, blockers
--- of open `break` goals, mics). Collect goals have no cells.
+-- of open `break` goals, mics, coconuts). Collect goals have no cells.
 local function goal_targets(self, game, map, left)
-	local want_item, want_mic, want_floor = {}, false, false
+	local want_item, want_mic, want_floor, want_coconut = {}, false, false, false
 	for k = 1, #self.goals do
 		local g = self.goals[k]
 		if (left[k] or 0) > 0 then
 			if g.type == "break" then want_item[g.item] = true
 			elseif g.type == "deliver" then want_mic = true
+			elseif g.type == "drop" then want_coconut = true
 			elseif g.type == "light" then want_floor = true end
 		end
 	end
 	local cells = {}
 	for _, p in pairs(map) do -- order-independent (a set of cells)
-		if (p.item and want_item[p.item]) or (want_mic and p.kind == "mic") then
+		if (p.item and want_item[p.item]) or (want_mic and p.kind == "mic")
+			or (want_coconut and p.kind == "coconut") then
 			cells[#cells + 1] = { p.x, p.y }
 		end
 	end
@@ -179,6 +187,41 @@ local function near(cells, x, y, d)
 		if math.abs(c[1] - x) + math.abs(c[2] - y) <= d then return true end
 	end
 	return false
+end
+
+-- Rows of the coconuts on the board: {id, y} pairs (only on a level with a
+-- `drop` goal; nil otherwise, so the other levels pay nothing).
+function Bot.coconuts(self, game)
+	if not self.drop then return nil end
+	local out = {}
+	local list = game:pieces()
+	for k = 1, #list do
+		local p = list[k]
+		if p.kind == "coconut" then out[#out + 1] = { p.id, p.y } end
+	end
+	return out
+end
+
+-- Rows the coconuts of `before` came down in `game` (a clone after a move).
+-- A coconut that left the board counts the rows down to the bottom row of
+-- the level and one more. New coconuts are not counted.
+function Bot.lowered(self, before, game)
+	if not before or #before == 0 then return 0 end
+	local now = {}
+	local list = game:pieces()
+	local bottom = 0
+	for k = 1, #list do
+		local p = list[k]
+		if p.kind == "coconut" then now[p.id] = p.y end
+		if p.y > bottom then bottom = p.y end
+	end
+	local n = 0
+	for k = 1, #before do
+		local id, y = before[k][1], before[k][2]
+		local y2 = now[id] or (math.max(bottom, y) + 1)
+		if y2 > y then n = n + (y2 - y) end
+	end
+	return n
 end
 
 -- Weighted goal progress between two goal-left arrays, x SCALE. Every goal
@@ -297,6 +340,7 @@ function Bot:choose(game)
 	local before = game:status().goals
 	local strong = self.kind == "strong"
 	local targets = strong and goal_targets(self, game, map, before) or nil
+	local coconuts = Bot.coconuts(self, game)
 	local W = Bot.W
 	local scored = {}
 	for k = 1, #cands do
@@ -306,6 +350,7 @@ function Bot:choose(game)
 		if clone then
 			local after = clone:status().goals
 			sc = Bot.base_score(self, cd, acc, before, after)
+			if coconuts then sc = sc + Bot.SCALE * W.lower * Bot.lowered(self, coconuts, clone) end
 			if strong then
 				local extra = acc.won and W.win_strong or 0
 				for j = 1, #acc.specials do
@@ -336,6 +381,9 @@ function Bot:choose(game)
 					local cl2, acc2 = Bot.simulate(self, e.clone, hits[j].cand)
 					if cl2 then
 						local s2 = Bot.base_score(self, hits[j].cand, acc2, before2, cl2:status().goals)
+						if coconuts then
+							s2 = s2 + Bot.SCALE * W.lower * Bot.lowered(self, Bot.coconuts(self, e.clone), cl2)
+						end
 						if acc2.won then s2 = s2 + Bot.SCALE * W.win_strong / 10 end
 						if s2 > best2 then best2 = s2 end
 					end

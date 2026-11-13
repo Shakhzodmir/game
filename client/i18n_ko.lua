@@ -18,6 +18,7 @@ return {
 	["blocker.dancefloor"] = "댄스 플로어",
 	["blocker.dancefloor_desc"] = "보라색 타일 위에서 매치하면 금빛으로 켜져요. 이중 테두리는 두 번 맞춰야 해요.",
 	["blocker.mic"] = "마이크",
+	["blocker.coconut"] = "코코넛",
 	["blocker.mic_desc"] = "마이크를 판 아래쪽 스탠드까지 내려 주세요.",
 	["blocker.noise"] = "잡음",
 	["blocker.noise_desc"] = "잡음을 건드리지 않고 한 턴이 지나면 퍼져요. 옆에서 매치하면 없앨 수 있어요.",

@@ -8,7 +8,7 @@
 --
 --   local level_input = require("client.level_input")
 --   local inp = level_input.new({mode = "swipe" | "taptap", query = fn(x, y)})
---   -- query(x, y) -> nil (no object) or {id, kind = "regular"|"special"|"mic"|"blocker",
+--   -- query(x, y) -> nil (no object) or {id, kind = "regular"|"special"|"mic"|"coconut"|"blocker",
 --   --                  state = "idle"|..., pinned = bool, wired = bool}
 --   inp:press(fx, fy)          -- continuous cell coords (level_geom:frac), nil = off the board
 --   local cmd = inp:move(fx, fy)    -- a swipe of 30% of a cell -> {type = "swap", from, to}
@@ -83,7 +83,7 @@ end
 -- A piece that may be selected: idle, not pinned, movable (no wires).
 local function selectable(p, mode)
 	if not p or p.state ~= "idle" or p.pinned or p.wired then return false end
-	if p.kind == "regular" or p.kind == "mic" then return true end
+	if p.kind == "regular" or p.kind == "mic" or p.kind == "coconut" then return true end
 	return mode == "taptap" and p.kind == "special"
 end
 

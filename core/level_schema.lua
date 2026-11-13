@@ -59,6 +59,7 @@ local SHAPE = {
 	size = "arr", colors = "arr", cells = "arr", at = "arr",
 	goals = "arr_obj", floor = "arr_obj", overlay = "arr_obj", slots = "arr_obj",
 	spawners = "arr_arr", exits = "arr_arr", mic = "obj", spawn_weights = "obj",
+	coconut = "obj", columns = "arr",
 }
 
 local function ser_scalar(v, out)
@@ -117,7 +118,7 @@ end
 local ROOT = {
 	id = true, version = true, size = true, moves = true, difficulty = true, colors = true,
 	goals = true, cells = true, spawners = true, exits = true, floor = true, overlay = true,
-	slots = true, mic = true, spawn_weights = true,
+	slots = true, mic = true, spawn_weights = true, coconut = true,
 }
 
 local GOAL_KEYS = {
@@ -125,6 +126,7 @@ local GOAL_KEYS = {
 	["break"] = { type = true, item = true, count = true },
 	light = { type = true },
 	deliver = { type = true, count = true },
+	drop = { type = true, count = true },
 }
 
 -- slot type -> {fields = {name = checker}}
@@ -144,6 +146,7 @@ local SLOT_FIELDS = {
 	sub = {}, bird = {}, disco = {},
 	piece = { color = is_color },
 	mic = {},
+	coconut = {},
 }
 
 local function is_at(v)
@@ -197,7 +200,7 @@ function LS.check(raw, errs)
 			local g = raw.goals[k]
 			local path = "goals[" .. k .. "]"
 			if not is_object(g) or type(g.type) ~= "string" or not GOAL_KEYS[g.type] then
-				e(path .. ": goal type collect|break|light|deliver required")
+				e(path .. ": goal type collect|break|light|deliver|drop required")
 			else
 				check_keys(g, GOAL_KEYS[g.type], path, errs)
 				if g.type == "collect" and not is_color(g.color) then e(path .. ": color required") end
@@ -275,12 +278,46 @@ function LS.check(raw, errs)
 		end
 		check_keys(item, allowed, path, errs)
 	end)
-	local deliver = nil
+	local deliver, drop = nil, nil
 	if is_array(raw.goals) then
 		for k = 1, #raw.goals do
 			local g = raw.goals[k]
 			if is_object(g) and g.type == "deliver" then deliver = g end
+			if is_object(g) and g.type == "drop" then drop = g end
 		end
+	end
+	if raw.coconut ~= nil then
+		local m = raw.coconut
+		if not is_object(m) then
+			e("coconut: object required")
+		else
+			check_keys(m, { total = true, on_board_max = true, gap_moves = true, columns = true }, "coconut", errs)
+			if not (is_int(m.total) and m.total >= 1) then e("coconut: total >= 1 required") end
+			if not (is_int(m.on_board_max) and m.on_board_max >= 1) then e("coconut: on_board_max >= 1 required") end
+			if not (is_int(m.gap_moves) and m.gap_moves >= 0) then e("coconut: gap_moves >= 0 required") end
+			if drop and is_int(drop.count) and is_int(m.total) and m.total < drop.count then
+				e("coconut: total must not be less than the drop count")
+			end
+			if m.columns ~= nil then
+				if not is_array(m.columns) or #m.columns < 1 then
+					e("coconut: columns must be a non-empty list of column numbers")
+				else
+					local seen = {}
+					for j = 1, #m.columns do
+						local x = m.columns[j]
+						if not (is_int(x) and x >= 0 and W and x < W) then
+							e("coconut: columns[" .. j .. "] must be a column number 0..W-1")
+						elseif seen[x] then
+							e("coconut: columns[" .. j .. "] repeats a column")
+						else
+							seen[x] = true
+						end
+					end
+				end
+			end
+		end
+	elseif drop then
+		e("coconut: block required with a drop goal")
 	end
 	if raw.mic ~= nil then
 		local m = raw.mic

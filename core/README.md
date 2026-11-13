@@ -56,7 +56,7 @@ Bots: `game:clone{reseed = k}`, `clone:set_timing("turbo")`,
 | `specials.lua` | the `activate` record (§7.2), single specials, Disco ball and its steps (§8.4); registers the record handlers |
 | `bird.lua` | the Bird (§8.3): cross, level table, candidates, density, cargo tuples (§9), flights, reservations, `bird_impact`, Trio |
 | `combos.lua` | the ten combos (§8.5): Cross, Triple cross, Bass drop, Bird with cargo, Trio, Grand finale, "Colour X" transforms |
-| `gravity.lua` | assignment pass (§10.1), movement (§10.2), spawn colours and help (§10.3), mic release (§10.4), `hidden` |
+| `gravity.lua` | assignment pass (§10.1), movement (§10.2), spawn colours and help (§10.3), mic release (§10.4), coconut release (§10.5), `hidden` |
 | `moves.lua` | expected board and swap evaluation (§5.1.2), move list and `has_move` (§12.1) |
 | `shuffle.lua` | shuffle and fallbacks (§12.2), used by the start, the rest step and Remix |
 | `flow.lua` | rest detection, step 8: noise growth, out of moves, shuffle (§11); final concert (§13) |
@@ -103,7 +103,8 @@ states and counters and queue records due `now`).
 4. objects in `clear` whose timer expired leave the board.
 5. gravity: one bottom-up pass assigning transfers, spawns and diagonals.
 6. movement: per column bottom-up with the clamp; turbo lands everything.
-7. match search if the board is dirty; microphone delivery every tick.
+7. match search if the board is dirty; microphone delivery and coconut
+   collection (§10.5) every tick.
 8. at rest: noise growth for each queued action, out of moves, shuffle when
    there is no move; `won_wait` -> concert, concert phase C; `rest_flag`.
 
@@ -233,6 +234,17 @@ Readings fixed by the audit of §0-§5, §14 and §15
   names the byte where the offending token starts.
 - `skip` twice is harmless; `set_timing('normal')` on a turbo clone changes
   the mode only.
+
+## Coconuts (§10.5)
+
+The coconut of district 6 is a kind of its own (`K_COCONUT = 5`, goal
+`GOAL_DROP = 5`) built as a twin of the microphone: movable, colourless,
+untouched by every hit, released by the spawners under the block `coconut`
+of the level (`gravity.lua`), collected on an exit in step 7 (`tick.lua`,
+event `coconut_collected`, 50 points). It shares the exits and the counters
+`released`, `on_board`, `last_mic` with the microphone, so the hash layout
+is unchanged and a level has one or the other (rule 2.1.11). Tests:
+`tests/core/coconut_test.lua`.
 
 ## Status
 

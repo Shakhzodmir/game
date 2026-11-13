@@ -87,6 +87,7 @@ function M.image(p, max_hp)
 	if k == "regular" then return "pieces_" .. (p.color or "red") end
 	if k == "special" then return "specials_" .. (p.special or "riff") end
 	if k == "mic" then return "blockers_mic" end
+	if k == "coconut" then return "blockers_coconut" end
 	local item = p.item
 	local hp = p.hp or 1
 	if item == "record_box" then
@@ -446,7 +447,8 @@ function Anim:frame(pieces, tick_f, t)
 				local s = 1 + 0.06 * math.sin(k * math.pi)
 				sx, sy = s, s
 				flash = 0.35 * (1 - k)
-			elseif kind == "mic" then
+			elseif kind == "mic" or kind == "coconut" then
+				-- delivered / collected at the bottom: it sinks out of the board
 				local k = clamp01(u / M.CLEAR_TICKS)
 				y = y - cell * 0.6 * k
 				local s = 1 - 0.5 * k
