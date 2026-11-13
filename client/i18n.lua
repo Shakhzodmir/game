@@ -191,6 +191,10 @@ local S = {
 		en = "A balloon pops when you match its colour next to it, or with any special.",
 		ru = "Шарик лопается от матча его цвета рядом или от любой спецфишки.",
 	},
+	["blocker.coconut_desc"] = {
+		en = "A coconut never pops. Clear the pieces under it and bring it down to the bottom row.",
+		ru = "Кокос не лопается. Убирай фишки под ним и доведи его до нижнего ряда.",
+	},
 	["blocker.column_desc"] = {
 		en = "A big dusty speaker: every match next to it and every special knocks off one point.",
 		ru = "Большая пыльная колонка: каждый матч рядом и каждая спецфишка снимают одно очко.",
@@ -316,6 +320,10 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	["tutorial.coconut"] = {
+		en = "Coconuts don't pop: bring them down!",
+		ru = "Кокос не лопается: опусти его вниз!",
+	},
 	-- steps of content/tutorials*.json (client/tutorial.lua): one line per step
 	["tutorial.disco_swap"] = {
 		en = "Swap the Disco ball with any piece",
@@ -362,6 +370,10 @@ local S = {
 	["tutorial.balloon_match"] = {
 		en = "Match their colour next to a balloon to pop it",
 		ru = "Собери рядом фишки его цвета — шарик лопнет",
+	},
+	["tutorial.coconut_drop"] = {
+		en = "Match the pieces under the coconut and it drops",
+		ru = "Собери фишки под кокосом — он упадёт",
 	},
 	["tutorial.column_match"] = {
 		en = "Every match next to the speaker knocks off dust",

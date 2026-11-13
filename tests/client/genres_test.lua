@@ -155,7 +155,8 @@ describe("every room has its own song", function()
 			assert_true(not seen[d.id], "one theme per room")
 			seen[d.id] = true
 		end
-		assert_eq(#m:districts(), 5)
+		assert_eq(#m:districts(), #H.districts().districts)
+		assert_true(seen.beach, "district 6 has its own theme")
 	end)
 
 	it("a pick wins over the room until the way home is taken", function()

@@ -551,10 +551,13 @@ describe("screens/town/town.gui_script", function()
 		end }, function(c)
 			assert_eq(c.app.ui.card, "done")
 			assert_true(c.town:has_text("The whole town is shining!", true))
-			assert_eq(c.app.ui.nav.count, 5)
-			assert_eq(c.app.ui.district, "garage")
+			local list = c.app.meta:districts()
+			assert_eq(#list, 6)
+			assert_eq(c.app.ui.nav.count, #list)
+			assert_eq(c.app.ui.district, list[#list].id)
+			assert_eq(c.app.ui.district, "beach")
 			-- paging all the way back works through every district
-			for _ = 1, 4 do
+			for _ = 1, #list - 1 do
 				tap_target(c, "nav_prev")
 				c.run(1)
 			end

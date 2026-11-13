@@ -95,12 +95,18 @@ local function play(level, defs, mode)
 end
 
 -- The first level that has each of the elements of the plan (slots, floor tiles, overlay): the level that brings it.
-local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column" }
+local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut" }
+
+-- the last level of the game: the `last` of the last district of content/districts.json
+local function last_level()
+	local list = json.decode(read("content/districts.json")).districts
+	return list[#list].last
+end
 
 local function first_levels()
 	local want, first = {}, {}
 	for _, k in ipairs(ELEMENTS) do want[k] = true end
-	for n = 1, 100 do
+	for n = 1, last_level() do
 		local text = read(string.format("content/levels/level_%04d.json", n))
 		if text then
 			local level = json.decode(text)

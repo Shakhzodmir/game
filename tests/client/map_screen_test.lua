@@ -286,10 +286,15 @@ describe("screens/map/map.gui_script", function()
 		end)
 	end)
 
-	it("after level 100 the map ends with the 'new levels soon' sign and Bit stands on the last node", function()
-		with_map({ setup = function(app) G.win(app, 99) end }, function(c)
+	it("after the last level the map ends with the 'new levels soon' sign and Bit stands on the last node", function()
+		local last = require("meta.config").levels.count -- bound to content/districts.json by the app (120)
+		with_map({ setup = function(app)
+			last = require("meta.config").levels.count
+			G.win(app, last - 1)
+		end }, function(c)
 			local u = c.app.ui
-			assert_eq(u.map.next, 100)
+			assert_true(last > 100, "district 6 shipped")
+			assert_eq(u.map.next, last)
 			c.map:final()
 			assert(require("client.flow").debug_win(3))
 			c.open()
@@ -297,7 +302,7 @@ describe("screens/map/map.gui_script", function()
 			assert_eq(u.map.next, nil)
 			c.run(3)
 			assert_false(u.map.walking)
-			assert_near(u.map.bit_u, 100, 1e-6)
+			assert_near(u.map.bit_u, last, 1e-6)
 			c.tap(0, 0) -- nothing to tap there: no crash
 			assert_true(c.map:has_text("New levels soon!") or true)
 			-- the sign is at the end of the map: scroll up to it

@@ -5,8 +5,9 @@ local H = require("tests.meta.helper")
 local T = H.T0
 
 describe("meta playthrough", function()
-	-- Plays all 100 levels on the plan's difficulty sawtooth, spends every
-	-- star on the town as soon as possible and checks the totals.
+	-- Plays the first 100 levels on the plan's difficulty sawtooth (plan v1 is a plan of the first hundred;
+	-- the levels after it, district 6 and on, are played from their files in end_content_test.lua), spends
+	-- every star on the town as soon as possible and checks the totals.
 	local m, ledger, star_log
 	before_each(function()
 		m = H.new(2024)
@@ -31,15 +32,20 @@ describe("meta playthrough", function()
 		end
 	end)
 
-	it("earns 126 stars and finishes all five districts by level 100", function()
-		assert_true(m:all_done())
+	it("earns 126 stars and finishes the first five districts by level 100", function()
+		assert_eq(m:serialize().progress.beaten, 100)
+		assert_eq(m:all_done(), #H.districts().districts == 5, "100 is the end only in a build of five districts")
 		assert_eq(H.ledger_sum(ledger, "stars", "level_win"), 126)
 		assert_eq(#star_log, 5)
 		assert_same({ star_log[1], star_log[2], star_log[3], star_log[4] },
 			{ { "cafe", 11 }, { "jazz", 30 }, { "square", 53 }, { "stadium", 77 } })
 		assert_eq(star_log[5][1], "garage")
 		assert_true(star_log[5][2] >= 95 and star_log[5][2] <= 100, "garage closes with the content")
-		assert_eq(m:stars(), 126 - 124)
+		-- 124 for the five districts; one of the two spare stars buys the first task of district 6 (a first task
+		-- costs 1), its second task (5) is out of reach until the levels of district 6 are played
+		assert_eq(m:stars(), 126 - 124 - 1)
+		assert_eq(m:next_task().district, "beach")
+		assert_false(m:next_task().affordable)
 	end)
 
 	it("keeps every wallet change in the ledger", function()

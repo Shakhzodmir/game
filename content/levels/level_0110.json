@@ -1,0 +1,34 @@
+{
+  "id": 110, "version": 1,
+  "size": [9, 10],
+  "moves": 33,
+  "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 3},
+    {"type": "break", "item": "record_box", "count": 6}
+  ],
+  "cells": [
+    "...###...",
+    ".#######.",
+    ".#######.",
+    "...###...",
+    "...###...",
+    "#..###..#",
+    "##.###.##",
+    "#########",
+    ".#######.",
+    "..#####.."
+  ],
+  "spawners": [[3, 0], [4, 0], [5, 0], [1, 1], [2, 1], [6, 1], [7, 1], [0, 5], [8, 5], [1, 6], [7, 6], [2, 7], [6, 7]],
+  "slots": [
+    {"at": [4, 1], "type": "mic"},
+    {"at": [1, 6], "type": "record_box", "hp": 1},
+    {"at": [7, 6], "type": "record_box", "hp": 1},
+    {"at": [0, 7], "type": "record_box", "hp": 1},
+    {"at": [1, 7], "type": "record_box", "hp": 1},
+    {"at": [7, 7], "type": "record_box", "hp": 1},
+    {"at": [8, 7], "type": "record_box", "hp": 1}
+  ],
+  "mic": {"total": 3, "on_board_max": 3, "gap_moves": 1}
+}
