@@ -146,7 +146,7 @@ local function random_board(lvl, rnd)
 	local function add(i, fields)
 		id = id + 1
 		local o = { id = id, kind = 1, color = 0, special = 0, axis = 0, blocker = 0, hp = 0, state = C.S_IDLE, cell = i,
-			mv = rnd(4) - 1, wv = rnd(3) - 1, offx = 0, offy = 0, vy = 0, delay = 0, settle = 0, tk = 0, td = 0, pins = {} }
+			mv = rnd(4) - 1, wv = rnd(3) - 1, offx = 0, offy = 0, vy = 0, delay = 0, settle = 0, tk = 0, td = 0, pins = {}, chain = 0 }
 		for k, v in pairs(fields) do o[k] = v end -- order-independent
 		s.objs[id] = o
 		if o.blocker == C.BK_COLUMN then
@@ -278,7 +278,7 @@ describe("core property: classification and the cell of the special (6.1, 6.2)",
 			for i = 1, N do
 				col[i] = rnd(5) == 1 and 0 or rnd(2)
 				wires[i] = (col[i] ~= 0 and rnd(6) == 1) and 1 or 0
-				objs[i] = { settle = rnd(4) - 1 }
+				objs[i] = { settle = rnd(4) - 1, chain = 0 }
 				slot[i] = i
 			end
 			local s = { W = W, H = Hh, N = N, wires = wires, objs = objs, slot = slot }

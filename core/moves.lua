@@ -64,7 +64,7 @@ end
 
 local function free_at(s, i)
 	local o = B.get(s, i)
-	return o ~= nil and B.is_free(s, o)
+	return o ~= nil and B.can_swap(s, o)
 end
 
 -- The list of 12.1: {a, b} cell pairs (right neighbour, then bottom).

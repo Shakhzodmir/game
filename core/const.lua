@@ -70,9 +70,9 @@ C.R_BIRD, C.R_CONCERT_A, C.R_CONCERT_B, C.R_BOOSTER = 5, 6, 7, 8
 C.RECORD_FIELDS = { 6, 2, 3, 3, 4, 1, 0, 4 }
 
 -- Goals.
-C.GOAL_COLLECT, C.GOAL_BREAK, C.GOAL_LIGHT, C.GOAL_DELIVER, C.GOAL_DROP = 1, 2, 3, 4, 5
-C.GOAL = { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5 }
-C.GOAL_NAME = { "collect", "break", "light", "deliver", "drop" }
+C.GOAL_COLLECT, C.GOAL_BREAK, C.GOAL_LIGHT, C.GOAL_DELIVER, C.GOAL_DROP, C.GOAL_CHAINS = 1, 2, 3, 4, 5, 6
+C.GOAL = { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5, chains = 6 }
+C.GOAL_NAME = { "collect", "break", "light", "deliver", "drop", "chains" }
 
 C.DIFFICULTY = { easy = 1, medium = 2, hard = 3, super_hard = 4 }
 C.DIFFICULTY_NAME = { "easy", "medium", "hard", "super_hard" }
@@ -109,7 +109,7 @@ end
 C.SCORE_WAVE = 20        -- per group cell whose piece is destroyed, times W
 C.SCORE_EFFECT = 30      -- regular piece destroyed by an `effect` hit
 C.SCORE_TRANSFORM = 30   -- piece transformed by "Colour X"
-C.SCORE_HP = 50          -- every hp unit of a blocker, wires or floor tile
+C.SCORE_HP = 50          -- every hp unit of a blocker, wires, chain or floor tile
 C.SCORE_CONCERT = 300    -- Riff of the final concert
 C.SCORE_COCONUT = 50     -- coconut collected (10.5)
 C.SCORE_BONUS = { 60, 90, 60, 150 } -- by special code: riff, sub, bird, disco

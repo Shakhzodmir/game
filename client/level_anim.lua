@@ -18,6 +18,9 @@
 --   grey; shuffled pieces fly to their new cells; the selected piece stays big;
 --   the hint pair wobbles towards each other; the board blooms in at the start; a blocker (or a wired piece)
 --   the player tried to move shakes its head: a short sideways shake that dies away, with a brief flash.
+--   A chained piece (core-rules 10.6) gets a second entry in the draw list, the chain: id CHAIN_ID + piece id,
+--   image blockers_chain_<hp>, the place, squash and alpha of its piece and a hair above it; it rattles when a
+--   match takes a link off.
 --
 --   local level_anim = require("client.level_anim")
 --   local A = level_anim.new({geom = g, reduced = false})
@@ -74,6 +77,9 @@ M.NOPE_TIME = 0.34      -- a refused move: the object shakes sideways for this l
 M.NOPE_AMP = 0.085      -- ... by this share of a cell at first (it dies away quadratically) ...
 M.NOPE_FREQ = 55        -- ... three swings (radians per second) ...
 M.NOPE_FLASH = 0.22     -- ... with a white flash of this strength at the start
+
+M.CHAIN_ID = 1000000    -- draw-list id of the chain of piece `id` is CHAIN_ID + id (piece ids are far below)
+M.Z_CHAIN = 0.004       -- the chain lies this much above its piece
 
 M.Z = {
 	blocker = 0.08, piece = 0.10, special = 0.11, mic = 0.10,
@@ -299,7 +305,11 @@ function Anim:event(e, t)
 			-- the blocker of that cell wobbles (looked up by cell in frame())
 			self.hits = self.hits or {}
 			self.hits[cell_key(e.x, e.y)] = t
+		elseif e.layer == "chain" and e.id then
+			rec(self, e.id).chain_hit = t -- the chain rattles
 		end
+	elseif ty == "unchained" then
+		rec(self, e.id).pop = t
 	elseif ty == "noise_spread" then
 		local v = rec(self, e.id)
 		-- the noise creeps over first (level_effects), then the piece turns grey
@@ -611,6 +621,32 @@ function Anim:frame(pieces, tick_f, t)
 		e.scale = base
 		e.flash, e.alpha = flash, alpha
 		out[#out + 1] = e
+		if p.chain and kind == "regular" then
+			-- the chain goes wherever its piece goes
+			local c = v.out_chain
+			if not c then
+				c = { id = M.CHAIN_ID + p.id }
+				v.out_chain = c
+			end
+			c.image = "blockers_chain_" .. math.max(1, math.min(2, p.chain))
+			local cs, crot, cflash = 1, 0, flash
+			if v.chain_hit then
+				local dt = t - v.chain_hit
+				if dt >= M.HIT_TIME then
+					v.chain_hit = nil
+				else
+					local k = 1 - dt / M.HIT_TIME
+					if not reduced then crot = 7 * k * math.sin(dt * 55) end
+					cs = 1 + 0.06 * k
+					cflash = math.max(cflash, 0.45 * k)
+				end
+			end
+			c.x, c.y, c.z = x, y, z + M.Z_CHAIN
+			c.sx, c.sy, c.rot = sx * cs, sy * cs, crot
+			c.scale = base
+			c.flash, c.alpha, c.clip = cflash, alpha, e.clip
+			out[#out + 1] = c
+		end
 	end
 	-- forget pieces that left the board (kept one frame for late events)
 	for id, v in pairs(self.vis) do -- order-independent

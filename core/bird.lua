@@ -71,7 +71,8 @@ function BD.levels(s)
 						elseif ctx.brk[o.blocker] then l = 4
 						else l = 2 end
 					elseif k == K_REGULAR then
-						if s.wires[i] > 0 then l = 2
+						if o.chain > 0 then l = -1 -- a chained piece is never a target (10.6)
+						elseif s.wires[i] > 0 then l = 2
 						elseif ctx.col[o.color] then l = 4
 						else l = 1 end
 					elseif k == K_SPECIAL then
@@ -80,7 +81,9 @@ function BD.levels(s)
 					-- K_MIC, K_COCONUT: 0
 				end
 				-- an unlit tile the hit will damage
-				if l < 4 and ctx.light and s.floor[i] > 0 and s.wires[i] == 0
+				if l < 0 then
+					l = 0 -- no effect reaches the tile under a chained piece either
+				elseif l < 4 and ctx.light and s.floor[i] > 0 and s.wires[i] == 0
 					and (not idle or o.kind == K_REGULAR or weak_blocker(o)) then
 					l = 4
 				end
@@ -89,7 +92,7 @@ function BD.levels(s)
 					local m = B.get(s, i - W)
 					if m and ((ctx.deliver and m.kind == K_MIC) or (ctx.drop and m.kind == C.K_COCONUT))
 						and m.state == S_IDLE
-						and ((o.kind == K_REGULAR and s.wires[i] == 0) or weak_blocker(o)) then
+						and ((o.kind == K_REGULAR and s.wires[i] == 0 and o.chain == 0) or weak_blocker(o)) then
 						l = 3
 					end
 				end

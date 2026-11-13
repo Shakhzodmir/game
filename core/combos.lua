@@ -118,7 +118,7 @@ local function colour_x(s, src, o, po, X)
 		for i = 1, s.N do
 			local p = B.get(s, i)
 			if p and p.kind == K_REGULAR and p.color == X and p.state == S_IDLE
-				and p.pins[1] == nil and s.wires[i] == 0 then
+				and p.pins[1] == nil and s.wires[i] == 0 and p.chain == 0 then
 				local px, py = U.xy(W, i)
 				L[#L + 1] = { math.max(math.abs(px - cx), math.abs(py - cy)), p }
 			end

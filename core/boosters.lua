@@ -19,7 +19,8 @@ function BO.has_effect(s, i)
 	local o = B.get(s, i)
 	if o then
 		local k = o.kind
-		return k == C.K_BLOCKER or k == C.K_REGULAR or k == C.K_SPECIAL
+		if k == C.K_REGULAR then return o.chain == 0 end -- a chained piece ignores every effect (10.6)
+		return k == C.K_BLOCKER or k == C.K_SPECIAL
 	end
 	return s.floor[i] > 0
 end
@@ -49,7 +50,7 @@ function BO.exchange_cells(s, ax, ay, bx, by)
 	local a, b = (ay - 1) * s.W + ax, (by - 1) * s.W + bx
 	if a == b then return nil, "bad_cell" end
 	local oa, ob = B.get(s, a), B.get(s, b)
-	if not (oa and B.is_free(s, oa)) or not (ob and B.is_free(s, ob)) then return nil, "not_movable" end
+	if not (oa and B.can_swap(s, oa)) or not (ob and B.can_swap(s, ob)) then return nil, "not_movable" end
 	if BO.same_look(oa, ob) then return nil, "same_piece" end
 	return a, b
 end

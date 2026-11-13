@@ -145,7 +145,7 @@ function H.board(g, rows)
 				local full = {
 					id = id, kind = o.kind, color = o.color or 0, special = o.special or 0, axis = o.axis or 0,
 					blocker = o.blocker or 0, hp = o.hp or 0, state = 1, cell = i, mv = 0, wv = 0,
-					offx = 0, offy = 0, vy = 0, delay = 0, settle = 0, tk = 0, td = 0, pins = {},
+					offx = 0, offy = 0, vy = 0, delay = 0, settle = 0, tk = 0, td = 0, pins = {}, chain = 0,
 				}
 				s.objs[id] = full
 				s.slot[i] = id

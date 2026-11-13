@@ -66,7 +66,7 @@ local function count_floor(data)
 end
 
 -- Goals of a decoded level as things to draw, in file order:
--- {kind = "collect"|"break"|"light"|"deliver"|"drop", image, count (nil for light
+-- {kind = "collect"|"break"|"light"|"deliver"|"drop"|"chains", image, count (nil for light
 -- without tiles), label = {key = i18n key}, color = piece colour (collect)}.
 function M.goals(data)
 	local out = {}
@@ -90,6 +90,9 @@ function M.goals(data)
 			elseif t == "drop" then
 				-- bring the coconuts down (core-rules 10.5)
 				out[#out + 1] = { kind = t, image = "blockers/coconut", count = g.count, label = { key = "blocker.coconut" } }
+			elseif t == "chains" then
+				-- break the chains (core-rules 10.6)
+				out[#out + 1] = { kind = t, image = "blockers/chain_1", count = g.count, label = { key = "blocker.chain" } }
 			end
 		end
 	end

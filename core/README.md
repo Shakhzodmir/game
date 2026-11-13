@@ -246,6 +246,20 @@ event `coconut_collected`, 50 points). It shares the exits and the counters
 is unchanged and a level has one or the other (rule 2.1.11). Tests:
 `tests/core/coconut_test.lua`.
 
+## Chains (§10.6)
+
+The chain of district 7 is not a kind: it is the field `chain` (hp 1..2) of
+a regular piece, set from the level's `overlay` entries of type `chain`
+(`level.lua` -> `lvl.chain[i]`, `start.lua`). Such a piece falls like a free
+one (`B.is_movable` is true) but is never swapped (`B.can_swap`: input,
+moves, Crossfader). Only a `match` hit touches it and takes one hp of the
+chain instead of the piece (`hits.lua`, events `hit` with layer `chain` and
+`unchained`, goal `GOAL_CHAINS = 6`); a search that hit a chain leaves the
+board dirty (`match.lua`), so the survivors are searched again. Every
+candidate list that turns a regular piece into something else skips chained
+pieces. The hash folds `hp + chain` in the place of `hp`, so levels without
+chains hash as before. Tests: `tests/core/chain_test.lua`.
+
 ## Status
 
 Implemented: all of §0-§17, including every special and combo (§8), Bird
