@@ -149,7 +149,7 @@ describe("client.views (meta screens)", function()
 		assert_eq(vm.tabs[6].count, 5, "the sixth district has its theme and four songs too")
 		assert_eq(vm.tabs[7].state, "locked")
 		assert_eq(vm.tabs[7].count, 5, "and so has the seventh")
-		assert_same(vm.tabs[7].genre, { en = "Latin", ru = "Латина", ko = "라틴" })
+		assert_same(vm.tabs[7].genre, { en = "Salsa", ru = "Сальса", ko = "살사" })
 		local carnival = {}
 		for i, r in ipairs(vm.songs.carnival) do carnival[i] = r.id end
 		assert_same(carnival, { "carnival", "salsa_confetti", "moonlit_cumbia", "candlelight_bolero", "mambo_fireworks" })
