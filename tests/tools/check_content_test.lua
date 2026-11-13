@@ -212,7 +212,7 @@ describe("tools/levels.lua knows the number of levels from the data", function()
 		local Levels = require("tools.levels")
 		local list = require("tests.meta.helper").districts().districts
 		assert_eq(Levels.content_count("content/levels"), list[#list].last)
-		assert_eq(Levels.content_count("content/levels"), 120)
+		assert_eq(Levels.content_count("content/levels"), 140)
 		assert_eq(Levels.content_count("no/such/dir"), 100)
 		assert_eq(Levels.count_from('{"districts":[{"id":"a","last":20},{"id":"b","last":130}]}'), 130)
 		assert_eq(Levels.count_from('{"districts":[{"id":"a","last":7}]}'), 7)
