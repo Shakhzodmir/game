@@ -4,6 +4,7 @@
     python3 tools/audio/gen_audio.py            # everything (a few minutes)
     python3 tools/audio/gen_audio.py --only music --jobs 4
     python3 tools/audio/gen_audio.py --only music --districts beach --jobs 1   # one district, the rest untouched
+    python3 tools/audio/gen_audio.py --only songs --songs night_tide            # one song, the rest untouched
 
 Outputs (all Ogg Vorbis, mono):
     assets/sounds/notes/<color>_<n>.ogg   44.1 kHz, n = 1..11 (C major pentatonic C4..C6)
@@ -88,7 +89,9 @@ FEEDBACK_SFX = ("tap", "swap", "swap_fail", "land", "clear", "box_hit", "concret
                 "balloon_pop", "wires_snap", "noise_fizz", "moves_low", "button")
 PITCHED_SFX_MIN_IN_KEY = 75.0  # % of tonal energy on the C major scale for the short pitched cues
 PITCHED_CUES = ("tap", "swap_fail", "bird", "moves_low", "coin", "star", "floor_light")
-SIZE_BUDGET = 7 * 1024 * 1024        # notes + sfx + the district music
+# notes + sfx + the district music; raised 13.11.2026 from 7 MB for districts 7+, approved by the producer
+# (≈0.8 MB per district)
+SIZE_BUDGET = 10 * 1024 * 1024
 SONG_BUDGET = 14 * 1024 * 1024       # the jukebox songs: 6 MB of the district genres + 8 MB of the extra genres (WP-6)
 SONG_LUFS = -20.0     # integrated loudness of every song (the district full songs sit at -19.0 ... -20.0; in a level the song is a music bed: see the headroom check)
 SONG_TOL = 1.0
