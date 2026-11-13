@@ -3,8 +3,9 @@
 -- Layers, bottom to top:
 --   back   - a colour that covers the window (the tint of the district under the view)
 --   world  - everything that scrolls (moved as ONE node: its y is -offset)
---              c_bg    background tiles of the districts, gates with the district name, decorations
+--              c_bg    background tiles of the districts, decorations
 --              c_path  the trail dots
+--              c_gates the gates with the district name (over the trail: the dots pass under the arch)
 --              c_nodes the level nodes
 --              c_bit   Bit and the "new levels soon" sign
 --   ui     - top bar (back to the town, title, stars), the "to my level" button (anchored to the safe area)
@@ -131,14 +132,17 @@ function View:build_world()
 	if self.world then s:clear(self.world) end
 	self.world = s:layer(self.c_world, "world")
 	self.c_bg = s:layer(self.world, "bg")
-	-- one layer per district stretch, upper stretches on top, and in each: tiles < decorations < gate; things are made
+	-- one layer per district stretch, upper stretches on top, and in each: tiles < decorations; things are made
 	-- when they come near, in any order, and a tile that reaches into the next stretch stays under it
 	self.seg_layers = {}
 	for i = 1, #m.segments do
 		local l = s:layer(self.c_bg)
-		self.seg_layers[i] = { tiles = s:layer(l), deco = s:layer(l), gate = s:layer(l) }
+		self.seg_layers[i] = { tiles = s:layer(l), deco = s:layer(l) }
 	end
 	self.c_path = s:layer(self.world, "path")
+	-- the gates stand OVER the trail: the dots pass under the arch and do not cross the name of the district
+	self.c_gates = s:layer(self.world)
+	for i = 1, #m.segments do self.seg_layers[i].gate = s:layer(self.c_gates) end
 	self.c_nodes = s:layer(self.world, "nodes")
 	self.c_bit = s:layer(self.world, "bit")
 	self.tiles, self.gates, self.decos = {}, {}, {}
@@ -373,14 +377,21 @@ function View:make_tile(seg, idx)
 	local s, m = self.ui, self.model
 	local sg = m.segments[seg]
 	local th = m.tile_h
-	local y = sg.y0 + idx * th + th / 2
+	local y = m:tile_y(seg, idx) + th / 2
 	local parent = self.seg_layers[seg].tiles
 	local node = s:image(parent, sg.bg, 360, y, { w = 720, h = th })
 	if not node then
 		node = s:box(parent, 360, y, 720, th, { color = sg.tint or "#F4EEFF" })
 	end
-	-- (the tiles are not mirrored: the producer's pictures have a sky, houses and cats, and upside down they look
-	-- broken; the picture repeats as it is)
+	-- Every other tile is mirrored LEFT TO RIGHT (never upside down), so the same picture is not seen twice in a
+	-- row. A tile lies over the top of the tile below it (map_model tile_step): the lower tile stays under it.
+	if idx % 2 == 1 then gui.set_scale(node, v3(-1, 1, 1)) end
+	local above
+	for k, other in pairs(self.tiles) do -- order-free: the lowest tile of this district above idx
+		local i = k - seg * 1000
+		if i > idx and i < 1000 and (not above or i < above) then above = i end
+	end
+	if above then gui.move_below(node, self.tiles[key_of(seg, above)]) end
 	return node
 end
 

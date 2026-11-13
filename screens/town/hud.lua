@@ -309,7 +309,14 @@ function Hud:build_task(parent)
 	self:target("task", self:bottom(x, y))
 	local thumb = s:round(card.node, -232, 4, 104, 104, "#FFE3EF", { radius = 28 })
 	self.thumb = thumb
-	if not s:image(thumb, task.image, 0, 0, { w = 92, h = 92 }) then s:circle(thumb, 0, 0, 70, "lavender") end
+	-- the picture of the item keeps its proportions inside the 92 px square (a double bass is tall, a banner is wide)
+	local info = assets.image(task.image)
+	local tw, th = 92, 92
+	if info and info.w and info.h and info.w > 0 and info.h > 0 then
+		local k = math.min(92 / info.w, 92 / info.h)
+		tw, th = info.w * k, info.h * k
+	end
+	if not s:image(thumb, task.image, 0, 0, { w = tw, h = th }) then s:circle(thumb, 0, 0, 70, "lavender") end
 	s:text(card.node, i18n.name(task.name), -168, 26, {
 		font = "button", size = 30, color = "text", pivot = gui.PIVOT_W, max_width = 300,
 	})
