@@ -136,15 +136,17 @@ describe("client.views (meta screens)", function()
 		local by_id = {}
 		for _, d in ipairs(H.districts().districts) do by_id[d.id] = d end
 		local vm = views.jukebox(m, by_id)
-		assert_eq(#vm.tabs, 5)
+		assert_eq(#vm.tabs, 6)
 		assert_eq(vm.chosen, nil)
 		local ids = {}
 		for i, tab in ipairs(vm.tabs) do ids[i] = tab.id end
-		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage" })
+		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage", "beach" })
 		-- the district being built: its genre is open, the rest are dark
 		assert_eq(vm.tabs[1].state, "current")
 		assert_eq(vm.tabs[2].state, "locked")
 		assert_eq(vm.tabs[5].state, "locked")
+		assert_eq(vm.tabs[6].state, "locked")
+		assert_eq(vm.tabs[6].count, 5, "the sixth district has its theme and four songs too")
 		assert_same(vm.tabs[1].genre, { en = "Lo-fi", ru = "Лоу-фай", ko = "로파이" })
 		assert_eq(vm.tabs[1].color, views.district_color(1))
 		assert_eq(vm.tabs[2].prev_name.en, "Lo-fi Café", "what opens the jazz genre")
