@@ -4,6 +4,46 @@ components {
   component: "/main/audio.script"
 }
 embedded_components {
+  id: "music_beach_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_beach_flute"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/flute.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_beach_guitar"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/guitar.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_beach_keys"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/keys.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_beach_party"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_beach_perc"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/perc.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_beach_shaker"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/shaker.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_beach_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/beach/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_cafe_bass"
   type: "sound"
   data: "sound: \"/assets/music/cafe/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
