@@ -6953,6 +6953,311 @@
     "codec_edge": 0.57
    }
   },
+  "beach_morning_samba": {
+   "id": "beach_morning_samba",
+   "genre": "beach",
+   "bpm": 128,
+   "key": "D",
+   "bars": 12,
+   "path": "assets/music/songs/beach_morning_samba.ogg",
+   "duration": 22.5,
+   "samples": 496125,
+   "sample_rate": 22050,
+   "peak_dbfs": -1.14,
+   "true_peak_dbtp": -1.09,
+   "rms_dbfs": -19.78,
+   "bytes": 146309,
+   "loop_samples": 496125,
+   "loop_samples_44100": 992250,
+   "loop_seconds": 22.5,
+   "exact_seconds": 22.5,
+   "chords": [
+    "Dmaj7",
+    "Bm7",
+    "Em7",
+    "A7",
+    "Dmaj7",
+    "Gmaj7",
+    "F#m7",
+    "Bm7",
+    "Em7",
+    "A7",
+    "D6",
+    "Em7",
+    "A7"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    2.0,
+    2.0
+   ],
+   "parts": [
+    "drums",
+    "guitar",
+    "bass",
+    "lead",
+    "arp"
+   ],
+   "lufs": -19.8,
+   "lufs_target": -20.0,
+   "limiter_gr_db": -0.22,
+   "limiter_energy_gr_db": -0.0,
+   "centroid_hz": 1254,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -6.0,
+    "air_8k_16k_vs_mid_db": -13.7,
+    "share_below_150hz_pct": 27.3
+   },
+   "key_reading": {
+    "major": 0.8,
+    "relative_minor": 0.64,
+    "best": "A maj",
+    "best_r": 0.83
+   },
+   "harmony_in_scale_pct": 96.5,
+   "harmony_in_scale_full_mix_pct": 97.0,
+   "seam": {
+    "step_vs_beats": 0.404,
+    "click_vs_beats": 0.234,
+    "codec_edge": 0.57
+   }
+  },
+  "sunset_hammock": {
+   "id": "sunset_hammock",
+   "genre": "beach",
+   "bpm": 100,
+   "key": "D",
+   "bars": 8,
+   "path": "assets/music/songs/sunset_hammock.ogg",
+   "duration": 19.2,
+   "samples": 423360,
+   "sample_rate": 22050,
+   "peak_dbfs": -1.22,
+   "true_peak_dbtp": -1.21,
+   "rms_dbfs": -19.57,
+   "bytes": 110822,
+   "loop_samples": 423360,
+   "loop_samples_44100": 846720,
+   "loop_seconds": 19.2,
+   "exact_seconds": 19.2,
+   "chords": [
+    "Dmaj9",
+    "F#m7",
+    "Gmaj7",
+    "A7sus4",
+    "A7",
+    "Bm7",
+    "Em9",
+    "Gmaj7",
+    "A7sus4",
+    "D6"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    2.0,
+    2.0,
+    4.0,
+    4.0,
+    2.0,
+    2.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "guitar",
+    "bass",
+    "keys",
+    "lead"
+   ],
+   "lufs": -19.9,
+   "lufs_target": -20.0,
+   "limiter_gr_db": -1.43,
+   "limiter_energy_gr_db": -0.01,
+   "centroid_hz": 859,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -10.8,
+    "air_8k_16k_vs_mid_db": -18.1,
+    "share_below_150hz_pct": 23.8
+   },
+   "key_reading": {
+    "major": 0.76,
+    "relative_minor": 0.69,
+    "best": "A maj",
+    "best_r": 0.77
+   },
+   "harmony_in_scale_pct": 97.8,
+   "harmony_in_scale_full_mix_pct": 93.0,
+   "seam": {
+    "step_vs_beats": 0.126,
+    "click_vs_beats": 0.414,
+    "codec_edge": 0.78
+   }
+  },
+  "night_tide": {
+   "id": "night_tide",
+   "genre": "beach",
+   "bpm": 88,
+   "key": "D",
+   "bars": 8,
+   "path": "assets/music/songs/night_tide.ogg",
+   "duration": 21.8182,
+   "samples": 481091,
+   "sample_rate": 22050,
+   "peak_dbfs": -1.3,
+   "true_peak_dbtp": -1.25,
+   "rms_dbfs": -19.8,
+   "bytes": 118554,
+   "loop_samples": 481091,
+   "loop_samples_44100": 962182,
+   "loop_seconds": 21.818186,
+   "exact_seconds": 21.818182,
+   "chords": [
+    "Dmaj7",
+    "Gmaj7",
+    "Dmaj7",
+    "Bm7",
+    "Em7",
+    "A7sus4",
+    "Gmaj7",
+    "F#m7",
+    "Em7",
+    "A7"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "parts": [
+    "drums",
+    "fx",
+    "guitar",
+    "bass",
+    "lead",
+    "vibes",
+    "voice"
+   ],
+   "lufs": -20.0,
+   "lufs_target": -20.0,
+   "limiter_gr_db": -2.24,
+   "limiter_energy_gr_db": -0.14,
+   "centroid_hz": 859,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -13.1,
+    "air_8k_16k_vs_mid_db": -23.1,
+    "share_below_150hz_pct": 6.2
+   },
+   "key_reading": {
+    "major": 0.91,
+    "relative_minor": 0.78,
+    "best": "D maj",
+    "best_r": 0.91
+   },
+   "harmony_in_scale_pct": 99.5,
+   "harmony_in_scale_full_mix_pct": 98.8,
+   "seam": {
+    "step_vs_beats": 0.11,
+    "click_vs_beats": 0.132,
+    "codec_edge": 0.72
+   }
+  },
+  "coconut_cha_cha": {
+   "id": "coconut_cha_cha",
+   "genre": "beach",
+   "bpm": 120,
+   "key": "D",
+   "bars": 12,
+   "path": "assets/music/songs/coconut_cha_cha.ogg",
+   "duration": 24.0,
+   "samples": 529200,
+   "sample_rate": 22050,
+   "peak_dbfs": -1.15,
+   "true_peak_dbtp": -1.14,
+   "rms_dbfs": -19.77,
+   "bytes": 143233,
+   "loop_samples": 529200,
+   "loop_samples_44100": 1058400,
+   "loop_seconds": 24.0,
+   "exact_seconds": 24.0,
+   "chords": [
+    "D6",
+    "G6",
+    "A7",
+    "D6",
+    "Bm7",
+    "Em7",
+    "A7",
+    "D6",
+    "G6",
+    "D6",
+    "Em7",
+    "A7",
+    "D6"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    2.0,
+    2.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "keys",
+    "bass",
+    "lead"
+   ],
+   "lufs": -19.7,
+   "lufs_target": -20.0,
+   "limiter_gr_db": 0.0,
+   "limiter_energy_gr_db": 0.0,
+   "centroid_hz": 1262,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -7.0,
+    "air_8k_16k_vs_mid_db": -18.1,
+    "share_below_150hz_pct": 8.4
+   },
+   "key_reading": {
+    "major": 0.84,
+    "relative_minor": 0.83,
+    "best": "D maj",
+    "best_r": 0.84
+   },
+   "harmony_in_scale_pct": 97.5,
+   "harmony_in_scale_full_mix_pct": 95.5,
+   "seam": {
+    "step_vs_beats": 0.029,
+    "click_vs_beats": 0.204,
+    "codec_edge": 0.37
+   }
+  },
   "salon_morning": {
    "id": "salon_morning",
    "genre": "classical",
@@ -10628,7 +10933,7 @@
      "orange"
     ]
    ],
-   "with_music_dbtp": -0.38,
+   "with_music_dbtp": -0.35,
    "with_music_combo": [
     4,
     [
@@ -10636,8 +10941,8 @@
      "green"
     ]
    ],
-   "with_music_district": "bossa_breeze",
-   "with_music_beat": 28
+   "with_music_district": "night_tide",
+   "with_music_beat": 24
   },
   "3": {
    "notes_clear_dbtp": -2.52,
@@ -10671,12 +10976,12 @@
    "with_music_beat": 0
   }
  },
- "total_bytes": 15381027,
+ "total_bytes": 15899945,
  "counts": {
   "notes": 66,
   "sfx": 40,
   "music": 56,
-  "songs": 69
+  "songs": 73
  },
  "checks": [
   "Notes: 66 files, phone M-max -20.04 … -19.93 LUFS within -20 ± 1: PASS; true peak ≤ -7 dBTP (max -7.07): PASS; max pitch error 1.60 cents < 5: PASS; YIN hears the written pitch on every note: PASS; purple C4–E4 harmonics 1–2 within 10 dB of the loudest: PASS; lengths 0.6–1.2 s: PASS.",
@@ -10693,6 +10998,7 @@
   "Songs `square`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.8 … 25.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.27 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.4) and ≤ 1 dB of the energy (max 0.04): PASS; in the key of the genre ≥ 85 % (min 94.5): PASS; seams clean: PASS.",
   "Songs `stadium`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.4 s within 16–32: PASS; worst mix -1.21 dBTP / -1.48 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.8) and ≤ 1 dB of the energy (max 0.07): PASS; in the key of the genre ≥ 85 % (min 99.5): PASS; seams clean: PASS.",
   "Songs `garage`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.5 … 26.7 s within 16–32: PASS; worst mix -1.21 dBTP / -1.59 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 4.5) and ≤ 1 dB of the energy (max 0.30): PASS; in the key of the genre ≥ 85 % (min 89.0): PASS; seams clean: PASS.",
+  "Songs `beach`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.2 … 24.0 s within 16–32: PASS; worst mix -1.09 dBTP / -1.14 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.7 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.2) and ≤ 1 dB of the energy (max 0.14): PASS; in the key of the genre ≥ 85 % (min 96.5): PASS; seams clean: PASS.",
   "Songs `classical`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 29.1 s within 16–32: PASS; worst mix -1.10 dBTP / -1.34 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.9) and ≤ 1 dB of the energy (max 0.23): PASS; in the key of the genre ≥ 85 % (min 98.4): PASS; seams clean: PASS.",
   "Songs `folk`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.22 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.7) and ≤ 1 dB of the energy (max 0.08): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
   "Songs `latin`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 24.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.15 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.6 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.4) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 91.2): PASS; seams clean: PASS.",
@@ -10709,6 +11015,6 @@
   "Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.",
   "Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
   "Notes, SFX and district music 6.64 MB ≤ 7 MB: PASS.",
-  "Songs 69 files, 8.02 MB ≤ 14 MB: PASS."
+  "Songs 73 files, 8.52 MB ≤ 14 MB: PASS."
  ]
 }
