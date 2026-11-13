@@ -1,0 +1,41 @@
+{
+  "id": 106, "version": 1,
+  "size": [9, 8],
+  "moves": 26,
+  "difficulty": "medium",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "drop", "count": 4},
+    {"type": "collect", "color": "blue", "count": 30}
+  ],
+  "cells": [
+    "......###",
+    "....#####",
+    "..#######",
+    "#########",
+    "#########",
+    "#########",
+    "########.",
+    "#######.."
+  ],
+  "overlay": [
+    {"at": [4, 3], "type": "wires", "hp": 1},
+    {"at": [2, 4], "type": "wires", "hp": 1},
+    {"at": [6, 4], "type": "wires", "hp": 1},
+    {"at": [4, 5], "type": "wires", "hp": 1},
+    {"at": [1, 6], "type": "wires", "hp": 1},
+    {"at": [6, 6], "type": "wires", "hp": 1},
+    {"at": [3, 7], "type": "wires", "hp": 1}
+  ],
+  "slots": [
+    {"at": [7, 2], "type": "coconut"},
+    {"at": [4, 3], "type": "piece", "color": "blue"},
+    {"at": [2, 4], "type": "piece", "color": "blue"},
+    {"at": [6, 4], "type": "piece", "color": "blue"},
+    {"at": [4, 5], "type": "piece", "color": "blue"},
+    {"at": [1, 6], "type": "piece", "color": "blue"},
+    {"at": [6, 6], "type": "piece", "color": "blue"},
+    {"at": [3, 7], "type": "piece", "color": "blue"}
+  ],
+  "coconut": {"total": 4, "on_board_max": 2, "gap_moves": 2, "columns": [5, 6, 7, 8]}
+}

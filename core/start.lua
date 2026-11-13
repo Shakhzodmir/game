@@ -125,11 +125,13 @@ function ST.build(level, seed, boosters)
 	local mics = 0
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == C.K_MIC then mics = mics + 1 end
+		if o and (o.kind == C.K_MIC or o.kind == C.K_COCONUT) then mics = mics + 1 end
 	end
 	s.released, s.on_board = mics, mics
 	if level.mic then
 		s.last_mic = mics > 0 and 0 or -level.mic.gap_moves
+	elseif level.coconut then -- the same counters serve the coconuts (10.5)
+		s.last_mic = mics > 0 and 0 or -level.coconut.gap_moves
 	end
 	place_boosters(s, st, boosters or {})
 	s.dirty = report.dirty

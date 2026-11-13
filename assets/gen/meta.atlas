@@ -14,6 +14,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_coconut"
+  images {
+    image: "/assets/images/blockers/coconut.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_column_1"
   images {
     image: "/assets/images/blockers/column_1.png"

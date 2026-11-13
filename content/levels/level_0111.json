@@ -1,0 +1,37 @@
+{
+  "id": 111, "version": 1,
+  "size": [7, 10],
+  "moves": 29,
+  "difficulty": "medium",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "drop", "count": 4},
+    {"type": "break", "item": "balloon", "count": 10}
+  ],
+  "cells": [
+    "..#.#..",
+    ".#####.",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    ".#####.",
+    "..###.."
+  ],
+  "slots": [
+    {"at": [3, 1], "type": "coconut"},
+    {"at": [2, 3], "type": "balloon", "color": "yellow"},
+    {"at": [4, 3], "type": "balloon", "color": "green"},
+    {"at": [1, 4], "type": "balloon", "color": "green"},
+    {"at": [5, 4], "type": "balloon", "color": "yellow"},
+    {"at": [2, 5], "type": "balloon", "color": "yellow"},
+    {"at": [4, 5], "type": "balloon", "color": "green"},
+    {"at": [1, 6], "type": "balloon", "color": "green"},
+    {"at": [5, 6], "type": "balloon", "color": "yellow"},
+    {"at": [2, 7], "type": "balloon", "color": "yellow"},
+    {"at": [4, 7], "type": "balloon", "color": "green"}
+  ],
+  "coconut": {"total": 4, "on_board_max": 2, "gap_moves": 2}
+}

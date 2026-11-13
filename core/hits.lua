@@ -245,7 +245,7 @@ function H.hit(s, cell, src, opt_instant)
 		elseif k == K_BLOCKER then
 			destroyed, floors_done = blocker_hit(s, o, cell, src, acc)
 		end
-		-- K_MIC: nothing
+		-- K_MIC, K_COCONUT: nothing
 	end
 	-- 4. floor
 	if not floors_done and s.floor[cell] > 0

@@ -3,6 +3,7 @@
 
     python3 tools/audio/gen_audio.py            # everything (a few minutes)
     python3 tools/audio/gen_audio.py --only music --jobs 4
+    python3 tools/audio/gen_audio.py --only music --districts beach --jobs 1   # one district, the rest untouched
 
 Outputs (all Ogg Vorbis, mono):
     assets/sounds/notes/<color>_<n>.ogg   44.1 kHz, n = 1..11 (C major pentatonic C4..C6)
@@ -955,6 +956,9 @@ def main():
     ap.add_argument("--jobs", type=int, default=min(5, mp.cpu_count()))
     ap.add_argument("--songs", default="", help="comma list of song ids: with --only songs, render just these and keep "
                     "the other songs of the previous manifest (a quick re-level of one song)")
+    ap.add_argument("--districts", default="", help="comma list of district ids: with --only music, render just these "
+                    "and keep the stems and manifest entries of the other districts untouched (adding a district "
+                    "without re-encoding the existing ones)")
     ap.add_argument("--preview", default="", help="comma list of song ids: render only these to --out, print their "
                     "measurements and checks, touch nothing in assets/ (for writing songs)")
     ap.add_argument("--out", default="/tmp/glow_song_preview", help="folder of --preview")
@@ -962,6 +966,8 @@ def main():
     if args.preview:
         return preview_songs([x for x in args.preview.split(",") if x], Path(args.out))
     parts = set(args.only.split(","))
+    if sys.platform == "win32":
+        args.jobs = 1  # no fork() on Windows
     t0 = time.time()
     districts = json.loads(DISTRICTS.read_text(encoding="utf-8"))["districts"]
     prev = json.loads(MANIFEST.read_text(encoding="utf-8")) if MANIFEST.exists() else {}
@@ -971,11 +977,18 @@ def main():
     if args.songs:
         want = set(args.songs.split(","))
         catalogue = [(e, d) for e, d in catalogue if e["id"] in want]
+    todo = districts
+    if args.districts:
+        want = set(args.districts.split(","))
+        todo = [d for d in districts if d["id"] in want]
+        if want - {d["id"] for d in todo}:
+            print("not in districts.json:", ", ".join(sorted(want - {d["id"] for d in todo})))
+            return 2
     pool = None
     if ("music" in parts or "songs" in parts) and args.jobs > 1:
         pool = mp.get_context("fork").Pool(args.jobs)
         if "music" in parts:
-            pending = pool.map_async(build_district, districts)
+            pending = pool.map_async(build_district, todo)
         if "songs" in parts:
             pending_songs = pool.map_async(build_song, catalogue)
     man = {"generator": "tools/audio/gen_audio.py", "format": "Ogg Vorbis, mono", "mixer": MIXER}
@@ -998,8 +1011,11 @@ def main():
         sdec = {r["name"]: dm[r["path"]] for r in man["sfx"]}
     print(f"sfx:   {len(man['sfx'])} files  ({time.time() - t0:.1f}s)")
     if "music" in parts:
-        res = pending.get() if pool else [build_district(d) for d in districts]
-        man["music"] = {r["id"]: r for r in res}
+        res = pending.get() if pool else [build_district(d) for d in todo]
+        man["music"] = dict(prev.get("music", {})) if args.districts else {}
+        man["music"].update({r["id"]: r for r in res})
+        if args.districts:  # keep the district order of districts.json
+            man["music"] = {d["id"]: man["music"][d["id"]] for d in districts if d["id"] in man["music"]}
     else:
         man["music"] = prev.get("music", {})
     print(f"music: {sum(len(v['stems']) for v in man['music'].values())} stems  ({time.time() - t0:.1f}s)")
@@ -1054,4 +1070,14 @@ def main():
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        # libsndfile's Vorbis encoder overflows the default 1 MB Windows stack on a whole loop: run on a thread
+        # with a big stack (the workers of --jobs need fork(), so main() renders in this process on Windows)
+        import threading
+        threading.stack_size(200 * 1024 * 1024)
+        code = []
+        th = threading.Thread(target=lambda: code.append(main()))
+        th.start()
+        th.join()
+        sys.exit(code[0] if code else 1)
     sys.exit(main())

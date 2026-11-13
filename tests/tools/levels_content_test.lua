@@ -1,10 +1,11 @@
--- The real level files (content/levels/level_0001.json ... level_0100.json) against the plan, and the table
+-- The real level files (content/levels/level_0001.json ... the last level of content/districts.json) against the plan, and the table
 -- of docs/levels/README.md against the files. Nothing is played: the files are read and validated, so
 -- this runs in about a second. A failure names the level and what differs; the file wins, fix the README row
 -- (or the level, if the plan is right).
 --   * every file loads through the core (rules 2.1) and keeps the plan of levels-plan.md: the difficulty saw,
 --     the colours of its stretch, 20-35 moves (the same as `luajit tools/levels.lua validate --strict`);
---   * the saw earns 126 stars, the town costs 124 (meta-economy.md, section 9);
+--   * the saw earns 126 stars in the first hundred, the files 156 in all; the town costs 155 (meta-economy.md,
+--     section 9; district 6 by the price rule of docs/handoff/WP-15.md);
 --   * every level of the README table agrees with its file: difficulty, size and cells, colours, elements,
 --     goals, and the "(обучение)" mark with the lessons of content/tutorials.json. The moves column is only
 --     checked to be a number in the range of the schema: the tuner rewrites the real value (tools/README.md)
@@ -31,6 +32,7 @@ local COLOR_GENITIVE_PLURAL = {
 }
 -- a word that a goal of the table must contain, by the item of a `break` goal
 local ITEM_WORD = { record_box = "короб", concrete = "бетон", noise = "помех", balloon = "шарик", column = "колон" }
+local LAST = Levels.content_count(DIR) -- the last level of the last district of content/districts.json
 local TIMES = "\195\151" -- the multiplication sign of the "9×9" of the field column
 
 local function read(path)
@@ -52,12 +54,12 @@ local function first_n(list, n)
 	return out
 end
 
--- the 100 files, validated once for all the tests: {n = {raw =, res =}}
+-- the level files, validated once for all the tests: {n = {raw =, res =}}
 local loaded
 local function files()
 	if loaded then return loaded end
 	loaded = {}
-	for n = 1, 100 do
+	for n = 1, LAST do
 		local res = Levels.validate_file(string.format("%s/level_%04d.json", DIR, n), core)
 		loaded[n] = { raw = res.raw, res = res }
 	end
@@ -89,8 +91,9 @@ local function cell_count(raw)
 end
 
 describe("level content: the files", function()
-	it("has all 100 levels, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
+	it("has every level of the six districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
 		local problems = {}
+		assert_eq(LAST, 120, "the last level of the last district")
 		for n, f in ipairs(files()) do
 			for _, e in ipairs(f.res.errors) do problems[#problems + 1] = "level " .. n .. ": " .. e end
 			for _, w in ipairs(f.res.warnings) do problems[#problems + 1] = "level " .. n .. ": " .. w end
@@ -102,22 +105,30 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 130 stars on the saw, more than the 124 of the town", function()
+	it("earns 156 stars on the saw (130 in the first hundred), more than the 155 of the town", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
+		local stars100, counts100
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
 			counts[f.raw.difficulty] = counts[f.raw.difficulty] + 1
+			if n == 100 then
+				stars100 = stars
+				counts100 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
+			end
 		end
 		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
-		assert_same(counts, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
-		assert_eq(stars, 130)
+		assert_same(counts100, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
+		assert_eq(stars100, 130)
+		-- district 6 (WP-17, levels 101-120): 10 easy, 6 medium, hard 107 and 113, super hard 117 and the concert 120
+		assert_same(counts, { easy = 61, medium = 32, hard = 18, super_hard = 9 })
+		assert_eq(stars, 156)
 		local town = json.decode(read("content/districts.json"))
 		local cost = 0
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 124, "the stars the town costs (content/districts.json)")
+		assert_eq(cost, 155, "the stars the town costs (content/districts.json)")
 		assert_true(stars >= cost, "the town cannot be finished: " .. stars .. " stars for " .. cost)
 	end)
 end)
@@ -216,10 +227,22 @@ local function row_problems(n, cells, raw)
 		expect("колонки (%d+)", columns, "колонки")
 	end
 	if (elements:find("микрофоны (", 1, true) ~= nil) ~= (raw.mic ~= nil) then bad("элементы", "микрофоны exactly where the file has a mic block") end
+	if (elements:find("кокосы (", 1, true) ~= nil) ~= (raw.coconut ~= nil) then bad("элементы", "кокосы exactly where the file has a coconut block") end
+	if raw.coconut then
+		local total, max, gap, start = elements:match("кокосы %(всего (%d+), на поле ≤(%d+), пауза (%d+), с начала (%d+)")
+		if tonumber(total) ~= raw.coconut.total or tonumber(max) ~= raw.coconut.on_board_max
+			or tonumber(gap) ~= raw.coconut.gap_moves or tonumber(start) ~= count_slots(raw, "coconut") then
+			bad("элементы", "the numbers of 'кокосы (всего N, на поле ≤N, пауза N, с начала N' are not the file's")
+		end
+		if (elements:find("входят в столбцы", 1, true) ~= nil) ~= (raw.coconut.columns ~= nil) then
+			bad("элементы", "'входят в столбцы' exactly where the coconut block lists columns")
+		end
+	end
 	local gift_words = 0
 	for _ in elements:gmatch("готовый") do gift_words = gift_words + 1 end
 	if gift_words ~= gifts(raw) then bad("элементы", gift_words .. " ready specials named, the file has " .. gifts(raw)) end
 	local nothing = columns == 0 and #(raw.floor or {}) == 0 and #(raw.overlay or {}) == 0 and raw.mic == nil and gifts(raw) == 0
+		and raw.coconut == nil
 	for _, kind in ipairs({ "record_box", "concrete", "noise", "balloon" }) do
 		if count_slots(raw, kind) > 0 then nothing = false end
 	end
@@ -240,6 +263,8 @@ local function row_problems(n, cells, raw)
 				ok = part:find("собрать " .. g.count .. " " .. COLOR_GENITIVE_PLURAL[g.color], 1, true) ~= nil
 			elseif g.type == "deliver" then
 				ok = part:find("доставить " .. g.count .. " микрофон", 1, true) ~= nil
+			elseif g.type == "drop" then
+				ok = part:find("опустить " .. g.count .. " кокос", 1, true) ~= nil
 			else
 				ok = part:find(" " .. g.count .. " ", 1, true) ~= nil or part:find(" " .. g.count .. "$") ~= nil
 				ok = ok and part:find(ITEM_WORD[g.item], 1, true) ~= nil
@@ -259,9 +284,9 @@ describe("level content: the README table", function()
 	it("has one row for each level, in order", function()
 		local rows, order = table_rows()
 		local want = {}
-		for n = 1, 100 do want[n] = n end
+		for n = 1, LAST do want[n] = n end
 		assert_same(order, want, "rows of the table in " .. README)
-		for n = 1, 100 do assert_eq(#rows[n], 8, "cells of the row of level " .. n) end
+		for n = 1, LAST do assert_eq(#rows[n], 8, "cells of the row of level " .. n) end
 	end)
 
 	it("agrees with the files: difficulty, field, colours, elements, goals", function()
@@ -279,7 +304,7 @@ describe("level content: the README table", function()
 		local rows = table_rows()
 		local lessons = lesson_levels()
 		local problems = {}
-		for n = 1, 100 do
+		for n = 1, LAST do
 			local marked = rows[n] and rows[n][7]:find("(обучение)", 1, true) ~= nil
 			if marked and not lessons[n] then problems[#problems + 1] = "level " .. n .. " is marked as a lesson but content/tutorials.json has none" end
 			if lessons[n] and not marked then problems[#problems + 1] = "level " .. n .. " has a lesson in content/tutorials.json but its row is not marked" end

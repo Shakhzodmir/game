@@ -34,6 +34,7 @@ HI_RATE = {
     "square": {"shaker", "party"},
     "stadium": {"arp", "snaps", "party"},
     "garage": {"tamb", "party"},
+    "beach": {"shaker", "party"},
 }
 
 
@@ -382,6 +383,15 @@ def kit(name, sr):
             k["hat"] = [ins.hat(sr, 0.1, key=80 + i, lo=5500, tone=0.5) for i in range(3)]
             k["crash"] = [ins.crash(sr, key=21, t60=2.6)]
             k["ride"] = [ins.ride(sr, key=22, t60=1.6, bell=0.5)]
+        elif name == "beach":
+            k["cajon"] = [cajon_bass(sr, key=i) for i in range(2)]
+            k["tap"] = [dsp.lowpass(ins.brush_tap(sr, key=60 + i, dur=0.08, tone=220.0), 6000, sr) for i in range(4)]
+            k["slap"] = [dsp.lowpass(ins.snare(sr, 220, 0.06, 0.09, 0.5, 900, 5000, key=70 + i), 5500, sr)
+                         for i in range(2)]
+            k["rim"] = [cross_stick(sr, key=i) for i in range(2)]
+            k["shaker"] = [ins.shaker(sr, key=20 + i, dur=0.07) for i in range(4)]
+            k["maraca"] = [dsp.highpass(ins.shaker(sr, key=30 + i, dur=0.14), 5200, sr, 2) for i in range(3)]
+            k["hat"] = [ins.shaker(sr, key=40 + i, dur=0.05) for i in range(3)]
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -390,6 +400,23 @@ def kit(name, sr):
     if key not in _CACHE:
         _CACHE[key] = mk()
     return _CACHE[key]
+
+
+def cajon_bass(sr, key=0):
+    """Cajon bass tone: a soft low thump that settles on D2 plus the knock of the wooden front plate."""
+    y = ins.kick(sr, 125.0, float(midi_hz(38)), 0.022, 0.26, 0.0, 1.1, key=key)
+    n = len(y)
+    t = np.arange(n) / sr
+    wood = dsp.bandpass(dsp.rng("cajon", key).standard_normal(n), 180, 1300, sr) * np.exp(-t / 0.011)
+    y = y / dsp.peak(y) + 0.3 * wood / dsp.peak(wood)
+    return dsp.fade(dsp.lowpass(y, 2200, sr, 2), sr, 0.0008, 0.02)
+
+
+def cross_stick(sr, key=0):
+    """Cross-stick: the rim click with a woody body under it (A6 click over a D5 block: in the key of the beach)."""
+    x = ins.rim(sr, key=key, f=float(midi_hz(93)))
+    w = ins.woodblock(sr, f=float(midi_hz(74)), key=key, t=0.06)
+    return dsp.mix(x, 0.45 * w)
 
 
 def hit(s, buf, samples, beat, vel, r, jitter=0.004, key=None):
@@ -1265,6 +1292,186 @@ def garage_gang(s):
     return room(s, b, 0.25, 1.0, "gang", damp=4500)
 
 
+# ====================================================== BEACH (D major)
+
+def beach_song(d):
+    # bossa nova in D: I - vi - ii - V, then IV - iii vi - ii V - I with a sus turnaround; all diatonic, the loop
+    # ends on the tonic (D6) and the A9sus4 (G/A) of its last two beats leads back into Dmaj7.
+    # The two tonic chords keep the root in the voicing (maj7 and 6, not maj9 and 6/9, whose upper notes alone
+    # are F#m7 / F#m7sus): the loop reads as D major, not as F# minor
+    D, E, Fs, G, A, B = 2, 4, 6, 7, 9, 11
+    maj9, m9, m7, d13 = [4, 7, 11, 14], [3, 7, 10, 14], [3, 7, 10, 12], [4, 10, 14, 21]
+    return Song(d, progression([
+        (4, D, [4, 7, 11, 12], "Dmaj7"), (4, B, m7, "Bm7"), (4, E, m9, "Em9"), (4, A, d13, "A13"),
+        (4, G, maj9, "Gmaj9"), (2, Fs, m7, "F#m7"), (2, B, m7, "Bm7"), (2, E, m9, "Em9"), (2, A, d13, "A13"),
+        (2, D, [4, 7, 9, 12], "D6"), (2, A, [5, 7, 10, 14], "A9sus4"),
+    ]))
+
+
+BEACH_CLAVE = ((0.0, 1.5, 3.0), (1.0, 2.5))  # the 3-2 bossa clave over two bars (beats)
+
+
+def beach_perc(s):
+    """Cajon and cross-stick: the bossa clave on the rim, the soft 'heartbeat' bass (1, the and of 2, 3, the and
+    of 4) and quiet finger taps on the 8ths. The first layer: it has to groove alone."""
+    k = kit("beach", s.sr)
+    r = dsp.rng(s.id, "perc")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, v in ((0, 0.95), (1.5, 0.5), (2, 0.85), (3.5, 0.55)):
+            hit(s, b, k["cajon"], o + bt, v, r, 0.003)
+        for bt in BEACH_CLAVE[bar % 2]:
+            hit(s, b, k["rim"], o + bt, 0.8, r, 0.003)
+        for i in range(8):
+            hit(s, b, k["tap"], o + i * 0.5, 0.34 if i % 2 else 0.22, r, 0.005)
+        if bar in (3, 7):  # a two-note slap pickup into the next phrase
+            for bt, v in ((3.0, 0.4), (3.5, 0.55)):
+                hit(s, b, k["slap"], o + bt, v, r, 0.003)
+    b = dsp.drive(b / dsp.peak(b) * 1.3, 1.4)  # rounds the cajon thumps: more groove under the same peak
+    b = loop_eq(s, b, "highshelf", 4500, 2.0)
+    return room(s, b, 0.14, 0.8, "perc", damp=6000)
+
+
+# What the fingers hold on the D, G and B strings (the thumb has the root): guitar shapes, not computed voicings.
+# The top note stays on F#4 through most of the loop while the inner voices step (A-A-G-G, C#-D-D-C#).
+BEACH_GRIPS = {
+    "Dmaj7": [57, 61, 66], "Bm7": [57, 62, 66], "Em9": [55, 62, 66], "A13": [55, 61, 66],
+    "Gmaj9": [59, 66, 69], "F#m7": [57, 61, 64], "D6": [57, 62, 66, 71], "A9sus4": [55, 59, 62, 64],
+}
+
+# The e-piano an octave above them: 3rd, 5th or 7th and one colour, without the root.
+BEACH_KEYS = {
+    "Dmaj7": [66, 69, 73], "Bm7": [66, 69, 74], "Em9": [67, 71, 78], "A13": [67, 73, 78],
+    "Gmaj9": [71, 74, 78], "F#m7": [69, 73, 76], "D6": [66, 71, 74], "A9sus4": [67, 71, 74],
+}
+
+
+def beach_guitar(s):
+    """Nylon guitar the Joao Gilberto way: the thumb keeps root and fifth on beats 1 and 3, the fingers pluck
+    rootless 7th/9th chords on a syncopated two-bar figure, and the last 8th of every bar already plays the
+    chord of the next bar (the bossa anticipation)."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "guitar")
+    vo = [BEACH_GRIPS[c.name] for c in s.chords]
+    pats = (((0.0, 0.9, 0.8), (1.5, 0.4, 0.6), (2.5, 0.4, 0.64), (3.5, 1.2, 0.72)),
+            ((1.0, 0.4, 0.62), (2.5, 0.9, 0.72), (3.5, 0.45, 0.66)))
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, du, v in pats[bar % 2]:
+            c = s.chord_at(o + bt + (0.5 if bt == 3.5 else 0.0))
+            x = ins.strum(vo[s.chords.index(c)], s.sec(du), s.sr, spread=0.007, bright=0.32, t60=1.3, pick=0.2,
+                          mute=0.09, key=bar % 2, attack=0.003)
+            s.add(b, x, o + bt, v, dt=0.007 + r.normal(0, 0.002))  # the fingers answer the thumb a hair late
+        c0, c2 = s.chord_at(o), s.chord_at(o + 2)
+        R = nearest(c0.root, 47, 40, 52)
+        second = nearest(c2.root, 47, 40, 52) if c2 is not c0 else (R + 7 if R + 7 <= 54 else R - 5)
+        for bt, m, v in ((0, R, 0.75), (2, second, 0.62)):
+            x = ins.guitar(m, s.sec(1.5), s.sr, bright=0.22, t60=1.6, pick=0.25, mute=0.12, key=5, attack=0.004)
+            s.add(b, x, o + bt, v, dt=r.normal(0, 0.001))
+    b = loop_filter(s, b, "hp", 95)
+    b = loop_eq(s, b, "peak", 2300, 2.5, 0.9)
+    return room(s, b, 0.16, 1.0, "guitar", damp=5000)
+
+
+def beach_bass_line(s):
+    """Root on 1, a soft pickup on the and of 2, the fifth on 3 and the next bar's root pushed on the and of 4."""
+    ev = []
+    root = lambda c: nearest(c.root, 40, 35, 46)  # noqa: E731
+    for bar in range(s.bars):
+        o = bar * 4
+        c0, c2, nx = s.chord_at(o), s.chord_at(o + 2), s.chord_at(o + 4)
+        R = root(c0)
+        F = R + 7 if R + 7 <= 47 else R - 5
+        mid = root(c2) if c2 is not c0 else F
+        ev += [(o, 1.35, R, 0.9), (o + 1.5, 0.42, R if c2 is c0 else mid, 0.55), (o + 2, 1.35, mid, 0.82),
+               (o + 3.5, 0.45, root(nx), 0.62)]
+    return ev
+
+
+def beach_bass(s):
+    b = s.zeros()
+    r = dsp.rng(s.id, "bass")
+    for j, (bt, du, m, v) in enumerate(beach_bass_line(s)):
+        s.add(b, upright(m, s.sec(du), s.sr, key=j % 3), bt, v, dt=r.normal(0.003, 0.003))
+    b = loop_filter(s, b, "lp", 1300)
+    return room(s, b, 0.07, 0.7, "bass", damp=2500)
+
+
+def beach_shaker(s):
+    """Shaker 16ths leaning on the off-beat 8ths, maracas on beats 2 and 4 and a little shake into bars 5 and 1."""
+    k = kit("beach", s.sr)
+    r = dsp.rng(s.id, "shaker")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for i in range(16):
+            v = 0.9 if i % 4 == 2 else (0.5 if i % 4 == 0 else 0.3)
+            hit(s, b, k["shaker"], o + i * 0.25, v, r, 0.004)
+        for bt in (1, 3):
+            hit(s, b, k["maraca"], o + bt, 0.75, r, 0.004)
+        if bar in (3, 7):
+            for bt, v in ((3.5, 0.6), (3.75, 0.8)):
+                hit(s, b, k["maraca"], o + bt, v, r, 0.003)
+    return room(s, b, 0.1, 0.8, "shaker", damp=7000)
+
+
+BEACH_FILLS = {  # e-piano answers in the two bars where the flute breathes: bar -> (beat, beats, midi)
+    3: [(2.0, 0.5, 78), (2.5, 0.5, 76), (3.0, 0.5, 73), (3.5, 0.5, 71)],
+    7: [(2.0, 0.5, 83), (2.5, 0.5, 81), (3.0, 0.5, 79), (3.5, 0.5, 76)],
+}
+
+
+def beach_keys(s):
+    """Soft electric piano: a held chord on every change, a light answer on beat 4 (where the guitar rests) and
+    a falling fill at the end of each four-bar phrase; slow tremolo."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "keys")
+    for c in s.chords:
+        v = BEACH_KEYS[c.name]
+        bar = int(c.start // 4)
+        hits = [(0.0, c.dur * 0.6, 0.55)]
+        if c.dur == 4 and bar not in BEACH_FILLS:
+            hits.append((3.0, 0.9, 0.42))
+        for bt, du, vel in hits:
+            for j, m in enumerate(v):
+                x = ins.epiano(m, round(s.sec(du), 4), s.sr, vel=vel, bright=0.7, release=0.3)
+                s.add(b, x, c.start + bt, 0.8, dt=0.006 + j * 0.009 + r.normal(0, 0.003))
+    for bar, notes in BEACH_FILLS.items():
+        for i, (bt, du, m) in enumerate(notes):
+            x = ins.epiano(m, round(s.sec(du * 1.6), 4), s.sr, vel=0.6, bright=0.8, release=0.3)
+            s.add(b, x, bar * 4 + bt, 0.75 + 0.05 * i, dt=r.normal(0.004, 0.003))
+    b = b * (1.0 - 0.16 * (0.5 + 0.5 * s.lfo(4.6)))
+    b = loop_filter(s, b, "hp", 150)
+    b = loop_filter(s, b, "lp", 6000)
+    return room(s, b, 0.22, 1.5, "keys", damp=5000)
+
+
+BEACH_FLUTE = bars({  # two four-bar phrases; long notes are pushed an 8th early and tied over the bar line
+    0: [(0.5, 0.5, 74), (1.0, 0.5, 78), (1.5, 1.0, 81), (2.5, 0.5, 78), (3.0, 0.5, 76), (3.5, 1.5, 78)],
+    1: [(1.5, 0.5, 76), (2.0, 0.5, 78), (2.5, 1.5, 74)],
+    2: [(0.5, 0.5, 71), (1.0, 0.5, 74), (1.5, 1.0, 79), (2.5, 0.5, 78), (3.0, 0.5, 76), (3.5, 1.0, 78)],
+    3: [(1.0, 1.0, 76)],
+    4: [(0.5, 0.5, 78), (1.0, 0.5, 79), (1.5, 1.0, 83), (2.5, 0.5, 81), (3.0, 0.5, 79), (3.5, 1.5, 81)],
+    5: [(1.5, 0.5, 78), (2.0, 0.5, 81), (2.5, 1.5, 83)],
+    6: [(0.5, 0.5, 83), (1.0, 0.5, 81), (1.5, 1.0, 79), (2.5, 0.5, 78), (3.0, 0.5, 76), (3.5, 2.5, 74)],
+})
+
+
+def beach_flute(s):
+    """Breathy flute: a sine with a little 2nd and 3rd harmonic, air noise that follows the note and a chiff on
+    every attack. The tune climbs to B5 in the second phrase and comes home to D over the last bar."""
+    src, env, onset = render_line(s, events(s, BEACH_FLUTE), osc="sine", glide=0.018, legato_gap=0.01, attack=0.045,
+                                  release=0.08, vib_rate=5.1, vib_depth=0.11, vib_delay=0.28, key="bflute")
+    tone = src + 0.2 * (2.0 * src ** 2 - 1.0) + 0.07 * (4.0 * src ** 3 - 3.0 * src)
+    air = ins.breath(len(src), s.sr, "bflute", 1800, 6500)
+    x = tone * env + 0.24 * air * env + 0.3 * air * onset * np.clip(env * 4.0, 0, 1)
+    x = dsp.highpass(x, 250, s.sr, 2)
+    b = wrap(s, x / dsp.peak(x))
+    b = echo(s, b, 0.75, 0.14, 0.35, 2, 4000)
+    return room(s, b, 0.25, 1.5, "flute", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -1281,7 +1488,8 @@ def tension_stem(s, style):
     hats (16ths or swung triplets) and a soft tremolo on the key's fifth."""
     r = dsp.rng(s.id, "tension")
     b = s.zeros()
-    kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock"}
+    kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
+            "beach": "beach"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -1298,6 +1506,8 @@ def tension_stem(s, style):
             x = upright(m - 12, s.sec(0.4), s.sr)
         elif style == "cafe":  # bright e-piano pulse in the middle register (no low-mid mud)
             x = ins.epiano(m, s.sec(0.25), s.sr, vel=0.6, bright=1.0, release=0.08)
+        elif style == "beach":  # palm-muted nylon string on the chord roots
+            x = ins.guitar(m, s.sec(0.3), s.sr, bright=0.45, t60=0.55, pick=0.18, mute=0.04, key=7)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -1356,7 +1566,8 @@ def party_voicing(c):
 def party_stem(s, style):
     """Final concert: crashes, claps, 16th percussion, stabs and a bright arp."""
     r = dsp.rng(s.id, "party")
-    kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock"}
+    kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
+            "beach": "beach"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -1392,7 +1603,7 @@ def party_stem(s, style):
                     x = ins.supersaw(m, s.sec(0.3), s.sr, attack=0.003, release=0.08, key=j)
                 elif style == "garage":
                     x = ins.organ(m, s.sec(0.3), s.sr, bars=(8, 0, 8, 8, 0, 6, 0, 0, 4), perc=0.3, click=0.3)
-                elif style == "cafe":
+                elif style in ("cafe", "beach"):
                     x = ins.epiano(m, s.sec(0.3), s.sr, vel=0.8, bright=1.0, release=0.1)
                 else:
                     x = ins.brass(m, s.sec(0.3), s.sr, vel=0.9, key=j)
@@ -1405,6 +1616,8 @@ def party_stem(s, style):
             m = tones[i % len(tones)]
             if style == "jazz":
                 x = ins.vibes(m, s.sr, vel=0.6, dur=0.8, release=0.3)
+            elif style == "beach":  # a marimba on the beach instead of the glockenspiel
+                x = ins.marimba(m, s.sr, vel=0.8, dur=0.8)
             else:
                 x = ins.glock(m, s.sr, vel=0.7, dur=0.8, octave_up=False)
             s.add(arp, x, c.start + i * 0.5, 0.8 if i % 2 == 0 else 0.6)
@@ -1431,6 +1644,9 @@ DISTRICTS = {
         "drums": garage_drums, "rhythm": garage_rhythm, "bass": garage_bass, "lead": garage_lead,
         "organ": garage_organ, "tamb": garage_tamb, "toms": garage_toms, "strings": garage_strings,
         "gang": garage_gang}),
+    "beach": dict(song=beach_song, stems={
+        "perc": beach_perc, "guitar": beach_guitar, "bass": beach_bass, "shaker": beach_shaker,
+        "keys": beach_keys, "flute": beach_flute}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -1450,6 +1666,8 @@ LOUDNESS = {
                 "snaps": -17, "tension": -18, "party": -16},
     "garage": {"drums": -15, "rhythm": -18, "bass": -19, "lead": -18, "organ": -21, "tamb": -19,
                "toms": -15, "strings": -19, "gang": -15, "tension": -18, "party": -16},
+    "beach": {"perc": -17, "guitar": -18, "bass": -19, "shaker": -20, "keys": -20, "flute": -18,
+              "tension": -18, "party": -16},
 }
 
 

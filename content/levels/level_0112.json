@@ -1,0 +1,26 @@
+{
+  "id": 112, "version": 1,
+  "size": [9, 9],
+  "moves": 25,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "drop", "count": 6}
+  ],
+  "cells": [
+    "....#....",
+    "...##....",
+    "..###....",
+    ".####....",
+    "#####....",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####.."
+  ],
+  "slots": [
+    {"at": [3, 2], "type": "coconut"},
+    {"at": [3, 5], "type": "riff", "axis": "v"}
+  ],
+  "coconut": {"total": 6, "on_board_max": 2, "gap_moves": 1, "columns": [1, 2, 3, 4]}
+}

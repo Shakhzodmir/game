@@ -1,8 +1,8 @@
 {
  "version": 1,
  "width": 720,
- "world_height": 21960,
- "level_count": 100,
+ "world_height": 26240,
+ "level_count": 120,
  "tile_h": 1080,
  "tile_step": 740,
  "tile_feather": 110,
@@ -39,7 +39,7 @@
   "dy": 96
  },
  "soon": {
-  "y": 21630
+  "y": 25910
  },
  "segments": [
   {
@@ -392,7 +392,7 @@
    "first": 81,
    "last": 100,
    "y0": 17215,
-   "y1": 21960,
+   "y1": 21495,
    "bg": "mapbg/bg_garage",
    "gate": "mapbg/gate_garage",
    "gate_y": 17215,
@@ -401,73 +401,159 @@
     {
      "image": "map/deco_garage_1",
      "x": 90,
-     "y": 17599,
+     "y": 17575,
      "scale": 0.8
     },
     {
      "image": "map/deco_garage_2",
      "x": 647,
-     "y": 17928,
+     "y": 17857,
      "scale": 0.92
     },
     {
      "image": "map/deco_garage_3",
      "x": 76,
-     "y": 18256,
+     "y": 18139,
      "scale": 1.04
     },
     {
      "image": "map/deco_garage_4",
      "x": 641,
-     "y": 18585,
+     "y": 18420,
      "scale": 0.86
     },
     {
      "image": "map/deco_garage_5",
      "x": 82,
-     "y": 18914,
+     "y": 18702,
      "scale": 0.98
     },
     {
      "image": "map/deco_garage_6",
      "x": 635,
-     "y": 19243,
+     "y": 18984,
      "scale": 0.8
     },
     {
      "image": "map/deco_garage_1",
      "x": 88,
-     "y": 19571,
+     "y": 19265,
      "scale": 0.92
     },
     {
      "image": "map/deco_garage_2",
      "x": 649,
-     "y": 19900,
+     "y": 19547,
      "scale": 1.04
     },
     {
      "image": "map/deco_garage_3",
      "x": 74,
-     "y": 20229,
+     "y": 19829,
      "scale": 0.86
     },
     {
      "image": "map/deco_garage_4",
      "x": 643,
-     "y": 20558,
+     "y": 20110,
      "scale": 0.98
     },
     {
      "image": "map/deco_garage_5",
      "x": 80,
-     "y": 20886,
+     "y": 20392,
      "scale": 0.8
     },
     {
      "image": "map/deco_garage_6",
      "x": 637,
-     "y": 21215,
+     "y": 20674,
+     "scale": 0.92
+    }
+   ]
+  },
+  {
+   "id": "beach",
+   "district": "beach",
+   "first": 101,
+   "last": 120,
+   "y0": 21495,
+   "y1": 26240,
+   "bg": "mapbg/bg_beach",
+   "gate": "mapbg/gate_beach",
+   "gate_y": 21495,
+   "tint": "#F6E3C0",
+   "deco": [
+    {
+     "image": "map/deco_beach_1",
+     "x": 90,
+     "y": 21879,
+     "scale": 0.8
+    },
+    {
+     "image": "map/deco_beach_2",
+     "x": 647,
+     "y": 22208,
+     "scale": 0.92
+    },
+    {
+     "image": "map/deco_beach_3",
+     "x": 76,
+     "y": 22536,
+     "scale": 1.04
+    },
+    {
+     "image": "map/deco_beach_4",
+     "x": 641,
+     "y": 22865,
+     "scale": 0.86
+    },
+    {
+     "image": "map/deco_beach_5",
+     "x": 82,
+     "y": 23194,
+     "scale": 0.98
+    },
+    {
+     "image": "map/deco_beach_6",
+     "x": 635,
+     "y": 23523,
+     "scale": 0.8
+    },
+    {
+     "image": "map/deco_beach_1",
+     "x": 88,
+     "y": 23851,
+     "scale": 0.92
+    },
+    {
+     "image": "map/deco_beach_2",
+     "x": 649,
+     "y": 24180,
+     "scale": 1.04
+    },
+    {
+     "image": "map/deco_beach_3",
+     "x": 74,
+     "y": 24509,
+     "scale": 0.86
+    },
+    {
+     "image": "map/deco_beach_4",
+     "x": 643,
+     "y": 24838,
+     "scale": 0.98
+    },
+    {
+     "image": "map/deco_beach_5",
+     "x": 80,
+     "y": 25166,
+     "scale": 0.8
+    },
+    {
+     "image": "map/deco_beach_6",
+     "x": 637,
+     "y": 25495,
      "scale": 0.92
     }
    ]
@@ -973,6 +1059,106 @@
    "level": 100,
    "x": 360,
    "y": 21160
+  },
+  {
+   "level": 101,
+   "x": 360,
+   "y": 21830
+  },
+  {
+   "level": 102,
+   "x": 346,
+   "y": 22020
+  },
+  {
+   "level": 103,
+   "x": 472,
+   "y": 22210
+  },
+  {
+   "level": 104,
+   "x": 530,
+   "y": 22400
+  },
+  {
+   "level": 105,
+   "x": 485,
+   "y": 22590
+  },
+  {
+   "level": 106,
+   "x": 364,
+   "y": 22780
+  },
+  {
+   "level": 107,
+   "x": 241,
+   "y": 22970
+  },
+  {
+   "level": 108,
+   "x": 190,
+   "y": 23160
+  },
+  {
+   "level": 109,
+   "x": 242,
+   "y": 23350
+  },
+  {
+   "level": 110,
+   "x": 366,
+   "y": 23540
+  },
+  {
+   "level": 111,
+   "x": 486,
+   "y": 23730
+  },
+  {
+   "level": 112,
+   "x": 530,
+   "y": 23920
+  },
+  {
+   "level": 113,
+   "x": 470,
+   "y": 24110
+  },
+  {
+   "level": 114,
+   "x": 344,
+   "y": 24300
+  },
+  {
+   "level": 115,
+   "x": 227,
+   "y": 24490
+  },
+  {
+   "level": 116,
+   "x": 191,
+   "y": 24680
+  },
+  {
+   "level": 117,
+   "x": 257,
+   "y": 24870
+  },
+  {
+   "level": 118,
+   "x": 386,
+   "y": 25060
+  },
+  {
+   "level": 119,
+   "x": 498,
+   "y": 25250
+  },
+  {
+   "level": 120,
+   "x": 360,
+   "y": 25440
   }
  ]
 }

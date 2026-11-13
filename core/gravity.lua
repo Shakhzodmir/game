@@ -82,9 +82,26 @@ local function release_mic(s, pass)
 	return true
 end
 
+-- Coconut release test of 10.5: the mic test with the block `coconut`, in
+-- an allowed column x only. The counters are the mic's (a level has mics or
+-- coconuts, never both: rule 2.1.11).
+local function release_coconut(s, pass, x)
+	local co = s.level.coconut
+	if not co or s.colorless or pass.mic or not co.cols[x] then return false end
+	if s.released >= co.total then return false end
+	if s.on_board >= co.on_board_max then return false end
+	if s.moves_made - s.last_mic < co.gap_moves then return false end
+	pass.mic = true
+	s.released = s.released + 1
+	s.on_board = s.on_board + 1
+	s.last_mic = s.moves_made
+	return true
+end
+
 -- Kind and colour of a new piece (10.3).
-local function new_piece_kind(s, pass)
+local function new_piece_kind(s, pass, x)
 	if release_mic(s, pass) then return K_MIC, 0 end
+	if release_coconut(s, pass, x) then return C.K_COCONUT, 0 end
 	if s.colorless then return K_REGULAR, 0 end
 	local lvl = s.level
 	local st = s.rng[R.SPAWN]
@@ -143,7 +160,7 @@ local function spawn(s, c, pass)
 	local x = (c - 1) % W + 1
 	local yc = (c - x) / W + 1
 	local ys = s.seg_top[c]
-	local kind, color = new_piece_kind(s, pass)
+	local kind, color = new_piece_kind(s, pass, x)
 	-- label: max over c and the segment above it
 	local mv, wv = s.vac_mv[c], s.vac_wv[c]
 	for yy = ys, yc - 1 do

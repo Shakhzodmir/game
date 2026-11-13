@@ -63,6 +63,18 @@
         { "kind": "notes", "item": "bass_guitar", "x": 232, "y": 380, "count": 3, "layer": "over", "colors": ["#FF4D4D", "#FFB347", "#9B52FF"], "rise": 180, "period": 3.4 },
         { "kind": "blink", "points": [[100, 140], [260, 140], [420, 140], [580, 140]], "r": 40, "layer": "mid", "view": "concert", "colors": ["#FF4D8D", "#FFB347", "#3CF2FF"], "period": 1.1 }
       ]
+    },
+    "beach": {
+      "mood": "breezy",
+      "details": [
+        { "kind": "shaft", "x": 330, "y": 200, "w": 200, "h": 860, "angle": 14, "layer": "mid", "view": "day", "color": "#FFF4C4", "alpha": [0.1, 0.2], "period": 6.0 },
+        { "kind": "motes", "style": "dust", "rect": [140, 260, 420, 560], "count": 8, "layer": "mid", "view": "day", "color": "#FFECB0" },
+        { "kind": "blink", "item": "tiki_bar", "points": [[186, 652], [218, 660], [250, 663], [282, 660], [314, 652]], "r": 20, "layer": "over", "colors": ["#FFD84D", "#FF8FBE", "#7BE8C0", "#7CC8FF"], "period": 1.6, "alpha": [0.3, 0.8] },
+        { "kind": "blink", "item": "palm_lights", "points": [[44, 662], [78, 650], [108, 664], [66, 716], [72, 750]], "r": 18, "layer": "over", "colors": ["#FFD84D", "#FF8FBE", "#7CC8FF"], "period": 2.1, "alpha": [0.3, 0.8] },
+        { "kind": "notes", "item": "guitar", "x": 384, "y": 620, "count": 3, "layer": "over", "colors": ["#FFB347", "#7BE8C0", "#FF8FBE"], "rise": 190, "period": 3.6 },
+        { "kind": "notes", "item": "surf_speaker", "x": 668, "y": 640, "count": 2, "layer": "over", "colors": ["#7CC8FF", "#FFD84D"], "rise": 170, "period": 4.2 },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }
