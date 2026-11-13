@@ -10,8 +10,8 @@
         "x": 370,
         "y": 712,
         "scale": 0.66,
-        "w": 206,
-        "h": 190
+        "w": 223,
+        "h": 176
       },
       "lamps": {
         "image": "assets/images/districts/cafe/lamps.png",
@@ -19,8 +19,8 @@
         "x": 360,
         "y": 348,
         "scale": 0.66,
-        "w": 220,
-        "h": 256
+        "w": 215,
+        "h": 262
       },
       "piano": {
         "image": "assets/images/districts/cafe/piano.png",
@@ -28,8 +28,8 @@
         "x": 160,
         "y": 690,
         "scale": 0.72,
-        "w": 250,
-        "h": 247
+        "w": 265,
+        "h": 233
       },
       "plants": {
         "image": "assets/images/districts/cafe/plants.png",
@@ -37,8 +37,8 @@
         "x": 578,
         "y": 694,
         "scale": 0.72,
-        "w": 194,
-        "h": 235
+        "w": 221,
+        "h": 206
       },
       "cat": {
         "image": "assets/images/districts/cafe/cat.png",
@@ -46,8 +46,8 @@
         "x": 574,
         "y": 418,
         "scale": 0.66,
-        "w": 195,
-        "h": 151
+        "w": 197,
+        "h": 149
       },
       "sign": {
         "image": "assets/images/districts/cafe/sign.png",
@@ -55,8 +55,8 @@
         "x": 360,
         "y": 540,
         "scale": 0.56,
-        "w": 254,
-        "h": 160
+        "w": 196,
+        "h": 208
       }
     }
   },
@@ -71,8 +71,8 @@
         "x": 382,
         "y": 330,
         "scale": 0.7,
-        "w": 220,
-        "h": 221
+        "w": 173,
+        "h": 281
       },
       "grand_piano": {
         "image": "assets/images/districts/jazz/grand_piano.png",
@@ -80,8 +80,8 @@
         "x": 240,
         "y": 586,
         "scale": 0.74,
-        "w": 252,
-        "h": 224
+        "w": 225,
+        "h": 250
       },
       "double_bass": {
         "image": "assets/images/districts/jazz/double_bass.png",
@@ -89,8 +89,8 @@
         "x": 578,
         "y": 560,
         "scale": 0.7,
-        "w": 122,
-        "h": 273
+        "w": 130,
+        "h": 256
       },
       "neon": {
         "image": "assets/images/districts/jazz/neon.png",
@@ -98,8 +98,8 @@
         "x": 160,
         "y": 322,
         "scale": 0.6,
-        "w": 256,
-        "h": 143
+        "w": 179,
+        "h": 186
       },
       "sax": {
         "image": "assets/images/districts/jazz/sax.png",
@@ -107,8 +107,8 @@
         "x": 376,
         "y": 712,
         "scale": 0.5,
-        "w": 149,
-        "h": 243
+        "w": 156,
+        "h": 232
       },
       "vibes": {
         "image": "assets/images/districts/jazz/vibes.png",
@@ -116,8 +116,8 @@
         "x": 160,
         "y": 722,
         "scale": 0.6,
-        "w": 246,
-        "h": 204
+        "w": 256,
+        "h": 196
       },
       "trumpet": {
         "image": "assets/images/districts/jazz/trumpet.png",
@@ -125,8 +125,8 @@
         "x": 568,
         "y": 738,
         "scale": 0.56,
-        "w": 241,
-        "h": 110
+        "w": 216,
+        "h": 123
       }
     }
   },
@@ -141,8 +141,8 @@
         "x": 330,
         "y": 700,
         "scale": 0.66,
-        "w": 254,
-        "h": 224
+        "w": 239,
+        "h": 239
       },
       "garlands": {
         "image": "assets/images/districts/square/garlands.png",
@@ -150,8 +150,8 @@
         "x": 360,
         "y": 322,
         "scale": 1.7,
-        "w": 300,
-        "h": 96
+        "w": 268,
+        "h": 107
       },
       "truck_stage": {
         "image": "assets/images/districts/square/truck_stage.png",
@@ -159,8 +159,8 @@
         "x": 380,
         "y": 520,
         "scale": 0.66,
-        "w": 267,
-        "h": 211
+        "w": 262,
+        "h": 215
       },
       "tuba": {
         "image": "assets/images/districts/square/tuba.png",
@@ -168,8 +168,8 @@
         "x": 600,
         "y": 580,
         "scale": 0.56,
-        "w": 188,
-        "h": 260
+        "w": 211,
+        "h": 231
       },
       "trumpets": {
         "image": "assets/images/districts/square/trumpets.png",
@@ -177,8 +177,8 @@
         "x": 596,
         "y": 432,
         "scale": 0.46,
-        "w": 208,
-        "h": 166
+        "w": 203,
+        "h": 170
       },
       "clarinet": {
         "image": "assets/images/districts/square/clarinet.png",
@@ -186,8 +186,8 @@
         "x": 560,
         "y": 716,
         "scale": 0.46,
-        "w": 104,
-        "h": 264
+        "w": 135,
+        "h": 171
       },
       "lanterns": {
         "image": "assets/images/districts/square/lanterns.png",
@@ -195,8 +195,8 @@
         "x": 106,
         "y": 540,
         "scale": 0.66,
-        "w": 188,
-        "h": 251
+        "w": 244,
+        "h": 146
       },
       "confetti": {
         "image": "assets/images/districts/square/confetti.png",
@@ -204,8 +204,8 @@
         "x": 130,
         "y": 712,
         "scale": 0.52,
-        "w": 207,
-        "h": 216
+        "w": 202,
+        "h": 221
       }
     }
   },
@@ -220,8 +220,8 @@
         "x": 360,
         "y": 560,
         "scale": 0.72,
-        "w": 262,
-        "h": 203
+        "w": 251,
+        "h": 212
       },
       "screens": {
         "image": "assets/images/districts/stadium/screens.png",
@@ -229,8 +229,8 @@
         "x": 360,
         "y": 330,
         "scale": 0.6,
-        "w": 262,
-        "h": 196
+        "w": 270,
+        "h": 191
       },
       "lightsticks": {
         "image": "assets/images/districts/stadium/lightsticks.png",
@@ -238,8 +238,8 @@
         "x": 560,
         "y": 710,
         "scale": 0.64,
-        "w": 221,
-        "h": 203
+        "w": 219,
+        "h": 205
       },
       "lasers": {
         "image": "assets/images/districts/stadium/lasers.png",
@@ -247,8 +247,8 @@
         "x": 578,
         "y": 326,
         "scale": 0.6,
-        "w": 238,
-        "h": 199
+        "w": 214,
+        "h": 222
       },
       "choir": {
         "image": "assets/images/districts/stadium/choir.png",
@@ -256,8 +256,8 @@
         "x": 140,
         "y": 540,
         "scale": 0.62,
-        "w": 260,
-        "h": 222
+        "w": 329,
+        "h": 176
       },
       "fog": {
         "image": "assets/images/districts/stadium/fog.png",
@@ -265,8 +265,8 @@
         "x": 150,
         "y": 718,
         "scale": 0.6,
-        "w": 213,
-        "h": 188
+        "w": 277,
+        "h": 142
       },
       "dancers": {
         "image": "assets/images/districts/stadium/dancers.png",
@@ -274,8 +274,8 @@
         "x": 580,
         "y": 540,
         "scale": 0.62,
-        "w": 230,
-        "h": 228
+        "w": 288,
+        "h": 182
       },
       "fireworks": {
         "image": "assets/images/districts/stadium/fireworks.png",
@@ -283,8 +283,8 @@
         "x": 142,
         "y": 330,
         "scale": 0.62,
-        "w": 238,
-        "h": 224
+        "w": 244,
+        "h": 219
       }
     }
   },
@@ -299,8 +299,8 @@
         "x": 286,
         "y": 662,
         "scale": 0.7,
-        "w": 266,
-        "h": 214
+        "w": 257,
+        "h": 221
       },
       "amp": {
         "image": "assets/images/districts/garage/amp.png",
@@ -308,8 +308,8 @@
         "x": 112,
         "y": 640,
         "scale": 0.56,
-        "w": 214,
-        "h": 257
+        "w": 195,
+        "h": 283
       },
       "bass_guitar": {
         "image": "assets/images/districts/garage/bass_guitar.png",
@@ -317,8 +317,8 @@
         "x": 232,
         "y": 470,
         "scale": 0.56,
-        "w": 110,
-        "h": 256
+        "w": 119,
+        "h": 237
       },
       "posters": {
         "image": "assets/images/districts/garage/posters.png",
@@ -326,8 +326,8 @@
         "x": 112,
         "y": 430,
         "scale": 0.5,
-        "w": 240,
-        "h": 220
+        "w": 221,
+        "h": 239
       },
       "keyboard": {
         "image": "assets/images/districts/garage/keyboard.png",
@@ -335,8 +335,8 @@
         "x": 500,
         "y": 730,
         "scale": 0.52,
-        "w": 262,
-        "h": 161
+        "w": 228,
+        "h": 185
       },
       "tambourine": {
         "image": "assets/images/districts/garage/tambourine.png",
@@ -344,8 +344,8 @@
         "x": 334,
         "y": 420,
         "scale": 0.44,
-        "w": 138,
-        "h": 169
+        "w": 173,
+        "h": 134
       },
       "garage_door": {
         "image": "assets/images/districts/garage/garage_door.png",
@@ -353,8 +353,8 @@
         "x": 536,
         "y": 372,
         "scale": 1.0,
-        "w": 256,
-        "h": 150
+        "w": 209,
+        "h": 183
       },
       "strings": {
         "image": "assets/images/districts/garage/strings.png",
@@ -362,8 +362,8 @@
         "x": 228,
         "y": 302,
         "scale": 1.3,
-        "w": 256,
-        "h": 100
+        "w": 261,
+        "h": 98
       },
       "mic_stand": {
         "image": "assets/images/districts/garage/mic_stand.png",
@@ -371,8 +371,8 @@
         "x": 636,
         "y": 690,
         "scale": 0.46,
-        "w": 150,
-        "h": 273
+        "w": 141,
+        "h": 290
       }
     }
   }
