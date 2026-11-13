@@ -29,9 +29,16 @@ def feather(im):
 
 
 def main():
-    ids = sys.argv[1:] or sorted(os.path.basename(p)[7:-4] for p in glob.glob(os.path.join(READY, "map_bg_*.png")))
+    ids = sys.argv[1:] or sorted(os.path.basename(p)[3:-4] for p in glob.glob(os.path.join(OUT, "bg_*.png")))
     for did in ids:
-        feather(Image.open(os.path.join(READY, "map_bg_%s.png" % did))).save(os.path.join(OUT, "bg_%s.png" % did), optimize=True)
+        src = os.path.join(READY, "map_bg_%s.png" % did)
+        out = os.path.join(OUT, "bg_%s.png" % did)
+        if not os.path.isfile(src):          # a district installed by tools/art/install_district.py: its own file
+            src = out
+            if Image.open(src).mode == "RGBA":
+                print("mapbg/bg_%s.png is feathered already" % did)
+                continue
+        feather(Image.open(src)).save(out, optimize=True)
         print("wrote mapbg/bg_%s.png" % did)
 
 

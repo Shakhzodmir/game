@@ -25,7 +25,7 @@ GAP = 480           # extra distance where the path crosses a district gate
 FIRST_Y = 430       # y of level 1
 TOP_ROOM = 800      # room above the last level for the "new levels soon" sign
 AMPLITUDE = 170     # how far the path swings to the sides
-DECO_PER_SEGMENT = 12
+DECO_PER_SEGMENT = 0   # no loose decorations over the backgrounds (the producer: the pictures are busy enough)
 TILE_FEATHER = 110  # px at the bottom of a background tile that fade out (tools/art/feather_mapbg.py)
 TILE_STEP = 740     # a tile starts this far above the one below: it covers the sky (the top 230 px) of that one
 
