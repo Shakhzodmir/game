@@ -944,6 +944,104 @@
           "stem_desc": "breathy flute melody"
         }
       ]
+    },
+    {
+      "id": "carnival",
+      "first": 121,
+      "last": 140,
+      "map_tint": "#FBE3C8",
+      "name": {
+        "ru": "Карнавал",
+        "en": "Carnival",
+        "ko": "카니발"
+      },
+      "genre": {
+        "ru": "Латина",
+        "en": "Latin",
+        "ko": "라틴"
+      },
+      "bpm": 124,
+      "key": "C",
+      "semitones_from_c": 0,
+      "bars": 8,
+      "mood": "latin carnival street party, salsa and cumbia feel, bright and danceable",
+      "songs": [],
+      "chest": {
+        "coins": 1400,
+        "boosters": [
+          "disco",
+          "remix",
+          "sub"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "congas",
+          "name": {
+            "ru": "Конги",
+            "en": "Congas",
+            "ko": "콩가"
+          },
+          "cost": 1,
+          "stem": "congas",
+          "stem_desc": "conga tumbao with clave and a soft kick"
+        },
+        {
+          "id": "maracas",
+          "name": {
+            "ru": "Маракасы",
+            "en": "Maracas",
+            "ko": "마라카스"
+          },
+          "cost": 5,
+          "stem": "shaker",
+          "stem_desc": "maracas and guiro 8ths"
+        },
+        {
+          "id": "headdress",
+          "name": {
+            "ru": "Карнавальная корона",
+            "en": "Feather headdress",
+            "ko": "깃털 왕관"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "salsa bass tumbao, anticipated roots"
+        },
+        {
+          "id": "banner",
+          "name": {
+            "ru": "Флажки папель-пикадо",
+            "en": "Papel picado banner",
+            "ko": "파펠 피카도 깃발"
+          },
+          "cost": 6,
+          "stem": "piano",
+          "stem_desc": "piano montuno, syncopated octaves"
+        },
+        {
+          "id": "pinata",
+          "name": {
+            "ru": "Пиньята",
+            "en": "Piñata",
+            "ko": "피냐타"
+          },
+          "cost": 7,
+          "stem": "guitar",
+          "stem_desc": "bright nylon guitar strums and fills"
+        },
+        {
+          "id": "trumpet",
+          "name": {
+            "ru": "Труба",
+            "en": "Trumpet",
+            "ko": "트럼펫"
+          },
+          "cost": 7,
+          "stem": "trumpet",
+          "stem_desc": "trumpet melody with shakes and falls"
+        }
+      ]
     }
   ],
   "level_stems": {

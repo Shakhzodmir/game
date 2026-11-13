@@ -346,6 +346,7 @@ return {
 	["stem.chords"] = "코드",
 	["stem.claps"] = "박수",
 	["stem.clarinet"] = "클라리넷",
+	["stem.congas"] = "콩가",
 	["stem.flute"] = "플루트",
 	["stem.drums"] = "드럼",
 	["stem.fx"] = "효과음",
