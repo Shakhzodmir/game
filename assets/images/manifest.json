@@ -407,15 +407,13 @@
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 12867,
-      "placeholder": true
+      "bytes": 23965
     },
     "blockers/chain_2.png": {
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 18482,
-      "placeholder": true
+      "bytes": 34512
     },
     "blockers/coconut.png": {
       "w": 160,
