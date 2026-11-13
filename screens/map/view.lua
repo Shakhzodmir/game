@@ -373,14 +373,21 @@ function View:make_tile(seg, idx)
 	local s, m = self.ui, self.model
 	local sg = m.segments[seg]
 	local th = m.tile_h
-	local y = sg.y0 + idx * th + th / 2
+	local y = m:tile_y(seg, idx) + th / 2
 	local parent = self.seg_layers[seg].tiles
 	local node = s:image(parent, sg.bg, 360, y, { w = 720, h = th })
 	if not node then
 		node = s:box(parent, 360, y, 720, th, { color = sg.tint or "#F4EEFF" })
 	end
-	-- (the tiles are not mirrored: the producer's pictures have a sky, houses and cats, and upside down they look
-	-- broken; the picture repeats as it is)
+	-- Every other tile is mirrored LEFT TO RIGHT (never upside down), so the same picture is not seen twice in a
+	-- row. A tile lies over the top of the tile below it (map_model tile_step): the lower tile stays under it.
+	if idx % 2 == 1 then gui.set_scale(node, v3(-1, 1, 1)) end
+	local above
+	for k, other in pairs(self.tiles) do -- order-free: the lowest tile of this district above idx
+		local i = k - seg * 1000
+		if i > idx and i < 1000 and (not above or i < above) then above = i end
+	end
+	if above then gui.move_below(node, self.tiles[key_of(seg, above)]) end
 	return node
 end
 
