@@ -1607,6 +1607,247 @@ def coconut_cha_cha(s):
     return {"drums": d, "keys": pno, "bass": bs_, "lead": mar}
 
 
+# ================================================================ CARNIVAL (C)
+
+def v_baby(s, m, d, v=0.8):
+    """The baby bass of the carnival theme (music.baby_bass)."""
+    return M.baby_bass(m, s.sec(min(d, 2.5)), s.sr, key=m % 3) * v
+
+
+def tumbao(c, n, i):
+    """Salsa bass for line(): nothing on beat 1; the fifth (or the next chord's root) on the and of 2 and the root
+    of the next bar on beat 4, tied over the bar line."""
+    R, F = root_fifth(c)
+    N = root_of(n, 40, 33, 47)
+    if c.dur >= 4:
+        return [(1.5, 1.4, F, 0.85), (3.0, 2.3, N, 0.95)]
+    return [(1.5, 1.4, N, 0.85)] if c.start % 4 == 0 else [(1.0, 2.3, N, 0.95)]
+
+
+def conga_tumbao(s, d, k, r, gain=1.0, mask=None):
+    """The conga pattern of the theme on a grid of 8ths, in 2-3: heel-toe-slap-toe, two open tones on beat 4, the
+    low drum on beat 3 of every second bar."""
+    hits(s, d, k["heel"], "o...o...", r, gain=0.7 * gain, mask=mask)
+    hits(s, d, k["toe"], ".g.g.g..", r, gain=0.8 * gain, mask=mask)
+    hits(s, d, k["slap"], "..X.....", r, gain=0.8 * gain, mask=mask)
+    hits(s, d, k["open"], "......Xx", r, gain=0.9 * gain, mask=mask)
+    hits(s, d, k["tumba"], ["........", "....Xx.."], r, gain=0.85 * gain, mask=mask)
+
+
+def second_voice(s, evs, gain=0.7):
+    """The second voice of a duo: under every note of the tune, the nearest note of the chord that is at least
+    a minor third lower (thirds and fourths that always belong to the harmony)."""
+    out = []
+    for b, d, m, v in evs:
+        pcs = set(chord_at(s, b).pcs())
+        out.append((b, d, max(x for x in range(m - 9, m - 2) if x % 12 in pcs), v * gain))
+    return out
+
+
+def salsa_confetti(s):
+    """180 BPM salsa dura on a grid of 8ths, 2-3 clave: cascara on the timbale shells (the bell in the second
+    half), congas and maracas, an arpeggiated piano guajeo in octaves, the anticipated baby bass, a trumpet
+    tune and a brass section that answers it at the end of every four bars."""
+    r = dsp.rng(s.id, "confetti")
+    t = s.tonic
+    ch = s.chords
+    k = kits(s, "latin", "carnival")
+    d = s.zeros()
+    hits(s, d, k["clave"], ["..x.x...", "x..x..x."], r, gain=0.5)
+    hits(s, d, k["rim"], ["x.x.xx.x", "x.xx.x.x"], r, gain=0.55, mask=bs("1-8"))
+    hits(s, d, k["bell"], ["X.xxX.xx", "X.x.X.xx"], r, gain=0.45, mask=bs("9-16"))
+    conga_tumbao(s, d, k, r)
+    hits(s, d, k["maraca"], "xoxoxoxo", r, gain=0.4)
+    hits(s, d, k["kick"], "x.......", r, gain=0.6)
+    hits(s, d, k["bongo_hi"], {7: "....x.xxx.x.....", 15: "....x.xxx.xx...."}, r, gain=0.7)
+    hits(s, d, k["bongo_lo"], {7: "...........x.xX.", 15: "............x.XX"}, r, gain=0.8)
+    d = room(s, d, 0.11, 0.7, "perc", damp=6000)
+    # guajeo: single chord tones in octaves on the montuno rhythm (on the beat in the two-side bar, off-beats in
+    # the three-side bar); the last 8th of a bar already plays the next chord
+    pno = s.zeros()
+    for bar in range(s.bars):
+        steps = ((0.0, 1), (1.0, 2), (1.5, 3), (2.5, 2), (3.5, 1)) if bar % 2 == 0 else \
+            ((0.5, 2), (1.5, 3), (2.5, 2), (3.5, 1))
+        for bt, i in steps:
+            c = chord_at(s, bar * 4 + bt + (0.5 if bt == 3.5 else 0.0))
+            R = nearest(c.root, 62, 57, 68)
+            m = [R, R + (3 if 3 in c.tones else 4), R + 7, R + (9 if 9 in c.tones else 10)][i]
+            du = 0.9 if bt in (1.5, 3.5) else 0.45
+            j = float(r.normal(0.003, 0.003))
+            for mm, g in ((m, 0.8), (m + 12, 1.0)):
+                s.add(pno, v_piano(s, mm, du, 0.75, bright=1.0, rel=0.1), bar * 4 + bt, g, dt=j)
+    pno = room(s, loop_filter(s, pno, "hp", 200), 0.11, 0.8, "piano", damp=5500)
+    bs_ = room(s, loop_filter(s, line(s, ch, tumbao, v_baby, r=r), "lp", 1500), 0.05, 0.6, "bass", damp=2500)
+    tn = tune("1:1.5 3:.5 5:1 3:1 | 6:1.5 5:.5 3:2 | 2:1.5 4:.5 6:1 4:1 | 5:1.5 4:.5 2:2 |"
+              " r:1 4:1 6:1 1+:1 | 7:1.5 6:.5 5:1 4:1 | 3:3 5:1 | 1+:2 r:2 |"
+              " r:1 6:1 1+:1 6:1 | 4:1.5 6:.5 1+:2 | r:1 5:1 1+:1 5:1 | 3:1.5 5:.5 1+:2 |"
+              " 2+:1 1+:1 6:1 4:1 | 7:1 6:1 5:1 7:1 | 1+:4 | r:1 5-:1 6-:1 7-:1", t, 5)
+    tp = room(s, mono(s, tn, "trumpet", key="confetti"), 0.16, 1.0, "tpt", damp=4500)
+    stabs = {3: [(2.5, 0.4, 0.85), (3.5, 0.45, 0.95)], 7: [(2.0, 0.4, 0.9), (3.0, 0.4, 0.85), (3.5, 0.45, 0.95)],
+             11: [(2.5, 0.4, 0.85), (3.5, 0.45, 0.95)], 14: [(0.5, 0.4, 0.8), (1.5, 0.4, 0.85), (2.5, 1.2, 0.95)]}
+    br = comp(s, ch, voicing(ch, 58, 77, 67, no_root), lambda c, i: stabs.get(int(c.start // 4), []), v_brass, r=r)
+    br = room(s, br, 0.15, 0.9, "brass", damp=5000)
+    return {"drums": d, "keys": pno, "bass": bs_, "lead": tp, "brass": br}
+
+
+def moonlit_cumbia(s):
+    """96 BPM cumbia: the low drum on 1 and 3 and the high drum on every off-beat, maracas and a guiro, the
+    'chk-a' of a nylon guitar after each beat, an upright bass that climbs root-third-fifth, two cane flutes
+    in thirds and a marimba that answers them at the end of each phrase."""
+    r = dsp.rng(s.id, "mcumbia")
+    t = s.tonic
+    ch = s.chords
+    k = kits(s, "latin", "carnival")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X.......X.......", r, gain=0.8)
+    hits(s, d, k["tumba"], "......x....x..x.", r, gain=0.6)
+    hits(s, d, k["open"], "..x...x...x...x.", r, gain=0.55)
+    hits(s, d, k["maraca"], "o.X.o.X.o.X.o.X.", r, gain=0.4)
+    hits(s, d, k["guiro"], "x.......x.......", r, gain=0.3)
+    hits(s, d, k["guiro_short"], "....x.x.....x.x.", r, gain=0.26)
+    hits(s, d, k["bongo_hi"], {3: "..........x.xx..", 7: "........x.xxx.x."}, r, gain=0.5)
+    d = room(s, d, 0.13, 0.8, "perc", damp=6000)
+    gtr = strum_comp(s, ch, voicing(ch, 60, 79, 69, no_root, span=12),
+                     [(b + o, du, v) for b in range(4) for o, du, v in ((0.5, 0.2, 0.75), (0.75, 0.15, 0.45))],
+                     r=r, bright=0.6, t60=0.5, mute=0.04, spread=0.007)
+    gtr = room(s, loop_filter(s, gtr, "hp", 200), 0.13, 0.9, "gtr", damp=5500)
+
+    def bass(c, n, i):
+        R = root_of(c, 40, 33, 45)
+        return [(0, 1.8, R, 0.9), (2.0, 0.9, R + (3 if 3 in c.tones else 4), 0.75), (3.0, 0.9, R + 7, 0.8)]
+    bs_ = room(s, loop_filter(s, line(s, ch, bass, v_upright, r=r), "lp", 1400), 0.05, 0.6, "bass", damp=2500)
+    tn = tune("5:1 3:.5 5:.5 1+:1.5 5:.5 | 4:.5 5:.5 4:.5 2:.5 7-:1 2:1 | 4:1 2:.5 4:.5 5:1.5 4:.5 |"
+              " 3:.5 4:.5 3:.5 2:.5 1:2 | 6:1 4:.5 6:.5 1+:1.5 6:.5 | 5:.5 6:.5 5:.5 3:.5 1:1 3:1 |"
+              " 2:.5 4:.5 5:.5 7:.5 2+:1 7:1 | 1+:3 r:1", t, 5)
+    fl = room(s, mono(s, tn, "flute", key="mcumbia", grid=0.25), 0.2, 1.1, "flute", damp=5500)
+    fl2 = room(s, mono(s, second_voice(s, tn), "flute", key="mcumbia2", grid=0.25), 0.2, 1.1, "flute2", damp=5000)
+    mar = s.zeros()
+    for bar, notes in ((3, ((2.0, 79), (2.5, 76), (3.0, 72), (3.5, 74))), (7, ((2.0, 84), (2.5, 79), (3.0, 76), (3.5, 79)))):
+        for i, (bt, m) in enumerate(notes):
+            j = float(r.normal(0, 0.003))
+            s.add(mar, v_marimba(s, m, 0.5, 0.75), bar * 4 + bt, dt=j)
+            s.add(mar, v_marimba(s, m - 12, 0.5, 0.5), bar * 4 + bt, dt=j + 0.004)
+    mar = room(s, mar, 0.2, 1.0, "marimba", damp=6000)
+    return {"drums": d, "guitar": gtr, "bass": bs_, "lead": fl, "flute2": fl2, "arp": mar}
+
+
+def candlelight_bolero(s):
+    """80 BPM bolero for a guitar trio: the requinto sings the tune in thirds (and trembles on its long notes),
+    a second nylon guitar rolls the chords in 8ths over the thumb, an upright bass plays the bolero figure
+    (long, short, long), bongos and maracas whisper the 8ths and strings hold the harmony."""
+    r = dsp.rng(s.id, "bolero")
+    t = s.tonic
+    ch = s.chords
+    k = kits(s, "latin", "carnival")
+    d = s.zeros()
+    hits(s, d, k["bongo_hi"], "o.g.x.g.o.g.x...", r, gain=0.5)
+    hits(s, d, k["bongo_lo"], "..............x.", r, gain=0.55)
+    hits(s, d, k["maraca"], "x.o.x.o.x.o.x.o.", r, gain=0.22)
+    hits(s, d, k["tumba"], "............o...", r, gain=0.4)
+    d = room(s, d, 0.18, 1.1, "perc", damp=5000)
+    gtr = s.zeros()
+    for c, v in zip(ch, voicing(ch, 55, 72, 63)):
+        v = sorted(v)
+        for q in range(int(c.dur * 2)):
+            j = float(r.normal(0, 0.004))
+            if q % 8 == 0:
+                s.add(gtr, v_nylon(s, root_of(c, 47, 40, 52), 1.6, 0.7), c.start, dt=j)
+            else:
+                m = v[(0, 1, 2, 1, 0, 1, 2)[(q - 1) % 7] % len(v)]
+                s.add(gtr, v_nylon(s, m, 0.9, 0.5 if q % 2 else 0.6), c.start + q * 0.5, dt=j)
+    gtr = room(s, loop_filter(s, gtr, "hp", 110), 0.2, 1.3, "gtr", damp=4500)
+
+    def bass(c, n, i):
+        R, F = root_fifth(c)
+        return [(0, 1.4, R, 0.9), (1.5, 0.45, R, 0.6)] + ([(2.0, 1.8, F, 0.8)] if c.dur >= 4 else [])
+    bs_ = room(s, loop_filter(s, line(s, ch, bass, v_upright, r=r), "lp", 1000), 0.06, 0.6, "bass", damp=2500)
+    tn = tune("r:.5 3:.5 5:.5 1+:.5 7:1.5 5:.5 | 6:2.5 5:.5 3:1 | r:.5 2:.5 4:.5 6:.5 5:1.5 4:.5 |"
+              " 2:2 r:.5 5-:.5 7-:.5 2:.5 | 5:1.5 7:.5 2+:1.5 7:.5 | 1+:2 6:1 3:1 |"
+              " 4:1 6:.5 2+:.5 7:1 5:.5 7:.5 | 1+:2.5 r:1.5", t, 5)
+
+    def requinto(ss, m, du, v):
+        """A small bright nylon guitar; a note of two beats or more is kept alive with a tremolo of 16ths."""
+        if du < 2.0:
+            return ins.guitar(m, ss.sec(du), ss.sr, bright=0.5, t60=1.4, pick=0.15, mute=0.08, key=m % 3,
+                              attack=0.002) * v
+        out = np.zeros(nsamp(ss.sec(du) + 0.6, ss.sr))
+        for i in range(int(round(du / 0.25))):
+            x = ins.guitar(m, ss.sec(0.4), ss.sr, bright=0.5, t60=0.9, pick=0.15, mute=0.06, key=i % 3, attack=0.002)
+            p0 = nsamp(ss.sec(i * 0.25), ss.sr)
+            out[p0: p0 + len(x)] += x[: len(out) - p0] * (1.0 if i == 0 else 0.62 - 0.02 * min(i, 8))
+        return out * v
+    req = lay(s, requinto, tn, r=r, jit=0.004) + lay(s, requinto, second_voice(s, tn, 0.6), r=r, jit=0.004, dt=0.006)
+    req = dsp.drive(req / dsp.peak(req) * 1.3, 1.4)  # rounds the pick transients (the limiter then has little to do)
+    req = room(s, echo(s, loop_filter(s, req, "hp", 180), 0.75, 0.08, 0.3, 2, 3500), 0.24, 1.5, "requinto", damp=5000)
+    st = comp(s, ch, voicing(ch, 55, 74, 64, lambda c: c.tones[:3]), lambda c, i: [(0, c.dur * 0.95, 0.5)], v_strings,
+              r=r)
+    st = room(s, loop_filter(s, st, "lp", 3200), 0.25, 1.6, "strings", damp=4000)
+    return {"drums": d, "guitar": gtr, "bass": bs_, "lead": req, "strings": st}
+
+
+def mambo_fireworks(s):
+    """156 BPM big-band mambo on a grid of 8ths: two saxophones riff on the chord tones (root, third, fifth,
+    sixth), the trumpets answer with off-beat stabs and take the tune in the bridge, the mambo bell rings the
+    beats over congas, and the band shouts in the two breaks."""
+    r = dsp.rng(s.id, "mambo")
+    t = s.tonic
+    ch = s.chords
+    k = kits(s, "dance", "latin", "carnival")
+    brk = (7, 15)  # the bars where the riff stops (0-based)
+    play = set(range(s.bars)) - set(brk)
+    d = s.zeros()
+    hits(s, d, k["bell"], ["X.xxX.xx", "X.x.X.xx"], r, gain=0.6, mask=play)
+    hits(s, d, k["clave"], ["..x.x...", "x..x..x."], r, gain=0.4)
+    conga_tumbao(s, d, k, r, mask=play)
+    hits(s, d, k["maraca"], "xoxoxoxo", r, gain=0.4)
+    hits(s, d, k["kick"], "X...x...", r, gain=0.5, mask=play)
+    hits(s, d, k["crash"], {0: "x.......", 8: "x......."}, r, gain=0.35, jit=0.0)
+    hits(s, d, k["bongo_hi"], {7: "x.xx.x.x........", 15: "x.xx.x.x........"}, r, gain=0.75)
+    hits(s, d, k["surdo_hi"], {7: "........x.......", 15: "........x......."}, r, gain=0.9)
+    hits(s, d, k["bongo_lo"], {7: "............x.xx", 15: "............xxxx"}, r, gain=0.8)
+    d = room(s, d, 0.12, 0.7, "perc", damp=6000)
+
+    def chord_run(c):
+        R = nearest(c.root, 60, 55, 66)
+        return [R, R + (3 if 3 in c.tones else 4), R + 7, R + (9 if 9 in c.tones else 10), R + 12]
+    low, high = [], []
+    for bar in sorted(play):
+        for bt, du, i, v in ((0, 0.5, 0, 0.9), (0.5, 0.5, 1, 0.7), (1.0, 1.0, 2, 0.85), (2.0, 0.5, 3, 0.9),
+                             (2.5, 1.0, 2, 0.8), (3.5, 0.5, 1, 0.7)):
+            run = chord_run(chord_at(s, bar * 4 + bt))
+            low.append((bar * 4 + bt, du, run[i], v))
+            high.append((bar * 4 + bt, du, run[i + 1], v))
+    sax = mono(s, low, "sax", key="mambo_tenor") + 0.75 * mono(s, high, "sax", key="mambo_alto")
+    sax = room(s, loop_filter(s, sax, "lp", 6000), 0.14, 0.9, "sax", damp=4500)
+
+    def stab(c, i):
+        bar = int(c.start // 4)
+        if bar in brk:
+            return [(0, 0.4, 0.95)] if c.start % 4 == 0 else []
+        if bar < 8:
+            return [(1.5, 0.3, 0.85), (2.5, 0.3, 0.8), (3.5, 0.45, 0.95)] if bar % 2 == 1 else []
+        return [(1.5, 0.3, 0.7)] if c.dur >= 4 else []
+    br = room(s, comp(s, ch, voicing(ch, 62, 81, 71, no_root), stab, v_brass, r=r), 0.15, 0.9, "brass", damp=5000)
+    tn = tune("r:4 | r:4 | r:4 | r:4 | r:4 | r:4 | r:4 | r:4 |"
+              " 6:1.5 1+:.5 6:2 | 5:1.5 1+:.5 5:2 | 4:1 5:1 7:1 2+:1 | 1+:3 r:1 |"
+              " 6:1.5 1+:.5 2+:2 | 1+:1.5 5:.5 3:2 | 4:1 6:1 5:1 7:1 | 1+:1 r:3", t, 5)
+    tp = room(s, mono(s, tn, "trumpet", key="mambo"), 0.16, 1.0, "tpt", damp=4500)
+
+    def bass(c, n, i):
+        R, F = root_fifth(c)
+        N = root_of(n, 40, 33, 47)
+        if c.dur < 4:
+            return [(0, 0.9, R, 0.9), (1.0, 0.9, N, 0.8)]
+        return [(0, 0.9, R, 0.95), (1.5, 1.4, F, 0.8), (3.0, 0.9, N, 0.85)]
+    bs_ = room(s, loop_filter(s, line(s, ch, bass, v_baby, r=r), "lp", 1500), 0.05, 0.6, "bass", damp=2500)
+    pno = comp(s, ch, voicing(ch, 57, 76, 66, no_root), [(1.0, 0.3, 0.6), (2.5, 0.3, 0.6)],
+               lambda ss, m, du, v: v_piano(ss, m, du, v, bright=0.8, rel=0.1), r=r, spread=0.004, mask=play)
+    pno = room(s, loop_filter(s, pno, "hp", 200), 0.12, 0.8, "piano", damp=5500)
+    shout = gang(s, [(b, 2.0) for b in brk], voices=7, lo=110, hi=200, key="uh")
+    return {"drums": d, "sax": sax, "brass": br, "lead": tp, "bass": bs_, "keys": pno,
+            "gang": room(s, shout, 0.2, 1.0, "gang", damp=5000)}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -1654,6 +1895,15 @@ SONGS = {
                    {"drums": -25, "fx": -31, "guitar": -20, "lead": -20, "vibes": -25, "voice": -27, "bass": -21}),
     "coconut_cha_cha": ("I6:4 IV6:4 V7:4 I6:4 vi7:4 ii7:4 V7:4 I6:4 IV6:4 I6:4 ii7:2 V7:2 I6:4", coconut_cha_cha,
                         {"keys": -21, "lead": -18}),
+    # carnival (C major)
+    "salsa_confetti": ("I6:4 I6:4 ii7:4 V7:4 ii7:4 V7:4 I6:4 I6:4 IV6:4 IV6:4 I6:4 I6:4 ii7:4 V7:4 I6:4 V7:4",
+                       salsa_confetti, {"keys": -20, "brass": -22}),
+    "moonlit_cumbia": ("I:4 V7:4 V7:4 I:4 IV:4 I:4 V7:4 I:4", moonlit_cumbia,
+                       {"guitar": -20, "flute2": -24, "arp": -22}),
+    "candlelight_bolero": ("Imaj7:4 vi7:4 ii7:4 V7:4 Imaj7:4 IVmaj7:4 ii7:2 V7:2 I:4", candlelight_bolero,
+                           {"drums": -24, "guitar": -20, "lead": -18, "strings": -26, "bass": -21}),
+    "mambo_fireworks": ("I6:4 V7:4 V7:4 I6:4 I6:4 V7:4 V7:4 I6:4 IV6:4 I6:4 V7:4 I6:4 IV6:4 I6:4 ii7:2 V7:2 I6:4",
+                        mambo_fireworks, {"sax": -19, "brass": -21, "lead": -19, "keys": -24, "gang": -20}),
 }
 
 

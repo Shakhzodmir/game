@@ -12,7 +12,7 @@ local function read(path)
 end
 
 local districts = json.decode(read("content/districts.json")).districts
--- the six district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
+-- the seven district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
 local extra_genres = json.decode(read("content/genres.json")).genres
 local catalogue = {}
 for _, d in ipairs(districts) do catalogue[#catalogue + 1] = d end
@@ -38,7 +38,7 @@ describe("the registry of the jukebox songs", function()
 				assert_true(e.loop >= 16 and e.loop <= 32, s.id .. " loops " .. e.loop .. " s")
 			end
 		end
-		assert_eq(n, 73)
+		assert_eq(n, 77)
 	end)
 
 	it("has no song that the catalogue does not name, and no id of a district", function()
@@ -117,7 +117,9 @@ describe("the audio manifest of the jukebox songs", function()
 		end
 	end)
 
-	it("costs at most 6 MB for the district genres and 8 MB more for the extra genres, the rest of the audio under its old budget", function()
+	-- notes + SFX + district music: 10 MB since 13.11.2026 (7 MB before; raised for districts 7+ with the producer's
+	-- approval, about 0.8 MB a district) -- the same number as SIZE_BUDGET of tools/audio/gen_audio.py
+	it("costs at most 6 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 10 MB", function()
 		local bytes, extra = 0, 0
 		local extra_ids = {}
 		for _, g in ipairs(extra_genres) do
@@ -129,7 +131,38 @@ describe("the audio manifest of the jukebox songs", function()
 		assert_true(bytes <= 6 * 1024 * 1024, "the district songs weigh " .. bytes .. " bytes")
 		assert_true(extra <= 8 * 1024 * 1024, "the songs of the new genres weigh " .. extra .. " bytes (the WP-6 budget is +8 MB)")
 		bytes = bytes + extra
-		assert_true(manifest.total_bytes - bytes <= 7 * 1024 * 1024, "the rest of the audio grew")
+		assert_true(manifest.total_bytes - bytes <= 10 * 1024 * 1024, "the rest of the audio grew past its 10 MB")
+		local gen = read("tools/audio/gen_audio.py")
+		assert_true(string.find(gen, "SIZE_BUDGET = 10 * 1024 * 1024", 1, true) ~= nil, "the generator checks another budget")
+		assert_true(string.find(gen, "SONG_BUDGET = 14 * 1024 * 1024", 1, true) ~= nil, "the generator checks another song budget")
+	end)
+
+	it("measures the layered theme of every district: its stems in task order, then tension and party", function()
+		for _, d in ipairs(districts) do
+			local m = manifest.music[d.id]
+			assert_true(m ~= nil, d.id .. " has no music in the manifest")
+			assert_eq(m.bpm, d.bpm)
+			assert_eq(m.key, d.key)
+			assert_eq(m.bars, d.bars)
+			assert_eq(#m.stems, #d.tasks + 2, d.id)
+			for i, t in ipairs(d.tasks) do
+				assert_eq(m.stems[i].stem, t.stem, d.id .. " stem " .. i)
+				assert_eq(m.stems[i].path, "assets/music/" .. d.id .. "/" .. t.stem .. ".ogg")
+				local f = io.open(m.stems[i].path, "rb")
+				assert_true(f ~= nil, m.stems[i].path .. " is missing")
+				f:close()
+			end
+			assert_eq(m.stems[#d.tasks + 1].stem, "tension")
+			assert_eq(m.stems[#d.tasks + 2].stem, "party")
+			-- the loudest thing the game really plays stays under the ceiling, and the loop reads in the district's key
+			for name, c in pairs(m.combos) do
+				if string.sub(name, 1, 3) ~= "all" then assert_true(c.true_peak_dbtp <= -1.0, d.id .. " " .. name) end
+			end
+			local kr = m.key_reading.tasks
+			assert_true(kr.major > kr.relative_minor, d.id .. " reads as its relative minor")
+		end
+		assert_eq(manifest.music.carnival.key_reading.tasks.best, "C maj")
+		assert_eq(manifest.music.carnival.key_reading["tasks+party"].best, "C maj")
 	end)
 
 	it("passes every check the generator ran", function()

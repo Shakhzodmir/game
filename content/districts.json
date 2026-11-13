@@ -965,7 +965,52 @@
       "semitones_from_c": 0,
       "bars": 8,
       "mood": "latin carnival street party, salsa and cumbia feel, bright and danceable",
-      "songs": [],
+      "songs": [
+        {
+          "id": "salsa_confetti",
+          "name": {
+            "ru": "Сальса с конфетти",
+            "en": "Confetti Salsa",
+            "ko": "콘페티 살사"
+          },
+          "bpm": 180,
+          "bars": 16,
+          "mood": "fast salsa: cascara and congas, a piano guajeo in octaves, anticipated bass, a trumpet tune, brass answers"
+        },
+        {
+          "id": "moonlit_cumbia",
+          "name": {
+            "ru": "Кумбия под луной",
+            "en": "Moonlit Cumbia",
+            "ko": "달빛 쿰비아"
+          },
+          "bpm": 96,
+          "bars": 8,
+          "mood": "easy cumbia: off-beat hand drum, maracas and guiro, nylon chk-a strums, two cane flutes in thirds, marimba answers"
+        },
+        {
+          "id": "candlelight_bolero",
+          "name": {
+            "ru": "Болеро при свечах",
+            "en": "Candlelight Bolero",
+            "ko": "촛불 볼레로"
+          },
+          "bpm": 80,
+          "bars": 8,
+          "mood": "slow romantic bolero: a requinto tune in thirds with tremolo, rolling nylon guitar, bongos and maracas, strings"
+        },
+        {
+          "id": "mambo_fireworks",
+          "name": {
+            "ru": "Мамбо-фейерверк",
+            "en": "Fireworks Mambo",
+            "ko": "불꽃놀이 맘보"
+          },
+          "bpm": 156,
+          "bars": 16,
+          "mood": "big-band mambo: a two-sax riff, trumpet stabs and a trumpet bridge, mambo bell and congas, the band shouts in the breaks"
+        }
+      ],
       "chest": {
         "coins": 1400,
         "boosters": [

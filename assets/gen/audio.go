@@ -84,6 +84,46 @@ embedded_components {
   data: "sound: \"/assets/music/cafe/vinyl.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_carnival_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_carnival_congas"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/congas.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_carnival_guitar"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/guitar.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_carnival_party"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_carnival_piano"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/piano.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_carnival_shaker"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/shaker.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_carnival_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_carnival_trumpet"
+  type: "sound"
+  data: "sound: \"/assets/music/carnival/trumpet.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_garage_bass"
   type: "sound"
   data: "sound: \"/assets/music/garage/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -869,6 +909,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/calypso_sun.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_candlelight_bolero"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/candlelight_bolero.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_candy_rush"
   type: "sound"
   data: "sound: \"/assets/music/songs/candy_rush.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -984,6 +1029,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/lightstick_wave.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_mambo_fireworks"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/mambo_fireworks.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_marching_ducks"
   type: "sound"
   data: "sound: \"/assets/music/songs/marching_ducks.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1007,6 +1057,11 @@ embedded_components {
   id: "song_moonlight_bossa"
   type: "sound"
   data: "sound: \"/assets/music/songs/moonlight_bossa.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_moonlit_cumbia"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/moonlit_cumbia.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_neon_heartbeat"
@@ -1072,6 +1127,11 @@ embedded_components {
   id: "song_salon_morning"
   type: "sound"
   data: "sound: \"/assets/music/songs/salon_morning.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_salsa_confetti"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/salsa_confetti.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_salsa_market"
