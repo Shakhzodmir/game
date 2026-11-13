@@ -412,6 +412,8 @@ function H.hit(self, e)
 		if d then self:burst(d.fx == "sparkle" and "spark" or d.fx, e.x, e.y, d.color or "#FFFFFF", 4, t) end
 	elseif e.layer == "wires" then
 		self:burst("spark", e.x, e.y, "#FFB463", 5, t)
+	elseif e.layer == "chain" then
+		self:burst("spark", e.x, e.y, "#FFD84D", 5, t)
 	elseif e.layer == "floor" and (e.hp or 0) > 0 then
 		-- the first layer of a two-layer tile is gone: a gold blink while the tile itself (client/level_floor.lua)
 		-- lights its core
@@ -462,6 +464,15 @@ function H.freed(self, e)
 	self:burst("spark", e.x, e.y, "#FFB463", 6, t)
 	-- the cable snaps off and drops away
 	self:push({ kind = "ghost", image = "blockers_wires_1", x = lx, y = ly, s0 = 1, s1 = 1.35, rot0 = 0, rot1 = 28, a0 = 1,
+		a1 = 0, dy = -self.geom.cell * 0.35, dur = 0.38, at = t })
+end
+
+-- the last link of a chain is gone (core-rules 10.6): the chain flies off its piece, which stays
+function H.unchained(self, e)
+	local t = e.t or 0
+	local lx, ly = self:center(e.x, e.y)
+	self:burst("spark", e.x, e.y, "#FFD84D", 8, t)
+	self:push({ kind = "ghost", image = "blockers_chain_1", x = lx, y = ly, s0 = 1, s1 = 1.4, rot0 = 0, rot1 = -24, a0 = 1,
 		a1 = 0, dy = -self.geom.cell * 0.35, dur = 0.38, at = t })
 end
 

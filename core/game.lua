@@ -163,6 +163,7 @@ function Game:pieces()
 		if o.color ~= 0 then p.color = C.COLOR_NAME[o.color] end
 		if o.special ~= 0 then p.special = C.SPECIAL_NAME[o.special] end
 		if o.axis ~= 0 then p.axis = C.AXIS_NAME[o.axis] end
+		if o.chain > 0 then p.chain = o.chain end
 		if o.blocker ~= 0 then
 			p.item = C.BLOCKER_NAME[o.blocker]
 			p.hp = o.hp

@@ -49,6 +49,20 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_chain_1"
+  images {
+    image: "/assets/images/blockers/chain_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "blockers_chain_2"
+  images {
+    image: "/assets/images/blockers/chain_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_coconut"
   images {
     image: "/assets/images/blockers/coconut.png"

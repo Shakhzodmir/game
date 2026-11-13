@@ -1266,3 +1266,146 @@ describe("screens/level/board.script with coconuts (core-rules 10.5)", function(
 		end)
 	end)
 end)
+
+-- two chains (core-rules 10.6): hp 2 on the piece of (1, 1), hp 1 on the green piece of (4, 9); the swipe
+-- (6,8) -> (6,9) makes the green line (4..6, 9) with the chained piece
+local function chain_level()
+	return core_helper.level({
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyrgbpyr",
+		"pyrgbypyr",
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyggbpyr",
+	}, { moves = 10, goals = { { type = "chains", count = 2 } },
+		overlay = { { at = { 0, 0 }, type = "chain", hp = 2 }, { at = { 3, 8 }, type = "chain", hp = 1 } } })
+end
+
+describe("screens/level/board.script with chains (core-rules 10.6)", function()
+	local level_plates = require("client.level_plates")
+	local level_anim = require("client.level_anim")
+	before_each(function() level_plates.reset() end)
+
+	local function count_anim(E, anim)
+		local n = 0
+		for _, o in ipairs(E.by_factory("piece_factory")) do
+			if E.visible(o) and E.sprite_of(o).anim == anim then n = n + 1 end
+		end
+		return n
+	end
+
+	local function toast_keys(E)
+		local list = {}
+		for _, m in ipairs(E.msgs) do
+			if m.id == "toast" then
+				local t = app.claim(m.message.ticket)
+				list[#list + 1] = t and t.key or "?"
+			end
+		end
+		return list
+	end
+
+	local function thuds(E)
+		local n = 0
+		for _, m in ipairs(E.msgs) do
+			if m.id == "sfx" and m.message.name == "land" and m.message.gain == 0.9 then n = n + 1 end
+		end
+		return n
+	end
+
+	it("draws a chain over each chained piece, by its strength, where the piece is, and no plate", function()
+		with_board({ level = 1, level_text = chain_level() }, function(E, script, self, d)
+			d.frame(90)
+			assert_eq(count_anim(E, "blockers_chain_2"), 1)
+			assert_eq(count_anim(E, "blockers_chain_1"), 1)
+			assert_eq(count_anim(E, "board_plate"), 0, "a chained piece falls: it sits on no plate")
+			for _, at in ipairs({ { 1, 1 }, { 4, 9 } }) do
+				local p = self.cellmap[(at[2] - 1) * self.W + at[1]]
+				local piece, chain = self.view.by_id[p.id], self.view.by_id[level_anim.CHAIN_ID + p.id]
+				assert_true(piece ~= nil and chain ~= nil, "a sprite for the piece and one for its chain")
+				assert_same({ chain.x, chain.y }, { piece.x, piece.y })
+				assert_true(chain.z > piece.z, "the chain lies over its piece")
+			end
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("a drag of a chained piece, or onto it, is refused: it shakes, thuds and says why once", function()
+		with_board({ level = 1, level_text = chain_level() }, function(E, script, self, d)
+			d.frame(90)
+			d.swipe(1, 1, 2, 1)
+			d.frame(5)
+			assert_eq(self.session.game:status().moves_left, 10)
+			assert_eq(thuds(E), 1)
+			assert_same(toast_keys(E), { "level.fixed_chained" })
+			d.frame(30)
+			d.swipe(2, 1, 1, 1)
+			d.frame(5)
+			assert_eq(self.session.game:status().moves_left, 10)
+			assert_eq(thuds(E), 2)
+			assert_eq(#toast_keys(E), 1, "the hint of a kind comes once: no second toast")
+			assert_true(d.settle())
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("a match with the chained piece breaks the chain: the piece stays, the HUD is told, the sprite goes", function()
+		with_board({ level = 1, level_text = chain_level() }, function(E, script, self, d)
+			d.frame(90)
+			local id = self.cellmap[(9 - 1) * self.W + 4].id
+			d.swipe(6, 8, 6, 9)
+			d.frame(1)
+			assert_eq(self.session.game:status().moves_left, 9)
+			assert_true(d.settle())
+			d.frame(60)
+			local goal
+			for _, e in ipairs(d.events) do
+				if e.topic == "level_goal" then goal = goal or e.payload end
+			end
+			assert_true(goal ~= nil, "the HUD is told")
+			assert_same({ goal.index, goal.left, goal.kind, goal.x, goal.y }, { 1, 1, "chains", 4, 9 })
+			assert_true(goal.lx ~= nil and goal.ly ~= nil, "where to fly the icon from")
+			assert_eq(self.view.by_id[level_anim.CHAIN_ID + id], nil, "the sprite of the broken chain went back to the pool")
+			local still = false
+			for _, p in ipairs(self.session.game:pieces()) do
+				if p.id == id then still = p.chain == nil end
+			end
+			assert_true(still, "the piece is on the board, free")
+			local snaps = 0
+			for _, m in ipairs(E.msgs) do
+				if m.id == "sfx" and m.message.name == "wires_snap" then snaps = snaps + 1 end
+			end
+			assert_true(snaps >= 1, "the chain snaps with the sound of the wires")
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("the janitor finds nothing to put right on a board with chains at rest", function()
+		with_board({ level = 1, level_text = chain_level() }, function(E, script, self, d)
+			d.frame(900)
+			assert_true((self.janitor_passes or 0) >= 1, "the janitor looked")
+			assert_eq(self.janitor_repairs or 0, 0)
+			assert_eq(self.view:stats().repaired, 0)
+			assert_eq(count_anim(E, "blockers_chain_2") + count_anim(E, "blockers_chain_1"), 2)
+		end)
+	end)
+
+	it("plays a chain level to its final concert without an engine error", function()
+		with_board({ level = 1, level_text = chain_level() }, function(E, script, self, d)
+			self.session:autoplay(nil, { free_moves = true })
+			local state
+			for _ = 1, 6000 do
+				d.frame(1)
+				state = self.session.game:status().state
+				if state == "complete" or state == "lost" then break end
+			end
+			assert_eq(state, "complete")
+			d.frame(60)
+			assert_eq(self.errors or 0, 0)
+			assert_eq(d.topics.level_result, 1)
+		end)
+	end)
+end)

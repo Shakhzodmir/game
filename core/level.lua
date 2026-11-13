@@ -10,6 +10,7 @@
 --   ascending), weights[code], goals = {{type, param, count}} (param: colour
 --   code of collect, blocker code of break, else 0), exists[i], spawner[i],
 --   exit[i] (only with a deliver goal), floor[i], wires[i] (hp),
+--   chain[i] (hp of the chain the starting piece of cell i wears, 10.6),
 --   seg_top[i], seg_bot[i] (rows of the segment of cell i),
 --   presets = {{cell, kind, color, special, axis, blocker, hp}} by cell,
 --   mic = {total, on_board_max, gap_moves} or nil,
@@ -95,7 +96,7 @@ local function read_cells(ctx)
 			local i = (y - 1) * W + x
 			lvl.exists[i] = string.sub(row, x, x) == "#"
 			lvl.spawner[i], lvl.exit[i] = false, false
-			lvl.floor[i], lvl.wires[i] = 0, 0
+			lvl.floor[i], lvl.wires[i], lvl.chain[i] = 0, 0, 0
 		end
 	end
 	segments(lvl)
@@ -190,15 +191,17 @@ local function read_layers(ctx)
 	local lvl = ctx.lvl
 	for _, layer in ipairs({ "floor", "overlay" }) do
 		local list = ctx.raw[layer] or {}
-		local dst = layer == "floor" and lvl.floor or lvl.wires
 		for k = 1, #list do
 			local at = list[k].at
 			local i = cell_of(ctx, at)
+			local dst = layer == "floor" and lvl.floor or (list[k].type == "chain" and lvl.chain or lvl.wires)
 			if not i then err_at(ctx, "2.1.2", layer .. " is not on an existing cell", at)
-			elseif dst[i] > 0 then err_at(ctx, "2.1.2", "two " .. layer .. " elements in one cell", at)
+			elseif (layer == "floor" and dst[i] > 0) or (layer == "overlay" and (lvl.wires[i] > 0 or lvl.chain[i] > 0)) then
+				err_at(ctx, "2.1.2", "two " .. layer .. " elements in one cell", at)
 			else
 				dst[i] = list[k].hp
 				if layer == "floor" then ctx.n_tiles = ctx.n_tiles + 1 end
+				if dst == lvl.chain then ctx.n_chains = ctx.n_chains + 1 end
 			end
 		end
 	end
@@ -282,6 +285,9 @@ local function static_rules(ctx)
 		if lvl.wires[i] > 0 and slot_at[i] and slot_at[i].kind ~= C.K_REGULAR then
 			err(ctx, "2.1.3", "wires over a cell without a regular piece", i)
 		end
+		if lvl.chain[i] > 0 and slot_at[i] and slot_at[i].kind ~= C.K_REGULAR then
+			err(ctx, "2.1.3", "chain over a cell without a regular piece", i)
+		end
 	end
 	for k = 1, #lvl.goals do
 		local g = lvl.goals[k]
@@ -297,11 +303,13 @@ local function static_rules(ctx)
 			errs[#errs + 1] = "2.1.5 light goal without floor tiles"
 		elseif g.type == C.GOAL_DELIVER and (not lvl.mic or ctx.n_exits == 0) then
 			errs[#errs + 1] = "2.1.5 deliver goal needs a mic block and an exit"
+		elseif g.type == C.GOAL_CHAINS and g.count > ctx.n_chains then
+			errs[#errs + 1] = "2.1.5 chains count exceeds the chains on the board"
 		elseif g.type == C.GOAL_DROP and (not lvl.coconut or ctx.n_exits == 0) then
 			errs[#errs + 1] = "2.1.5 drop goal needs a coconut block and an exit"
 		end
 	end
-	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut
+	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain
 	local n_el = 0
 	for b = 1, 5 do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -313,6 +321,7 @@ local function static_rules(ctx)
 			break
 		end
 	end
+	if ctx.n_chains > 0 then n_el = n_el + 1 end
 	if ctx.deliver or ctx.raw.mic ~= nil or ctx.n_mics > 0 then n_el = n_el + 1 end
 	if ctx.drop or ctx.raw.coconut ~= nil or ctx.n_coconuts > 0 then n_el = n_el + 1 end
 	if n_el > 3 then errs[#errs + 1] = "2.1.6 more than three different elements" end
@@ -370,12 +379,12 @@ local function normalize(raw, errs)
 	local ctx = {
 		raw = raw, errs = errs, W = W, H = H, N = W * H,
 		deliver = false, exits = {}, n_exits = 0, slot_at = {}, counts = { 0, 0, 0, 0, 0 },
-		n_tiles = 0, n_mics = 0, n_coconuts = 0, drop = false, in_colors = {},
+		n_chains = 0, n_tiles = 0, n_mics = 0, n_coconuts = 0, drop = false, in_colors = {},
 		lvl = {
 			id = raw.id, version = raw.version, W = W, H = H, N = W * H, moves = raw.moves,
 			difficulty = C.DIFFICULTY[raw.difficulty],
 			colors = {}, weights = {}, goals = {},
-			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {},
+			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {},
 			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil,
 		},
 	}

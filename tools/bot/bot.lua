@@ -16,6 +16,8 @@
 -- (+ a bonus for a combo swap). On a level with a `drop` goal every row a
 -- coconut comes down adds Bot.W.lower: without it a coconut pays only in the
 -- move that brings it to the bottom, and the bot would not dig under it.
+-- On a level with a `chains` goal every hp unit a match takes off a chain
+-- adds Bot.W.link: the first hit on a chain of hp 2 moves no goal counter.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -40,7 +42,7 @@ local SPECIAL_RANK = { bird = 1, riff = 2, sub = 3, disco = 4 }
 -- adds best2 * second_ply_num / second_ply_den.
 Bot.SCALE = 1000
 Bot.W = {
-	progress = 10, special = 3, wave = 1, lower = 3,
+	progress = 10, special = 3, wave = 1, lower = 3, link = 5,
 	combo_greedy = 5, combo_strong = 15, combo_disco_strong = 25,
 	win_strong = 1000, near_goal = 3, rank_strong = 1, second_ply_num = 1, second_ply_den = 2,
 }
@@ -61,11 +63,13 @@ function Bot.new(kind, opts)
 		width = opts.width or 9,    -- board width (cells() is indexed (y-1)*W+x)
 		totals = nil,               -- initial goal counts (first decision)
 		drop = false,               -- the level has a `drop` goal (coconuts)
+		chains = false,             -- the level has a `chains` goal (10.6)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
 	}, Bot)
 	for k = 1, #self.goals do
 		if self.goals[k].type == "drop" then self.drop = true end
+		if self.goals[k].type == "chains" then self.chains = true end
 	end
 	return self
 end
@@ -224,6 +228,17 @@ function Bot.lowered(self, before, game)
 	return n
 end
 
+-- Sum of the hp of every chain on the board (only on a level with a `chains`
+-- goal; nil otherwise, so the other levels pay nothing). Chains never
+-- appear during a game, so the difference of two sums is the hp taken off.
+function Bot.chain_hp(self, game)
+	if not self.chains then return nil end
+	local n = 0
+	local list = game:pieces()
+	for k = 1, #list do n = n + (list[k].chain or 0) end
+	return n
+end
+
 -- Weighted goal progress between two goal-left arrays, x SCALE. Every goal
 -- counts in its own units scaled so that the average unit weighs 1 (a level
 -- with one goal scores the raw progress).
@@ -341,6 +356,7 @@ function Bot:choose(game)
 	local strong = self.kind == "strong"
 	local targets = strong and goal_targets(self, game, map, before) or nil
 	local coconuts = Bot.coconuts(self, game)
+	local links = Bot.chain_hp(self, game)
 	local W = Bot.W
 	local scored = {}
 	for k = 1, #cands do
@@ -351,6 +367,7 @@ function Bot:choose(game)
 			local after = clone:status().goals
 			sc = Bot.base_score(self, cd, acc, before, after)
 			if coconuts then sc = sc + Bot.SCALE * W.lower * Bot.lowered(self, coconuts, clone) end
+			if links then sc = sc + Bot.SCALE * W.link * (links - Bot.chain_hp(self, clone)) end
 			if strong then
 				local extra = acc.won and W.win_strong or 0
 				for j = 1, #acc.specials do
@@ -377,6 +394,7 @@ function Bot:choose(game)
 				local hits = Bot.static_specials(e.clone, map2, c2)
 				local best2 = 0
 				local before2 = e.clone:status().goals
+				local links2 = Bot.chain_hp(self, e.clone)
 				for j = 1, math.min(3, #hits) do
 					local cl2, acc2 = Bot.simulate(self, e.clone, hits[j].cand)
 					if cl2 then
@@ -384,6 +402,7 @@ function Bot:choose(game)
 						if coconuts then
 							s2 = s2 + Bot.SCALE * W.lower * Bot.lowered(self, Bot.coconuts(self, e.clone), cl2)
 						end
+						if links2 then s2 = s2 + Bot.SCALE * W.link * (links2 - Bot.chain_hp(self, cl2)) end
 						if acc2.won then s2 = s2 + Bot.SCALE * W.win_strong / 10 end
 						if s2 > best2 then best2 = s2 end
 					end

@@ -16,12 +16,13 @@ local SH = {}
 
 local K_REGULAR, S_IDLE = C.K_REGULAR, C.S_IDLE
 
--- Candidates: regular idle pieces without wires, not pinned, by index.
+-- Candidates: regular idle pieces without wires and without a chain, not pinned, by index.
 function SH.candidates(s)
 	local cells = {}
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and s.wires[i] == 0 then
+		if o and o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and s.wires[i] == 0
+			and o.chain == 0 then
 			cells[#cells + 1] = i
 		end
 	end
@@ -164,6 +165,29 @@ function SH.apply_result(s, res)
 	E.emit(s, "shuffle", ev)
 end
 
+-- Item 4a of 12.2: no candidates and no wired piece, so a chained regular
+-- idle piece loses its chain (counted in the `chains` goal, no score: the
+-- goal must stay reachable) and becomes a Riff.
+function SH.unchain_riff(s, st, res)
+	local chained = {}
+	for i = 1, s.N do
+		local o = B.get(s, i)
+		if o and o.kind == K_REGULAR and o.state == S_IDLE and o.chain > 0 then chained[#chained + 1] = o end
+	end
+	if #chained == 0 then return false end
+	local o = chained[R.int(st, #chained)]
+	o.chain = 0
+	local x, y = U.xy(s.W, o.cell)
+	E.emit(s, "unchained", { id = o.id, x = x, y = y })
+	local H = require("core.hits")
+	local acc = H.acc()
+	H.goal(s, acc, C.GOAL_CHAINS, 0, 1)
+	H.flush(s, acc, o.cell)
+	SH.make_riff(o)
+	res.riff, res.riff_from = o, "chain"
+	return true
+end
+
 -- In-game shuffle at rest (12.2, items 1-6).
 function SH.in_game(s)
 	local st = s.rng[R.SHUFFLE]
@@ -182,6 +206,8 @@ function SH.in_game(s)
 			E.emit(s, "freed", { id = o.id, x = x, y = y })
 			SH.make_riff(o)
 			res.riff, res.riff_from = o, "wires"
+		elseif SH.unchain_riff(s, st, res) then
+			-- 4a. done: a chained piece lost its chain and became a Riff
 		else
 			-- 5. a noise becomes a Riff
 			local noise = {}

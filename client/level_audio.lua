@@ -190,13 +190,13 @@ function LA:event(e)
 	elseif ty == "hit" then
 		if e.layer == "blocker" then
 			self:sfx(M.BLOCKER_HIT[e.item] or "box_hit", nil, 0.06)
-		elseif e.layer == "wires" then
+		elseif e.layer == "wires" or e.layer == "chain" then
 			self:sfx("wires_snap", { gain = 0.5 }, 0.08)
 		end
 	elseif ty == "destroy" then
 		self:sfx(M.BLOCKER_BREAK[e.item] or "box_break", nil, 0.05)
 		self:buzz("destroy")
-	elseif ty == "freed" then
+	elseif ty == "freed" or ty == "unchained" then
 		self:sfx("wires_snap", nil, 0.06)
 	elseif ty == "floor_lit" then
 		self:sfx("floor_light", nil, 0.06)

@@ -9,7 +9,8 @@
 --   id, kind (K_*), color (regular piece or balloon, else 0), special (SP_*),
 --   axis (AX_*), blocker (BK_*), hp (blocker hp), state (S_*), cell (key /
 --   target cell), mv, wv (label), offx, offy, vy, delay, settle (settle_tick),
---   tk, td (timer kind and due tick), pins (source ids, ascending).
+--   tk, td (timer kind and due tick), pins (source ids, ascending),
+--   chain (hp of the chain on a regular piece, 10.6; 0 = none).
 
 local C = require("core.const")
 local U = require("core.util")
@@ -72,7 +73,7 @@ function B.new_obj(s, kind, fields)
 	local o = {
 		id = id, kind = kind, color = 0, special = 0, axis = 0, blocker = 0, hp = 0,
 		state = S_IDLE, cell = 0, mv = 0, wv = 0, offx = 0, offy = 0, vy = 0, delay = 0,
-		settle = 0, tk = 0, td = 0, pins = {},
+		settle = 0, tk = 0, td = 0, pins = {}, chain = 0,
 	}
 	if fields then
 		for k, v in pairs(fields) do o[k] = v end -- order-independent
@@ -122,6 +123,12 @@ function B.is_movable(s, o)
 	local k = o.kind
 	if k == K_SPECIAL or k == K_MIC or k == C.K_COCONUT then return true end
 	return k == K_REGULAR and s.wires[o.cell] == 0
+end
+
+-- May the player (or the Crossfader) move it: free and not chained (10.6).
+-- A chained piece falls like a free one but is never swapped.
+function B.can_swap(s, o)
+	return o.chain == 0 and o.state == S_IDLE and o.pins[1] == nil and B.is_movable(s, o)
 end
 
 function B.is_pinned(o)
@@ -210,8 +217,8 @@ function B.goal_open(s, gtype, param)
 	return k ~= nil and s.goal_left[k] > 0
 end
 
--- Most frequent colour mf(filter) of 3.2.3: regular idle unpinned pieces;
--- `unwired_only` restricts to pieces without wires. 0 = no colour.
+-- Most frequent colour mf(filter) of 3.2.3: regular idle unpinned pieces
+-- without a chain; `unwired_only` restricts to pieces without wires. 0 = no colour.
 function B.most_frequent(s, unwired_only)
 	local count = { 0, 0, 0, 0, 0, 0 }
 	local slot, objs, wires = s.slot, s.objs, s.wires
@@ -219,7 +226,7 @@ function B.most_frequent(s, unwired_only)
 		local id = slot[i]
 		if id ~= 0 then
 			local o = objs[id]
-			if o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil
+			if o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and o.chain == 0
 				and (not unwired_only or wires[i] == 0) then
 				count[o.color] = count[o.color] + 1
 			end

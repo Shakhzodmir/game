@@ -147,7 +147,9 @@ local function elements_of(raw)
 		if PLAN_ELEMENTS[s.type] then kinds[s.type] = true end
 	end
 	if raw.floor and #raw.floor > 0 then kinds.dancefloor = true end
-	if raw.overlay and #raw.overlay > 0 then kinds.wires = true end
+	for _, o in ipairs(raw.overlay or {}) do
+		if o.type == "wires" then kinds.wires = true end -- (a chain, 10.6, is another element: its lesson comes with its levels)
+	end
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
