@@ -3,8 +3,9 @@
 -- Layers, bottom to top:
 --   back   - a colour that covers the window (the tint of the district under the view)
 --   world  - everything that scrolls (moved as ONE node: its y is -offset)
---              c_bg    background tiles of the districts, gates with the district name, decorations
+--              c_bg    background tiles of the districts, decorations
 --              c_path  the trail dots
+--              c_gates the gates with the district name (over the trail: the dots pass under the arch)
 --              c_nodes the level nodes
 --              c_bit   Bit and the "new levels soon" sign
 --   ui     - top bar (back to the town, title, stars), the "to my level" button (anchored to the safe area)
@@ -131,14 +132,17 @@ function View:build_world()
 	if self.world then s:clear(self.world) end
 	self.world = s:layer(self.c_world, "world")
 	self.c_bg = s:layer(self.world, "bg")
-	-- one layer per district stretch, upper stretches on top, and in each: tiles < decorations < gate; things are made
+	-- one layer per district stretch, upper stretches on top, and in each: tiles < decorations; things are made
 	-- when they come near, in any order, and a tile that reaches into the next stretch stays under it
 	self.seg_layers = {}
 	for i = 1, #m.segments do
 		local l = s:layer(self.c_bg)
-		self.seg_layers[i] = { tiles = s:layer(l), deco = s:layer(l), gate = s:layer(l) }
+		self.seg_layers[i] = { tiles = s:layer(l), deco = s:layer(l) }
 	end
 	self.c_path = s:layer(self.world, "path")
+	-- the gates stand OVER the trail: the dots pass under the arch and do not cross the name of the district
+	self.c_gates = s:layer(self.world)
+	for i = 1, #m.segments do self.seg_layers[i].gate = s:layer(self.c_gates) end
 	self.c_nodes = s:layer(self.world, "nodes")
 	self.c_bit = s:layer(self.world, "bit")
 	self.tiles, self.gates, self.decos = {}, {}, {}
