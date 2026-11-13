@@ -158,6 +158,7 @@ local S = {
 	["blocker.dancefloor"] = { en = "Dance floor", ru = "Танцпол" },
 	["blocker.wires"] = { en = "Wires", ru = "Провода" },
 	["blocker.mic"] = { en = "Microphone", ru = "Микрофон" },
+	["blocker.coconut"] = { en = "Coconut", ru = "Кокос" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },

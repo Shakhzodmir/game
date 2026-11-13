@@ -244,6 +244,50 @@ describe("tools bot: the documented behaviour", function()
 		assert_true(g:is_stable())
 	end)
 
+	it("wins a small coconut level: both bots bring every coconut down within the level's moves", function()
+		local e = F.entry({
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "drop", count = 3 } },
+			coconut = { total = 3, on_board_max = 2, gap_moves = 2, columns = { 1, 3, 5 } },
+			slots = { { at = { 3, 1 }, type = "coconut" } },
+		})
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				assert_eq(r.ending, "won", kind .. " seed " .. seed)
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+	end)
+
+	it("counts the rows a coconut comes down, and only on a level with a drop goal", function()
+		local e = F.entry({
+			goals = { { type = "drop", count = 2 } },
+			coconut = { total = 2, on_board_max = 2, gap_moves = 0 },
+			slots = { { at = { 3, 1 }, type = "coconut" }, { at = { 5, 5 }, type = "coconut" } },
+		})
+		local g = core.new(e.level, { seed = 3 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		local before = Bot.coconuts(bot, g)
+		assert_same(before, { { before[1][1], 2 }, { before[2][1], 6 } })
+		assert_eq(Bot.lowered(bot, before, g), 0)
+		-- white box: the first coconut two rows lower, the second one gone from the board
+		local c = g:clone()
+		local s = c.s
+		local a, b = s.objs[before[1][1]], s.objs[before[2][1]]
+		local other = s.objs[s.slot[a.cell + 14]]
+		s.slot[a.cell], s.slot[a.cell + 14] = other.id, a.id
+		a.cell, other.cell = a.cell + 14, a.cell
+		s.slot[b.cell] = 0
+		s.objs[b.id] = nil
+		assert_eq(Bot.lowered(bot, before, c), 2 + 2, "two rows, and 7 + 1 - 6 for the collected one")
+		local plain = Bot.new("greedy", { seed = 1, goals = { { type = "collect", color = "red", count = 5 } }, width = 7 })
+		assert_eq(Bot.coconuts(plain, g), nil)
+		assert_eq(Bot.lowered(plain, nil, g), 0)
+	end)
+
 	it("refuses an unknown bot kind and a budget below the schema's minimum", function()
 		assert_error(function() Bot.new("clever", {}) end, "unknown kind")
 		local e = F.entry()

@@ -46,12 +46,13 @@ end
 
 -- 'ok' or 'fail' for a swap of the free pieces in cells a and b.
 -- A special always makes it 'ok'. Two regular pieces of one colour and two
--- mics are a failed swap (5.1.2). Otherwise the virtual exchange must give
+-- mics (or two coconuts) are a failed swap (5.1.2). Otherwise the virtual exchange must give
 -- a match through a or b.
 function MV.eval_pair(s, col, a, b)
 	local oa, ob = B.get(s, a), B.get(s, b)
 	if oa.kind == K_SPECIAL or ob.kind == K_SPECIAL then return "ok" end
 	if oa.kind == K_MIC and ob.kind == K_MIC then return "fail" end
+	if oa.kind == C.K_COCONUT and ob.kind == C.K_COCONUT then return "fail" end
 	if oa.kind == K_REGULAR and ob.kind == K_REGULAR and oa.color == ob.color then return "fail" end
 	local ca, cb = col[a], col[b]
 	col[a], col[b] = cb, ca
