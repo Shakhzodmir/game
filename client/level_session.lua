@@ -348,6 +348,8 @@ function Session:picture()
 			ch = p.special == "riff" and (p.axis == "v" and "V" or "R") or (p.special == "sub" and "S" or (p.special == "bird" and "B" or "D"))
 		elseif p.kind == "mic" then
 			ch = "M"
+		elseif p.kind == "coconut" then
+			ch = "C"
 		elseif p.kind == "blocker" then
 			ch = BLOCKER_LETTER[p.item] or "?"
 		end

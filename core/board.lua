@@ -117,10 +117,10 @@ function B.key(s, i)
 	return i
 end
 
--- A movable piece: regular, special or mic without wires (0.1).
+-- A movable piece: regular, special, mic or coconut without wires (0.1).
 function B.is_movable(s, o)
 	local k = o.kind
-	if k == K_SPECIAL or k == K_MIC then return true end
+	if k == K_SPECIAL or k == K_MIC or k == C.K_COCONUT then return true end
 	return k == K_REGULAR and s.wires[o.cell] == 0
 end
 

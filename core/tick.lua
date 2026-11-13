@@ -8,7 +8,8 @@
 --   4. objects in clear whose timer expired vanish
 --   5. gravity assignment and spawn (10.1)
 --   6. movement (10.2)
---   7. match search if the board is dirty; microphone delivery (10.4)
+--   7. match search if the board is dirty; microphone delivery (10.4),
+--      coconut collection (10.5)
 --   8. rest: end of move, noise, shuffle, concert (11, 13); rest_flag
 
 local C = require("core.const")
@@ -200,6 +201,25 @@ local function deliver_mics(s)
 	end
 end
 
+-- Collection of the coconuts (10.5): the same step and order as the mics.
+local function collect_coconuts(s)
+	if not s.level.coconut then return end
+	for i = 1, s.N do
+		local o = B.get(s, i)
+		if o and o.kind == C.K_COCONUT and o.state == S_IDLE and s.exit[i] then
+			H.start_clear(s, o)
+			B.set_vac(s, i, o.mv, o.wv)
+			s.on_board = s.on_board - 1
+			local x, y = U.xy(s.W, i)
+			E.emit(s, "coconut_collected", { id = o.id, x = x, y = y })
+			local acc = H.acc()
+			acc.score = C.SCORE_COCONUT
+			H.goal(s, acc, C.GOAL_DROP, 0, 1)
+			H.flush(s, acc, i)
+		end
+	end
+end
+
 function TK.step(s)
 	s.tick = s.tick + 1
 	s.now = s.tick
@@ -216,6 +236,7 @@ function TK.step(s)
 	s.phase = 7
 	if s.dirty then M.search(s, nil) end
 	deliver_mics(s)
+	collect_coconuts(s)
 	s.phase = 8
 	F.step8(s)
 	s.phase = 0

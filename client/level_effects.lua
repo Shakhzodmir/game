@@ -474,6 +474,16 @@ function H.mic_delivered(self, e)
 		count = self.reduced and 5 or 10, at = t })
 end
 
+-- a coconut reached the bottom (core-rules 10.5): a gold flash and sparkles where it leaves the board
+function H.coconut_collected(self, e)
+	local t = e.t or 0
+	local cell = self.geom.cell
+	local lx, ly = self:center(e.x, e.y)
+	self:flash(lx, ly, cell * 1.6, "#FFD84D", t, 0.4)
+	self:push({ kind = "burst", fx = "sparkle", x = lx, y = ly - cell * 0.3, color = "#FFD84D",
+		count = self.reduced and 5 or 10, at = t })
+end
+
 function H.noise_spread(self, e)
 	local t = e.t or 0
 	local x0, y0 = self:center(e.fx, e.fy)
