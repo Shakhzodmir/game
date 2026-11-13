@@ -26,6 +26,11 @@ FIRST_Y = 430       # y of level 1
 TOP_ROOM = 800      # room above the last level for the "new levels soon" sign
 AMPLITUDE = 170     # how far the path swings to the sides
 DECO_PER_SEGMENT = 12
+TILE_H = 1080       # height of a background tile (mapbg/bg_<district>.png)
+ROAD_SWING = 120    # how far the painted road swings to the sides (tools/art/road_template.py)
+# Districts whose background has the winding road painted in (drawn over assets/art_incoming/_road_template.png).
+# Their levels stand on that road and no loose decorations are put over the picture.
+ROAD_DISTRICTS = set()
 
 
 def load_content():
@@ -64,7 +69,21 @@ def level_y(n):
     return FIRST_Y + (n - 1) * STEP + segment_of(n) * GAP
 
 
+def road_x(frac):
+    """x of the middle of the painted road; frac = 0 at the bottom edge of a tile, 1 at its top edge."""
+    return 360 - ROAD_SWING * math.sin(2 * math.pi * frac)
+
+
+def segment_y0(i):
+    """World y where the stretch of district i starts (its first background tile starts here)."""
+    first = DISTRICTS[i]["first"]
+    return 0 if i == 0 else (level_y(first - 1) + level_y(first)) // 2
+
+
 def level_x(n):
+    i = segment_of(n)
+    if DISTRICTS[i]["id"] in ROAD_DISTRICTS:
+        return int(round(road_x(((level_y(n) - segment_y0(i)) % TILE_H) / float(TILE_H))))
     if n in FIRSTS or n in LASTS or n in CONCERTS:     # at a gate and at a concert level the path is in the middle
         return 360
     return 360 + int(round(AMPLITUDE * math.sin(n * 0.8)))
@@ -77,12 +96,12 @@ def build():
     segments = []
     for i, dist in enumerate(DISTRICTS):
         did, first, last = dist["id"], dist["first"], dist["last"]
-        y0 = 0 if i == 0 else (level_y(first - 1) + level_y(first)) // 2
+        y0 = segment_y0(i)
         y1 = world_h if i == len(ids) - 1 else (level_y(last) + level_y(last + 1)) // 2
         gate_y = 230 if i == 0 else y0
         deco = []
         span = (y1 - y0) - 900 if i < len(ids) - 1 else (level_y(last) - y0)
-        for j in range(DECO_PER_SEGMENT):
+        for j in range(0 if did in ROAD_DISTRICTS else DECO_PER_SEGMENT):
             side = -1 if j % 2 == 0 else 1
             y = y0 + 420 + int(span * (j + 0.5) / DECO_PER_SEGMENT) - 200
             deco.append({
@@ -102,7 +121,7 @@ def build():
         "width": 720,
         "world_height": world_h,
         "level_count": LEVELS,
-        "tile_h": 1080,
+        "tile_h": TILE_H,
         "node": {
             "day": {"size": 160, "hit": 52, "states": {s: "map/node_day_" + s for s in ("locked", "open", "current", "done")}},
             "concert": {"size": 224, "hit": 66, "states": {s: "map/node_concert_" + s for s in ("locked", "open", "current", "done")}},
