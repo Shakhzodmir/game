@@ -288,6 +288,76 @@ describe("tools bot: the documented behaviour", function()
 		assert_eq(Bot.lowered(plain, nil, g), 0)
 	end)
 
+	local function chain_overlay(list)
+		local o = {}
+		for k, c in ipairs(list) do o[k] = { at = { c[1], c[2] }, type = "chain", hp = c[3] } end
+		return o
+	end
+
+	it("wins a small chain level: both bots break every chain within the level's moves", function()
+		local e = F.entry({
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "chains", count = 8 } },
+			overlay = chain_overlay({ { 1, 1, 2 }, { 5, 1, 2 }, { 3, 3, 1 }, { 1, 5, 1 }, { 5, 5, 1 }, { 3, 5, 1 }, { 0, 3, 1 }, { 6, 3, 2 } }),
+		})
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				assert_eq(r.ending, "won", kind .. " seed " .. seed)
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+	end)
+
+	it("counts the links a move takes off the chains, only with a chains goal, and never moves a chained piece", function()
+		local e = F.entry({
+			goals = { { type = "chains", count = 3 } },
+			overlay = chain_overlay({ { 1, 1, 2 }, { 5, 1, 1 }, { 3, 3, 2 } }),
+		})
+		local g = core.new(e.level, { seed = 3 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		assert_eq(Bot.chain_hp(bot, g), 5)
+		local c = g:clone()
+		c.s.objs[c.s.slot[7 + 2]].chain = 1 -- white box: a link of the chain in (2, 2) is gone
+		assert_eq(Bot.chain_hp(bot, c), 4)
+		local plain = Bot.new("greedy", { seed = 1, goals = { { type = "collect", color = "red", count = 5 } }, width = 7 })
+		assert_eq(Bot.chain_hp(plain, g), nil)
+		local chained = { ["2,2"] = true, ["6,2"] = true, ["4,4"] = true }
+		local cands = Bot.candidates(g)
+		assert_true(#cands >= 3)
+		for _, cd in ipairs(cands) do
+			if cd.cmd.type == "swap" then
+				assert_true(not chained[cd.cmd.from[1] .. "," .. cd.cmd.from[2]] and not chained[cd.cmd.to[1] .. "," .. cd.cmd.to[2]])
+			end
+		end
+	end)
+
+	it("a move that takes a link off a chain of hp 2 is worth Bot.W.link, though no goal counter moves", function()
+		local e = F.entry({
+			goals = { { type = "chains", count = 1 } },
+			overlay = chain_overlay({ { 0, 6, 2 } }),
+			slots = {
+				{ at = { 0, 6 }, type = "piece", color = "red" }, { at = { 1, 6 }, type = "piece", color = "red" },
+				{ at = { 2, 5 }, type = "piece", color = "red" }, { at = { 2, 6 }, type = "piece", color = "blue" },
+			},
+		})
+		local g = core.new(e.level, { seed = 1 })
+		local bot = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+		local plain = Bot.new("strong", { seed = 1, goals = { { type = "collect", color = "green", count = 99 } }, width = 7 })
+		local cand
+		for _, cd in ipairs(Bot.candidates(g)) do
+			local f, t = cd.cmd.from, cd.cmd.to
+			if cd.cmd.type == "swap" and f[1] == 3 and t[1] == 3 and f[2] + t[2] == 13 then cand = cd end
+		end
+		assert_true(cand ~= nil, "the move that completes the red line with the chained piece")
+		local clone = Bot.simulate(bot, g, cand)
+		assert_same(clone:status().goals, { 1 }, "the chain is only cracked")
+		assert_true(Bot.chain_hp(bot, g) - Bot.chain_hp(bot, clone) >= 1)
+		assert_eq(Bot.chain_hp(plain, clone), nil)
+	end)
+
 	it("refuses an unknown bot kind and a budget below the schema's minimum", function()
 		assert_error(function() Bot.new("clever", {}) end, "unknown kind")
 		local e = F.entry()

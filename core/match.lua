@@ -237,14 +237,14 @@ function M.special_cell(s, g, special, swaps)
 	for k = 1, #g.cells do
 		local i = g.cells[k]
 		in_group[i] = true
-		if s.wires[i] == 0 then cands[#cands + 1] = i end
+		if s.wires[i] == 0 and B.get(s, i).chain == 0 then cands[#cands + 1] = i end
 	end
 	if #cands == 0 then return 0 end
 	if swaps then
 		for k = 1, #swaps do
 			local sw = swaps[k]
-			if in_group[sw.from] and s.wires[sw.from] == 0 then return sw.from end
-			if in_group[sw.to] and s.wires[sw.to] == 0 then return sw.to end
+			if in_group[sw.from] and s.wires[sw.from] == 0 and B.get(s, sw.from).chain == 0 then return sw.from end
+			if in_group[sw.to] and s.wires[sw.to] == 0 and B.get(s, sw.to).chain == 0 then return sw.to end
 		end
 	end
 	if special == C.SP_SUB then
@@ -346,8 +346,11 @@ function M.resolve(s, g, swaps)
 end
 
 -- Full search and resolution (steps 2 and 7). Returns the set of cells of
--- the resolved groups. Clears the dirty flag.
+-- the resolved groups. Clears the dirty flag, unless a chained piece
+-- survived a match hit (10.6): it is still idle on the board, so the next
+-- search looks again (the survivors of one group may line up by themselves).
 function M.search(s, swaps)
+	s.chain_hit = false
 	local col = M.color_map(s)
 	local groups = M.find_groups(col, s.W, s.H)
 	local resolved = {}
@@ -356,7 +359,8 @@ function M.search(s, swaps)
 		for j = 1, #g.cells do resolved[g.cells[j]] = true end
 		M.resolve(s, g, swaps)
 	end
-	s.dirty = false
+	s.dirty = s.chain_hit
+	s.chain_hit = false
 	return resolved
 end
 

@@ -46,7 +46,7 @@ function I.swap_target(s, fx, fy, tx, ty)
 		else
 			local ot = B.get(s, (ty - 1) * W + tx)
 			if ot == nil or (ot.kind == K_BLOCKER and ot.state == S_IDLE)
-				or (ot.kind == K_REGULAR and s.wires[ot.cell] > 0) then
+				or (ot.kind == K_REGULAR and (s.wires[ot.cell] > 0 or ot.chain > 0)) then
 				swipe = true
 			end
 		end
@@ -55,7 +55,7 @@ function I.swap_target(s, fx, fy, tx, ty)
 	if not B.exists_xy(s, tx, ty) then return nil, "bad_cell" end
 	local to = (ty - 1) * W + tx
 	local ot = B.get(s, to)
-	if not (of and B.is_free(s, of)) or not (ot and B.is_free(s, ot)) then return nil, "not_movable" end
+	if not (of and B.can_swap(s, of)) or not (ot and B.can_swap(s, ot)) then return nil, "not_movable" end
 	return "swap", from, to, MV.eval_pair(s, MV.expected_colors(s), from, to)
 end
 
@@ -217,7 +217,7 @@ local function do_continue(s, cmd)
 		local cands = {}
 		for i = 1, s.N do
 			local o = B.get(s, i)
-			if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 then cands[#cands + 1] = o end
+			if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 then cands[#cands + 1] = o end
 		end
 		if #cands == 0 then
 			s.unplaced[#s.unplaced + 1] = C.IT_CONT_RIFF
@@ -246,7 +246,7 @@ local function do_bonus(s, cmd)
 	local cands = {}
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 then cands[#cands + 1] = o end
+		if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 then cands[#cands + 1] = o end
 	end
 	if #cands == 0 then return false, "no_candidates" end
 	local o = cands[R.int(s.rng[R.INIT], #cands)]

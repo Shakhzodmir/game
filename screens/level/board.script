@@ -129,7 +129,7 @@ end
 
 -- where the last collected thing was (a goal event has no position)
 local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, coconut_collected = true,
-	transform = true }
+	transform = true, unchained = true }
 
 local function on_event(self, e)
 	local ty = e.type
@@ -219,7 +219,7 @@ local function command(self, cmd)
 end
 
 -- What is at core cell (x, y): the piece of game:pieces() (a column answers on all four of its cells) and what
--- keeps it in place for good ("blocker" | "wired", client/level_plates.lua), or nil.
+-- keeps it in place for good ("blocker" | "wired" | "chained", client/level_plates.lua), or nil.
 local function fixed_at(self, x, y)
 	local i = (y - 1) * self.W + x
 	local p = self.cellmap[i]
@@ -382,7 +382,8 @@ function init(self)
 		local p = self.cellmap[(y - 1) * self.W + x]
 		if not p then return nil end
 		local c = self.cells[(y - 1) * self.W + x]
-		return { id = p.id, kind = p.kind, state = p.state, pinned = p.pinned, wired = c and (c.wires or 0) > 0 }
+		return { id = p.id, kind = p.kind, state = p.state, pinned = p.pinned, wired = c and (c.wires or 0) > 0,
+			chained = p.chain ~= nil }
 	end })
 	self.hint = level_hint.new()
 	self.plates = level_plates.new()
@@ -557,7 +558,7 @@ local function run_vfx(self, dt, tick_f)
 end
 
 -- What the board remembers of a piece or a cell is compared with a fresh look at the core by the janitor.
-local PIECE_FIELDS = { "id", "x", "y", "kind", "state", "offx", "offy", "hidden", "pinned", "color", "special", "axis", "item", "hp" }
+local PIECE_FIELDS = { "id", "x", "y", "kind", "state", "offx", "offy", "hidden", "pinned", "color", "special", "axis", "item", "hp", "chain" }
 local CELL_FIELDS = { "exists", "wires", "floor" }
 
 local function same_list(a, b, fields)
@@ -590,7 +591,10 @@ local function janitor(self)
 		self.janitor_ids = ids
 	end
 	for k in pairs(ids) do ids[k] = nil end -- order-independent
-	for i = 1, #pieces do ids[pieces[i].id] = true end
+	for i = 1, #pieces do
+		ids[pieces[i].id] = true
+		if pieces[i].chain then ids[level_anim.CHAIN_ID + pieces[i].id] = true end -- its chain is a sprite of the view too
+	end
 	local fixed = self.vfx:audit() + self.view:audit(ids, cells, self.geom)
 	if not same_list(self.pieces, pieces, PIECE_FIELDS) then
 		self.pieces = nil -- (built again by the next frame)

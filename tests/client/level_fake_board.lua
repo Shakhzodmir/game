@@ -25,7 +25,7 @@ local level_session = require("client.level_session")
 local M = {}
 
 local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, coconut_collected = true,
-	transform = true }
+	transform = true, unchained = true }
 local PRAISE_INDEX = { juicy = 1, hit = 2, drive = 3, vibe = 4, legend = 5 }
 
 local FB = {}
@@ -65,7 +65,7 @@ function M.new(opts)
 			if p.x == x and p.y == y then
 				local c = s.game:cells()[(y - 1) * s.W + x]
 				return { id = p.id, kind = p.kind, state = p.state, pinned = p.pinned and true or false,
-					wired = c ~= nil and (c.wires or 0) > 0 }
+					wired = c ~= nil and (c.wires or 0) > 0, chained = p.chain ~= nil }
 			end
 		end
 		return nil

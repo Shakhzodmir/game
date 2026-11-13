@@ -102,7 +102,7 @@ describe("core const: enumeration codes (17.2)", function()
 	end)
 
 	it("goals, difficulty and stars (13: easy and medium 1, hard 2, super_hard 3)", function()
-		assert_same(C.GOAL, { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5 })
+		assert_same(C.GOAL, { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5, chains = 6 })
 		assert_same(C.DIFFICULTY, { easy = 1, medium = 2, hard = 3, super_hard = 4 })
 		assert_same({ C.STARS[C.DIFFICULTY.easy], C.STARS[C.DIFFICULTY.medium], C.STARS[C.DIFFICULTY.hard], C.STARS[C.DIFFICULTY.super_hard] }, { 1, 1, 2, 3 })
 	end)

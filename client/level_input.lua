@@ -9,7 +9,7 @@
 --   local level_input = require("client.level_input")
 --   local inp = level_input.new({mode = "swipe" | "taptap", query = fn(x, y)})
 --   -- query(x, y) -> nil (no object) or {id, kind = "regular"|"special"|"mic"|"coconut"|"blocker",
---   --                  state = "idle"|..., pinned = bool, wired = bool}
+--   --                  state = "idle"|..., pinned = bool, wired = bool, chained = bool}
 --   inp:press(fx, fy)          -- continuous cell coords (level_geom:frac), nil = off the board
 --   local cmd = inp:move(fx, fy)    -- a swipe of 30% of a cell -> {type = "swap", from, to}
 --   cmd = inp:release(fx, fy)       -- a tap -> {type = "swap" | "tap" | "booster", ...} or nil
@@ -80,9 +80,9 @@ function Input:deselect()
 	self.selected = nil
 end
 
--- A piece that may be selected: idle, not pinned, movable (no wires).
+-- A piece that may be selected: idle, not pinned, movable (no wires, no chain).
 local function selectable(p, mode)
-	if not p or p.state ~= "idle" or p.pinned or p.wired then return false end
+	if not p or p.state ~= "idle" or p.pinned or p.wired or p.chained then return false end
 	if p.kind == "regular" or p.kind == "mic" or p.kind == "coconut" then return true end
 	return mode == "taptap" and p.kind == "special"
 end
@@ -91,9 +91,9 @@ local function launchable(p)
 	return p and p.kind == "special" and p.state == "idle" and not p.pinned
 end
 
--- Something that never moves, whatever the finger does (a blocker, a piece under wires).
+-- Something the finger never moves (a blocker, a piece under wires, a piece on a chain).
 local function fixed(p)
-	return p and p.state == "idle" and (p.kind == "blocker" or p.wired == true)
+	return p and p.state == "idle" and (p.kind == "blocker" or p.wired == true or p.chained == true)
 end
 
 -- Drops the selection when its piece is gone (rule 1). find(id) -> the

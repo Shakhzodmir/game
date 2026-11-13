@@ -16,6 +16,7 @@ local function place_fixed(s)
 		local p = presets[k]
 		local o = B.new_obj(s, p.kind, {
 			color = p.color, special = p.special, axis = p.axis, blocker = p.blocker, hp = p.hp,
+			chain = p.kind == C.K_REGULAR and s.level.chain[p.cell] or 0,
 		})
 		B.place(s, o, p.cell)
 	end
@@ -27,7 +28,7 @@ local function fill(s, st, free)
 	for k = 1, #free do
 		local i = free[k]
 		local color = R.weighted(st, SH.allowed_colors(s, i), weights)
-		local o = B.new_obj(s, C.K_REGULAR, { color = color })
+		local o = B.new_obj(s, C.K_REGULAR, { color = color, chain = s.level.chain[i] })
 		B.place(s, o, i)
 	end
 end
@@ -62,7 +63,7 @@ local function place_boosters(s, st, boosters)
 		local cands, any = {}, {}
 		for i = 1, s.N do
 			local o = B.get(s, i)
-			if o and o.kind == C.K_REGULAR and s.wires[i] == 0 then
+			if o and o.kind == C.K_REGULAR and s.wires[i] == 0 and o.chain == 0 then
 				any[#any + 1] = o
 				if s.floor[i] == 0 and not B.goal_open(s, C.GOAL_COLLECT, o.color) then
 					cands[#cands + 1] = o

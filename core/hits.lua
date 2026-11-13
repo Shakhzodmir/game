@@ -125,6 +125,21 @@ local function floor_hit(s, cell, acc)
 	end
 end
 
+-- Match hit on a chained piece (10.6): the chain loses one hp, the piece stays.
+local function chain_hit(s, o, cell, src, acc)
+	local hp = o.chain - 1
+	o.chain = hp
+	acc.score = acc.score + C.SCORE_HP
+	local x, y = U.xy(s.W, cell)
+	E.emit(s, "hit", { x = x, y = y, layer = "chain", id = o.id, hp = hp })
+	B.raise_label(s, o, src.mv, src.wv)
+	if hp == 0 then
+		E.emit(s, "unchained", { id = o.id, x = x, y = y })
+		H.goal(s, acc, C.GOAL_CHAINS, 0, 1)
+	end
+	s.chain_hit = true -- the survivors are searched again (section 6)
+end
+
 -- Does source kind `src` break blocker o? (table 7.3)
 local function breaks(o, src)
 	local k = src.kind
@@ -234,7 +249,10 @@ function H.hit(s, cell, src, opt_instant)
 	if slot_ok and not open then
 		local k = o.kind
 		if k == K_REGULAR then
-			if src.kind ~= SRC_ADJ then
+			if o.chain > 0 then
+				-- only a match touches a chained piece, and it takes the chain, not the piece
+				if src.kind == SRC_MATCH then chain_hit(s, o, cell, src, acc) end
+			elseif src.kind ~= SRC_ADJ then
 				destroy_regular(s, o, cell, src, acc, opt_instant)
 				destroyed = true
 			end
