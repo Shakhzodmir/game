@@ -24,12 +24,13 @@ local config = require("meta.config")
 local PATH = "content/tutorials.json"
 local SEEDS = 24        -- seeds 1..SEEDS for the steps played after a move
 local MAX_TEXT = 64     -- characters of a step text: the bubble of the level screen holds three lines
-local MAX_LEVELS = 100
+local MAX_LEVELS -- the last level of the last district (content/districts.json), read below
 
 -- levels-plan.md, section 2: the levels that always have a lesson, and the level that brings each element.
 local PLAN_LESSONS = { 1, 2, 4, 6, 8, 9, 11, 12 }
 local PLAN_ELEMENTS = {
 	record_box = 10, dancefloor = 15, wires = 22, mic = 30, concrete = 40, noise = 50, balloon = 65, column = 90,
+	coconut = 101, -- district 6 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -56,6 +57,11 @@ local function read(path)
 	f:close()
 	return s
 end
+
+MAX_LEVELS = (function()
+	local list = json.decode(read("content/districts.json")).districts
+	return list[#list].last
+end)()
 
 local function authored()
 	local text = read(PATH)
@@ -110,6 +116,7 @@ local function level_of(n)
 	for _, t in ipairs(raw.overlay or {}) do info.wires[key(t.at[1], t.at[2])] = t.hp end
 	for k, g in ipairs(raw.goals) do
 		if g.type == "deliver" then info.deliver_goal = k end
+		if g.type == "drop" then info.drop_goal = k end
 	end
 	levels[n] = info
 	return info
@@ -145,11 +152,12 @@ local function elements_of(raw)
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
 		if g.type == "deliver" then kinds.mic = true end
+		if g.type == "drop" then kinds.coconut = true end
 	end
 	return kinds
 end
 
--- element id -> the first level of 1..100 that has it
+-- element id -> the first level of the game that has it
 local function first_levels()
 	local first = {}
 	for n = 1, MAX_LEVELS do
@@ -345,6 +353,7 @@ local TIPS = {
 	["tutorial.noise"] = function(info, st) return slot_of(info, st, "noise") ~= false or "no noise there" end,
 	["tutorial.balloon"] = function(info, st) return slot_of(info, st, "balloon") ~= false or "no balloon there" end,
 	["tutorial.column"] = function(info, st) return slot_of(info, st, "column") ~= false or "no speaker column there" end,
+	["tutorial.coconut"] = function(info, st) return slot_of(info, st, "coconut") ~= false or "no coconut there" end,
 }
 
 -- playing the steps ---------------------------------------------------------------------------------------------
@@ -395,6 +404,10 @@ local EFFECTS = {
 	["tutorial.balloon_match"] = function(a, b) return b.balloon < a.balloon or "no balloon popped" end,
 	["tutorial.column_match"] = function(a, b) return b.column_hp < a.column_hp or "the speaker column lost no dust" end,
 	["tutorial.concrete_riff"] = function(a, b) return b.concrete_hp < a.concrete_hp or "the Riff did not hit the concrete" end,
+	["tutorial.coconut_drop"] = function(a, b, info)
+		local k = info.drop_goal
+		return (k and b.goals[k] < a.goals[k]) or "no coconut reached the bottom"
+	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
 		return (k and b.goals[k] < a.goals[k]) or "no microphone was delivered"
@@ -666,11 +679,11 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].booster, "swap", "it lights the button of the bar")
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
-		-- no other lesson is moved by it: the 18 lessons that were there are still there
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90 }) do
+		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 19)
+		assert_eq(#ids_of(defs), 20)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()

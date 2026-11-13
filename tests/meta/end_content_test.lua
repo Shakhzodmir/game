@@ -1,4 +1,5 @@
--- The end of the content: levels 99 and 100, and the town "after" (meta level scenario, public API only).
+-- The end of the content: the last two levels (N - 1 and N, N = the last level of the last district of
+-- content/districts.json), and the town "after" (meta level scenario, public API only).
 
 local json = require("tools.lib.json")
 local Meta = require("meta.meta")
@@ -21,6 +22,14 @@ local function play_to(m, last, now)
 end
 
 describe("the end of the content", function()
+	local N = H.districts().districts[#H.districts().districts].last
+
+	it("ends at the last level of the last district of the data", function()
+		local m = H.new(5)
+		assert_eq(C.levels.count, N)
+		assert_true(N > 100, "district 6 shipped: the game no longer ends at level 100")
+	end)
+
 	it("has stars for the whole town in the shipped levels", function()
 		local m = H.new(5)
 		play_to(m, C.levels.count, H.T0)
@@ -31,37 +40,46 @@ describe("the end of the content", function()
 		assert_true(m:stars() >= cost, "stars " .. m:stars() .. " < the town's " .. cost)
 	end)
 
-	it("level 99 leads to 100, level 100 ends in all_done with its rewards paid", function()
+	it("level 100 is no longer the end: it leads to 101", function()
 		local m = H.new(5)
-		play_to(m, 98, H.T0)
-		assert_eq(m:level_to_play(), 99)
-		local r99 = H.win(m, H.T0, difficulty_of(99), 3)
-		assert_eq(r99.next_level, 100)
-		local coins0 = m:coins()
+		play_to(m, 99, H.T0)
 		local r100 = H.win(m, H.T0, difficulty_of(100), 3)
+		assert_eq(r100.next_level, 101)
+		assert_false(m:all_done())
+		assert_true(m:can_start(101, H.T0))
+	end)
+
+	it("level N - 1 leads to N, level N ends in all_done with its rewards paid", function()
+		local m = H.new(5)
+		play_to(m, N - 2, H.T0)
+		assert_eq(m:level_to_play(), N - 1)
+		local r99 = H.win(m, H.T0, difficulty_of(N - 1), 3)
+		assert_eq(r99.next_level, N)
+		local coins0 = m:coins()
+		local r100 = H.win(m, H.T0, difficulty_of(N), 3)
 		assert_eq(r100.next_level, nil, "no next level after the last")
 		assert_true(r100.coins > 0)
 		assert_true(m:all_done())
 		assert_eq(m:level_to_play(), nil)
-		-- the chest of level 100 waits and can be taken once
+		-- the chest of level N waits and can be taken once
 		local waiting = m:pending_chests()
 		assert_true(#waiting >= 1)
 		local found = false
-		for _, w in ipairs(waiting) do if w.level_id == 100 then found = true end end
-		assert_true(found, "level 100's chest waits to be taken")
+		for _, w in ipairs(waiting) do if w.level_id == N then found = true end end
+		assert_true(found, "the chest of the last level waits to be taken")
 		local before = m:coins()
 		assert_true(before > coins0)
 		H.claim_chests(m, H.T0)
 		assert_eq(#m:pending_chests(), 0)
 		assert_true(m:coins() > before, "the chest paid coins")
-		local ok = m:claim_level_chest(100, H.T0)
+		local ok = m:claim_level_chest(N, H.T0)
 		assert_false(ok, "a chest is paid once")
 	end)
 
 	it("refuses every start after the last level and stays healthy", function()
 		local m = H.new(5)
-		play_to(m, 100, H.T0)
-		for _, id in ipairs({ 1, 50, 99, 100, 101 }) do
+		play_to(m, N, H.T0)
+		for _, id in ipairs({ 1, 50, 100, N - 1, N, N + 1 }) do
 			local ok, why = m:can_start(id, H.T0)
 			assert_false(ok)
 			assert_eq(why, "all_done")
@@ -73,12 +91,12 @@ describe("the end of the content", function()
 		assert_same(m:streak_boosters_for_next_start(), {})
 		local lives = m:lives(H.T0 + 100000)
 		assert_true(lives ~= nil)
-		assert_eq(m:serialize().progress.beaten, 100)
+		assert_eq(m:serialize().progress.beaten, N)
 	end)
 
 	it("lets the player finish the whole town with the stars of the levels, concerts included", function()
 		local m = H.new(5)
-		play_to(m, 100, H.T0)
+		play_to(m, N, H.T0)
 		local chests = 0
 		while m:current_district() do
 			local d = m:current_district()
@@ -97,6 +115,6 @@ describe("the end of the content", function()
 		local m2 = Meta.load(H.districts(), H.json_round_trip(t), nil, 1, H.T0)
 		assert_true(m2:all_done())
 		assert_eq(m2:current_district(), nil)
-		assert_eq(m2:serialize().progress.beaten, 100)
+		assert_eq(m2:serialize().progress.beaten, N)
 	end)
 end)

@@ -5,6 +5,9 @@ local Stars = require("tools.stars")
 local stars = require("meta.stars")
 
 local DIR = "content/levels"
+-- the districts of the game and its last level (content/districts.json)
+local DISTRICTS = common.decode(assert(common.read_file("content/districts.json"))).districts
+local LAST = DISTRICTS[#DISTRICTS].last
 
 local function load()
 	local data = common.decode(assert(common.read_file(DIR .. "/stars.json")))
@@ -16,28 +19,28 @@ local function copy(v)
 end
 
 describe("star thresholds (content/levels/stars.json)", function()
-	it("pass the validator for the 100 shipped levels", function()
+	it("pass the validator for every shipped level", function()
 		local data = load()
+		assert_eq(LAST, 120, "six districts of 20 levels")
 		local errs = Stars.check(data, DIR)
 		assert_same(errs, {})
 	end)
 
 	it("have three growing thresholds for every level", function()
 		local data = load()
-		for id = 1, 100 do
+		for id = 1, LAST do
 			local e = data.levels[tostring(id)]
 			assert_true(e ~= nil, "level " .. id)
 			assert_same(stars.check_entry(e), {}, "level " .. id)
 		end
 	end)
 
-	it("name the last level of every district (20, 40, 60, 80, 100) as a concert, and only them (WP-14)", function()
+	it("name the last level of every district (20, 40, 60, 80, 100, 120) as a concert, and only them (WP-14)", function()
 		local data = load()
 		local ends = {}
-		local districts = common.decode(assert(common.read_file("content/districts.json"))).districts
-		for _, d in ipairs(districts) do ends[d.last] = true end
-		assert_same({ ends[20], ends[40], ends[60], ends[80], ends[100] }, { true, true, true, true, true })
-		for id = 1, 100 do
+		for _, d in ipairs(DISTRICTS) do ends[d.last] = true end
+		assert_same({ ends[20], ends[40], ends[60], ends[80], ends[100], ends[120] }, { true, true, true, true, true, true })
+		for id = 1, LAST do
 			local want = ends[id] and "concert" or "normal"
 			assert_eq(data.levels[tostring(id)].kind, want, "level " .. id)
 			assert_eq(stars.is_concert(data, id), want == "concert")
@@ -46,7 +49,7 @@ describe("star thresholds (content/levels/stars.json)", function()
 
 	it("make 3 stars reachable but not easy: a bot got there, at most 30% of its wins do", function()
 		local data = load()
-		for id = 1, 100 do
+		for id = 1, LAST do
 			local e = data.levels[tostring(id)]
 			assert_true(e.best >= e.t[3], "level " .. id .. ": best " .. e.best .. " under 3 stars " .. e.t[3])
 			assert_true(e.share3 <= Stars.MAX_SHARE3, "level " .. id .. " share " .. e.share3)
@@ -108,7 +111,7 @@ describe("star thresholds (content/levels/stars.json)", function()
 		assert_eq(r.score, only.levels["3"].best)
 	end)
 
-	it("keep the economy facts of the handoff true: 100 to 300 stars in the game, 124 for the town", function()
+	it("keep the economy facts of the handoff true: 120 to 360 stars in the game, 155 for the town", function()
 		local json = require("tools.lib.json")
 		local f = assert(io.open("content/districts.json", "r"))
 		local town = json.decode(f:read("*a"))
@@ -117,9 +120,9 @@ describe("star thresholds (content/levels/stars.json)", function()
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 124)
-		-- 1 star per win is not enough for the whole town (the last district needs better scores or replays),
+		assert_eq(cost, 155) -- 124 for the first five districts, 31 for the sixth (the price rule of docs/handoff/WP-15.md)
+		-- 1 star per win is not enough for the whole town (the last districts need better scores or replays),
 		-- 3 stars per level is far more than enough: if the prices change, docs/handoff/WP-4.md must change with them
-		assert_true(100 < cost and cost < 300)
+		assert_true(LAST < cost and cost < 3 * LAST)
 	end)
 end)
