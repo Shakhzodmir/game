@@ -438,6 +438,66 @@ describe("tools bot: the documented behaviour", function()
 		assert_true(Bot.W.drape > 0)
 	end)
 
+	-- the conveyor (core-rules 10.9): a belt across the middle row and a ring in the corner of a 7x7 board
+	local function conveyor_level(extra)
+		local t = {
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "light" } },
+			floor = { { at = { 1, 3 }, hp = 1 }, { at = { 3, 3 }, hp = 2 }, { at = { 5, 3 }, hp = 1 }, { at = { 5, 5 }, hp = 1 } },
+			conveyor = { { path = { { 1, 3 }, { 2, 3 }, { 3, 3 }, { 4, 3 }, { 5, 3 } } },
+				{ path = { { 5, 5 }, { 6, 5 }, { 6, 6 }, { 5, 6 } } } },
+		}
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small conveyor level and plays the same game twice", function()
+		local e = conveyor_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+		local a = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		local b = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		assert_same({ a.won, a.moves_used, a.score }, { b.won, b.moves_used, b.score })
+	end)
+
+	it("looks one belt step ahead: the clone of a move is scored after the belts moved and their cascade ended", function()
+		local e = conveyor_level({ goals = { { type = "collect", color = "red", count = 300 } }, floor = {} })
+		local g = core.new(e.level, { seed = 2 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		local cands = Bot.candidates(g)
+		assert_true(#cands > 0)
+		local seen = 0
+		for k = 1, math.min(4, #cands) do
+			local cmd = cands[k].cmd
+			local clone = Bot.simulate(bot, g, cands[k])
+			if clone and cmd.type == "swap" then
+				-- the same move on a plain turbo clone, stepped by hand: the belts make their step before the rest
+				local c = g:clone({ reseed = bot.reseed })
+				c:set_timing("turbo")
+				assert_true(c:input(cmd))
+				local steps = 0
+				for _ = 1, 5000 do
+					if c:is_stable() then break end
+					c:step()
+					for _, ev in ipairs(c:drain_events()) do
+						if ev.type == "conveyor" and not ev.jam then steps = steps + 1 end
+					end
+				end
+				assert_eq(steps, 2, "both belts stepped once inside the look-ahead")
+				assert_eq(clone:hash(), c:hash())
+				assert_true(clone:is_stable())
+				seen = seen + 1
+			end
+		end
+		assert_true(seen > 0)
+	end)
+
 	-- the carpet (core-rules 10.8): three covered cells in the middle of a 7x7 board, two boxes as walls
 	local function carpet_level(extra)
 		local t = {

@@ -35,6 +35,10 @@
 -- whose match would roll the carpet out (Bot.carpet_moves, at most
 -- Bot.RUG_CAP of them): when no move covers a cell now, it builds one for the
 -- next turn at the edge of the carpet instead of matching far away.
+-- On a level with conveyor belts (core-rules 10.9) the bot needs no rule
+-- either: the clone of a move runs to rest, and rest comes only after the
+-- belts made their step and its cascade ended, so every move is scored one
+-- belt step ahead.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,

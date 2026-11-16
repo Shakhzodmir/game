@@ -333,6 +333,15 @@ function Anim:event(e, t)
 			local v = rec(self, e.riff.id)
 			v.appear, v.flash = t, t
 		end
+	elseif ty == "conveyor" then
+		-- a belt carried its riders one cell on (core-rules 10.9): each slides straight from its old cell to
+		-- the new one; the rider that jumps from the end of an open belt to its start slides out past the end,
+		-- fading, and comes in from before the start
+		for _, m in ipairs(e.moves or {}) do
+			local f = { fx = m.fx, fy = m.fy, t0 = e.t or 0, dur = math.max(e.duration or 12, 1), slide = true }
+			if m.wrap then f.ox, f.oy, f.ix, f.iy = m.ox or m.fx, m.oy or m.fy, m.ix or m.x, m.iy or m.y end
+			rec(self, m.id).fly = f
+		end
 	end
 end
 
@@ -378,6 +387,32 @@ function Anim:frame(pieces, tick_f, t)
 
 		if p.hidden then
 			alpha = 0
+		elseif state == "swap" and v.fly and v.fly.slide and tick_f < v.fly.t0 + v.fly.dur + 1 then
+			-- the conveyor: slide straight from the old cell to the new one, on the board, under nothing
+			local f = v.fly
+			local u = clamp01((tick_f - f.t0) / f.dur)
+			local x0, y0 = g:center(f.fx, f.fy)
+			local x1, y1 = g:center(p.x, p.y)
+			if not f.ox then
+				local k = ease_in_out(u)
+				x, y = x0 + (x1 - x0) * k, y0 + (y1 - y0) * k
+			elseif reduced then
+				-- the jump, calm: it simply shows up in its new cell
+				x, y = x1, y1
+				alpha = u
+			elseif u < 0.5 then
+				-- the jump: out past the end of the belt, fading ...
+				local k = u * 2
+				local xo, yo = g:center(f.ox, f.oy)
+				x, y = x0 + (xo - x0) * k, y0 + (yo - y0) * k
+				alpha = 1 - k
+			else
+				-- ... and in from before its start
+				local k = (u - 0.5) * 2
+				local xi, yi = g:center(f.ix, f.iy)
+				x, y = xi + (x1 - xi) * k, yi + (y1 - yi) * k
+				alpha = k
+			end
 		elseif state == "swap" and v.fly and tick_f < v.fly.t0 + v.fly.dur + 1 then
 			-- shuffle: fly from the old cell to the new one on an arc
 			local f = v.fly

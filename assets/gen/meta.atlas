@@ -49,6 +49,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_conveyor"
+  images {
+    image: "/assets/images/blockers/conveyor.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_mic"
   images {
     image: "/assets/images/blockers/mic.png"

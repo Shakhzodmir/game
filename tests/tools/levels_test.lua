@@ -106,11 +106,29 @@ describe("tools levels", function()
 		assert_eq(specials, 1)
 	end)
 
+	it("counts the conveyor (core-rules 10.9) as an element and draws an arrow in every belt cell", function()
+		local raw = F.level_table({ conveyor = { { path = { { 1, 3 }, { 2, 3 }, { 3, 3 }, { 3, 4 } } } },
+			floor = { { at = { 2, 3 }, hp = 1 } }, goals = { { type = "light" } } })
+		assert_same(Levels.elements(raw), { "dancefloor", "conveyor" })
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "conveyor")
+		local lines = {}
+		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
+		-- row 3 (0-based): right, right over a floor tile (4th char), down; row 4: the last cell keeps the way it came
+		assert_true(lines[6]:find("+ >  + _> + v ", 1, true) ~= nil, lines[6])
+		assert_true(lines[7]:find("+ v ", 1, true) ~= nil, lines[7])
+		assert_true(Levels.LEGEND:find("conveyor (> < ^ v", 1, true) ~= nil)
+		local e = common.entry_from_text(common.encode(raw))
+		local board = Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7)
+		local n = 0
+		for _ in board:gmatch(">") do n = n + 1 end
+		assert_eq(n, 2)
+	end)
+
 	it("counts the carpet (core-rules 10.8) as an element, by its field or by its goal, and draws it with a `~`", function()
 		local raw = F.level_table({ goals = { { type = "carpet" } }, carpet = { { 2, 3 }, { 3, 3 } } })
 		assert_same(Levels.elements(raw), { "carpet" })
 		assert_same(Levels.elements(F.level_table({ goals = { { type = "carpet" } } })), { "carpet" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "carpet")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "carpet")
 		assert_eq(Levels.goals_text(raw), "carpet")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
@@ -129,7 +147,7 @@ describe("tools levels", function()
 			curtain = { covers = { { 2, 3 }, { 3, 3 } }, closed_moves = 2, open_moves = 3, start = "closed" },
 		})
 		assert_same(Levels.elements(raw), { "dancefloor", "curtain" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "curtain")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 2], "curtain")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		assert_true(lines[6]:find("+ _t +  t", 1, true) ~= nil, lines[6])
