@@ -1,0 +1,41 @@
+{
+  "id": 191, "version": 1,
+  "size": [9, 8],
+  "moves": 26,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "record_box", "count": 10},
+    {"type": "collect", "color": "orange", "count": 50}
+  ],
+  "cells": [
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [3, 4], "type": "record_box", "hp": 3},
+    {"at": [5, 4], "type": "record_box", "hp": 3},
+    {"at": [0, 6], "type": "record_box", "hp": 2},
+    {"at": [8, 6], "type": "record_box", "hp": 2},
+    {"at": [0, 7], "type": "record_box", "hp": 3},
+    {"at": [1, 7], "type": "record_box", "hp": 3},
+    {"at": [2, 7], "type": "record_box", "hp": 3},
+    {"at": [6, 7], "type": "record_box", "hp": 3},
+    {"at": [7, 7], "type": "record_box", "hp": 3},
+    {"at": [8, 7], "type": "record_box", "hp": 3}
+  ],
+  "curtain": {
+    "covers": [[3, 2], [4, 2], [5, 2],
+      [3, 3], [4, 3], [5, 3]],
+    "closed_moves": 2, "open_moves": 3, "start": "closed"
+  },
+  "conveyor": [
+    {"path": [[2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [6, 3], [6, 4], [6, 5], [5, 5], [4, 5], [3, 5], [2, 5], [2, 4], [2, 3]]}
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "id": 194, "version": 1,
+  "size": [9, 8],
+  "moves": 26,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 5},
+    {"type": "collect", "color": "blue", "count": 36}
+  ],
+  "cells": [
+    "#.#.#.#.#",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [3, 2], "type": "mic"},
+    {"at": [5, 4], "type": "mic"}
+  ],
+  "mic": {"total": 5, "on_board_max": 2, "gap_moves": 2},
+  "conveyor": [
+    {"path": [[3, 2], [4, 2], [5, 2], [5, 3], [5, 4], [4, 4], [3, 4], [3, 3]]}
+  ]
+}
