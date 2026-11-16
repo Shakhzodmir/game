@@ -406,8 +406,11 @@ function View:make_gate(seg)
 	local sign = sg.sign or { dx = 0, dy = 116, w = 280 }
 	local d = app.district_by_id and app.district_by_id[sg.district]
 	local name = d and i18n.name(d.name) or sg.district
+	-- the name sits in the middle of the blank signboard of the gate picture (content/map.json `sign`, found by
+	-- tools/art/gate_signs.py) and is no taller than the board
+	local size = sign.h and math.max(22, math.min(38, math.floor(sign.h * 0.6))) or 38
 	s:text(holder, name, 360 + sign.dx, sg.gate_y + sign.dy, {
-		font = "button", size = 38, color = "text", outline = false, shadow = false, max_width = sign.w,
+		font = "button", size = size, color = "text", outline = false, shadow = false, max_width = sign.w,
 	})
 	return holder
 end
