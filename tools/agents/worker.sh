@@ -8,7 +8,7 @@ K=$(powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('W
 [ -z "$K" ] && { echo "NO KEY"; exit 3; }
 for v in $(env | grep -E '^(CLAUDE|ANTHROPIC)' | cut -d= -f1); do unset $v; done
 cd "$dir" || exit 4
-export PATH="/usr/bin:/mingw64/bin:$PATH:/c/Users/user/AppData/Local/Programs/LuaJIT/bin"   # Git tools first: Windows find.exe/sort.exe break the test runner
+export PATH="/usr/bin:/mingw64/bin:$PATH:$(cygpath -u "$LOCALAPPDATA")/Programs/LuaJIT/bin"   # Git tools first: Windows find.exe/sort.exe break the test runner
 export PYTHONIOENCODING=utf-8
 ANTHROPIC_API_KEY="$K" claude -p "$(cat "$prompt")" --output-format json --model "$model" \
   --permission-mode acceptEdits --allowedTools "Bash Read Edit Write Glob Grep" \
