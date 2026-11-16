@@ -49,11 +49,12 @@ M.BOOSTER_ICON = {
 -- the beach, the seventh the warm orange-red of the carnival, the eighth the velvet red of the cinema
 -- curtain, the ninth the peacock teal of the bazaar tiles (darker and bluer than the beach, far from the
 -- orange of the "traditional" genres next to it), the tenth the neon violet of the sky club (deeper and
--- more saturated than the lavender of the jazz club and of the "classic" genres). A district past the list
--- starts it again.
+-- more saturated than the lavender of the jazz club and of the "classic" genres), the eleventh the spray-can
+-- orange of the hip-hop block (deeper and more saturated than the orange-red of the carnival and the soft
+-- orange of the "traditional" genres). A district past the list starts it again.
 M.DISTRICT_COLORS = {
 	"#FF9EC7", "#C9A7FF", "#FFD36E", "#7FC8FF", "#8BE39A", "#4FD1C5", "#FF8A5C", "#E0566F", "#2F9FB0",
-	"#A65CF2",
+	"#A65CF2", "#F2741D",
 }
 
 -- Store products shown in the shop's coins tab, in display order, with

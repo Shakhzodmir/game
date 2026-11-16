@@ -1538,7 +1538,52 @@
       "semitones_from_c": 10,
       "bars": 8,
       "mood": "sunny friendly boom-bap on a city block, head-nodding drums, warm keys, playful scratches",
-      "songs": [],
+      "songs": [
+        {
+          "id": "block_party_jam",
+          "name": {
+            "ru": "Вечеринка во дворе",
+            "en": "Block Party Jam",
+            "ko": "골목 파티 잼"
+          },
+          "bpm": 104,
+          "bars": 12,
+          "mood": "old-school block party: a funky break, a cowbell, an octave synth bass, clavinet stabs, organ, a horn riff, hey shouts, scratches"
+        },
+        {
+          "id": "stoop_sunset",
+          "name": {
+            "ru": "Закат на крыльце",
+            "en": "Stoop Sunset",
+            "ko": "현관 계단의 노을"
+          },
+          "bpm": 84,
+          "bars": 8,
+          "mood": "laid-back jazzy head-nodder: a soft swung beat with a rim click, nylon guitar ninth chords, electric piano, a flute answered by a muted trumpet, vinyl dust"
+        },
+        {
+          "id": "hopscotch_bounce",
+          "name": {
+            "ru": "Прыг-скок по классикам",
+            "en": "Hopscotch Bounce",
+            "ko": "사방치기 바운스"
+          },
+          "bpm": 96,
+          "bars": 8,
+          "mood": "bouncy playground beat: a hopping kick and double claps, woodblocks, an octave bass on every 8th, off-beat piano, a marimba counting rhyme with bells"
+        },
+        {
+          "id": "we_made_it",
+          "name": {
+            "ru": "У нас получилось!",
+            "en": "We Made It",
+            "ko": "우리가 해냈어"
+          },
+          "bpm": 86,
+          "bars": 8,
+          "mood": "triumphant anthem: a big slow beat with claps, a deep bass, a piano on every beat, strings and a choir, a brass fanfare that climbs to the high Bb, bells"
+        }
+      ],
       "chest": {
         "coins": 2200,
         "boosters": [

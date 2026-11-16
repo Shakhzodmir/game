@@ -39,6 +39,7 @@ HI_RATE = {
     "cinema": {"party"},
     "bazaar": set(),  # every stem at 22.05 kHz: the zills ring at 2.3 and 6.4 kHz, nothing lives above 10 kHz
     "skyclub": set(),  # every stem at 22.05 kHz: hats, sweeps and the arpeggio are shaped to end below 10 kHz
+    "block": set(),  # every stem at 22.05 kHz: boom-bap is warm, its hats and scratches end below 10 kHz
 }
 
 
@@ -445,6 +446,26 @@ def kit(name, sr):
             oh = dsp.lowpass(ins.hat(sr, open_=True, key=420, lo=5500, tone=0.3), 9500, sr, 2)[:no]
             k["ohat"] = [unit(dsp.fade(oh * np.exp(-np.arange(no) / (0.07 * sr)), sr, 0.0003, 0.03))]
             k["crash"] = [dsp.lowpass(ins.crash(sr, key=43, t60=2.0), 9500, sr, 2)]
+        elif name == "block":
+            unit = lambda x: x / dsp.peak(x)  # noqa: E731
+            # a boom-bap kit made for 22.05 kHz: a kick whose tail rings on Bb1 (and Bb2), a fat snare with its
+            # body on Bb3, ghost notes, crisp hats that end below 10 kHz, hands (claps and finger snaps) and two
+            # bongos on Bb3 and F3 (the root and the fifth of the key)
+            k["kick"] = [boom_kick(sr, key=i) for i in range(2)]
+            k["snare"] = [unit(dsp.lowpass(ins.snare(sr, float(midi_hz(58)), 0.12, 0.2, 0.9, 1100, 6500, key=500 + i),
+                                           8000, sr)) for i in range(3)]
+            k["ghost"] = [unit(dsp.lowpass(ins.snare(sr, float(midi_hz(58)), 0.05, 0.08, 0.7, 1500, 6000, key=510 + i),
+                                           6000, sr)) for i in range(2)]
+            k["hat"] = [unit(dsp.lowpass(ins.hat(sr, 0.045, key=520 + i, lo=5000, tone=0.45), 9500, sr, 2))
+                        for i in range(4)]
+            no = nsamp(0.26, sr)
+            oh = dsp.lowpass(ins.hat(sr, open_=True, key=529, lo=5000, tone=0.45), 9500, sr, 2)[:no]
+            k["ohat"] = [unit(dsp.fade(oh * np.exp(-np.arange(no) / (0.09 * sr)), sr, 0.0003, 0.03))]
+            k["clap"] = [unit(ins.clap(sr, key=530 + i, tail=0.1, lo=800.0, hi=3000.0)) for i in range(3)]
+            k["snap"] = [unit(ins.snap(sr, key=540 + i)) for i in range(3)]
+            k["bongo_hi"] = [conga(sr, float(midi_hz(58)), "open", key=550 + i) for i in range(2)]
+            k["bongo_lo"] = [conga(sr, float(midi_hz(53)), "open", key=560 + i) for i in range(2)]
+            k["crash"] = [dsp.lowpass(ins.crash(sr, key=53, t60=1.8), 9500, sr, 2)]
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -2631,6 +2652,272 @@ def skyclub_fx(s):
     return room(s, b, 0.22, 1.6, "fx", damp=5000)
 
 
+# ================================================ HIP-HOP BLOCK (Bb major)
+
+def block_song(d):
+    # sunny boom-bap in Bb, 90 BPM: I - vi - IV - V(sus), then I - iii - IV V(sus) - I. Jazzy colours (major
+    # 7ths and 9ths), every tone in the scale. Both halves start on the tonic and the loop ends on it; the
+    # dominant is a sus chord (F Bb C Eb: it keeps the Bb), so home is never out of earshot. The café (lo-fi, F)
+    # never lands on its tonic at the end, the jazz club (also Bb) swings in triplets through altered dominants.
+    Bb, G, Eb, F, D = 10, 7, 3, 5, 2
+    maj9, m7, maj7, sus, six9 = [0, 4, 7, 11, 14], [0, 3, 7, 10], [0, 4, 7, 11], [0, 5, 7, 10], [0, 4, 7, 9, 14]
+    return Song(d, progression([
+        (4, Bb, maj9, "Bbmaj9"), (4, G, m7, "Gm7"), (4, Eb, maj9, "Ebmaj9"), (4, F, sus, "F7sus4"),
+        (4, Bb, maj9, "Bbmaj9"), (4, D, m7, "Dm7"), (2, Eb, maj7, "Ebmaj7"), (2, F, sus, "F7sus4"),
+        (4, Bb, six9, "Bb6/9"),
+    ]))
+
+
+BLK_SW = 0.3  # how late the off-beat 16ths are (of a 16th): the head-nodding lilt of the whole block
+
+
+def blk(beat):
+    return sw16(beat, BLK_SW)
+
+
+def blk_home(s, c):
+    """The note of the tonic that chord c holds: Bb, or F where it has no Bb (Dm7). What the bass and the tuned
+    drum lean on between the roots, so that the low end keeps saying Bb major (not D minor, its neighbour)."""
+    return s.tonic if s.tonic in c.pcs() else (s.tonic + 7) % 12
+
+
+def boom_kick(sr, midi=34, key=0):
+    """A boom-bap kick: a knock and a round tail that settles on `midi` (Bb1) with its octave (Bb2: what a phone
+    plays of the drum), so the drum itself names the key."""
+    n = nsamp(0.3, sr)
+    t = np.arange(n) / sr
+    ph = TAU * np.cumsum(float(midi_hz(midi)) * (1.0 + 2.4 * np.exp(-t / 0.022))) / sr
+    x = np.sin(ph) * np.exp(-t / 0.075) + 0.55 * np.sin(2.0 * ph + 0.4) * np.exp(-t / 0.07)
+    knock = dsp.bandpass(dsp.rng("boomkick", key).standard_normal(n), 900, 3500, sr) * np.exp(-t / 0.004)
+    x = dsp.drive(x / dsp.peak(x) + 0.3 * knock / dsp.peak(knock), 2.0)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.04)
+
+
+def scratch(sr, strokes, key=0):
+    """A vinyl scratch: for every stroke (seconds, +1 forward / -1 back) the record speeds up and slows down
+    under the hand, so the pitch and the brightness of what is on it rise and fall with the speed. The sound on
+    the record is a buzzy voice-like tone with noise; no stable pitch is left of it."""
+    r = dsp.rng("scratch", key)
+    out = []
+    for du, way in strokes:
+        n = nsamp(du, sr)
+        u = np.arange(n) / n
+        speed = np.sin(np.pi * u) ** 0.7
+        f = (170.0 if way > 0 else 130.0) + (1000.0 if way > 0 else 700.0) * speed
+        src = 0.7 * dsp.saw(f, n, sr, r.uniform()) + 0.9 * r.standard_normal(n)
+        x = dsp.sweep_filter(src, 500.0 + (3600.0 if way > 0 else 2600.0) * speed, sr, q=2.2, kind="bp") * speed
+        out.append(dsp.fade(x / dsp.peak(x), sr, 0.002, 0.004))
+        out.append(np.zeros(nsamp(0.012, sr)))
+    return np.concatenate(out)
+
+
+def BLOCK_BELL(sr):
+    """The cowbell of the block party, on Bb5 and F6."""
+    return cached(("blockbell", sr), lambda: np.asarray(
+        ins.cowbell(sr, key=7, f1=float(midi_hz(82)), f2=float(midi_hz(89)), t60=0.25)))
+
+
+def block_beat(s):
+    """Boom-bap drums: the kick on 1, a push before 3 and on the 'and' of 3 (its tail rings on Bb), a fat snare
+    on 2 and 4 with ghost notes, swung 16th hats with an open hat into every second bar. Under the kick a soft
+    round tone on the root of the chord (and, on the push, the Bb or the F that the chord holds), so that the first
+    layer alone says the key."""
+    k = kit("block", s.sr)
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        kicks = [(0.0, 0.85), (1.75, 0.55), (2.5, 0.8)]
+        if bar % 2 == 1:
+            kicks += [(3.75, 0.55)]
+        if bar in (3, 7):
+            kicks += [(2.25, 0.5)]
+        for bt, v in kicks:
+            hit(s, b, k["kick"], o + blk(bt), v, r, 0.002)
+        for bt in (1, 3):
+            hit(s, b, k["snare"], o + bt, 1.0, r, 0.002)
+        for bt, v in ((1.75, 0.22), (3.25, 0.18)) if bar % 2 == 0 else ((0.75, 0.2), (2.25, 0.2)):
+            hit(s, b, k["ghost"], o + blk(bt), v, r, 0.003)
+        if bar in (3, 7):  # a little fill into the next phrase
+            for bt, v in ((3.5, 0.35), (3.75, 0.5)):
+                hit(s, b, k["snare"], o + blk(bt), v, r, 0.002)
+        for i in range(16):
+            if i == 14 and bar % 2 == 1:
+                hit(s, b, k["ohat"], o + 3.5, 0.6, r, 0.0)
+                continue
+            v = (0.7, 0.25, 0.5, 0.32)[i % 4]
+            hit(s, b, k["hat"], o + blk(i * 0.25), v, r, 0.004)
+    b = dsp.drive(b / dsp.peak(b) * 1.3, 1.5)
+    b = room(s, b, 0.1, 0.5, "beat", damp=6000)
+    tone = s.zeros()
+    n = nsamp(0.45, s.sr)
+    t = np.arange(n) / s.sr
+    for bar in range(s.bars):
+        for bt, home, v in ((0.0, False, 0.85), (1.75, True, 0.55), (2.5, False, 0.85)):
+            c = s.chord_at(bar * 4 + bt)
+            f = float(midi_hz(nearest(blk_home(s, c) if home else c.root, 60, 55, 66)))  # an octave above the bass
+            x = (np.sin(TAU * f * t) + 0.35 * np.sin(2 * TAU * f * t + 0.5) * np.exp(-t / 0.08)) * np.exp(-t / 0.1)
+            s.add(tone, dsp.fade(x * (1.0 - np.exp(-t / 0.004)), s.sr, 0.001, 0.05), bar * 4 + blk(bt), v)
+    rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+    return b + 0.3 * tone * rms(b) / rms(tone)
+
+
+def block_bass(s):
+    """A round sub bass that slides: the root held under the first half of the bar, a short push before beat 3,
+    then the Bb or F of the chord (or, every fourth bar, the octave of the root, reached by a long slide up) and
+    a scale step that glides into the root of the next bar."""
+    scale = {(s.tonic + i) % 12 for i in (0, 2, 4, 5, 7, 9, 11)}
+    # G2 - F3: a line that climbs (Bb G | Eb F | Bb D | Eb F) back into the Bb; low enough to be round, high
+    # enough for a phone to play it
+    root = lambda c: nearest(c.root, 48, 43, 54)  # noqa: E731
+    ev = []
+    for bar in range(s.bars):
+        o = bar * 4
+        R, R2 = root(s.chord_at(o)), root(s.chord_at(o + 2.5))
+        nxt = root(s.chord_at(o + 4))
+        m = nxt + (2 if nxt <= R2 else -2)
+        while m % 12 not in scale:
+            m -= 1
+        ev += [(o, 1.5, R, 0.9), (o + blk(1.75), 0.5, R, 0.7)]
+        if bar % 4 == 3:
+            ev += [(o + 2.5, 1.0, R2 + (12 if R2 <= 47 else 0), 0.8, {"bend": 12.0, "bend_t": 0.2}),
+                   (o + 3.5, 0.5, m, 0.75)]
+        else:
+            c2 = s.chord_at(o + 2.5)
+            H = nearest(blk_home(s, c2), R2 + 5, 41, 58)
+            if H == R2:  # the tonic itself: its fifth below
+                H = R2 - 5
+            ev += [(o + 2.5, 0.75, H, 0.85, {"bend": 2.0, "bend_t": 0.08}),
+                   (o + blk(3.25), 0.25, R2, 0.6), (o + 3.5, 0.5, m, 0.75)]
+    kw = dict(glide=0.045, legato_gap=0.06, attack=0.012, release=0.07, vib_depth=0.0, key="blockbass")
+    src, env, _ = render_line(s, events(s, ev), osc="sine", **kw)
+    top, _, _ = render_line(s, events(s, [(e[0], e[1], e[2] + 12) + tuple(e[3:]) for e in ev]), osc="tri", **kw)
+    x = dsp.tube((src + 0.3 * top) * env * 1.2, 1.7, s.sr, bias=0.15)
+    b = wrap(s, dsp.highpass(x, 30, s.sr, 2))
+    return loop_filter(s, b, "lp", 1100)
+
+
+def block_keys(s):
+    """A warm electric piano: every chord rolled a little late and left to ring (root, 3rd, 7th and 9th: with
+    its root, because Bbmaj9 without it is a plain Dm7), a short answer on the swung 16th before beat 3 and a softer chord after it; a slow tremolo."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "keys")
+    pick = lambda c: c.tones if len(c.tones) == 4 else [t for t in c.tones if t != 7]  # noqa: E731
+    vo = voice_lead([c.pcs(pick(c)) for c in s.chords], 56, 76, 66)
+    for bar in range(s.bars):
+        o = bar * 4
+        pat = [(0.0, 1.6, 0.7), (1.75, 0.35, 0.45), (2.5, 1.3, 0.6)]
+        if bar % 2 == 1:
+            pat += [(3.75, 0.25, 0.4)]
+        for bt, du, v in pat:
+            ci = s.chords.index(s.chord_at(o + bt))
+            for j, m in enumerate(vo[ci]):
+                x = ins.epiano(m, round(s.sec(du), 4), s.sr, vel=round(v + 0.03 * j, 2), bright=0.85, release=0.3)
+                s.add(b, x, o + blk(bt), 0.8, dt=0.02 + j * 0.016 + r.normal(0, 0.003))
+    b = loop_filter(s, loop_filter(s, b, "hp", 120), "lp", 5000)
+    b = b * (1.0 - 0.16 * (0.5 + 0.5 * s.lfo(4.5)))
+    b = tape(s, b, 4.0, 0.4)
+    return room(s, b, 0.2, 1.2, "keys", damp=5000)
+
+
+BLK_FILLS = {  # bongos on Bb3 (h) and F3 (l): bar -> (beat, drum, vel)
+    1: [(3.5, "h", 0.7), (3.75, "l", 0.8)],
+    3: [(3.0, "h", 0.7), (3.25, "h", 0.5), (3.5, "l", 0.8), (3.75, "l", 0.6)],
+    5: [(3.25, "l", 0.5), (3.5, "h", 0.8), (3.75, "h", 0.6)],
+    7: [(2.0, "h", 0.7), (2.5, "l", 0.7), (3.0, "h", 0.8), (3.25, "h", 0.5), (3.5, "l", 0.9), (3.75, "l", 0.65)],
+}
+
+
+def block_claps(s):
+    """The friends on the block: hand claps on 2 and 4 (three pairs of hands, never quite together), finger
+    snaps on the 'and' of 2 and of 4, a double clap that ends every four bars and bongo fills (tuned to Bb and
+    F) at the end of every second bar."""
+    k = kit("block", s.sr)
+    r = dsp.rng(s.id, "claps")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt in (1, 3):
+            for j in range(3):
+                hit(s, b, k["clap"], o + bt + 0.006 * j, 0.7 - 0.12 * j, r, 0.006)
+        for bt, v in ((1.5, 0.6), (3.5, 0.45)):
+            hit(s, b, k["snap"], o + bt, v, r, 0.004)
+        if bar in (3, 7):
+            for j in range(2):
+                hit(s, b, k["clap"], o + blk(3.75) + 0.006 * j, 0.5, r, 0.004)
+        for bt, drum, v in BLK_FILLS.get(bar, ()):
+            hit(s, b, k["bongo_hi" if drum == "h" else "bongo_lo"], o + blk(bt), 0.75 * v, r, 0.004)
+    return room(s, b, 0.16, 0.8, "claps", damp=5500)
+
+
+# The hook, G4-G5, singable: 'da - da-da daa' (D - F D Bb) and its answers through the chords, a turn on the
+# G over Dm7, a run down over IV - V and the long Bb everything was heading for; the last two notes (Bb C) lead
+# back into the D of bar 1. bar -> (beat, beats, midi)
+BLK_HOOK = bars({
+    0: [(0.0, 0.5, 74), (0.75, 0.25, 77), (1.0, 0.5, 74), (1.5, 1.0, 70)],
+    1: [(0.0, 0.5, 74), (0.75, 0.25, 77), (1.0, 0.5, 74), (1.5, 0.5, 72), (2.0, 0.5, 70), (2.5, 0.75, 67)],
+    2: [(0.0, 0.5, 75), (0.75, 0.25, 79), (1.0, 0.5, 75), (1.5, 1.0, 74)],
+    3: [(0.0, 0.5, 72), (0.75, 0.25, 75), (1.0, 0.5, 72), (1.5, 0.5, 74), (2.0, 1.0, 72)],
+    4: [(0.0, 0.5, 74), (0.75, 0.25, 77), (1.0, 0.5, 74), (1.5, 1.0, 77)],
+    5: [(0.0, 0.5, 77), (0.75, 0.25, 79), (1.0, 0.5, 77), (1.5, 0.5, 74), (2.0, 0.5, 70)],
+    6: [(0.0, 0.5, 75), (0.75, 0.25, 79), (1.0, 0.5, 77), (1.5, 0.5, 74), (2.0, 0.5, 72), (2.5, 0.5, 74),
+        (3.0, 0.5, 72), (3.5, 0.5, 70)],
+    7: [(0.0, 2.0, 70), (3.0, 0.5, 70), (3.5, 0.5, 72)],
+})
+BLK_VOWELS = ("a_alto", "e_open", "a_alto", "o_alto")
+
+
+def block_hook(s):
+    """The hook: chopped vocal samples without words (ah - eh - ah - oh), two voices a breath apart, with a
+    short echo."""
+    b = s.zeros()
+    for i, (bt, du, m) in enumerate(BLK_HOOK):
+        d = s.sec(min(du, 1.5)) * 0.88
+        vowel = "o_alto" if du >= 1.0 else BLK_VOWELS[i % 4]
+        s.add(b, vox_chop(m, d, s.sr, vowel, key=i % 3), blk(bt), 0.9)
+        s.add(b, vox_chop(m, d, s.sr, vowel, key=3 + i % 2), blk(bt), 0.45, dt=0.014)
+    b = loop_filter(s, loop_filter(s, b, "hp", 250), "lp", 6000)
+    b = echo(s, b, 0.75, 0.16, 0.3, 2, 3000)
+    return room(s, b, 0.18, 1.1, "hook", damp=5000)
+
+
+# The answers of the whistle, Bb5-G6, in the gaps of the hook: bar -> (beat, beats, midi)
+BLK_LEAD = bars({
+    0: [(2.5, 0.5, 86), (3.0, 0.5, 84), (3.5, 0.5, 82)],
+    2: [(2.5, 0.5, 87), (3.0, 0.5, 86), (3.5, 0.5, 82)],
+    4: [(2.5, 0.5, 86), (3.0, 0.25, 89), (3.25, 0.25, 86), (3.5, 0.5, 84)],
+    5: [(2.5, 0.5, 84), (3.0, 0.5, 86), (3.5, 0.5, 89)],
+    6: [(0.0, 2.0, 91), (2.0, 1.75, 89)],
+    7: [(0.5, 0.5, 84), (1.0, 0.5, 86), (1.5, 1.0, 82)],
+})
+WICKA = ((0.07, 1), (0.07, -1))
+BLK_SCRATCH = {  # bar -> (beat, strokes): 'wicka' after the long phrases, a longer cut before bars 5 and 1
+    1: [(3.5, WICKA)],
+    3: [(3.0, WICKA), (3.5, ((0.06, 1), (0.06, -1), (0.1, 1)))],
+    5: [],
+    7: [(2.5, WICKA), (3.0, ((0.05, 1), (0.05, -1), (0.05, 1), (0.05, -1))), (3.5, ((0.08, 1), (0.14, -1)))],
+}
+
+
+def block_lead(s):
+    """A whistle-like synth (a pure tone with a breath of air and a slow vibrato, gliding between its notes) that
+    answers the hook in its gaps, and the DJ's scratches at the ends of the phrases."""
+    kw = dict(glide=0.03, legato_gap=0.02, attack=0.03, release=0.09, vib_rate=5.4, vib_depth=0.2, vib_delay=0.16,
+              scoop=0.4, key="blocklead")
+    ev = events(s, [(blk(e[0]),) + tuple(e[1:]) for e in BLK_LEAD])
+    src, env, _ = render_line(s, ev, osc="sine", **kw)
+    x = (src + 0.12 * np.sin(2.0 * np.arcsin(np.clip(src, -1, 1)))) * env
+    x += 0.1 * ins.breath(len(src), s.sr, "blocklead", 2000, 6000) * env
+    b = wrap(s, x / dsp.peak(x))
+    b = echo(s, b, 0.75, 0.22, 0.35, 3, 4000)
+    sc = s.zeros()
+    for bar, spots in BLK_SCRATCH.items():
+        for j, (bt, strokes) in enumerate(spots):
+            s.add(sc, scratch(s.sr, strokes, key=bar * 4 + j), bar * 4 + bt, 1.0)
+    sc = loop_filter(s, sc, "hp", 300)
+    return room(s, b / dsp.peak(b) + 0.55 * sc / dsp.peak(sc), 0.2, 1.3, "lead", damp=6000)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -2648,7 +2935,8 @@ def tension_stem(s, style):
     r = dsp.rng(s.id, "tension")
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
+            "block": "block"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -2656,7 +2944,8 @@ def tension_stem(s, style):
             hit(s, b, hats, i / 3.0, 0.5 if i % 3 == 0 else 0.3, r, 0.003)
     else:
         for i in range(s.beats * 4):
-            hit(s, b, hats, sw16(i * 0.25, 0.3 if style == "cafe" else 0.0), 0.55 if i % 2 == 0 else 0.35, r, 0.002)
+            swing = {"cafe": 0.3, "block": BLK_SW}.get(style, 0.0)
+            hit(s, b, hats, sw16(i * 0.25, swing), 0.55 if i % 2 == 0 else 0.35, r, 0.002)
     pb = s.zeros()
     for bt, m, v in _pulse_notes(s, 62 if style == "cafe" else 50):
         if style == "garage":
@@ -2675,6 +2964,8 @@ def tension_stem(s, style):
             x = oud(m, s.sec(0.3), s.sr, key=9)
         elif style == "skyclub":  # the pluck of the arpeggio, darker, on the chord roots
             x = sky_pluck(m, s.sr, dur=0.22, key=3, cutoff=2500.0)
+        elif style == "block":  # the electric piano, staccato, on the chord roots
+            x = ins.epiano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.9, release=0.08)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -2707,6 +2998,8 @@ def party_chords(s, style):
             c = Chord(c.start, c.dur, c.root, [0, 4, 7], "G")
         elif style == "skyclub" and c.name == "Abadd9":  # the plain tonic triad, the root doubled on top
             c = Chord(c.start, c.dur, c.root, [0, 4, 7], "Ab")
+        elif style == "block" and c.name in ("Bbmaj9", "Bb6/9"):  # the horns shout the plain tonic triad
+            c = Chord(c.start, c.dur, c.root, [0, 4, 7], "Bb")
         out.append(c)
     return out
 
@@ -2740,7 +3033,8 @@ def party_stem(s, style):
     """Final concert: crashes, claps, 16th percussion, stabs and a bright arp."""
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
+            "block": "block"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -2759,6 +3053,13 @@ def party_stem(s, style):
             for bt in range(4):
                 hit(s, b, k["ohat"], o + bt + 0.5, 0.3, r, 0.0)
                 hit(s, b, k["kick"], o + bt, 0.5, r, 0.0)
+        elif style == "block":  # the whole block joins in: its own swung hats, the kick of the beat, a cowbell on Bb
+            for i in range(16):
+                hit(s, b, k["hat"], o + blk(i * 0.25), 0.32 if i % 2 == 0 else 0.2, r, 0.003)
+            for bt, v in ((0.0, 0.5), (2.5, 0.45)):
+                hit(s, b, k["kick"], o + bt, v, r, 0.0)
+            for bt, v in ((0.0, 0.5), (1.0, 0.3), (1.5, 0.4), (2.5, 0.5), (3.0, 0.3)):
+                hit(s, b, [BLOCK_BELL(s.sr)], o + bt, 0.3 * v, r, 0.002)
         else:
             for i in range(16):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
@@ -2787,7 +3088,8 @@ def party_stem(s, style):
         # in the bazaar the accents of the maqsum (dum tek - tek dum - tek); in the sky club the piano of a house
         # anthem (three-three-two and two off-beats)
         for bt in {"jazz": (T, 1 + T, 2 + T, 3 + T), "cinema": (0.0, 0.75, 1.0, 2.0, 2.75, 3.0),
-                   "bazaar": (0.0, 0.5, 1.5, 2.0, 3.0), "skyclub": (0.0, 0.75, 1.5, 2.5, 3.5)}.get(
+                   "bazaar": (0.0, 0.5, 1.5, 2.0, 3.0), "skyclub": (0.0, 0.75, 1.5, 2.5, 3.5),
+                   "block": (0.0, 1.5, 2.0, 3.5)}.get(  # horn stabs: on 1, pushed into 3, on 3, pushed into 1
                        style, (0.5, 1.5, 2.5, 3.5)):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
@@ -2858,6 +3160,9 @@ DISTRICTS = {
     "skyclub": dict(song=skyclub_song, stems={
         "beat": skyclub_beat, "bass": skyclub_bass, "arp": skyclub_arp, "pad": skyclub_pad, "lead": skyclub_lead,
         "fx": skyclub_fx}),
+    "block": dict(song=block_song, stems={
+        "beat": block_beat, "bass": block_bass, "keys": block_keys, "claps": block_claps, "hook": block_hook,
+        "lead": block_lead}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -2887,7 +3192,14 @@ LOUDNESS = {
                "tension": -18, "party": -16},
     "skyclub": {"beat": -16, "bass": -19, "arp": -19, "pad": -19, "lead": -18, "fx": -18,
                 "tension": -18, "party": -16},
+    "block": {"beat": -16, "bass": -19, "keys": -19, "claps": -19, "hook": -18, "lead": -18,
+              "tension": -18, "party": -16},
 }
+
+# Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on
+# its downbeats (kick, tuned tone, bass, keys and hook together) and came out about 1 LU louder than the other
+# districts at the same peak: this brings it in line and keeps notes + music in a level under 0 dBTP.
+LEVEL_TRIM = {"block": -1.0}
 
 
 def render_district(d):
