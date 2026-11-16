@@ -709,6 +709,9 @@ function Anim:frame(pieces, tick_f, t)
 				if state == "fall" or flying then
 					local cx, cy = g:cell_at(x, y)
 					veil = cx ~= nil and fog_at(cx, cy) or false
+					-- a shuffled piece that flies from one fogged cell to another stays hidden all the way: it was
+					-- not seen before and will not be seen after
+					if flying and v.fogged == true and fog_at(p.x, p.y) then veil = true end
 				else
 					veil = fog_at(p.x, p.y) and true or false
 				end

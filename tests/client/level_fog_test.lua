@@ -348,6 +348,36 @@ describe("the pieces under the fog are not drawn (client/level_anim.lua)", funct
 		assert_same({ e[1].alpha, e[2].alpha }, { 1, 0 })
 	end)
 
+	it("a shuffle: a piece that flies from fog to fog is hidden all the way; into the open it shows as it leaves", function()
+		local A = anim({ { 2, 2 }, { 5, 2 } })
+		-- piece 1 flies from the fogged (2,2) to the fogged (5,2) over the open (3,2) and (4,2); piece 2 from the
+		-- fogged (5,2) to the open (2,4); piece 3 from the open (2,4) to the fogged (2,2)
+		local p1 = { id = 1, x = 2, y = 2, kind = "regular", color = "blue", state = "idle", offx = 0, offy = 0 }
+		local p2 = { id = 2, x = 5, y = 2, kind = "regular", color = "red", state = "idle", offx = 0, offy = 0 }
+		local p3 = { id = 3, x = 2, y = 4, kind = "regular", color = "red", state = "idle", offx = 0, offy = 0 }
+		local e = by_id(A:frame({ p1, p2, p3 }, 0, 0))
+		assert_same({ e[1].alpha, e[2].alpha, e[3].alpha }, { 0, 0, 1 })
+		A:event({ type = "shuffle", t = 1, duration = 30, moves = { { id = 1, fx = 2, fy = 2, x = 5, y = 2 },
+			{ id = 2, fx = 5, fy = 2, x = 2, y = 4 }, { id = 3, fx = 2, fy = 4, x = 2, y = 2 } } }, 0.02)
+		p1.x, p1.y, p2.x, p2.y, p3.x, p3.y = 5, 2, 2, 4, 2, 2
+		p1.state, p2.state, p3.state = "swap", "swap", "swap"
+		local shown2, hidden3 = false, false
+		for tick = 1, 34 do
+			e = by_id(A:frame({ p1, p2, p3 }, tick, tick / 60))
+			assert_eq(e[1].alpha, 0, "fog to fog, tick " .. tick)
+			if e[2].alpha == 1 then shown2 = true end
+			if tick > 31 then
+				assert_eq(e[2].alpha, 1)
+				assert_eq(e[3].alpha, 0)
+			end
+			if e[3].alpha == 0 then hidden3 = true end
+		end
+		assert_true(shown2 and hidden3)
+		p1.state, p2.state, p3.state = "idle", "idle", "idle"
+		e = by_id(A:frame({ p1, p2, p3 }, 40, 40 / 60))
+		assert_same({ e[1].alpha, e[2].alpha, e[3].alpha }, { 0, 1, 0 })
+	end)
+
 	it("without the option nothing is hidden: a level without fog draws as before", function()
 		local A = level_anim.new({ geom = board_geom() })
 		local p = { id = 1, x = 2, y = 2, kind = "regular", color = "blue", state = "idle", offx = 0, offy = 0 }
