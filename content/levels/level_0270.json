@@ -1,0 +1,32 @@
+{
+  "id": 270, "version": 1,
+  "size": [9, 8],
+  "moves": 27,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "hay", "count": 4},
+    {"type": "fog"},
+    {"type": "collect", "color": "green", "count": 45}
+  ],
+  "cells": [
+    "..#...#..",
+    "..#...#..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####.."
+  ],
+  "slots": [
+    {"at": [2, 3], "type": "hay", "hp": 2, "gift": "riff", "axis": "h"},
+    {"at": [6, 3], "type": "hay", "hp": 2, "gift": "riff", "axis": "v"},
+    {"at": [3, 6], "type": "hay", "hp": 1, "gift": "sub"},
+    {"at": [5, 6], "type": "hay", "hp": 2, "gift": "none"}
+  ],
+  "fog": [
+    [1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4],
+    [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5]
+  ]
+}

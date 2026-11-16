@@ -1,0 +1,41 @@
+{
+  "id": 274, "version": 1,
+  "size": [9, 9],
+  "moves": 29,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "ice", "count": 16},
+    {"type": "collect", "color": "orange", "count": 30}
+  ],
+  "cells": [
+    "..#####..",
+    ".#####...",
+    "######...",
+    "#####....",
+    "#####....",
+    "#####....",
+    "######...",
+    ".#####...",
+    "..#####.."
+  ],
+  "spawners": [[2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [1, 1], [0, 2], [5, 6], [6, 8]],
+  "overlay": [
+    {"at": [2, 1], "type": "ice", "hp": 2},
+    {"at": [4, 1], "type": "ice", "hp": 2},
+    {"at": [1, 2], "type": "ice", "hp": 2},
+    {"at": [3, 2], "type": "ice", "hp": 2},
+    {"at": [5, 2], "type": "ice", "hp": 2},
+    {"at": [2, 3], "type": "ice", "hp": 2},
+    {"at": [4, 3], "type": "ice", "hp": 2},
+    {"at": [1, 4], "type": "ice", "hp": 2},
+    {"at": [3, 4], "type": "ice", "hp": 2},
+    {"at": [2, 5], "type": "ice", "hp": 2},
+    {"at": [4, 5], "type": "ice", "hp": 2},
+    {"at": [1, 6], "type": "ice", "hp": 2},
+    {"at": [3, 6], "type": "ice", "hp": 2},
+    {"at": [5, 6], "type": "ice", "hp": 2},
+    {"at": [2, 7], "type": "ice", "hp": 2},
+    {"at": [4, 7], "type": "ice", "hp": 2}
+  ]
+}
