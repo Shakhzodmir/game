@@ -7,7 +7,9 @@
 -- two-layer tile: client/level_floor.lua; updated as they are hit) and the
 -- microphone stands under the exits, and the carpet (core-rules 10.8,
 -- client/level_carpet.lua): a tile over every covered cell, unrolled with a
--- pop when the core covers one more. Pieces, wires and effects are world
+-- pop when the core covers one more; and the conveyor belts (core-rules
+-- 10.9, client/level_conveyor.lua): one tile a belt cell, turned the way the
+-- belt moves. Pieces, wires and effects are world
 -- sprites drawn on top by screens/level/board.script.
 --
 -- The board publishes what to draw through client/level_link.lua (view):
@@ -19,6 +21,7 @@ local assets = require("client.assets")
 local link = require("client.level_link")
 local level_floor = require("client.level_floor")
 local level_carpet = require("client.level_carpet")
+local level_conveyor = require("client.level_conveyor")
 
 local GUI = "/screens/level/level_bg.gui"
 local FRAME_PAD = 20 -- board/board_frame: 14 px frame + 6 px backing around the cells
@@ -94,6 +97,21 @@ local function rebuild(self, v)
 						self.rug_on[i] = on
 					end
 				end
+			end
+		end
+	end
+	-- the conveyor belts: a tile on every belt cell, arrows turned the way the belt moves (over the cell tile,
+	-- the floor and the carpet; under the pieces). The belts are level data: made once, never changed
+	self.belts = {}
+	for _, b in ipairs(level_conveyor.tiles(cells)) do
+		if g.ex[b.i] then
+			local x = (b.i - 1) % g.W + 1
+			local y = (b.i - x) / g.W + 1
+			local lx, ly = g:center(x, y)
+			local n = s:image(parent, level_conveyor.IMAGE, lx, ly, { w = cell, h = cell })
+			if n then
+				if b.turn ~= 0 then gui.set_euler(n, vmath.vector3(0, 0, b.turn)) end
+				self.belts[#self.belts + 1] = n
 			end
 		end
 	end

@@ -66,7 +66,7 @@ end
 
 -- Elements counted by rule 2.1.6, present in a raw level.
 Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain",
-	"curtain", "carpet" }
+	"curtain", "carpet", "conveyor" }
 
 -- Like the core's rule 2.1.6: a `mic` counts when there is a deliver goal, a
 -- mic block or a starting mic piece; a `coconut` likewise with a drop goal,
@@ -82,6 +82,7 @@ function Levels.elements(raw)
 	if raw.coconut ~= nil then has.coconut = true end
 	if raw.curtain ~= nil then has.curtain = true end -- the timed curtain (core-rules 10.7)
 	if raw.carpet ~= nil then has.carpet = true end -- the carpet (core-rules 10.8) ...
+	if raw.conveyor ~= nil then has.conveyor = true end -- the conveyor belts (core-rules 10.9)
 	for _, g in ipairs(raw.goals or {}) do if g.type == "carpet" then has.carpet = true end end -- ... or its goal
 	local specials = 0
 	for _, s in ipairs(raw.slots or {}) do
@@ -197,7 +198,7 @@ end
 
 Levels.LEGEND = "legend: r o y g b p piece colour, + random piece, R/S/B/D riff/sub/bird/disco (riff axis - or |),"
 	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), 3rd char floor (_ hp1, = hp2) or carpet (~),"
-	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2) or curtain (t), v spawner, e exit (2nd char), . void"
+	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2) or curtain (t), conveyor (> < ^ v: the way the belt moves, 3rd char, or 4th over a floor or carpet), v spawner, e exit (2nd char), . void"
 
 -- Static preview from the JSON.
 function Levels.preview_raw(raw)
@@ -227,6 +228,28 @@ function Levels.preview_raw(raw)
 		for _, at in ipairs(raw.carpet) do
 			local c = type(at) == "table" and cell(at) or nil
 			if c then c[3] = "~" end
+		end
+	end
+	if type(raw.conveyor) == "table" then
+		-- the belts (core-rules 10.9): an arrow in every cell, towards the next cell of the path (the last cell
+		-- of an open path keeps the direction of the step that led to it; a ring points back at its first cell)
+		for _, belt in ipairs(raw.conveyor) do
+			local path = type(belt) == "table" and type(belt.path) == "table" and belt.path or {}
+			local n = #path
+			local function arrow(a, b)
+				if type(a) ~= "table" or type(b) ~= "table" then return nil end
+				local dx, dy = b[1] - a[1], b[2] - a[2]
+				if dx == 1 and dy == 0 then return ">" elseif dx == -1 and dy == 0 then return "<"
+				elseif dx == 0 and dy == 1 then return "v" elseif dx == 0 and dy == -1 then return "^" end
+				return nil
+			end
+			for k = 1, n do
+				local ch = k < n and arrow(path[k], path[k + 1]) or arrow(path[n], path[1]) or arrow(path[n - 1], path[n])
+				local c = type(path[k]) == "table" and cell(path[k]) or nil
+				if c and ch then
+					if c[3] == " " then c[3] = ch else c[4] = ch end
+				end
+			end
 		end
 	end
 	if type(raw.curtain) == "table" then
@@ -281,6 +304,9 @@ function Levels.preview_raw(raw)
 	return draw_grid(g, W, H, { top = top })
 end
 
+-- The arrow of a belt cell by its direction of travel (core-rules 10.9).
+local CONVEYOR_ARROW = { r = ">", l = "<", u = "^", d = "v" }
+
 -- Start board of a seed through the core (pieces() and cells()).
 function Levels.preview_game(game, W, H)
 	local g = new_grid(W, H)
@@ -296,6 +322,10 @@ function Levels.preview_game(game, W, H)
 			if ce.wires and ce.wires > 0 then c[4] = ce.wires == 2 and "W" or "w" end
 			if ce.curtain then c[4] = "t" end
 			if ce.carpet then c[3] = "~" end
+			if ce.conveyor then
+				local ch = CONVEYOR_ARROW[ce.conveyor.dir] or "?"
+				if c[3] == " " then c[3] = ch else c[4] = ch end
+			end
 			if ce.spawner then top[x] = true end
 			if ce.exit then c[2] = "e" end
 		end

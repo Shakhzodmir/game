@@ -1677,3 +1677,69 @@ describe("screens/level/board.script with the carpet (core-rules 10.8)", functio
 		end)
 	end)
 end)
+
+-- the conveyor (core-rules 10.9): a belt to the right over (1..3, 2); the swipe (6,8) -> (6,9) makes the green
+-- line (4..6, 9), far from the belt, so the step that follows the move carries the three riders and nothing else
+local function conveyor_level(green)
+	return core_helper.level({
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyrgbpyr",
+		"pyrgbypyr",
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyggbpyr",
+	}, { moves = 30, goals = { { type = "collect", color = "green", count = green or 99 } },
+		conveyor = { { path = { { 0, 1 }, { 1, 1 }, { 2, 1 } } } } })
+end
+
+describe("screens/level/board.script with the conveyor (core-rules 10.9)", function()
+	local link = require("client.level_link")
+
+	local function id_at(self, x, y)
+		for _, p in ipairs(self.session.game:pieces()) do
+			if p.x == x and p.y == y then return p.id end
+		end
+		return nil
+	end
+
+	it("shows the belt cells to the background and slides the riders after a move, without an engine error", function()
+		with_board({ level = 1, level_text = conveyor_level() }, function(E, script, self, d)
+			d.frame(90)
+			local v = link.view()
+			assert_same(v.cells[9 + 1].conveyor, { belt = 1, pos = 1, dir = "r" })
+			assert_eq(v.cells[9 + 3].conveyor.last, true)
+			assert_eq(v.cells[9 + 4].conveyor, nil)
+			local a, b, c = id_at(self, 1, 2), id_at(self, 2, 2), id_at(self, 3, 2)
+			d.swipe(6, 8, 6, 9)
+			d.frame(1)
+			assert_true(d.settle())
+			d.frame(30)
+			assert_same({ id_at(self, 1, 2), id_at(self, 2, 2), id_at(self, 3, 2) }, { c, a, b })
+			assert_eq(self.errors or 0, 0)
+			-- the board at rest is the core's board: the janitor has nothing to put right after the slide
+			d.frame(900)
+			assert_true((self.janitor_passes or 0) >= 1, "the janitor looked")
+			assert_eq(self.janitor_repairs or 0, 0)
+			assert_eq(self.view:stats().repaired, 0)
+		end)
+	end)
+
+	it("plays a conveyor level to its final concert without an engine error", function()
+		with_board({ level = 1, level_text = conveyor_level(30) }, function(E, script, self, d)
+			self.session:autoplay(nil, { free_moves = true })
+			local state
+			for _ = 1, 12000 do
+				d.frame(1)
+				state = self.session.game:status().state
+				if state == "complete" or state == "lost" then break end
+			end
+			assert_eq(state, "complete")
+			d.frame(60)
+			assert_eq(self.errors or 0, 0)
+			assert_eq(d.topics.level_result, 1)
+		end)
+	end)
+end)

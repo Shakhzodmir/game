@@ -6,12 +6,12 @@ local C = require("core.const")
 
 describe("core const: timings (section 14)", function()
 	local NORMAL = {
-		swap = 10, exchange = 18, swap_fail = 14, shuffle = 30, clear = 9, chain = 3, sub_swell = 6, ring = 2,
+		swap = 10, exchange = 18, conveyor = 12, swap_fail = 14, shuffle = 30, clear = 9, chain = 3, sub_swell = 6, ring = 2,
 		bird_flight = 33, disco_step = 2, transform_step = 2, fire_step = 3, finale_pause = 24,
 		light_step = 1, concert_step = 2, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080, start_delay = 1,
 	}
 	local TURBO = {
-		swap = 1, exchange = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0, sub_swell = 0, ring = 0,
+		swap = 1, exchange = 1, conveyor = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0, sub_swell = 0, ring = 0,
 		bird_flight = 0, disco_step = 0, transform_step = 0, fire_step = 0, finale_pause = 0,
 		light_step = 0, concert_step = 0, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080, start_delay = 0,
 	}

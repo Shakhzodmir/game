@@ -21,6 +21,9 @@
 --   closed_moves, open_moves, start_closed} or nil (10.7).
 --   carpet = {at[i] (is cell i covered at the start), cells (indices, ascending)}
 --   or nil (10.8); the count of a carpet goal = the cells still to cover.
+--   conveyor = {belts = {{cells (indices in the order of travel), dirs (C.DIR_* of every cell), ring}},
+--   at[i] (number of the belt of cell i, 0 = none), pos[i] (place of cell i in its belt, 0 = none)}
+--   or nil (10.9).
 
 local C = require("core.const")
 local U = require("core.util")
@@ -258,6 +261,59 @@ local function read_carpet(ctx)
 	ctx.lvl.carpet = { at = at, cells = cells }
 end
 
+-- The conveyor belts (10.9): the cells of every belt in the order of travel (geometry by 2.1.2, the
+-- shape of the path by 2.1.14). A cell belongs to one belt at most and stands in it once.
+local function read_conveyor(ctx)
+	local cv = ctx.raw.conveyor
+	if cv == nil then return end
+	local W = ctx.W
+	local at, pos, belts = {}, {}, {}
+	for i = 1, ctx.N do at[i], pos[i] = 0, 0 end
+	-- the direction of the step from cell a to cell c, nil if they are not neighbours by a side
+	local function dir(a, c)
+		local d = c - a
+		if d == 1 and (a - 1) % W ~= W - 1 then return C.DIR_R end
+		if d == -1 and (a - 1) % W ~= 0 then return C.DIR_L end
+		if d == W then return C.DIR_D end
+		if d == -W then return C.DIR_U end
+		return nil
+	end
+	for b = 1, #cv do
+		local path = cv[b].path
+		local cells, ok = {}, true
+		for k = 1, #path do
+			local i = cell_of(ctx, path[k])
+			if not i then
+				err_at(ctx, "2.1.2", "conveyor is not on an existing cell", path[k])
+				ok = false
+			elseif at[i] ~= 0 then
+				err_at(ctx, "2.1.2", "two conveyor cells in one cell", path[k])
+				ok = false
+			else
+				at[i], pos[i] = b, k
+				cells[k] = i
+			end
+		end
+		local dirs = {}
+		local n = #cells
+		for k = 1, ok and n - 1 or 0 do
+			dirs[k] = dir(cells[k], cells[k + 1])
+			if not dirs[k] then
+				err_at(ctx, "2.1.14", "conveyor cells must be neighbours by a side", path[k + 1])
+				ok = false
+				break
+			end
+		end
+		if ok then
+			-- a ring closes on itself; an open path points on past its last cell (its content jumps back to the first)
+			local back = dir(cells[n], cells[1])
+			dirs[n] = back or dirs[n - 1]
+			belts[#belts + 1] = { cells = cells, dirs = dirs, ring = back ~= nil }
+		end
+	end
+	ctx.lvl.conveyor = { belts = belts, at = at, pos = pos }
+end
+
 -- Rule 2.1.13, the carpet (10.8). The goal and the starting cells come together; no dance floor on such a
 -- level; no starting carpet under a blocker; and every cell of the board can be covered by matches alone:
 -- starting from the carpet, any line of three or 2x2 square of existing cells that holds a covered cell
@@ -435,7 +491,17 @@ local function static_rules(ctx)
 		end
 	end
 	carpet_rules(ctx)
-	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet
+	-- 2.1.14: a belt carries only what moves (10.9): no blocker and no wires on it at the start
+	if lvl.conveyor then
+		for i = 1, N do
+			if lvl.conveyor.at[i] ~= 0 then
+				if slot_at[i] and slot_at[i].kind == C.K_BLOCKER then err(ctx, "2.1.14", "blocker on a conveyor", i) end
+				if lvl.wires[i] > 0 then err(ctx, "2.1.14", "wires on a conveyor", i) end
+			end
+		end
+	end
+	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet,
+	-- conveyor
 	local n_el = 0
 	for b = 1, 5 do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -450,6 +516,7 @@ local function static_rules(ctx)
 	if ctx.n_chains > 0 then n_el = n_el + 1 end
 	if lvl.curtain then n_el = n_el + 1 end
 	if lvl.carpet or ctx.carpet_goal then n_el = n_el + 1 end
+	if lvl.conveyor then n_el = n_el + 1 end
 	if ctx.deliver or ctx.raw.mic ~= nil or ctx.n_mics > 0 then n_el = n_el + 1 end
 	if ctx.drop or ctx.raw.coconut ~= nil or ctx.n_coconuts > 0 then n_el = n_el + 1 end
 	if n_el > 3 then errs[#errs + 1] = "2.1.6 more than three different elements" end
@@ -514,6 +581,7 @@ local function normalize(raw, errs)
 			colors = {}, weights = {}, goals = {},
 			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {},
 			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil, carpet = nil,
+			conveyor = nil,
 		},
 	}
 	read_cells(ctx)
@@ -523,6 +591,7 @@ local function normalize(raw, errs)
 	read_slots(ctx)
 	read_curtain(ctx)
 	read_carpet(ctx)
+	read_conveyor(ctx)
 	static_rules(ctx)
 	return ctx.lvl, ctx.slot_at
 end

@@ -59,6 +59,10 @@ C.PRE_BOOSTER_NAME = { [5] = "riff", [6] = "sub", [7] = "disco" }
 C.G_PLAYING, C.G_WON_WAIT, C.G_CONCERT, C.G_OUT, C.G_LOST, C.G_COMPLETE = 1, 2, 3, 4, 5, 6
 C.GAME_NAME = { "playing", "won_wait", "concert", "out_of_moves", "lost", "complete" }
 
+-- Directions of travel of a conveyor cell (10.9).
+C.DIR_R, C.DIR_D, C.DIR_L, C.DIR_U = 1, 2, 3, 4
+C.DIR_NAME = { "r", "d", "l", "u" }
+
 -- Timing modes.
 C.TIMING_NORMAL, C.TIMING_TURBO = 1, 2
 C.TIMING = { normal = 1, turbo = 2 }
@@ -82,14 +86,14 @@ C.STARS = { 1, 1, 2, 3 }
 -- Timings (section 14), indexed by timing mode.
 C.T = {
 	{ -- normal
-		swap = 10, swap_fail = 14, shuffle = 30, clear = 9, chain = 3, exchange = 18,
+		swap = 10, swap_fail = 14, shuffle = 30, clear = 9, chain = 3, exchange = 18, conveyor = 12,
 		sub_swell = 6, ring = 2, bird_flight = 33, disco_step = 2,
 		transform_step = 2, fire_step = 3, finale_pause = 24, light_step = 1,
 		concert_step = 2, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080,
 		start_delay = 1,
 	},
 	{ -- turbo
-		swap = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0, exchange = 1,
+		swap = 1, swap_fail = 1, shuffle = 1, clear = 1, chain = 0, exchange = 1, conveyor = 1,
 		sub_swell = 0, ring = 0, bird_flight = 0, disco_step = 0,
 		transform_step = 0, fire_step = 0, finale_pause = 0, light_step = 0,
 		concert_step = 0, fall_v0 = 300, fall_acc = 60, fall_vmax = 1080,

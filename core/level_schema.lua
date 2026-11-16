@@ -60,6 +60,7 @@ local SHAPE = {
 	goals = "arr_obj", floor = "arr_obj", overlay = "arr_obj", slots = "arr_obj",
 	spawners = "arr_arr", exits = "arr_arr", mic = "obj", spawn_weights = "obj",
 	coconut = "obj", columns = "arr", curtain = "obj", covers = "arr_arr", carpet = "arr_arr",
+	conveyor = "arr_obj", path = "arr_arr",
 }
 
 local function ser_scalar(v, out)
@@ -119,6 +120,7 @@ local ROOT = {
 	id = true, version = true, size = true, moves = true, difficulty = true, colors = true,
 	goals = true, cells = true, spawners = true, exits = true, floor = true, overlay = true,
 	slots = true, mic = true, spawn_weights = true, coconut = true, curtain = true, carpet = true,
+	conveyor = true,
 }
 
 local GOAL_KEYS = {
@@ -348,6 +350,30 @@ function LS.check(raw, errs)
 		else
 			for j = 1, #m do
 				if not is_at(m[j]) then e("carpet[" .. j .. "]: [x, y] required") end
+			end
+		end
+	end
+	if raw.conveyor ~= nil then
+		-- the conveyor belts (10.9): every belt is a path of cells, listed in the direction of travel
+		local m = raw.conveyor
+		if not is_array(m) or #m < 1 then
+			e("conveyor: a non-empty list of belts {path} required")
+		else
+			for j = 1, #m do
+				local path = "conveyor[" .. j .. "]"
+				local b = m[j]
+				if not is_object(b) then
+					e(path .. ": object {path} required")
+				else
+					check_keys(b, { path = true }, path, errs)
+					if not is_array(b.path) or #b.path < 3 then
+						e(path .. ": path must be a list of at least 3 cells [x, y]")
+					else
+						for k = 1, #b.path do
+							if not is_at(b.path[k]) then e(path .. ": path[" .. k .. "]: [x, y] required") end
+						end
+					end
+				end
 			end
 		end
 	end

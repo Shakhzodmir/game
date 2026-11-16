@@ -55,6 +55,10 @@ M.NOPE_SFX, M.NOPE_GAIN, M.NOPE_GAP = "land", 0.9, 0.08
 M.CURTAIN_GAIN, M.CURTAIN_CLOSE, M.CURTAIN_OPEN = 0.6, 0.6, 0.75
 -- The carpet (core-rules 10.8) unrolls with the chime of a lit floor tile, softer and a little lower.
 M.CARPET_GAIN, M.CARPET_SPEED = 0.7, 0.85
+-- The conveyor (core-rules 10.9) makes a step with a soft mechanical tick: the tap, slowed down; a jammed belt
+-- only clunks, lower and softer. Several belts that move in one tick sound once.
+M.CONVEYOR_SFX, M.CONVEYOR_GAIN, M.CONVEYOR_SPEED = "tap", 0.5, 0.7
+M.CONVEYOR_JAM_GAIN, M.CONVEYOR_JAM_SPEED = 0.35, 0.5
 
 local LA = {}
 LA.__index = LA
@@ -245,6 +249,13 @@ function LA:event(e)
 	elseif ty == "curtain" then
 		-- the curtain is drawn or pulled apart: the whoosh of a swap, low and soft
 		self:sfx("swap", { gain = M.CURTAIN_GAIN, speed = e.phase == "closed" and M.CURTAIN_CLOSE or M.CURTAIN_OPEN }, 0.1, "curtain")
+	elseif ty == "conveyor" then
+		-- a belt made its step (core-rules 10.9), or could not (jam): one soft tick for all the belts of a tick
+		if e.jam then
+			self:sfx(M.CONVEYOR_SFX, { gain = M.CONVEYOR_JAM_GAIN, speed = M.CONVEYOR_JAM_SPEED }, 0.1, "conveyor_jam")
+		else
+			self:sfx(M.CONVEYOR_SFX, { gain = M.CONVEYOR_GAIN, speed = M.CONVEYOR_SPEED }, 0.1, "conveyor")
+		end
 	elseif ty == "exchange" then
 		-- the Crossfader scratches: the whoosh of the swap forth, high and fast, and back, low and slow, then a
 		-- click where the pieces land

@@ -339,3 +339,20 @@ closed curtain cell is not hit at all. The goal `GOAL_CARPET = 7` counts the
 bare cells (`level.lua`, rule 2.1.13 with the reachability check). The cells
 and the flags of the active sources are hashed only on such a level
 (`hash.lua`). Tests: `tests/core/carpet_test.lua`.
+
+## Conveyor (§10.9)
+
+The conveyor belts of district 10 are static level data (`conveyor` ->
+`level.conveyor = {belts = {{cells, dirs, ring}}, at, pos}`); the state holds
+nothing of them and the hash is unchanged. `conveyor.lua` has the whole
+mechanic: `CV.advance(s, n)` is called by step 8 (`flow.lua`) after the noise
+growth and the curtain count, once per end of move with the number of moves
+spent; every belt that is not jammed (`CV.jammed`: a closed curtain cell, a
+blocker or wires on it) rotates the slot ids of its cells by one, and the
+riders are locked (`S_SWAP` + `TM_LOCK`, the lock of a shuffle) for
+`T.conveyor` ticks. Step 2 of the tick in which the lock ends makes them idle
+and searches the board, so the matches of a shift are an ordinary cascade.
+When a belt carried something, step 8 skips `out_of_moves` and the deadlock
+check until the next rest. Event `conveyor`; `cells()[i].conveyor`. Rule
+2.1.14 in `level.lua`. Tests: `tests/core/conveyor_test.lua` (with a random
+play that checks the board invariants in every tick).

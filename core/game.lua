@@ -178,10 +178,17 @@ function Game:cells()
 	local s = self.s
 	local out = {}
 	local cu = s.level.curtain
+	local cv = s.level.conveyor
 	for i = 1, s.N do
 		out[i] = { exists = s.exists[i], spawner = s.spawner[i], exit = s.exit[i], floor = s.floor[i], wires = s.wires[i] }
 		if cu and cu.at[i] then out[i].curtain = true end
 		if s.carpet and s.carpet[i] then out[i].carpet = true end -- covered by the carpet (10.8)
+		if cv and cv.at[i] ~= 0 then -- a cell of a conveyor belt (10.9)
+			local belt = cv.belts[cv.at[i]]
+			local k = cv.pos[i]
+			out[i].conveyor = { belt = cv.at[i], pos = k, dir = C.DIR_NAME[belt.dirs[k]] }
+			if k == #belt.cells and not belt.ring then out[i].conveyor.last = true end
+		end
 	end
 	return out
 end

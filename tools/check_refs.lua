@@ -970,6 +970,7 @@ local function key_families(data)
 	blockers[#blockers + 1] = "chain"
 	blockers[#blockers + 1] = "curtain"
 	blockers[#blockers + 1] = "carpet"
+	blockers[#blockers + 1] = "conveyor"
 	fam["blocker."] = blockers
 	fam["praise."] = { "1", "2", "3", "4", "5" }
 	local stems = {}

@@ -10,6 +10,7 @@ local MV = require("core.moves")
 local SH = require("core.shuffle")
 local sched = require("core.sched")
 local CU = require("core.curtain")
+local CV = require("core.conveyor")
 
 local F = {}
 
@@ -147,9 +148,12 @@ function F.step8(s)
 		-- the curtains count the moves spent (10.7); one that opens makes the board dirty, and the rest
 		-- of this step waits for the next rest (what was under it resolves first)
 		local opened = s.level.curtain ~= nil and CU.advance(s, #s.eom)
+		-- then the conveyor belts carry their cells one step for every move spent (10.9); the riders are
+		-- locked while they slide, so the rest of this step waits for the next rest as well
+		local moved = s.level.conveyor ~= nil and CV.advance(s, #s.eom)
 		s.eom = {}
-		if opened then
-			-- (nothing: step 7 of the next tick searches the board)
+		if opened or moved then
+			-- (nothing: step 7 of the next tick searches the board; the riders are searched when they stop)
 		elseif s.moves_left == 0 then
 			E.set_state(s, C.G_OUT)
 		elseif not MV.has_move(s) then
