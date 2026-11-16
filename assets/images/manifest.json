@@ -17,6 +17,7 @@
     "blockers/ice_*.png": "PLACEHOLDER (PIL). The ice of district 12 (core-rules 10.11): a pale blue, SEMI-TRANSPARENT rounded ice cube seen from the front, drawn at cell size OVER a frozen piece (the colour of the piece must show through, so the middle stays see-through; client/level_ice.lua). The number is the hp LEFT: ice_2 solid, ice_1 cracked (white cracks across the same cube). 160x160 RGBA; ice_2 is also the icon of the `ice` goal.",
     "blockers/hay_*.png": "PLACEHOLDER (PIL). The hay bale of district 13 (core-rules 10.12), a blocker of one cell that may hide a special piece: a golden rectangular bale of straw seen from the front, tied with two red-brown ropes. The number is the hp LEFT, as for the record box: hay_2 the full bale (two tight ropes), hay_1 the thinned one (visibly smaller, one rope askew, the other hanging loose, straw sticking out and lying around). Nothing in the picture may hint at what is inside: a full and an empty bale look the same. 160x160 RGBA, drawn at cell size in the slot; hay_2 is also the icon of the break goal.",
     "blockers/fog.png": "PLACEHOLDER (PIL). The stage fog of district 14 (core-rules 10.13), a cover of one cell that only HIDES what stands under it: a soft grey-violet cloud of stage smoke seen from the front, drawn a little wider than the cell (client/level_fog.lua SIZE) ABOVE the piece, so the clouds of neighbouring cells close into one bank. It must be OPAQUE in the middle and nearly to the edge (the piece under it must not be recognisable; the client does not draw that piece at all), soft only at the very rim; no outline, no face. 160x160 RGBA; it is also the icon of the `fog` goal.",
+    "blockers/portal_*.png": "PLACEHOLDER (PIL). The portal of district 15 (core-rules 10.14), a pair of cells that links two columns: pieces fall into the ENTRANCE and drop out of the EXIT. Seen from above: a glowing ring with a faint swirl inside, drawn at cell size over the cell tile and UNDER the piece, so the middle must stay SEE-THROUGH (the piece standing on it must read) and the ring must hug the edge of the cell. portal_in = the entrance (blue in the placeholder), portal_out = the exit (orange in the placeholder); the two must be told apart at a glance. The client marks the two cells of one pair with a small gem of the same colour in the top left corner (client/level_portal.lua COLORS); a real picture drawn in neutral white can be tinted with the pair colour instead (TINT). 160x160 RGBA.",
     "blockers/boombox_*.png": "PLACEHOLDER (PIL). The boombox of district 11 (core-rules 10.10), a blocker of one cell: a teal portable stereo seen from the front, a handle on top, two round speakers, a cassette deck between them. The number is the hp LEFT, as for the record box: boombox_3 new, boombox_2 cracked (a crack down the middle), boombox_1 broken (cracks all over, the right speaker torn, half of the handle gone, a chipped corner). 160x160 RGBA, drawn at cell size in the slot; boombox_3 is also the icon of the break goal.",
     "blockers/carpet.png": "PLACEHOLDER (PIL). The carpet of district 9 (core-rules 10.8): a square oriental carpet seen from above (red field, teal border), drawn over the cell tile and under the piece, slightly inset in the cell (client/level_carpet.lua INSET). The real picture may have tassels on two sides and transparent corners",
     "blockers/conveyor.png": "PLACEHOLDER (PIL). The conveyor belt of district 10 (core-rules 10.9): ONE tile seen from above, a dark rubber belt with two bright arrows pointing RIGHT and metal rollers on its left and right edges; drawn at cell size over the cell tile and under the piece, turned by the direction of travel of its cell (0/90/180/270 degrees, client/level_conveyor.lua), so the real picture must keep the same layout: arrows point right, the belt runs edge to edge from left to right",
@@ -577,6 +578,20 @@
       "h": 160,
       "alpha": true,
       "bytes": 22208
+    },
+    "blockers/portal_in.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 48349,
+      "placeholder": true
+    },
+    "blockers/portal_out.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 48912,
+      "placeholder": true
     },
     "blockers/record_box_1.png": {
       "w": 160,

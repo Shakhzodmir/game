@@ -289,6 +289,67 @@ describe("tools bot: the documented behaviour", function()
 		assert_eq(Bot.lowered(plain, nil, g), 0)
 	end)
 
+	-- the portals (core-rules 10.14): a block of 3x4 on the right top with the spawners, a block of 3x7 on the left
+	-- that only the portals feed; a coconut enters on the right, dives through a pair at the bottom of the right
+	-- block and comes out at the top of the left one, then goes down to the real bottom
+	local function portal_level(extra)
+		local t = {
+			size = { 7, 7 }, moves = 30,
+			cells = { "###.###", "###.###", "###.###", "###.###", "###....", "###....", "###...." },
+			goals = { { type = "drop", count = 3 } },
+			coconut = { total = 3, on_board_max = 2, gap_moves = 2, columns = { 4, 5, 6 } },
+			portals = { { ["in"] = { 4, 3 }, out = { 0, 0 } }, { ["in"] = { 5, 3 }, out = { 1, 0 } }, { ["in"] = { 6, 3 }, out = { 2, 0 } } },
+		}
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small portal level with a drop goal: both bots bring the coconuts through the portals to the bottom", function()
+		local e = portal_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				assert_eq(r.ending, "won", kind .. " seed " .. seed)
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+		local a = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		local b = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		assert_same({ a.won, a.moves_used, a.score }, { b.won, b.moves_used, b.score })
+	end)
+
+	it("measures the way of a coconut along its route through the portals, not by its row", function()
+		local e = portal_level({ slots = { { at = { 4, 3 }, type = "coconut" } } })
+		local g = core.new(e.level, { seed = 3 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		local route = Bot.route(bot, g)
+		-- cells left to the real bottom: the entrance (5,4) is 1 hop + 6 cells away, the exit (1,1) 6 cells, the
+		-- top of the right block 3 + 7, the bottom of the left block 0
+		assert_same({ route[3 * 7 + 5], route[1], route[5], route[6 * 7 + 1] }, { 7, 6, 10, 0 })
+		local before = Bot.coconuts(bot, g)
+		assert_same(before, { { before[1][1], -7 } })
+		assert_eq(Bot.lowered(bot, before, g), 0)
+		-- white box: the coconut came out of the exit (1,1): higher on the screen, one step further on its way
+		local c = g:clone()
+		local s = c.s
+		local a = s.objs[before[1][1]]
+		local other = s.objs[s.slot[1]]
+		s.slot[a.cell], s.slot[1] = other.id, a.id
+		other.cell, a.cell = a.cell, 1
+		assert_eq(Bot.lowered(bot, before, c), 1)
+		-- ... and gone from the board: the whole route and one more
+		s.slot[1] = 0
+		s.objs[a.id] = nil
+		assert_eq(Bot.lowered(bot, before, c), 8)
+		-- a level without portals looks once and measures rows
+		local plain = F.entry({ goals = { { type = "drop", count = 1 } }, coconut = { total = 1, on_board_max = 1, gap_moves = 0 } })
+		local pb = Bot.new("greedy", { seed = 1, goals = plain.goals, width = 7 })
+		assert_eq(Bot.route(pb, core.new(plain.level, { seed = 3 })), false)
+		assert_eq(pb.ways, false)
+	end)
+
 	local function chain_overlay(list)
 		local o = {}
 		for k, c in ipairs(list) do o[k] = { at = { c[1], c[2] }, type = "chain", hp = c[3] } end

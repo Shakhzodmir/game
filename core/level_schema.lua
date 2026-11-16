@@ -60,7 +60,7 @@ local SHAPE = {
 	goals = "arr_obj", floor = "arr_obj", overlay = "arr_obj", slots = "arr_obj",
 	spawners = "arr_arr", exits = "arr_arr", mic = "obj", spawn_weights = "obj",
 	coconut = "obj", columns = "arr", curtain = "obj", covers = "arr_arr", carpet = "arr_arr", fog = "arr_arr",
-	conveyor = "arr_obj", path = "arr_arr",
+	conveyor = "arr_obj", path = "arr_arr", portals = "arr_obj", ["in"] = "arr", out = "arr",
 }
 
 local function ser_scalar(v, out)
@@ -120,7 +120,7 @@ local ROOT = {
 	id = true, version = true, size = true, moves = true, difficulty = true, colors = true,
 	goals = true, cells = true, spawners = true, exits = true, floor = true, overlay = true,
 	slots = true, mic = true, spawn_weights = true, coconut = true, curtain = true, carpet = true,
-	conveyor = true, fog = true,
+	conveyor = true, fog = true, portals = true,
 }
 
 local GOAL_KEYS = {
@@ -385,6 +385,25 @@ function LS.check(raw, errs)
 		else
 			for j = 1, #m do
 				if not is_at(m[j]) then e("fog[" .. j .. "]: [x, y] required") end
+			end
+		end
+	end
+	if raw.portals ~= nil then
+		-- the portals (10.14): every pair is an entrance cell `in` and an exit cell `out`
+		local m = raw.portals
+		if not is_array(m) or #m < 1 then
+			e("portals: a non-empty list of pairs {in, out} required")
+		else
+			for j = 1, #m do
+				local path = "portals[" .. j .. "]"
+				local b = m[j]
+				if not is_object(b) then
+					e(path .. ": object {in, out} required")
+				else
+					check_keys(b, { ["in"] = true, out = true }, path, errs)
+					if not is_at(b["in"]) then e(path .. ": in: [x, y] required") end
+					if not is_at(b.out) then e(path .. ": out: [x, y] required") end
+				end
 			end
 		end
 	end

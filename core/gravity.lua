@@ -1,4 +1,12 @@
--- Gravity, spawn and falling (10.1-10.4).
+-- Gravity, spawn and falling (10.1-10.4), and the portals (10.14).
+--
+-- A portal pair links two columns: its exit cell (the top of a segment
+-- without a spawner) is "the cell below" its entrance cell (the bottom of
+-- another segment). scan() of a cell whose segment starts with an exit goes
+-- on through the entrance: an idle movable piece standing in the entrance
+-- hops into the EMPTY EXIT CELL itself (HOP; one cell of fall, event
+-- `portal`), and only from there falls on down the run by the ordinary
+-- transfer. A level without portals never reaches that code.
 
 local C = require("core.const")
 local U = require("core.util")
@@ -12,7 +20,50 @@ local UNIT = C.UNIT
 local K_REGULAR, K_MIC, K_BLOCKER = C.K_REGULAR, C.K_MIC, C.K_BLOCKER
 local S_IDLE, S_FALL, S_SWAP, S_CLEAR, S_ARMED = C.S_IDLE, C.S_FALL, C.S_SWAP, C.S_CLEAR, C.S_ARMED
 
-local WAIT, BLOCKED, SPAWN, PIECE = 1, 2, 3, 4
+local WAIT, BLOCKED, SPAWN, PIECE, HOP = 1, 2, 3, 4, 5
+
+-- What the portal entrance n brings to the exit above an empty run (10.14). `direct`: the asking cell is
+-- the exit cell itself. An idle movable piece in the entrance hops (HOP, only into the exit cell; a cell
+-- lower in the run waits for it to come out first). An empty entrance answers for its own column, like
+-- scan(): what stands there waits or blocks, a piece or a spawner above is on its way (WAIT), and a column
+-- that starts with the exit of another pair asks that pair. The level has no cycles (2.1.16).
+local function through(s, n, direct)
+	local W = s.W
+	local e = B.get(s, n)
+	if e then
+		local st = e.state
+		if st == S_CLEAR or st == S_SWAP or st == S_ARMED then return WAIT end
+		if e.pins[1] then return WAIT end
+		if e.kind == K_BLOCKER or (e.kind == K_REGULAR and (s.wires[e.cell] > 0 or e.ice > 0)) then
+			return BLOCKED
+		end
+		if st == S_FALL or not direct then return WAIT end
+		return HOP, e
+	end
+	local x = (n - 1) % W + 1
+	local k = (n - x) / W + 1
+	local top = s.seg_top[n]
+	local veil = s.cur_closed and s.level.curtain.at or nil
+	while k > top do
+		k = k - 1
+		if veil and veil[(k - 1) * W + x] then return BLOCKED end
+		e = B.get(s, (k - 1) * W + x)
+		if e then
+			local st = e.state
+			if st == S_CLEAR or st == S_SWAP or st == S_ARMED then return WAIT end
+			if e.pins[1] then return WAIT end
+			if e.kind == K_BLOCKER or (e.kind == K_REGULAR and (s.wires[e.cell] > 0 or e.ice > 0)) then
+				return BLOCKED
+			end
+			return WAIT -- a movable piece: the entrance column brings it down first
+		end
+	end
+	local t = (top - 1) * W + x
+	if s.spawner[t] then return WAIT end
+	local n2 = s.level.portal.entry_of[t]
+	if n2 ~= 0 then return through(s, n2, false) end
+	return BLOCKED
+end
 
 -- scan(c) of 10.1: result code and, for PIECE, the object.
 local function scan(s, c)
@@ -38,6 +89,12 @@ local function scan(s, c)
 		end
 	end
 	if s.spawner[(top - 1) * W + x] then return SPAWN end
+	local po = s.level.portal
+	if po then
+		-- the segment starts with a portal exit: its entrance is the cell above (10.14)
+		local n = po.entry_of[(top - 1) * W + x]
+		if n ~= 0 then return through(s, n, y == top) end
+	end
 	return BLOCKED
 end
 
@@ -158,6 +215,23 @@ local function transfer(s, q, c, pass)
 	refill(pass, c, q)
 end
 
+-- A hop through a portal (10.14): q, idle in the entrance, appears in the empty exit cell c and falls
+-- one cell there (the client shows it diving in and coming out). Labels as a vertical transfer (1.3.5).
+local function hop(s, q, c, pass)
+	local W = s.W
+	local S = q.cell
+	local x = (c - 1) % W + 1
+	local fx, fy = U.xy(W, S)
+	q.offx, q.offy = 0, UNIT
+	B.raise_label(s, q, s.vac_mv[c], s.vac_wv[c])
+	s.slot[S] = 0
+	B.place(s, q, c)
+	B.set_vac(s, S, q.mv, q.wv)
+	start_fall(s, q, pass, x)
+	refill(pass, c, q)
+	E.emit(s, "portal", { id = q.id, fx = fx, fy = fy, x = x, y = (c - x) / W + 1, pair = s.level.portal.pair[c] })
+end
+
 local function spawn(s, c, pass)
 	local W = s.W
 	local x = (c - 1) % W + 1
@@ -215,7 +289,15 @@ local function diagonal(s, c, pass)
 			local o = B.get(s, D)
 			if o and o.state == S_IDLE and o.pins[1] == nil and B.is_movable(s, o) and not B.veiled(s, D) then
 				local below = c + dx -- (x+dx, y)
-				if not s.exists[below] or s.slot[below] ~= 0 or B.veiled(s, below) then
+				local held
+				local po = s.level.portal
+				if po and po.exit_of[D] ~= 0 then
+					-- a donor in a portal entrance: the cell under it is the exit of its pair (10.14)
+					held = s.slot[po.exit_of[D]] ~= 0
+				else
+					held = not s.exists[below] or s.slot[below] ~= 0 or B.veiled(s, below)
+				end
+				if held then
 					o.offx = -dx * UNIT
 					o.offy = UNIT
 					B.raise_label(s, o, s.vac_mv[c], s.vac_wv[c])
@@ -252,6 +334,9 @@ function G.assign(s)
 					n = n + 1
 				elseif r == SPAWN then
 					spawn(s, c, pass)
+					n = n + 1
+				elseif r == HOP then
+					hop(s, q, c, pass)
 					n = n + 1
 				elseif r == BLOCKED then
 					if diagonal(s, c, pass) then n = n + 1 end

@@ -181,6 +181,7 @@ function Game:cells()
 	local out = {}
 	local cu = s.level.curtain
 	local cv = s.level.conveyor
+	local po = s.level.portal
 	for i = 1, s.N do
 		out[i] = { exists = s.exists[i], spawner = s.spawner[i], exit = s.exit[i], floor = s.floor[i], wires = s.wires[i] }
 		if cu and cu.at[i] then out[i].curtain = true end
@@ -191,6 +192,11 @@ function Game:cells()
 			local k = cv.pos[i]
 			out[i].conveyor = { belt = cv.at[i], pos = k, dir = C.DIR_NAME[belt.dirs[k]] }
 			if k == #belt.cells and not belt.ring then out[i].conveyor.last = true end
+		end
+		if po and po.role[i] ~= 0 then -- a cell of a portal pair (10.14)
+			local pr = po.pairs[po.pair[i]]
+			local ox, oy = U.xy(s.W, po.role[i] == 1 and pr.out or pr.inn)
+			out[i].portal = { role = po.role[i] == 1 and "in" or "out", pair = po.pair[i], x = ox, y = oy }
 		end
 	end
 	return out

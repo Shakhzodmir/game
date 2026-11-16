@@ -66,7 +66,7 @@ end
 
 -- Elements counted by rule 2.1.6, present in a raw level.
 Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain",
-	"curtain", "carpet", "conveyor", "boombox", "ice", "hay", "fog" }
+	"curtain", "carpet", "conveyor", "boombox", "ice", "hay", "fog", "portal" }
 
 -- Like the core's rule 2.1.6: a `mic` counts when there is a deliver goal, a
 -- mic block or a starting mic piece; a `coconut` likewise with a drop goal,
@@ -85,6 +85,7 @@ function Levels.elements(raw)
 	if raw.curtain ~= nil then has.curtain = true end -- the timed curtain (core-rules 10.7)
 	if raw.carpet ~= nil then has.carpet = true end -- the carpet (core-rules 10.8) ...
 	if raw.conveyor ~= nil then has.conveyor = true end -- the conveyor belts (core-rules 10.9)
+	if raw.portals ~= nil then has.portal = true end -- the portals (core-rules 10.14)
 	if raw.fog ~= nil then has.fog = true end -- the stage fog (core-rules 10.13) ...
 	for _, g in ipairs(raw.goals or {}) do if g.type == "fog" then has.fog = true end end -- ... or its goal
 	for _, g in ipairs(raw.goals or {}) do if g.type == "carpet" then has.carpet = true end end -- ... or its goal
@@ -196,6 +197,11 @@ local function draw_grid(g, W, H, marks)
 		local row = { string.format("%3d ", y - 1) }
 		for x = 1, W do
 			local c = g[y][x]
+			if c.portal and not c.void then -- a portal cell (core-rules 10.14): its role and the number of its pair
+				if c[2] == " " then c[2] = c.portal[1] end
+				if c[4] == " " then c[4] = c.portal[2] end
+				c.portal = nil
+			end
 			if c.fog and not c.void then -- the stage fog (core-rules 10.13): the last free detail character
 				if c[4] == " " then c[4] = "f" elseif c[2] == " " then c[2] = "f" end
 				c.fog = nil
@@ -209,7 +215,13 @@ end
 
 Levels.LEGEND = "legend: r o y g b p piece colour, + random piece, R/S/B/D riff/sub/bird/disco (riff axis - or |),"
 	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), Q boombox (+hp), H hay bale (+hp; 4th char its gift in the static preview: - or | riff, S sub, B bird, D disco, ? random, none blank), 3rd char floor (_ hp1, = hp2) or carpet (~),"
-	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2), ice (i hp1, I hp2) or curtain (t), fog (f: 4th char, or the 2nd when the 4th is taken), conveyor (> < ^ v: the way the belt moves, 3rd char, or 4th over a floor or carpet), v spawner, e exit (2nd char), . void"
+	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2), ice (i hp1, I hp2) or curtain (t), fog (f: 4th char, or the 2nd when the 4th is taken), conveyor (> < ^ v: the way the belt moves, 3rd char, or 4th over a floor or carpet), portal (2nd char @ entrance or * exit, 4th char the number of the pair), v spawner, e exit (2nd char), . void"
+
+-- The mark of a portal pair in the previews: 1-9, then a-z.
+local function pair_char(k)
+	if k <= 9 then return string.char(48 + k) end
+	return string.char(96 + math.min(k - 9, 26))
+end
 
 -- Static preview from the JSON.
 function Levels.preview_raw(raw)
@@ -307,11 +319,23 @@ function Levels.preview_raw(raw)
 			end
 		end
 	end
+	if type(raw.portals) == "table" then
+		-- the portals (core-rules 10.14): `@` on the entrance and `*` on the exit, with the number of the pair
+		for k, pr in ipairs(raw.portals) do
+			if type(pr) == "table" then
+				local a = type(pr["in"]) == "table" and cell(pr["in"]) or nil
+				local b = type(pr.out) == "table" and cell(pr.out) or nil
+				if a then a.portal = { "@", pair_char(k) } end
+				if b then b.portal = { "*", pair_char(k) } end
+			end
+		end
+	end
 	local top = {}
 	if raw.spawners == nil or raw.spawners == "top" then
 		for x = 1, W do
 			for y = 1, H do
-				if not g[y][x].void then top[x] = true break end
+				-- (a column that starts with a portal has no spawner)
+				if not g[y][x].void then top[x] = g[y][x].portal == nil break end
 			end
 		end
 	else
@@ -348,6 +372,7 @@ function Levels.preview_game(game, W, H)
 			if ce.curtain then c[4] = "t" end
 			if ce.carpet then c[3] = "~" end
 			if ce.fog then c.fog = true end
+			if ce.portal then c.portal = { ce.portal.role == "in" and "@" or "*", pair_char(ce.portal.pair) } end
 			if ce.conveyor then
 				local ch = CONVEYOR_ARROW[ce.conveyor.dir] or "?"
 				if c[3] == " " then c[3] = ch else c[4] = ch end

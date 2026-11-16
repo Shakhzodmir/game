@@ -46,10 +46,12 @@ local level_boombox = require("client.level_boombox")
 local level_hay = require("client.level_hay")
 local level_ice = require("client.level_ice")
 local level_hint = require("client.level_hint")
+local level_portal = require("client.level_portal")
 
 local M = {}
 
 M.ART = 160             -- art px of one cell (pieces, blockers; specials are 192 incl. glow)
+M.UNITS = 3600          -- core units of one cell (offx, offy of game:pieces())
 M.TOUCH_SCALE = 1.08
 M.TOUCH_UP = 0.08       -- seconds to grow on touch
 M.TOUCH_DOWN = 0.14     -- seconds back
@@ -373,6 +375,10 @@ function Anim:event(e, t)
 			if m.wrap then f.ox, f.oy, f.ix, f.iy = m.ox or m.fx, m.oy or m.fy, m.ix or m.x, m.iy or m.y end
 			rec(self, m.id).fly = f
 		end
+	elseif ty == "portal" then
+		-- a piece went through a portal (core-rules 10.14): it shrinks into the entrance (fx, fy) and grows
+		-- out of the exit (x, y) instead of sliding in from above
+		rec(self, e.id).hop = { fx = e.fx, fy = e.fy, x = e.x, y = e.y, t0 = e.t or 0, dur = level_portal.HOP_TICKS }
 	end
 end
 
@@ -417,8 +423,37 @@ function Anim:frame(pieces, tick_f, t)
 		e.clip = nil
 		local flying = state == "swap" and v.fly ~= nil and tick_f < v.fly.t0 + v.fly.dur + 1
 
+		local hop = v.hop
+		if hop then
+			-- over when its time is up and the falling piece has come level with the exit cell (or is past it),
+			-- or when the piece is no longer falling out of the exit
+			local above = (p.offy or 0) > (p.y - hop.y) * M.UNITS
+			if state ~= "fall" or p.x ~= hop.x or (tick_f >= hop.t0 + hop.dur and not above) then
+				v.hop = nil
+				hop = nil
+			end
+		end
 		if p.hidden then
 			alpha = 0
+		elseif hop then
+			-- through a portal (core-rules 10.14): the first half it shrinks in the entrance cell, the second
+			-- half it grows in the exit cell, and stays there until the fall of the core has come that far
+			local u = clamp01((tick_f - hop.t0) / hop.dur)
+			local k
+			if u < 0.5 then
+				x, y = g:center(hop.fx, hop.fy)
+				k = 1 - u * 2
+			else
+				if (p.offy or 0) > (p.y - hop.y) * M.UNITS then x, y = g:center(hop.x, hop.y) end
+				k = (u - 0.5) * 2
+			end
+			if reduced then
+				alpha = k
+			else
+				local sc = ease_out(k)
+				sx, sy = sc, sc
+				alpha = math.min(1, k * 3)
+			end
 		elseif state == "swap" and v.fly and v.fly.slide and tick_f < v.fly.t0 + v.fly.dur + 1 then
 			-- the conveyor: slide straight from the old cell to the new one, on the board, under nothing
 			local f = v.fly
