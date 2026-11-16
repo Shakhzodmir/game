@@ -21,6 +21,8 @@
 --   exit[i] is also kept with a drop goal (10.5).
 --   curtain = {at[i] (is cell i under a curtain), cells (indices, ascending),
 --   closed_moves, open_moves, start_closed} or nil (10.7).
+--   fog = {at[i] (is cell i fogged at the start), cells (indices, ascending)} or nil (10.13); the count
+--   of a fog goal = the fogged cells.
 --   carpet = {at[i] (is cell i covered at the start), cells (indices, ascending)}
 --   or nil (10.8); the count of a carpet goal = the cells still to cover.
 --   conveyor = {belts = {{cells (indices in the order of travel), dirs (C.DIR_* of every cell), ring}},
@@ -133,6 +135,7 @@ local function read_colors_and_goals(ctx)
 		if t == C.GOAL_DROP then ctx.drop = true end
 		if t == C.GOAL_CARPET then ctx.carpet_goal = true end
 		if t == C.GOAL_ICE then ctx.ice_goal = true end
+		if t == C.GOAL_FOG then ctx.fog_goal = true end
 		lvl.goals[k] = { type = t, param = param, count = g.count or 1 }
 	end
 	if raw.mic then
@@ -268,6 +271,28 @@ local function read_carpet(ctx)
 		if at[i] then cells[#cells + 1] = i end
 	end
 	ctx.lvl.carpet = { at = at, cells = cells }
+end
+
+-- The stage fog (10.13): the cells fogged at the start (geometry by 2.1.2). A fog goal counts them.
+local function read_fog(ctx)
+	local fo = ctx.raw.fog
+	if fo == nil then return end
+	local at, cells = {}, {}
+	for i = 1, ctx.N do at[i] = false end
+	for k = 1, #fo do
+		local c = fo[k]
+		local i = cell_of(ctx, c)
+		if not i then err_at(ctx, "2.1.2", "fog is not on an existing cell", c)
+		elseif at[i] then err_at(ctx, "2.1.2", "two fogs in one cell", c)
+		else at[i] = true end
+	end
+	for i = 1, ctx.N do
+		if at[i] then cells[#cells + 1] = i end
+	end
+	ctx.lvl.fog = { at = at, cells = cells }
+	for k = 1, #ctx.lvl.goals do
+		if ctx.lvl.goals[k].type == C.GOAL_FOG then ctx.lvl.goals[k].count = #cells end
+	end
 end
 
 -- The conveyor belts (10.9): the cells of every belt in the order of travel (geometry by 2.1.2, the
@@ -511,6 +536,19 @@ local function static_rules(ctx)
 		end
 	end
 	carpet_rules(ctx)
+	-- 2.1.15: the stage fog (10.13) hides what moves and what lies on a cell, never a blocker (any cell of a
+	-- column too), never a spawner, never a cell where mics or coconuts leave the field, never a curtain cell
+	if ctx.fog_goal and not lvl.fog then errs[#errs + 1] = "2.1.15 fog goal without fogged cells (field fog)" end
+	if lvl.fog then
+		for i = 1, N do
+			if lvl.fog.at[i] then
+				if slot_at[i] and slot_at[i].kind == C.K_BLOCKER then err(ctx, "2.1.15", "fog over a blocker", i) end
+				if lvl.spawner[i] then err(ctx, "2.1.15", "fog over a spawner", i) end
+				if lvl.exit[i] then err(ctx, "2.1.15", "fog over an exit", i) end
+				if lvl.curtain and lvl.curtain.at[i] then err(ctx, "2.1.15", "fog under a curtain", i) end
+			end
+		end
+	end
 	-- 2.1.14: a belt carries only what moves (10.9): no blocker and no wires on it at the start
 	if lvl.conveyor then
 		for i = 1, N do
@@ -522,7 +560,7 @@ local function static_rules(ctx)
 		end
 	end
 	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet,
-	-- conveyor, boombox, ice, hay
+	-- conveyor, boombox, ice, hay, fog
 	local n_el = 0
 	for b = 1, C.NBLOCKERS do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -539,6 +577,7 @@ local function static_rules(ctx)
 	if lvl.curtain then n_el = n_el + 1 end
 	if lvl.carpet or ctx.carpet_goal then n_el = n_el + 1 end
 	if lvl.conveyor then n_el = n_el + 1 end
+	if lvl.fog or ctx.fog_goal then n_el = n_el + 1 end
 	if ctx.deliver or ctx.raw.mic ~= nil or ctx.n_mics > 0 then n_el = n_el + 1 end
 	if ctx.drop or ctx.raw.coconut ~= nil or ctx.n_coconuts > 0 then n_el = n_el + 1 end
 	if n_el > 3 then errs[#errs + 1] = "2.1.6 more than three different elements" end
@@ -603,7 +642,7 @@ local function normalize(raw, errs)
 			colors = {}, weights = {}, goals = {},
 			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {}, ice = {}, has_ice = false, has_hay = false,
 			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil, carpet = nil,
-			conveyor = nil,
+			conveyor = nil, fog = nil,
 		},
 	}
 	read_cells(ctx)
@@ -613,6 +652,7 @@ local function normalize(raw, errs)
 	read_slots(ctx)
 	read_curtain(ctx)
 	read_carpet(ctx)
+	read_fog(ctx)
 	read_conveyor(ctx)
 	static_rules(ctx)
 	ctx.lvl.has_ice = ctx.n_ice > 0

@@ -59,7 +59,7 @@ local SHAPE = {
 	size = "arr", colors = "arr", cells = "arr", at = "arr",
 	goals = "arr_obj", floor = "arr_obj", overlay = "arr_obj", slots = "arr_obj",
 	spawners = "arr_arr", exits = "arr_arr", mic = "obj", spawn_weights = "obj",
-	coconut = "obj", columns = "arr", curtain = "obj", covers = "arr_arr", carpet = "arr_arr",
+	coconut = "obj", columns = "arr", curtain = "obj", covers = "arr_arr", carpet = "arr_arr", fog = "arr_arr",
 	conveyor = "arr_obj", path = "arr_arr",
 }
 
@@ -120,7 +120,7 @@ local ROOT = {
 	id = true, version = true, size = true, moves = true, difficulty = true, colors = true,
 	goals = true, cells = true, spawners = true, exits = true, floor = true, overlay = true,
 	slots = true, mic = true, spawn_weights = true, coconut = true, curtain = true, carpet = true,
-	conveyor = true,
+	conveyor = true, fog = true,
 }
 
 local GOAL_KEYS = {
@@ -132,6 +132,7 @@ local GOAL_KEYS = {
 	chains = { type = true, count = true },
 	ice = { type = true, count = true },
 	carpet = { type = true },
+	fog = { type = true },
 }
 
 -- slot type -> {fields = {name = checker}}
@@ -207,12 +208,12 @@ function LS.check(raw, errs)
 			local g = raw.goals[k]
 			local path = "goals[" .. k .. "]"
 			if not is_object(g) or type(g.type) ~= "string" or not GOAL_KEYS[g.type] then
-				e(path .. ": goal type collect|break|light|deliver|drop|chains|carpet|ice required")
+				e(path .. ": goal type collect|break|light|deliver|drop|chains|carpet|ice|fog required")
 			else
 				check_keys(g, GOAL_KEYS[g.type], path, errs)
 				if g.type == "collect" and not is_color(g.color) then e(path .. ": color required") end
 				if g.type == "break" and type(g.item) ~= "string" then e(path .. ": item required") end
-				if g.type ~= "light" and g.type ~= "carpet" and not (is_int(g.count) and g.count >= 1) then
+				if g.type ~= "light" and g.type ~= "carpet" and g.type ~= "fog" and not (is_int(g.count) and g.count >= 1) then
 					e(path .. ": count >= 1 required")
 				end
 				local key = g.type .. ":" .. tostring(g.color or g.item or "")
@@ -373,6 +374,17 @@ function LS.check(raw, errs)
 		else
 			for j = 1, #m do
 				if not is_at(m[j]) then e("carpet[" .. j .. "]: [x, y] required") end
+			end
+		end
+	end
+	if raw.fog ~= nil then
+		-- the stage fog (10.13): the cells that are fogged at the start
+		local m = raw.fog
+		if not is_array(m) or #m < 1 then
+			e("fog: a non-empty list of [x, y] required")
+		else
+			for j = 1, #m do
+				if not is_at(m[j]) then e("fog[" .. j .. "]: [x, y] required") end
 			end
 		end
 	end

@@ -10,7 +10,9 @@
 --   local inp = level_input.new({mode = "swipe" | "taptap", query = fn(x, y)})
 --   -- query(x, y) -> nil (no object) or {id, kind = "regular"|"special"|"mic"|"coconut"|"blocker",
 --   --                  state = "idle"|..., pinned = bool, wired = bool, chained = bool, frozen = bool,
---   --                  veiled = bool (under a closed curtain, core-rules 10.7)}
+--   --                  veiled = bool (under a closed curtain, core-rules 10.7),
+--   --                  fogged = bool (the stand-in of a cell under the stage fog, core-rules 10.13:
+--   --                  client/level_fog.lua F:unknown; it looks like an idle regular piece whatever hides there)}
 --   inp:press(fx, fy)          -- continuous cell coords (level_geom:frac), nil = off the board
 --   local cmd = inp:move(fx, fy)    -- a swipe of 30% of a cell -> {type = "swap", from, to}
 --   cmd = inp:release(fx, fy)       -- a tap -> {type = "swap" | "tap" | "booster", ...} or nil
@@ -153,6 +155,10 @@ function Input:pick_pair(x, y)
 		self.pair = nil
 		return nil, { kind = "unpick", x = x, y = y }
 	end
+	if p and p.fogged then
+		-- the Crossfader does not reach into the stage fog (core-rules 10.13): the core refuses it as well
+		return nil, { kind = "refuse", x = x, y = y, why = "not_movable" }
+	end
 	if not selectable(p, "taptap") then
 		-- a blocker, wires, an empty slot or a gap are fixed; a piece in motion only has to wait
 		return nil, { kind = "refuse", x = x, y = y, why = (p and p.state ~= "idle") and "not_rest" or "not_movable" }
@@ -211,6 +217,12 @@ function Input:tap_cell(x, y)
 	if fixed(p) then
 		self.selected = nil
 		return { type = "tap", at = { x, y } } -- the core says not_movable; the board answers with a shake
+	end
+	if p and p.fogged and s and s.id == p.id then
+		-- a second tap on a picked fogged cell (core-rules 10.13): a blind tap. A special hidden there fires;
+		-- anything else the core refuses, and the board answers without telling what it was
+		self.selected = nil
+		return { type = "tap", at = { x, y } }
 	end
 	if self.mode == "swipe" then
 		if launchable(p) then

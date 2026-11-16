@@ -83,6 +83,7 @@ M.NOPE_AMP = 0.085      -- ... by this share of a cell at first (it dies away qu
 M.NOPE_FREQ = 55        -- ... three swings (radians per second) ...
 M.NOPE_FLASH = 0.22     -- ... with a white flash of this strength at the start
 
+M.FEINT_TICKS = 14      -- the failed swap a refusal in the fog is shown as (T.swap_fail of the core)
 M.CHAIN_ID = 1000000    -- draw-list id of the chain of piece `id` is CHAIN_ID + id (piece ids are far below)
 M.Z_CHAIN = 0.004       -- the chain lies this much above its piece
 M.ICE_ID = 2000000      -- draw-list id of the ice cube of piece `id` is ICE_ID + id
@@ -199,6 +200,7 @@ function M.new(opts)
 		frame_n = 0,
 		group = nil,     -- the last match: {t, cells = set, ids = {}, special}
 		max_hp = {},     -- column id -> starting hp
+		fog_at = opts.fog_at, -- fn(x, y) -> is that cell under the stage fog (core-rules 10.13), or nil
 	}, Anim)
 end
 
@@ -242,6 +244,14 @@ end
 
 function Anim:select(id)
 	self.selected = id
+end
+
+-- The stage fog (core-rules 10.13): the core refused a swap of the visible piece `id` with a fogged cell
+-- (something that never moves hides there, or nothing at all). The piece makes the move of a failed swap,
+-- from cell a to cell b and back, so the refusal looks like any other swap that gave no match.
+-- tick = the display tick now.
+function Anim:feint(id, a, b, tick)
+	if id then rec(self, id).feint = { ax = a[1], ay = a[2], bx = b[1], by = b[2], t0 = tick, dur = M.FEINT_TICKS } end
 end
 
 -- A piece (or blocker) that cannot be moved shakes sideways (the Crossfader refused it).
@@ -405,6 +415,7 @@ function Anim:frame(pieces, tick_f, t)
 		if kind == "special" then z = M.Z.special elseif kind == "blocker" then z = M.Z.blocker end
 		if kind == "special" and p.special == "riff" and p.axis == "v" then rot = 90 end
 		e.clip = nil
+		local flying = state == "swap" and v.fly ~= nil and tick_f < v.fly.t0 + v.fly.dur + 1
 
 		if p.hidden then
 			alpha = 0
@@ -620,6 +631,18 @@ function Anim:frame(pieces, tick_f, t)
 					end
 				end
 			end
+			if v.feint then
+				local f = v.feint
+				local u = (tick_f - f.t0) / f.dur
+				if u >= 1 or u < 0 or state ~= "idle" then
+					v.feint = nil
+				else
+					local k = M.fail_offset(u)
+					local x0, y0 = g:center(f.ax, f.ay)
+					local x1, y1 = g:center(f.bx, f.by)
+					x, y = x + (x1 - x0) * k, y + (y1 - y0) * k
+				end
+			end
 			if v.nope then
 				local dt = t - v.nope
 				if dt >= M.NOPE_TIME then
@@ -671,6 +694,27 @@ function Anim:frame(pieces, tick_f, t)
 			elseif not v.flash_dark then
 				flash = math.max(flash, math.min(1, 1 - dt / M.FLASH_TIME))
 			end
+		end
+		local fog_at = self.fog_at
+		if fog_at then
+			-- the stage fog (core-rules 10.13): what is under a cloud is not drawn at all. A piece at rest is
+			-- judged by its cell; a piece that falls or is carried (a belt, a shuffle) by the cell its centre is
+			-- over, so it goes out as it enters the fog and comes back as it leaves. A piece in a swap keeps
+			-- what it was when the swap began: one dragged out of the fog shows only once the swap has
+			-- succeeded (the match then blows the fog off its cell), and a failed or returned swap never shows it.
+			local veil
+			if state == "swap" and not flying then
+				veil = v.fogged == true
+			else
+				if state == "fall" or flying then
+					local cx, cy = g:cell_at(x, y)
+					veil = cx ~= nil and fog_at(cx, cy) or false
+				else
+					veil = fog_at(p.x, p.y) and true or false
+				end
+				v.fogged = veil
+			end
+			if veil then alpha = 0 end
 		end
 		e.x, e.y, e.z = x, y, z
 		e.sx, e.sy, e.rot = sx, sy, rot

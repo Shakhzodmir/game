@@ -64,6 +64,28 @@
 -- every hp unit a move takes off a bale (Bot.hay_hp): the first hit on a bale
 -- of hp 2 moves no goal counter. Levels without hay see no `gift` event and
 -- levels without that goal pay nothing.
+-- On a level with the stage fog (core-rules 10.13) the bot plays like a
+-- person who cannot see under the fog. Every decision is made on a BLIND view
+-- of the game, game:clone{blind = true}: there, whatever stands in a fogged
+-- cell is a colourless stand-in that matches nothing, so
+--   * the candidates are the moves() of the view whose two cells are both
+--     clear of fog, and the taps on specials outside the fog: exactly the
+--     swaps whose match shows from the visible pieces alone (a line that
+--     needs a fogged piece is no line in the view);
+--   * every candidate is scored on a clone of the view, never of the real
+--     game: the lookahead cannot learn a hidden colour, a hidden special or a
+--     hidden blocker. What a move really uncovers and the cascades through
+--     the fog are luck: they happen when the chosen move is played on the
+--     real game;
+--   * the goal targets of the strong bot and every other term read the view.
+-- A cleared cell of a `fog` goal is ordinary goal progress. When the view
+-- offers no candidate (every move of the real board needs something hidden),
+-- the bot makes a blind move by a fixed rule that uses no hidden information
+-- (Bot.blind_move): the first swap of the real game's moves() order, else a
+-- tap on the first special by cell. That is what a person does who tries the
+-- swaps in reading order until one is accepted: a failed swap costs nothing,
+-- and the only thing learnt is that it failed. Levels without fog never
+-- build a view and choose as before.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -117,6 +139,7 @@ function Bot.new(kind, opts)
 		boom = false,               -- the level has a `break boombox` goal (10.10)
 		ice = false,                -- the level has an `ice` goal (10.11)
 		hay = false,                -- the level has a `break hay` goal (10.12)
+		fog = nil,                  -- does the level have the stage fog (10.13): nil = not looked yet (first decision)
 		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
@@ -147,25 +170,64 @@ local function board_map(game)
 	return map, list
 end
 
--- Candidate commands in a canonical order: moves() then taps by cell.
-function Bot.candidates(game)
+-- The fogged cells of `game` (core-rules 10.13) as a set of cell keys, or nil when there are none. A level
+-- that starts without fog never gets any, so it is looked at once (self.fog) and costs nothing after.
+function Bot.fog_cells(self, game)
+	if self.fog == false then return nil end
+	local cl = game:cells()
+	local W = self.width
+	local set, any = {}, false
+	for i = 1, #cl do
+		if cl[i].fog then
+			local x = (i - 1) % W + 1
+			set[key(x, (i - x) / W + 1)] = true
+			any = true
+		end
+	end
+	if self.fog == nil then self.fog = any end
+	return any and set or nil
+end
+
+-- The move of a bot that sees nothing it can use (10.13): the first swap of the real game's moves(), else a
+-- tap on the first free special by cell. No ranking, no lookahead: nothing hidden is used but the fact that
+-- the core accepts the move, which a player learns for free by trying.
+function Bot.blind_move(game)
+	local mv = game:moves()
+	if mv[1] then
+		return { type = "swap", from = { mv[1].from[1], mv[1].from[2] }, to = { mv[1].to[1], mv[1].to[2] } }
+	end
+	local list = game:pieces()
+	for k = 1, #list do
+		local p = list[k]
+		if p.kind == "special" and p.state == "idle" and not p.pinned and not p.veiled then
+			return { type = "tap", at = { p.x, p.y } }
+		end
+	end
+	return nil
+end
+
+-- Candidate commands in a canonical order: moves() then taps by cell. `fog` (a set of cell keys, or nil): no
+-- candidate starts or ends in a fogged cell.
+function Bot.candidates(game, fog)
 	local map, list = board_map(game)
 	local out = {}
 	local mv = game:moves()
 	for k = 1, #mv do
 		local m = mv[k]
-		local a = map[key(m.from[1], m.from[2])]
-		local b = map[key(m.to[1], m.to[2])]
-		local combo = a and b and a.kind == "special" and b.kind == "special" or false
-		local disco = combo and (a.special == "disco" or b.special == "disco") or false
-		out[#out + 1] = {
-			cmd = { type = "swap", from = { m.from[1], m.from[2] }, to = { m.to[1], m.to[2] } },
-			combo = combo, disco = disco,
-		}
+		if not fog or (not fog[key(m.from[1], m.from[2])] and not fog[key(m.to[1], m.to[2])]) then
+			local a = map[key(m.from[1], m.from[2])]
+			local b = map[key(m.to[1], m.to[2])]
+			local combo = a and b and a.kind == "special" and b.kind == "special" or false
+			local disco = combo and (a.special == "disco" or b.special == "disco") or false
+			out[#out + 1] = {
+				cmd = { type = "swap", from = { m.from[1], m.from[2] }, to = { m.to[1], m.to[2] } },
+				combo = combo, disco = disco,
+			}
+		end
 	end
 	for k = 1, #list do
 		local p = list[k]
-		if p.kind == "special" and p.state == "idle" and not p.pinned and not p.veiled then
+		if p.kind == "special" and p.state == "idle" and not p.pinned and not p.veiled and not p.fogged then
 			out[#out + 1] = { cmd = { type = "tap", at = { p.x, p.y } }, combo = false, disco = false }
 		end
 	end
@@ -639,8 +701,17 @@ end
 function Bot:choose(game)
 	if not self.gw then init_goal_weights(self, game) end
 	self.decisions = self.decisions + 1
-	local cands, map = Bot.candidates(game)
-	if #cands == 0 then return nil, { n = 0 } end
+	-- the stage fog (10.13): from here on `game` is the blind view; the real game is touched again only by
+	-- the caller, who plays the chosen move on it
+	local fog = Bot.fog_cells(self, game)
+	local real = game
+	if fog then game = real:clone({ blind = true }) end
+	local cands, map = Bot.candidates(game, fog)
+	if #cands == 0 then
+		local cmd = fog and Bot.blind_move(real) or nil
+		if cmd then return cmd, { score = 0, rank = 1, n = 0, best = 0, blind = true } end
+		return nil, { n = 0 }
+	end
 	local before = game:status().goals
 	local strong = self.kind == "strong"
 	local targets = strong and goal_targets(self, game, map, before) or nil
@@ -690,7 +761,7 @@ function Bot:choose(game)
 		for k = 1, math.min(3, #scored) do
 			local e = scored[k]
 			if e.clone and not e.acc.won and e.acc.state == "playing" and e.clone:is_stable() then
-				local c2, map2 = Bot.candidates(e.clone)
+				local c2, map2 = Bot.candidates(e.clone, fog and Bot.fog_cells(self, e.clone) or nil)
 				local hits = Bot.static_specials(e.clone, map2, c2)
 				local best2 = 0
 				local before2 = e.clone:status().goals

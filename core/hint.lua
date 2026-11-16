@@ -1,4 +1,9 @@
 -- Hint (12.3): a pure ranking of moves() and taps.
+--
+-- On a level with the stage fog (10.13) the hint is fair: it sees what the player sees. A fogged piece has
+-- no colour for it, a fogged cell is never an end of a suggested swap or tap, and what stands in a fogged
+-- cell next to a group gives no goal progress. Only when the visible board offers nothing does it fall back
+-- to the first move of the true board, marked `blind`.
 
 local C = require("core.const")
 local U = require("core.util")
@@ -40,6 +45,8 @@ local function progress(s, g)
 	local drop = B.goal_open(s, C.GOAL_DROP, 0)
 	local chains = B.goal_open(s, C.GOAL_CHAINS, 0)
 	local ice = B.goal_open(s, C.GOAL_ICE, 0)
+	local fog = s.fog
+	local mist = fog and B.goal_open(s, C.GOAL_FOG, 0)
 	-- the carpet (10.8): a group that stands on the carpet and reaches beyond it rolls the carpet out
 	if s.carpet and B.goal_open(s, C.GOAL_CARPET, 0) then
 		local on, off = false, false
@@ -55,15 +62,20 @@ local function progress(s, g)
 		local x, y = U.xy(W, i)
 		if deliver and y > 1 then
 			local above = B.get(s, i - W)
-			if above and above.kind == K_MIC then return true end
+			if above and above.kind == K_MIC and not (fog and fog[i - W]) then return true end
 		end
 		if drop and y > 1 then
 			local above = B.get(s, i - W)
-			if above and above.kind == C.K_COCONUT then return true end
+			if above and above.kind == C.K_COCONUT and not (fog and fog[i - W]) then return true end
 		end
 		local nb = { y > 1 and i - W or 0, x > 1 and i - 1 or 0, x < W and i + 1 or 0, y < H and i + W or 0 }
 		for j = 1, 4 do
 			local o = nb[j] ~= 0 and B.get(s, nb[j]) or nil
+			if fog and nb[j] ~= 0 and fog[nb[j]] then
+				-- a fogged neighbour: the match blows its fog off (10.13); what hides in it is not looked at
+				if mist then return true end
+				o = nil
+			end
 			-- a frozen piece next to the group thaws by one layer (10.11)
 			if ice and o and o.ice > 0 and o.state == C.S_IDLE and not B.veiled(s, nb[j]) then return true end
 			if o and o.kind == C.K_BLOCKER and o.state == C.S_IDLE and o.blocker ~= C.BK_CONCRETE
@@ -81,7 +93,10 @@ local function count_color(s, color)
 	local n = 0
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_REGULAR and o.state == C.S_IDLE and o.color == color and o.ice == 0 then n = n + 1 end
+		if o and o.kind == K_REGULAR and o.state == C.S_IDLE and o.color == color and o.ice == 0
+			and not (s.fog and s.fog[i]) then
+			n = n + 1
+		end
 	end
 	return n
 end
@@ -127,12 +142,22 @@ end
 function HI.hint(s)
 	local W = s.W
 	local col = MV.expected_colors(s)
+	local fog = s.fog
+	if fog then
+		for i = 1, s.N do
+			if fog[i] then col[i] = 0 end -- (the colour of a fogged piece is not known to the player)
+		end
+	end
 	local best, bkey = nil, nil
 	local list = MV.pair_list(s)
 	for k = 1, #list do
 		local a, b = list[k][1], list[k][2]
-		local key = pair_key(s, col, a, b)
-		if not bkey or better(key, bkey) then
+		local key = nil
+		-- under the fog (10.13): both ends are visible, and the match shows without the fogged colours
+		if not fog or (not fog[a] and not fog[b] and MV.eval_pair(s, col, a, b) == "ok") then
+			key = pair_key(s, col, a, b)
+		end
+		if key and (not bkey or better(key, bkey)) then
 			local ax, ay = U.xy(W, a)
 			local bx, by = U.xy(W, b)
 			best, bkey = { from = { ax, ay }, to = { bx, by } }, key
@@ -140,11 +165,29 @@ function HI.hint(s)
 	end
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_SPECIAL and o.state == C.S_IDLE and o.pins[1] == nil and not B.veiled(s, i) then
+		if o and o.kind == K_SPECIAL and o.state == C.S_IDLE and o.pins[1] == nil and not B.veiled(s, i)
+			and not (fog and fog[i]) then
 			local key = { 2, 0, 0, RANK2[o.special], 0, -i }
 			if not bkey or better(key, bkey) then
 				local x, y = U.xy(W, i)
 				best, bkey = { at = { x, y } }, key
+			end
+		end
+	end
+	if not best and fog then
+		-- nothing the player can see: the first move of the true board (12.1 order), then the first tap by
+		-- cell, chosen without ranking (a ranking would tell what hides in the fog). `blind` tells the client
+		-- to point at the cells without showing their content
+		if list[1] then
+			local ax, ay = U.xy(W, list[1][1])
+			local bx, by = U.xy(W, list[1][2])
+			return { from = { ax, ay }, to = { bx, by }, blind = true }
+		end
+		for i = 1, s.N do
+			local o = B.get(s, i)
+			if o and o.kind == K_SPECIAL and o.state == C.S_IDLE and o.pins[1] == nil and not B.veiled(s, i) then
+				local x, y = U.xy(W, i)
+				return { at = { x, y }, blind = true }
 			end
 		end
 	end

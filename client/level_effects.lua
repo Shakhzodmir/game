@@ -45,6 +45,7 @@
 local level_boombox = require("client.level_boombox")
 local level_hay = require("client.level_hay")
 local level_ice = require("client.level_ice")
+local level_fog = require("client.level_fog")
 
 local M = {}
 
@@ -195,6 +196,11 @@ function H.gift(self, e)
 	local t = e.t or 0
 	self:burst(level_hay.STRAW_FX, e.x, e.y, level_hay.COLOR, level_hay.GIFT_COUNT, t)
 	bloom(self, e, t)
+end
+
+-- The stage fog blows off a cell (core-rules 10.13): a few wisps of dust in its colour.
+function H.fog(self, e)
+	self:burst(level_fog.PUFF_FX, e.x, e.y, level_fog.COLOR, level_fog.PUFF_COUNT, e.t or 0)
 end
 
 function H.activate(self, e)

@@ -19,6 +19,7 @@
 
 local level_boombox = require("client.level_boombox")
 local level_hay = require("client.level_hay")
+local level_fog = require("client.level_fog")
 local level_ice = require("client.level_ice")
 
 local M = {}
@@ -236,6 +237,10 @@ function LA:event(e)
 		-- a cell is covered by the carpet (core-rules 10.8): the chime of a lit tile, softer and lower (a
 		-- whole row is covered at once, so the gap lets a few of them sound, not all)
 		self:sfx("floor_light", { gain = M.CARPET_GAIN, speed = M.CARPET_SPEED }, 0.06, "carpet")
+	elseif ty == "fog" then
+		-- the fog blows off a cell (core-rules 10.13): a soft high whoosh (a row clears at once: the gap lets
+		-- a few of them sound, not all)
+		self:sfx(level_fog.PUFF_SFX, { gain = level_fog.PUFF_GAIN, speed = level_fog.PUFF_SPEED }, 0.06, "fog")
 	elseif ty == "land" then
 		self:sfx("land", { gain = M.LAND_GAIN }, M.LAND_GAP)
 	elseif ty == "goal" then

@@ -63,6 +63,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_fog"
+  images {
+    image: "/assets/images/blockers/fog.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_hay_2"
   images {
     image: "/assets/images/blockers/hay_2.png"

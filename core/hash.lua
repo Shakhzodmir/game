@@ -187,6 +187,11 @@ function HS.state(s)
 			h = fold(h, id ~= 0 and objs[id].gift or 0)
 		end
 	end
+	-- the stage fog (10.13): the fogged cells, written only on a level that has fog, so every other level
+	-- hashes as before
+	if s.fog then
+		for i = 1, N do h = fold(h, s.fog[i]) end
+	end
 	return h
 end
 

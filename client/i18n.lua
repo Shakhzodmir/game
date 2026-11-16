@@ -178,6 +178,7 @@ local S = {
 	["blocker.boombox"] = { en = "Boombox", ru = "Бумбокс" },
 	["blocker.ice"] = { en = "Ice", ru = "Лёд" },
 	["blocker.hay"] = { en = "Hay bale", ru = "Стог сена" },
+	["blocker.fog"] = { en = "Fog", ru = "Туман" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -217,6 +218,10 @@ local S = {
 	["blocker.hay_desc"] = {
 		en = "Take the hay bale apart with matches next to it: a bonus may be hiding inside.",
 		ru = "Разбери стог рядами по соседству: внутри может прятаться бонус.",
+	},
+	["blocker.fog_desc"] = {
+		en = "You can't see the pieces under the fog. Make a match next to it and the fog clears.",
+		ru = "Под туманом фишек не видно. Собери ряд рядом, и туман рассеется.",
 	},
 	["blocker.ice_desc"] = {
 		en = "A frozen piece doesn't move and doesn't match. Make a match next to it and the ice melts.",
@@ -370,6 +375,10 @@ local S = {
 	["tutorial.hay"] = {
 		en = "A bonus hides in the hay bale. Take it apart!",
 		ru = "В стоге сена спрятан бонус. Разбери его!",
+	},
+	["tutorial.fog"] = {
+		en = "Fog hides the pieces. Match next to it!",
+		ru = "Туман прячет фишки. Собери ряд рядом!",
 	},
 	["tutorial.ice"] = {
 		en = "Ice melts from matches right next to it!",
