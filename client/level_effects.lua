@@ -43,6 +43,7 @@
 -- Reduced motion: no shakes, no slow motion, no screen flash, no charge; fewer particles.
 
 local level_boombox = require("client.level_boombox")
+local level_hay = require("client.level_hay")
 local level_ice = require("client.level_ice")
 
 local M = {}
@@ -62,6 +63,7 @@ M.LIGHT_BEAM = "#FFC21A"  -- row / column spotlight
 M.DEBRIS = {
 	record_box = { fx = "debris", color = "#FFB463" },
 	boombox = { fx = "debris", color = level_boombox.COLOR },
+	hay = { fx = level_hay.STRAW_FX, color = level_hay.COLOR }, -- straw bits (core-rules 10.12)
 	concrete = { fx = "dust", color = "#C9C2B4" },
 	noise = { fx = "dust", color = "#8A8FA3" },
 	balloon = { fx = "confetti" },
@@ -169,12 +171,10 @@ function H.clear(self, e)
 	end
 end
 
-function H.special_new(self, e)
-	local t = e.t or 0
+-- A new special blooms in its cell at tick `at`: a gold flash, sparkles and, for the big ones, a ring.
+local function bloom(self, e, at)
 	local cell = self.geom.cell
 	local lx, ly = self:center(e.x, e.y)
-	-- the pieces of the group fly in for T.clear; the special blooms as they arrive
-	local at = t + 5
 	self:flash(lx, ly, cell * 2.4, M.GOLD, at, 0.35)
 	self:burst("sparkle", e.x, e.y, "#FFD84D", 8, at + 2)
 	if e.special == "disco" then
@@ -182,6 +182,19 @@ function H.special_new(self, e)
 	elseif e.special == "sub" then
 		self:push({ kind = "ring", x = lx, y = ly, size = cell * 2.6, at = at, dur = 0.35, color = M.GLOW.sub, image = "fx_ring" })
 	end
+end
+
+function H.special_new(self, e)
+	-- the pieces of the group fly in for T.clear; the special blooms as they arrive
+	bloom(self, e, (e.t or 0) + 5)
+end
+
+-- The special hidden in a hay bale pops out (core-rules 10.12): the bloom of a special made by a match, at
+-- once, with a last puff of straw.
+function H.gift(self, e)
+	local t = e.t or 0
+	self:burst(level_hay.STRAW_FX, e.x, e.y, level_hay.COLOR, level_hay.GIFT_COUNT, t)
+	bloom(self, e, t)
 end
 
 function H.activate(self, e)

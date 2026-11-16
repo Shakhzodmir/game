@@ -189,6 +189,20 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_hay_1"
+  images {
+    image: "/assets/images/blockers/hay_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "blockers_hay_2"
+  images {
+    image: "/assets/images/blockers/hay_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_ice_1"
   images {
     image: "/assets/images/blockers/ice_1.png"

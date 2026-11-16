@@ -177,6 +177,7 @@ local S = {
 	["blocker.conveyor"] = { en = "Conveyor", ru = "Конвейер" },
 	["blocker.boombox"] = { en = "Boombox", ru = "Бумбокс" },
 	["blocker.ice"] = { en = "Ice", ru = "Лёд" },
+	["blocker.hay"] = { en = "Hay bale", ru = "Стог сена" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -212,6 +213,10 @@ local S = {
 	["blocker.coconut_desc"] = {
 		en = "A coconut never pops. Clear the pieces under it and bring it down to the bottom row.",
 		ru = "Кокос не лопается. Убирай фишки под ним и доведи его до нижнего ряда.",
+	},
+	["blocker.hay_desc"] = {
+		en = "Take the hay bale apart with matches next to it: a bonus may be hiding inside.",
+		ru = "Разбери стог рядами по соседству: внутри может прятаться бонус.",
 	},
 	["blocker.ice_desc"] = {
 		en = "A frozen piece doesn't move and doesn't match. Make a match next to it and the ice melts.",
@@ -362,6 +367,10 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	["tutorial.hay"] = {
+		en = "A bonus hides in the hay bale. Take it apart!",
+		ru = "В стоге сена спрятан бонус. Разбери его!",
+	},
 	["tutorial.ice"] = {
 		en = "Ice melts from matches right next to it!",
 		ru = "Лёд тает от рядов по соседству!",
