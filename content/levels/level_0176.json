@@ -1,0 +1,26 @@
+{
+  "id": 176, "version": 1,
+  "size": [8, 9],
+  "moves": 33,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "carpet"}
+  ],
+  "cells": [
+    "##.##.##",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "##.##.##"
+  ],
+  "slots": [
+    {"at": [2, 4], "type": "riff", "axis": "v"},
+    {"at": [5, 4], "type": "riff", "axis": "v"}
+  ],
+  "carpet": [[2, 4], [3, 4], [4, 4], [5, 4]]
+}

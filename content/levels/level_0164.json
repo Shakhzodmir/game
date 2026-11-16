@@ -1,0 +1,30 @@
+{
+  "id": 164, "version": 1,
+  "size": [9, 10],
+  "moves": 27,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "carpet"},
+    {"type": "break", "item": "concrete", "count": 4}
+  ],
+  "cells": [
+    "....#....",
+    "...###...",
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####..",
+    "...###...",
+    "....#...."
+  ],
+  "slots": [
+    {"at": [2, 3], "type": "concrete", "hp": 1},
+    {"at": [6, 3], "type": "concrete", "hp": 1},
+    {"at": [2, 6], "type": "concrete", "hp": 1},
+    {"at": [6, 6], "type": "concrete", "hp": 1}
+  ],
+  "carpet": [[4, 4], [4, 5]]
+}

@@ -84,5 +84,8 @@
   "141": {"steps": [
     {"kind": "tip", "at": [3, 3], "text": "tutorial.curtain"},
     {"kind": "swap", "from": [1, 1], "to": [1, 2], "text": "tutorial.curtain_moves"}
+  ]},
+  "161": {"steps": [
+    {"kind": "swap", "from": [2, 2], "to": [3, 2], "text": "tutorial.carpet"}
   ]}
 }

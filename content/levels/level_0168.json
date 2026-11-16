@@ -1,0 +1,28 @@
+{
+  "id": 168, "version": 1,
+  "size": [9, 10],
+  "moves": 28,
+  "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "drop", "count": 4},
+    {"type": "collect", "color": "blue", "count": 24}
+  ],
+  "cells": [
+    "..#####..",
+    "..#####..",
+    "...###...",
+    "...###...",
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    ".#######."
+  ],
+  "spawners": [[2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [2, 4], [6, 4], [1, 5], [7, 5], [0, 6], [8, 6]],
+  "slots": [
+    {"at": [4, 1], "type": "coconut"}
+  ],
+  "coconut": {"total": 4, "on_board_max": 2, "gap_moves": 2, "columns": [3, 4, 5]}
+}

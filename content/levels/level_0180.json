@@ -1,0 +1,40 @@
+{
+  "id": 180, "version": 1,
+  "size": [9, 11],
+  "moves": 24,
+  "difficulty": "super_hard",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "carpet"},
+    {"type": "break", "item": "record_box", "count": 12},
+    {"type": "collect", "color": "orange", "count": 45}
+  ],
+  "cells": [
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    ".#######."
+  ],
+  "slots": [
+    {"at": [4, 2], "type": "record_box", "hp": 3},
+    {"at": [3, 3], "type": "record_box", "hp": 2},
+    {"at": [5, 3], "type": "record_box", "hp": 2},
+    {"at": [2, 4], "type": "record_box", "hp": 2},
+    {"at": [6, 4], "type": "record_box", "hp": 2},
+    {"at": [1, 5], "type": "record_box", "hp": 3},
+    {"at": [7, 5], "type": "record_box", "hp": 3},
+    {"at": [2, 6], "type": "record_box", "hp": 2},
+    {"at": [6, 6], "type": "record_box", "hp": 2},
+    {"at": [3, 7], "type": "record_box", "hp": 2},
+    {"at": [5, 7], "type": "record_box", "hp": 2},
+    {"at": [4, 8], "type": "record_box", "hp": 3}
+  ],
+  "carpet": [[4, 4], [3, 5], [4, 5], [5, 5], [4, 6]]
+}

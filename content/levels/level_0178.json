@@ -1,0 +1,25 @@
+{
+  "id": 178, "version": 1,
+  "size": [9, 9],
+  "moves": 21,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "collect", "color": "red", "count": 45},
+    {"type": "collect", "color": "purple", "count": 36}
+  ],
+  "cells": [
+    "...#.#...",
+    "...###...",
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####.."
+  ],
+  "slots": [
+    {"at": [4, 5], "type": "disco"}
+  ]
+}

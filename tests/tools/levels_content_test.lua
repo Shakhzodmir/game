@@ -4,9 +4,9 @@
 -- (or the level, if the plan is right).
 --   * every file loads through the core (rules 2.1) and keeps the plan of levels-plan.md: the difficulty saw,
 --     the colours of its stretch, 20-35 moves (the same as `luajit tools/levels.lua validate --strict`);
---   * the saw earns 126 stars in the first hundred, the files 208 in all; the town costs 207 (meta-economy.md,
---     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7 and 8 cost what their saws
---     earn, 26 each);
+--   * the saw earns 126 stars in the first hundred, the files 234 in all; the town costs 233 (meta-economy.md,
+--     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8 and 9 cost what their
+--     saws earn, 26 each);
 --   * every level of the README table agrees with its file: difficulty, size and cells, colours, elements,
 --     goals, and the "(обучение)" mark with the lessons of content/tutorials.json. The moves column is only
 --     checked to be a number in the range of the schema: the tuner rewrites the real value (tools/README.md)
@@ -101,9 +101,9 @@ local function cell_count(raw)
 end
 
 describe("level content: the files", function()
-	it("has every level of the eight districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
+	it("has every level of the nine districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
 		local problems = {}
-		assert_eq(LAST, 160, "the last level of the last district")
+		assert_eq(LAST, 180, "the last level of the last district")
 		for n, f in ipairs(files()) do
 			for _, e in ipairs(f.res.errors) do problems[#problems + 1] = "level " .. n .. ": " .. e end
 			for _, w in ipairs(f.res.warnings) do problems[#problems + 1] = "level " .. n .. ": " .. w end
@@ -115,9 +115,9 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 208 stars on the saw (130 in the first hundred), more than the 207 of the town", function()
+	it("earns 234 stars on the saw (130 in the first hundred), more than the 233 of the town", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
-		local stars100, counts100, stars120, counts120, stars140, counts140
+		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
@@ -134,6 +134,10 @@ describe("level content: the files", function()
 				stars140 = stars
 				counts140 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
 			end
+			if n == 160 then
+				stars160 = stars
+				counts160 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
+			end
 		end
 		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
 		assert_same(counts100, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
@@ -149,14 +153,18 @@ describe("level content: the files", function()
 		assert_eq(stars140, 182)
 		-- district 8 (WP-17, levels 141-160) has the saw of district 6: 10 easy, 6 medium, hard 147 and 153, super
 		-- hard 157 and the concert 160: 26 stars for a price of 26, the spare stays 1 star
-		assert_same(counts, { easy = 79, medium = 46, hard = 22, super_hard = 13 })
-		assert_eq(stars, 208)
+		assert_same(counts160, { easy = 79, medium = 46, hard = 22, super_hard = 13 })
+		assert_eq(stars160, 208)
+		-- district 9 (WP-17, levels 161-180) has the same saw: 10 easy, 6 medium, hard 167 and 173, super hard 177
+		-- and the concert 180: 26 stars for a price of 26, the spare stays 1 star
+		assert_same(counts, { easy = 89, medium = 52, hard = 24, super_hard = 15 })
+		assert_eq(stars, 234)
 		local town = json.decode(read("content/districts.json"))
 		local cost = 0
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 207, "the stars the town costs (content/districts.json)")
+		assert_eq(cost, 233, "the stars the town costs (content/districts.json)")
 		assert_eq(stars - cost, 1, "one spare star is left")
 		assert_true(stars >= cost, "the town cannot be finished: " .. stars .. " stars for " .. cost)
 	end)
@@ -268,6 +276,11 @@ local function row_problems(n, cells, raw)
 			bad("элементы", "the numbers of 'занавес N (закрыт A, открыт B, с начала ...)' are not the file's")
 		end
 	end
+	-- the carpet (10.8): "ковёр N (с начала)" exactly where the file has the list; N = the cells covered at the start
+	if (elements:find("ковёр ", 1, true) ~= nil) ~= (raw.carpet ~= nil) then bad("элементы", "ковёр exactly where the file has a carpet list") end
+	if raw.carpet and tonumber(elements:match("ковёр (%d+) %(с начала%)")) ~= #raw.carpet then
+		bad("элементы", "the number of 'ковёр N (с начала)' is not the file's")
+	end
 	if raw.coconut then
 		local total, max, gap, start = elements:match("кокосы %(всего (%d+), на поле ≤(%d+), пауза (%d+), с начала (%d+)")
 		if tonumber(total) ~= raw.coconut.total or tonumber(max) ~= raw.coconut.on_board_max
@@ -282,7 +295,7 @@ local function row_problems(n, cells, raw)
 	for _ in elements:gmatch("готовый") do gift_words = gift_words + 1 end
 	if gift_words ~= gifts(raw) then bad("элементы", gift_words .. " ready specials named, the file has " .. gifts(raw)) end
 	local nothing = columns == 0 and #(raw.floor or {}) == 0 and #(raw.overlay or {}) == 0 and raw.mic == nil and gifts(raw) == 0
-		and raw.coconut == nil and raw.curtain == nil
+		and raw.coconut == nil and raw.curtain == nil and raw.carpet == nil
 	for _, kind in ipairs({ "record_box", "concrete", "noise", "balloon" }) do
 		if count_slots(raw, kind) > 0 then nothing = false end
 	end
@@ -307,6 +320,8 @@ local function row_problems(n, cells, raw)
 				ok = part:find("опустить " .. g.count .. " кокос", 1, true) ~= nil
 			elseif g.type == "chains" then
 				ok = part:find("разбить " .. g.count .. " цеп", 1, true) ~= nil
+			elseif g.type == "carpet" then -- (10.8: no count, the whole board)
+				ok = part == "застелить всё поле"
 			else
 				ok = part:find(" " .. g.count .. " ", 1, true) ~= nil or part:find(" " .. g.count .. "$") ~= nil
 				ok = ok and part:find(ITEM_WORD[g.item], 1, true) ~= nil

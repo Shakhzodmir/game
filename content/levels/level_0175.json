@@ -1,0 +1,42 @@
+{
+  "id": 175, "version": 1,
+  "size": [9, 9],
+  "moves": 26,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "chains", "count": 8},
+    {"type": "collect", "color": "yellow", "count": 30}
+  ],
+  "cells": [
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####.."
+  ],
+  "overlay": [
+    {"at": [1, 1], "type": "chain", "hp": 1},
+    {"at": [7, 1], "type": "chain", "hp": 1},
+    {"at": [0, 3], "type": "chain", "hp": 1},
+    {"at": [8, 3], "type": "chain", "hp": 1},
+    {"at": [0, 5], "type": "chain", "hp": 1},
+    {"at": [8, 5], "type": "chain", "hp": 1},
+    {"at": [1, 7], "type": "chain", "hp": 1},
+    {"at": [7, 7], "type": "chain", "hp": 1}
+  ],
+  "slots": [
+    {"at": [1, 1], "type": "piece", "color": "red"},
+    {"at": [7, 1], "type": "piece", "color": "blue"},
+    {"at": [0, 3], "type": "piece", "color": "yellow"},
+    {"at": [8, 3], "type": "piece", "color": "purple"},
+    {"at": [0, 5], "type": "piece", "color": "blue"},
+    {"at": [8, 5], "type": "piece", "color": "red"},
+    {"at": [1, 7], "type": "piece", "color": "purple"},
+    {"at": [7, 7], "type": "piece", "color": "yellow"}
+  ]
+}

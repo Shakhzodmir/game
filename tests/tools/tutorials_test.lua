@@ -33,6 +33,7 @@ local PLAN_ELEMENTS = {
 	coconut = 101, -- district 6 (WP-17)
 	chain = 121, -- district 7 (WP-17)
 	curtain = 141, -- district 8 (WP-17)
+	carpet = 161, -- district 9 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -123,6 +124,7 @@ local function level_of(n)
 	for k, g in ipairs(raw.goals) do
 		if g.type == "deliver" then info.deliver_goal = k end
 		if g.type == "drop" then info.drop_goal = k end
+		if g.type == "carpet" then info.carpet_goal = k end
 		if g.type == "chains" then info.chains_goal = k end
 	end
 	levels[n] = info
@@ -159,7 +161,7 @@ local function elements_of(raw)
 		if o.type == "chain" then kinds.chain = true end -- (10.6: another element of the same layer)
 	end
 	if raw.curtain then kinds.curtain = true end -- (10.7: a block of its own, not a slot)
-	if raw.carpet then kinds.carpet = true end -- (10.8; its PLAN_ELEMENTS entry comes with its first level, 161)
+	if raw.carpet then kinds.carpet = true end -- (10.8: a list of cells of its own, not a slot)
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
@@ -434,6 +436,11 @@ local EFFECTS = {
 		if a.curtain.phase ~= "closed" then return "the curtain was not closed before the move" end
 		return (b.curtain.phase == "closed" and b.curtain.left == a.curtain.left - 1) or "the closed curtain did not count the move"
 	end,
+	-- the hinted match stands on the carpet and rolls it out (10.8): fewer bare cells are left
+	["tutorial.carpet"] = function(a, b, info)
+		local k = info.carpet_goal
+		return (k and b.goals[k] < a.goals[k]) or "the carpet did not roll out"
+	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
 		return (k and b.goals[k] < a.goals[k]) or "no microphone was delivered"
@@ -706,11 +713,11 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
 		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, the
-		-- chain of 121 and the curtain of 141, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141 }) do
+		-- chain of 121, the curtain of 141 and the carpet of 161, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 22)
+		assert_eq(#ids_of(defs), 23)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()
