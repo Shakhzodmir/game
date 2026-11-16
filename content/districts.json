@@ -1136,7 +1136,7 @@
             "en": "Cello",
             "ko": "첼로"
           },
-          "cost": 5,
+          "cost": 4,
           "stem": "cello",
           "stem_desc": "warm cello ostinato and counter-melody"
         },
@@ -1158,7 +1158,7 @@
             "en": "Stage drum",
             "ko": "무대 드럼"
           },
-          "cost": 6,
+          "cost": 5,
           "stem": "drums",
           "stem_desc": "soft snare rolls and bass drum, march feel"
         },
@@ -1169,7 +1169,7 @@
             "en": "Film projector",
             "ko": "영사기"
           },
-          "cost": 7,
+          "cost": 5,
           "stem": "brass",
           "stem_desc": "french horns and trombones, noble chords"
         },
@@ -1180,7 +1180,7 @@
             "en": "Clapperboard",
             "ko": "슬레이트"
           },
-          "cost": 7,
+          "cost": 6,
           "stem": "choir",
           "stem_desc": "wordless choir with a soaring main theme"
         }
