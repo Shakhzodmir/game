@@ -5,7 +5,7 @@
 --   .   void                 #   cell filled at random at the start
 --   r o y g b p   a preset regular piece ("piece") of that colour
 --   R   riff h   V riff v   S sub   B bird   D disco   M mic   C coconut
---   X   record_box hp 1     K concrete hp 1   N noise
+--   X   record_box hp 1     K concrete hp 1   N noise   Q boombox hp 1
 --   A..F  balloon red/orange/yellow/green/blue/purple
 -- `extra` overrides or adds top-level keys (goals, moves, floor, ...).
 -- H.load(...) validates it through core.load_level and fails the test on
@@ -20,6 +20,7 @@ local SPECIAL = { R = { type = "riff", axis = "h" }, V = { type = "riff", axis =
 	S = { type = "sub" }, B = { type = "bird" }, D = { type = "disco" }, M = { type = "mic" },
 	C = { type = "coconut" },
 	X = { type = "record_box", hp = 1 }, K = { type = "concrete", hp = 1 }, N = { type = "noise" },
+	Q = { type = "boombox", hp = 1 },
 	A = { type = "balloon", color = "red" }, E = { type = "balloon", color = "blue" } }
 
 function H.level(rows, extra)
@@ -117,7 +118,8 @@ end
 -- settle ticks are 0.
 local COLOR = { r = 1, o = 2, y = 3, g = 4, b = 5, p = 6 }
 local SPEC = { R = { 1, 1 }, V = { 1, 2 }, S = { 2, 0 }, B = { 3, 0 }, D = { 4, 0 } }
-local BLOCK = { X = { 1, 1, 0 }, K = { 2, 1, 0 }, N = { 3, 1, 0 }, A = { 4, 1, 1 }, E = { 4, 1, 5 } }
+local BLOCK = { X = { 1, 1, 0 }, K = { 2, 1, 0 }, N = { 3, 1, 0 }, A = { 4, 1, 1 }, E = { 4, 1, 5 },
+	Q = { 6, 1, 0 } }
 function H.board(g, rows)
 	local s = g.s
 	s.objs = {}

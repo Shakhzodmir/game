@@ -462,7 +462,7 @@ local function static_rules(ctx)
 			errs[#errs + 1] = "2.1.5 collect colour is not a level colour"
 		elseif g.type == C.GOAL_BREAK then
 			if g.param < 1 then
-				errs[#errs + 1] = "2.1.5 break item must be record_box, concrete, noise, balloon or column"
+				errs[#errs + 1] = "2.1.5 break item must be record_box, concrete, noise, balloon, column or boombox"
 			elseif g.count > counts[g.param] then
 				errs[#errs + 1] = "2.1.5 break count exceeds the " .. C.BLOCKER_NAME[g.param] .. " objects on the board"
 			end
@@ -501,9 +501,9 @@ local function static_rules(ctx)
 		end
 	end
 	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet,
-	-- conveyor
+	-- conveyor, boombox
 	local n_el = 0
-	for b = 1, 5 do
+	for b = 1, C.NBLOCKERS do
 		if counts[b] > 0 then n_el = n_el + 1 end
 	end
 	if ctx.n_tiles > 0 then n_el = n_el + 1 end
@@ -573,7 +573,7 @@ local function normalize(raw, errs)
 	local W, H = raw.size[1], raw.size[2]
 	local ctx = {
 		raw = raw, errs = errs, W = W, H = H, N = W * H,
-		deliver = false, exits = {}, n_exits = 0, slot_at = {}, counts = { 0, 0, 0, 0, 0 },
+		deliver = false, exits = {}, n_exits = 0, slot_at = {}, counts = { 0, 0, 0, 0, 0, 0 },
 		n_chains = 0, n_tiles = 0, n_mics = 0, n_coconuts = 0, drop = false, in_colors = {},
 		lvl = {
 			id = raw.id, version = raw.version, W = W, H = H, N = W * H, moves = raw.moves,

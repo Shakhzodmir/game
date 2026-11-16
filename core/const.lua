@@ -32,8 +32,12 @@ C.AXIS = { h = 1, v = 2 }
 
 -- Blockers.
 C.BK_BOX, C.BK_CONCRETE, C.BK_NOISE, C.BK_BALLOON, C.BK_COLUMN = 1, 2, 3, 4, 5
-C.BLOCKER_NAME = { "record_box", "concrete", "noise", "balloon", "column" }
-C.BLOCKER = { record_box = 1, concrete = 2, noise = 3, balloon = 4, column = 5 }
+C.BK_BOOMBOX = 6 -- a box that answers back: an adjacent match makes it clear pieces of the match colour (10.10)
+C.BLOCKER_NAME = { "record_box", "concrete", "noise", "balloon", "column", "boombox" }
+C.BLOCKER = { record_box = 1, concrete = 2, noise = 3, balloon = 4, column = 5, boombox = 6 }
+C.NBLOCKERS = 6
+-- The boombox (10.10): pieces cleared by one play, and by the last play (the one that destroys it).
+C.BLAST, C.BLAST_LAST = 3, 5
 
 -- Object states.
 C.S_IDLE, C.S_FALL, C.S_SWAP, C.S_CLEAR, C.S_ARMED = 1, 2, 3, 4, 5
