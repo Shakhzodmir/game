@@ -52,11 +52,12 @@ M.BOOSTER_ICON = {
 -- more saturated than the lavender of the jazz club and of the "classic" genres), the eleventh the spray-can
 -- orange of the hip-hop block (deeper and more saturated than the orange-red of the carnival and the soft
 -- orange of the "traditional" genres), the twelfth the palm-leaf green of the reggae island (deeper and
--- yellower than the mint green of the garage, far from the turquoise of the beach). A district past the list
--- starts it again.
+-- yellower than the mint green of the garage, far from the turquoise of the beach), the thirteenth the barn
+-- red of the country ranch (browner and much darker than the velvet red of the cinema, redder and darker than
+-- the oranges of the carnival and of the block). A district past the list starts it again.
 M.DISTRICT_COLORS = {
 	"#FF9EC7", "#C9A7FF", "#FFD36E", "#7FC8FF", "#8BE39A", "#4FD1C5", "#FF8A5C", "#E0566F", "#2F9FB0",
-	"#A65CF2", "#F2741D", "#6FBF3A",
+	"#A65CF2", "#F2741D", "#6FBF3A", "#B23A2E",
 }
 
 -- Store products shown in the shop's coins tab, in display order, with

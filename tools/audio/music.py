@@ -41,6 +41,7 @@ HI_RATE = {
     "skyclub": set(),  # every stem at 22.05 kHz: hats, sweeps and the arpeggio are shaped to end below 10 kHz
     "block": set(),  # every stem at 22.05 kHz: boom-bap is warm, its hats and scratches end below 10 kHz
     "island": set(),  # every stem at 22.05 kHz: reggae is round and warm, its hats end below 10 kHz
+    "ranch": set(),  # every stem at 22.05 kHz: a washboard, strings and reeds, nothing lives above 10 kHz
 }
 
 
@@ -491,6 +492,8 @@ def kit(name, sr):
                                                        key=650 + i), 7000, sr)) for i in range(2)]
             k["shaker"] = [unit(ins.shaker(sr, key=660 + i, dur=0.06)) for i in range(3)]
             k["crash"] = [dsp.lowpass(ins.crash(sr, key=63, t60=1.4), 9500, sr, 2)]
+        elif name == "ranch":
+            k = ranch_kit(sr)
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -3218,6 +3221,411 @@ def island_brass(s):
     return room(s, b, 0.2, 1.2, "horns", damp=5000)
 
 
+# ================================================ COUNTRY RANCH (G major)
+
+def ranch_song(d):
+    # sunny barn-dance country in G, 108 BPM felt in two (the bass on every beat, the accent on every 'and'):
+    # I - IV - I - V, then I - IV - I V - I. Plain triads, nothing but the three chords of a hoedown, and both
+    # halves end the way a fiddle tune does: the first on the dominant (an open question), the second at home.
+    # The square (a brass street band, also in G) marches over sixths and sevenths, the bazaar (G) never plays a
+    # plain V - I, the garage is rock in E; the songs of the genre "country" are in D.
+    G, C, D = 7, 0, 2
+    maj = [0, 4, 7]
+    return Song(d, progression([
+        (4, G, maj, "G"), (4, C, maj, "C"), (4, G, maj, "G"), (4, D, maj, "D"),
+        (4, G, maj, "G"), (4, C, maj, "C"), (2, G, maj, "G"), (2, D, maj, "D"), (4, G, maj, "G"),
+    ]))
+
+
+def tub_bass(midi, sr, vel=0.8, key=0):
+    """A washtub bass: one gut string on a broomstick over an upturned tub. A short round thump whose pitch is
+    pulled up to the note as the stick is leaned back, the octave above it (what a phone plays of it), the hollow
+    knock of the tub and no sustain to speak of."""
+    def mk():
+        f = float(midi_hz(midi))
+        n = nsamp(0.42, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("tub", midi, key)
+        ph = TAU * np.cumsum(f * (1.0 - 0.07 * np.exp(-t / 0.022))) / sr
+        x = np.sin(ph) * np.exp(-t / 0.11) + 0.5 * np.sin(2.0 * ph + 0.4) * np.exp(-t / 0.08)
+        x += 0.16 * np.sin(3.0 * ph + 1.1) * np.exp(-t / 0.045)
+        knock = dsp.bandpass(r.standard_normal(n), 140, 700, sr) * np.exp(-t / 0.012)
+        x = x / dsp.peak(x) + 0.3 * knock / dsp.peak(knock)
+        x = dsp.drive(x * (1.0 - np.exp(-t / 0.003)), 1.4)
+        return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.05) * vel
+    return cached(("tub", midi, sr, round(vel, 2), key), mk)
+
+
+def washboard(sr, dur=0.05, key=0, thimble=0.0):
+    """One stroke of thimbles over a washboard: band-passed noise chopped by the ribs of the tin (about 90 a
+    second at this speed), with the click of the thimble in front when the stroke is an accent."""
+    n = nsamp(dur, sr)
+    t = np.arange(n) / sr
+    r = dsp.rng("washboard", key)
+    x = dsp.bandpass(r.standard_normal(n), 1800, min(8500, 0.42 * sr), sr)
+    x = dsp.filt(x, "peak", 3400, sr, q=1.5, gain_db=6.0)
+    x = x * (0.25 + 0.75 * (0.5 + 0.5 * np.sin(TAU * 90.0 * t + r.uniform(0, TAU))) ** 2)
+    x = x * np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 0.5 * np.exp(-t / (dur * 0.6))
+    x = x / dsp.peak(x)
+    if thimble:
+        m = nsamp(0.012, sr)
+        x[:m] += thimble * np.sin(TAU * 2350.0 * t[:m]) * np.exp(-t[:m] / 0.003)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0008, 0.008)
+
+
+def boot_stomp(sr, key=0):
+    """A boot on the boards of the barn floor: a low thud that settles on G1 (with its octave G2), the knock of
+    the heel and the rattle of the planks."""
+    n = nsamp(0.3, sr)
+    t = np.arange(n) / sr
+    r = dsp.rng("stomp", key)
+    ph = TAU * np.cumsum(float(midi_hz(31)) * (1.0 + 1.3 * np.exp(-t / 0.016))) / sr
+    x = np.sin(ph) * np.exp(-t / 0.07) + 0.6 * np.sin(2.0 * ph + 0.2) * np.exp(-t / 0.06)
+    heel = dsp.bandpass(r.standard_normal(n), 150, 1100, sr) * np.exp(-t / 0.009)
+    planks = dsp.bandpass(r.standard_normal(n), 300, 2400, sr) * np.exp(-t / 0.035) * (t > 0.006)
+    x = x / dsp.peak(x) + 0.55 * heel / dsp.peak(heel) + 0.12 * planks / dsp.peak(planks)
+    return dsp.fade(dsp.drive(x / dsp.peak(x), 1.5), sr, 0.0005, 0.05)
+
+
+def banjo_note(midi, dur, sr, vel=0.8, key=0):
+    """A five-string banjo: a very bright string that dies quickly, through the skin of the drum it sits on (a
+    hollow peak near 650 Hz and a nasal one near 2.3 kHz, no low body at all) with the snap of the finger pick."""
+    def mk():
+        y = ins.guitar(midi, dur, sr, bright=0.97, t60=0.55, pick=0.32, mute=0.035, key=key, damp=0.16).copy()
+        n = len(y)
+        t = np.arange(n) / sr
+        y = y / (dsp.peak(y) + 1e-9)
+        snap = dsp.highpass(dsp.rng("banjo", midi, key).standard_normal(n), 2500, sr, 2) * np.exp(-t / 0.0025)
+        y = y + 0.22 * vel * snap / dsp.peak(snap)
+        y = dsp.highpass(y, 280, sr, 2)
+        y = dsp.filt(y, "peak", 650, sr, q=2.0, gain_db=5.0)
+        y = dsp.filt(y, "peak", 2300, sr, q=1.4, gain_db=6.0)
+        return dsp.fade(y / dsp.peak(y), sr, 0.0005, 0.008) * vel
+    return cached(("banjo", midi, round(dur, 3), sr, round(vel, 2), key), mk)
+
+
+def fiddle_note(midi, dur, sr, vel=0.8, key=0, slide=0.0, vib=0.5):
+    """A country fiddle, one bow stroke: the bow bites at once (a scratch of rosin in the first hundredths), the
+    note may be slid into from `slide` semitones below, a quick narrow vibrato comes only on a held note; the
+    body of the instrument is two peaks (near 480 Hz and 1.1 kHz) and a bright bridge peak at 2.6 kHz."""
+    def mk():
+        n = nsamp(dur + 0.09, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("fiddle", midi, key)
+        bend = 2.0 ** (-slide * np.exp(-t / 0.035) / 12.0)
+        f = midi_hz(midi) * bend * (1.0 + vib * 0.005 * np.sin(TAU * r.uniform(5.8, 6.4) * t + r.uniform(0, 6))
+                                    * np.clip((t - 0.18) / 0.15, 0.0, 1.0))
+        x = dsp.saw(f * 2 ** (2.5 / 1200), n, sr, r.uniform()) + 0.8 * dsp.saw(f * 2 ** (-2.5 / 1200), n, sr, r.uniform())
+        rosin = dsp.bandpass(r.standard_normal(n), 2000, 7000, sr) * np.exp(-t / 0.02)
+        x = x + 0.5 * rosin
+        x = dsp.highpass(x, 180, sr, 2)
+        x = dsp.filt(x, "peak", 480, sr, q=2.0, gain_db=4.0)
+        x = dsp.filt(x, "peak", 1100, sr, q=1.6, gain_db=3.0)
+        x = dsp.filt(x, "peak", 2600, sr, q=1.2, gain_db=7.0)
+        x = dsp.lowpass(x, 5200, sr, 2)
+        x *= dsp.env_adsr(n, sr, 0.014, 0.08, 0.82, dur, 0.05)
+        return dsp.fade(x / dsp.peak(x), sr, 0.001, 0.015) * vel
+    return cached(("fiddle", midi, round(dur, 3), sr, round(vel, 2), key, slide, vib), mk)
+
+
+def harmonica_note(midi, dur, sr, vel=0.8, key=0, bend=0.6, wah=5.5):
+    """A harmonica: two brass reeds a few cents apart (they beat), thin and nasal (narrow pulses through a peak
+    near 1.4 kHz), blown into from a little below the note (the bend of a draw note), the air of the breath, and
+    the cupped hands opening and closing over it (`wah` times a second) once the note is held."""
+    def mk():
+        n = nsamp(dur + 0.1, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("harmonica", midi, key)
+        f = midi_hz(midi) * 2.0 ** (-bend * np.exp(-t / 0.05) / 12.0)
+        x = dsp.pulse(f * 2 ** (5 / 1200), n, sr, 0.22, r.uniform()) + dsp.pulse(f * 2 ** (-5 / 1200), n, sr, 0.26, r.uniform())
+        x = dsp.highpass(x, 320, sr, 2)
+        x = dsp.filt(x, "peak", 1400, sr, q=1.3, gain_db=7.0)
+        x = dsp.lowpass(x, 4200, sr, 2)
+        env = dsp.env_adsr(n, sr, 0.03, 0.1, 0.85, dur, 0.07)
+        hands = 1.0 - 0.3 * np.clip((t - 0.2) / 0.2, 0.0, 1.0) * (0.5 - 0.5 * np.cos(TAU * wah * t))
+        x = x * env * hands + 0.1 * ins.breath(n, sr, f"harmonica{midi}{key}", 1800, 5000) * env
+        return dsp.fade(dsp.tube(x / dsp.peak(x) * 1.3, 1.3, sr, 0.1), sr, 0.002, 0.02) * vel
+    return cached(("harmonica", midi, round(dur, 3), sr, round(vel, 2), key, bend, wah), mk)
+
+
+def whoop(sr, key=0, lo=62, hi=79, dur=0.42):
+    """'Yee-hoo!': a happy voice that leaps from `lo` up to `hi` (D4 to G5: the fifth and the root of the key) and
+    falls off a little at the end, opening from 'ee' to 'ah'."""
+    r = dsp.rng("whoop", key)
+    n = nsamp(dur + 0.1, sr)
+    t = np.arange(n) / sr
+    u = np.clip(t / dur, 0.0, 1.0)
+    rise = np.clip(u / 0.3, 0.0, 1.0) ** 0.7
+    m = lo + (hi - lo) * rise - 2.0 * np.clip((u - 0.75) / 0.25, 0.0, 1.0) ** 2
+    f = midi_hz(m) * (1.0 + 0.008 * np.sin(TAU * 6.5 * t + r.uniform(0, 6)) * (u > 0.4))
+    src = dsp.saw(f, n, sr) + 0.12 * r.standard_normal(n)
+    a = dsp.formant(src, sr, dsp.VOWELS["i_tenor"])
+    b = dsp.formant(src, sr, dsp.VOWELS["a_sop"])
+    w = np.clip((u - 0.15) / 0.3, 0.0, 1.0)
+    x = ((1 - w) * a / dsp.peak(a) + w * b / dsp.peak(b)) * dsp.env_adsr(n, sr, 0.02, 0.1, 0.85, dur, 0.07)
+    return dsp.fade(x / dsp.peak(x), sr, 0.002, 0.03)
+
+
+def ranch_kit(sr):
+    """A jug-band kit made for 22.05 kHz: a washboard (soft strokes and accents with the click of the thimble),
+    brushes on a snare, boots on the barn floor (a thud on G1 and G2), hand claps, a pair of spoons (clacks on
+    D6 and G6: the fifth and the root of the key) and a small splash."""
+    unit = lambda x: x / dsp.peak(x)  # noqa: E731
+    k = {}
+    k["wash"] = [washboard(sr, 0.045, key=i) for i in range(4)]
+    k["wash_acc"] = [washboard(sr, 0.085, key=10 + i, thimble=0.5) for i in range(3)]
+    k["hat"] = [washboard(sr, 0.04, key=20 + i) for i in range(3)]
+    k["brush"] = [unit(ins.brush_tap(sr, key=700 + i, dur=0.11, tone=196.0)) for i in range(3)]
+    k["swish"] = [unit(ins.brush_swish(sr, 0.12, key=710 + i)) for i in range(2)]
+    k["stomp"] = [boot_stomp(sr, key=i) for i in range(3)]
+    k["clap"] = [unit(ins.clap(sr, key=720 + i, tail=0.1, lo=900.0, hi=3400.0)) for i in range(4)]
+    k["spoon_hi"] = [unit(ins.woodblock(sr, f=float(midi_hz(91)), key=730 + i, t=0.05)) for i in range(2)]
+    k["spoon_lo"] = [unit(ins.woodblock(sr, f=float(midi_hz(86)), key=740 + i, t=0.05)) for i in range(2)]
+    k["crash"] = [dsp.lowpass(ins.crash(sr, key=73, t60=1.3), 9500, sr, 2)]
+    return k
+
+
+# The tub bass, D2-D3: the root of the chord on one and three, its fifth on two and four ('boom' on every beat of
+# a tune felt in two), and a walk along the scale into every new chord. bar -> (beat, midi)
+RANCH_TUB = {
+    0: [(0, 43), (1, 50), (2, 43), (3, 50)],
+    1: [(0, 48), (1, 43), (2, 48), (3, 43), (3.5, 45)],
+    2: [(0, 43), (1, 50), (2, 43), (2.5, 45), (3, 47), (3.5, 48)],
+    3: [(0, 50), (1, 45), (2, 50), (3, 45), (3.5, 42)],
+    4: [(0, 43), (1, 50), (2, 43), (2.5, 43), (3, 45), (3.5, 47)],
+    5: [(0, 48), (1, 43), (2, 48), (3, 47), (3.5, 45)],
+    6: [(0, 43), (1, 47), (2, 50), (3, 45), (3.5, 42)],
+    7: [(0, 43), (1, 50), (2, 43), (3, 38), (3.5, 42)],
+}
+
+
+def ranch_drums(s):
+    """The train beat: a washboard runs on the 16ths ('chick-a-chick-a') with a thimble accent and a brush on
+    every 'and', the way a locomotive puffs, and a little shuffle of strokes into every fourth bar. Under it a
+    washtub bass thumps the root and the fifth of the chord on the beats and walks into every new chord: the
+    first layer alone already says the key."""
+    k = kit("ranch", s.sr)
+    r = dsp.rng(s.id, "drums")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for i in range(16):
+            bt = o + i * 0.25
+            if i % 4 == 2:  # the 'and': the accent of the train
+                hit(s, b, k["wash_acc"], bt, 0.95 if i % 8 == 6 else 0.85, r, 0.003)
+                hit(s, b, k["brush"], bt, 0.5 if i % 8 == 6 else 0.4, r, 0.003)
+            else:
+                hit(s, b, k["wash"], bt, (0.5, 0.3, 0.0, 0.38)[i % 4], r, 0.003)
+        if bar % 4 == 3:
+            for bt, v in ((3.125, 0.3), (3.375, 0.4), (3.625, 0.5), (3.875, 0.6)):
+                hit(s, b, k["wash"], o + bt, v, r, 0.002)
+            hit(s, b, k["swish"], o + 3.0, 0.4, r, 0.0)
+    b = dsp.drive(b / dsp.peak(b) * 1.1, 1.2)
+    b = room(s, b, 0.12, 0.7, "drums", damp=6000)
+    tub = s.zeros()
+    for bar, notes in RANCH_TUB.items():
+        for bt, m in notes:
+            v = 0.95 if bt in (0, 2) else (0.8 if bt % 1 == 0 else 0.68)
+            s.add(tub, tub_bass(m, s.sr, round(v, 2), key=int(bt * 2) % 2), bar * 4 + bt, 1.0, dt=r.normal(0, 0.003))
+    tub = loop_filter(s, tub, "lp", 1600)
+    rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+    return b + 1.5 * tub * rms(b) / rms(tub)
+
+
+# The banjo in open G tuning (g4 D3 G3 B3 D4): the left hand holds the chord, the right hand rolls.
+RANCH_BANJO_CHORD = {  # chord name -> strings 4, 3, 2, 1 (the fifth string is always the high g, midi 67)
+    "G": (50, 55, 59, 62), "C": (52, 55, 60, 64), "D": (50, 57, 62, 66),
+}
+# rolls: eight 16ths, the string plucked on each (5 = the short high string under the thumb)
+RANCH_ROLLS = {
+    "fwd_rev": (3, 2, 1, 5, 1, 2, 3, 1),   # forward-reverse
+    "thumb": (3, 2, 5, 1, 4, 2, 5, 1),     # alternating thumb
+    "fwd": (2, 1, 5, 2, 1, 5, 2, 1),       # forward: three against four
+}
+RANCH_BANJO_BARS = [("fwd_rev", "thumb"), ("thumb", "fwd"), ("fwd_rev", "fwd"), ("thumb", "run"),
+                    ("fwd_rev", "thumb"), ("fwd", "thumb"), ("fwd_rev", "thumb"), ("fwd", "tag")]
+# the run that closes the first half on the dominant (D E F# A, then up to the high D) and the tag that brings
+# the second half home (G A B D, the high G): (16th, midi)
+RANCH_BANJO_LICKS = {
+    "run": ((0, 50), (1, 52), (2, 54), (3, 57), (4, 62), (5, 66), (6, 69), (7, 66)),
+    "tag": ((0, 55), (1, 57), (2, 59), (3, 62), (4, 67), (6, 62), (7, 67)),
+}
+
+
+def ranch_banjo(s):
+    """Three-finger picking: rolls of eight 16ths over the strings of the chord, the short fifth string (a high G
+    that never changes) ringing through all of it, the thumb's notes a little louder (they carry the tune inside
+    the roll); a run up the dominant ends the first half, a tag on G the second."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "banjo")
+    for bar in range(s.bars):
+        for half, what in enumerate(RANCH_BANJO_BARS[bar]):
+            o = bar * 4 + half * 2
+            c = s.chord_at(o)
+            if what in RANCH_BANJO_LICKS:
+                for q, m in RANCH_BANJO_LICKS[what]:
+                    v = 0.9 if q % 2 == 0 else 0.72
+                    s.add(b, banjo_note(m, 0.32, s.sr, round(v, 2), key=q % 2), o + q * 0.25, 1.0, dt=r.normal(0, 0.003))
+                continue
+            strings = RANCH_BANJO_CHORD[c.name]
+            for q, st in enumerate(RANCH_ROLLS[what]):
+                m = 67 if st == 5 else strings[4 - st]
+                v = 0.9 if st in (3, 4) else (0.6 if st == 5 else 0.74)
+                if q % 4 == 0:
+                    v = min(1.0, v + 0.08)
+                s.add(b, banjo_note(m, 0.3, s.sr, round(v, 2), key=q % 2), o + q * 0.25, 1.0, dt=r.normal(0, 0.003))
+    b = b / dsp.peak(b)
+    return room(s, b, 0.1, 0.7, "banjo", damp=6500)
+
+
+RANCH_GUITAR = {  # chord -> (bass note on one and three, bass note on two and four, the strummed strings)
+    "G": (43, 50, (55, 59, 62, 67)), "C": (48, 52, (55, 60, 64, 67)), "D": (50, 45, (57, 62, 66)),
+}
+
+
+def ranch_guitar(s):
+    """Boom-chick: a flat-picked acoustic guitar plays a bass string on every beat (root, then the other bass
+    note of the chord) and brushes the top strings down on every 'and', with a light up-stroke after the 'and'
+    of two and of four ('boom-chick-a'); the last beat of each half is a full ringing strum."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "guitar")
+    for bar in range(s.bars):
+        o = bar * 4
+        for q in range(4):
+            c = s.chord_at(o + q)
+            b1, b2, top = RANCH_GUITAR[c.name]
+            last = bar in (3, 7) and q == 3
+            m = b1 if q % 2 == 0 else b2
+            x = ins.guitar(m, s.sec(0.42), s.sr, bright=0.5, t60=1.4, pick=0.16, mute=0.05, key=q % 2, damp=0.4)
+            s.add(b, x, o + q, 0.95 if q % 2 == 0 else 0.8, dt=r.normal(0, 0.003))
+            if last:
+                x = ins.strum((b1,) + top, s.sec(0.9), s.sr, spread=0.014, bright=0.62, t60=1.6, pick=0.14,
+                              mute=0.08, key=2, damp=0.35)
+                s.add(b, x, o + q + 0.5, 0.95, dt=r.normal(0, 0.003))
+                continue
+            x = ins.strum(top, s.sec(0.3), s.sr, spread=0.007, bright=0.65, t60=0.9, pick=0.13, mute=0.03,
+                          key=bar % 2, damp=0.35)
+            s.add(b, x, o + q + 0.5, 0.8 if q % 2 else 0.7, dt=r.normal(0, 0.003))
+            if q % 2 == 1:
+                y = ins.strum(top[1:], s.sec(0.14), s.sr, spread=0.005, up=True, bright=0.7, t60=0.5, pick=0.13,
+                              mute=0.02, key=2, damp=0.35)
+                s.add(b, y, o + q + 0.75, 0.4, dt=r.normal(0, 0.003))
+    b = loop_filter(s, b, "hp", 75)
+    b = loop_eq(s, b, "peak", 3000, 2.5, 0.8)
+    b = dsp.drive(b / dsp.peak(b) * 1.15, 1.2)
+    return room(s, b, 0.12, 0.8, "guitar", damp=6000)
+
+
+RANCH_STOMPS = {  # bar -> (beat, 's' boots / 'c' hands, vel)
+    "*": [(0, "s", 1.0), (1, "c", 0.85), (2, "s", 0.95), (2.5, "s", 0.6), (3, "c", 0.9)],
+    3: [(0, "s", 1.0), (1, "c", 0.85), (2, "s", 0.95), (2.5, "c", 0.6), (3, "c", 0.9), (3.5, "c", 0.75)],
+    7: [(0, "s", 1.0), (1, "c", 0.85), (2, "s", 0.95), (2.5, "c", 0.7), (3, "c", 0.95)],
+}
+
+
+def ranch_claps(s):
+    """The barn dance joins in: boots stomp on one and three (with a skip before four), a dozen hands clap on two
+    and four, twice at the end of each half, and somebody whoops 'yee-hoo!' (D up to G) as each half begins."""
+    k = kit("ranch", s.sr)
+    r = dsp.rng(s.id, "claps")
+    b = s.zeros()
+    for bar in range(s.bars):
+        for bt, what, v in RANCH_STOMPS.get(bar, RANCH_STOMPS["*"]):
+            if what == "s":
+                hit(s, b, k["stomp"], bar * 4 + bt, 0.7 * v, r, 0.004)
+                hit(s, b, k["stomp"], bar * 4 + bt, 0.35 * v, r, 0.012)
+            else:
+                for j in range(4):
+                    hit(s, b, k["clap"], bar * 4 + bt, 0.7 * v, r, 0.009)
+    b = b / dsp.peak(b)
+    w = s.zeros()
+    for j, (beat, lo, hi) in enumerate(((0.5, 62, 79), (16.5, 62, 79))):
+        s.add(w, whoop(s.sr, key=j, lo=lo, hi=hi), beat, 1.0)
+        s.add(w, whoop(s.sr, key=5 + j, lo=lo - 12, hi=hi - 12, dur=0.4), beat, 0.5, dt=0.03)
+    w = loop_filter(s, loop_filter(s, w, "hp", 250), "lp", 5000)
+    return room(s, b + 0.6 * w / dsp.peak(w), 0.16, 0.9, "claps", damp=5500)
+
+
+# The fiddle tune, G4-B5, singable: 'da, da-da DAA' on G, the same a step higher on C, a run over the top on G
+# and a question held on the dominant; then from the top downwards, the C phrase turned round, a run through G
+# and D and the long G everything was heading for. Short-long 'shuffle' bowing (an 8th and two 16ths) starts the
+# phrases. bar -> (beat, beats, midi[, the double stop under it (midi)])
+RANCH_FIDDLE = bars({
+    0: [(0.0, 0.5, 74, 67), (0.5, 0.25, 71), (0.75, 0.25, 74), (1.0, 1.0, 79, 71), (2.0, 0.5, 76), (2.5, 0.5, 74),
+        (3.0, 0.5, 71), (3.5, 0.5, 74)],
+    1: [(0.0, 0.5, 76, 67), (0.5, 0.25, 72), (0.75, 0.25, 76), (1.0, 1.0, 79, 72), (2.0, 1.75, 76, 72)],
+    2: [(0.0, 0.5, 74, 67), (0.5, 0.25, 71), (0.75, 0.25, 74), (1.0, 0.5, 79, 71), (1.5, 0.5, 83), (2.0, 0.5, 81),
+        (2.5, 0.5, 79), (3.0, 0.5, 76), (3.5, 0.5, 74)],
+    3: [(0.0, 0.5, 78, 69), (0.5, 0.25, 74), (0.75, 0.25, 78), (1.0, 1.4, 81, 74)],
+    4: [(0.0, 0.5, 83, 74), (0.5, 0.25, 79), (0.75, 0.25, 83), (1.0, 0.5, 81), (1.5, 0.5, 79), (2.0, 0.5, 76),
+        (2.5, 0.5, 74), (3.0, 1.0, 71, 67)],
+    5: [(0.0, 0.5, 76, 67), (0.5, 0.25, 79), (0.75, 0.25, 76), (1.0, 0.5, 72), (1.5, 0.5, 76), (2.0, 1.75, 79, 76)],
+    6: [(0.0, 0.5, 74, 67), (0.5, 0.5, 71), (1.0, 0.5, 67), (1.5, 0.5, 71), (2.0, 0.5, 69, 62), (2.5, 0.25, 74),
+        (2.75, 0.25, 78), (3.0, 0.5, 81), (3.5, 0.5, 78)],
+    7: [(0.0, 1.9, 79, 71)],
+})
+
+
+def ranch_fiddle(s):
+    """The fiddle sings the tune: every stroke bites, the notes on the beat are slid into from below, the long
+    ones get a quick vibrato, and the notes that carry the phrase are double stops (the open string or the chord
+    tone under the tune, bowed with it)."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "fiddle")
+    for e in RANCH_FIDDLE:
+        bt, du, m = e[:3]
+        v = 0.9 if bt % 1 == 0 else 0.76
+        d = round(s.sec(du) * 0.94, 4)
+        slide = 0.7 if (bt % 1 == 0 and du >= 0.5) else 0.0
+        s.add(b, fiddle_note(m, d, s.sr, round(v, 2), key=0, slide=slide, vib=1.0 if du >= 1.0 else 0.3), bt, 1.0,
+              dt=r.normal(0, 0.003))
+        if len(e) > 3:
+            s.add(b, fiddle_note(e[3], d, s.sr, round(v * 0.6, 2), key=1, slide=0.0, vib=0.0), bt, 1.0,
+                  dt=0.004 + r.normal(0, 0.003))
+    b = loop_filter(s, b, "hp", 200)
+    return room(s, b / dsp.peak(b), 0.16, 1.0, "fiddle", damp=6000, predelay=0.012)
+
+
+# The harmonica answers where the fiddle holds a note or breathes (the second halves of bars 2, 4, 6 and 8) and
+# chugs two soft chords like a far-off train in the bars between. bar -> (beat, beats, midi)
+RANCH_HARP = bars({
+    1: [(2.0, 0.5, 79), (2.5, 0.5, 76), (3.0, 0.25, 72), (3.25, 0.25, 76), (3.5, 0.5, 79)],
+    3: [(2.0, 0.25, 74), (2.25, 0.25, 78), (2.5, 1.0, 81), (3.5, 0.5, 78)],
+    5: [(2.0, 0.5, 72), (2.5, 0.5, 76), (3.0, 0.5, 79), (3.5, 0.5, 81)],
+    7: [(2.0, 0.5, 71), (2.5, 0.25, 74), (2.75, 0.25, 76), (3.0, 0.9, 79)],
+})
+RANCH_CHUG = {0: (71, 74), 4: (71, 74), 2: (74, 79)}  # bar -> the two reeds blown together on the 'and's of 3 and 4
+
+
+def ranch_harmonica(s):
+    """A harmonica answers the fiddle: bent into from below, the hands opening on the long notes, the last note
+    of every answer doubled a third or a fourth lower (two holes at once); in between, soft two-note chugs."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "harmonica")
+    last = {}
+    for bt, du, m in RANCH_HARP:
+        last[int(bt // 4)] = bt
+    for bt, du, m in RANCH_HARP:
+        v = 0.9 if bt % 1 == 0 else 0.78
+        d = round(s.sec(du) * 0.95, 4)
+        s.add(b, harmonica_note(m, d, s.sr, round(v, 2), key=0, bend=0.7 if du >= 0.5 else 0.3), bt, 1.0,
+              dt=r.normal(0, 0.003))
+        if bt == last[int(bt // 4)] or du >= 1.0:
+            c = s.chord_at(bt)
+            under = [x for x in range(m - 5, m - 2) if x % 12 in c.pcs()]
+            if under:
+                s.add(b, harmonica_note(under[-1], d, s.sr, round(v * 0.6, 2), key=1, bend=0.3), bt, 1.0,
+                      dt=r.normal(0, 0.003))
+    for bar, dyad in RANCH_CHUG.items():
+        for bt, v in ((2.5, 0.4), (3.5, 0.45)):
+            for j, m in enumerate(dyad):
+                s.add(b, harmonica_note(m, round(s.sec(0.3), 4), s.sr, v, key=2 + j, bend=0.2), bar * 4 + bt, 1.0,
+                      dt=r.normal(0, 0.003))
+    b = loop_filter(s, b, "hp", 300)
+    b = echo(s, b / dsp.peak(b), 0.75, 0.1, 0.3, 2, 3000)
+    return room(s, b, 0.18, 1.1, "harmonica", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -3236,7 +3644,7 @@ def tension_stem(s, style):
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
             "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block", "island": "island"}
+            "block": "block", "island": "island", "ranch": "ranch"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -3269,6 +3677,8 @@ def tension_stem(s, style):
         elif style == "island":  # the left hand of the organ, staccato, on the chord roots
             x = ins.organ(m, round(s.sec(0.2), 4), s.sr, bars=(8, 0, 8, 5, 0, 2, 0, 0, 0), perc=0.3, click=0.3,
                           attack=0.004, release=0.03)
+        elif style == "ranch":  # the bass strings of the guitar, palm-muted, on the chord roots
+            x = ins.guitar(m, s.sec(0.3), s.sr, bright=0.55, t60=0.5, pick=0.16, mute=0.04, key=7, damp=0.4)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -3279,7 +3689,12 @@ def tension_stem(s, style):
     b = b / dsp.peak(b) * 0.55 + pb / dsp.peak(pb)
     fifth = nearest((s.tonic + 7) % 12, 76, 70, 82)
     tr = s.zeros()
-    s.add(tr, pad_note(fifth, s.sec(s.beats) - 0.5, s.sr, cutoff=2500, attack=1.0, release=1.0, det=5, key=3), 0.0)
+    if style == "ranch":  # no synthesizer in the barn: a fiddle shivers on two strings, the fifth and the root above it
+        hold = round(s.sec(s.beats) - 0.5, 4)
+        s.add(tr, fiddle_note(fifth, hold, s.sr, 0.8, key=3, vib=1.0), 0.0)
+        s.add(tr, fiddle_note(fifth + 5, hold, s.sr, 0.8, key=4, vib=1.0), 0.0, 0.8)
+    else:
+        s.add(tr, pad_note(fifth, s.sec(s.beats) - 0.5, s.sr, cutoff=2500, attack=1.0, release=1.0, det=5, key=3), 0.0)
     tr *= 0.6 + 0.4 * np.sin(TAU * np.arange(s.n) / s.n * s.beats * 2) ** 2  # 8th-note tremolo
     b += 0.35 * tr / (dsp.peak(tr) + 1e-9)
     return room(s, b, 0.14, 1.0, "tension", damp=5000)
@@ -3337,7 +3752,7 @@ def party_stem(s, style):
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
             "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block", "island": "island"}
+            "block": "block", "island": "island", "ranch": "ranch"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -3371,6 +3786,15 @@ def party_stem(s, style):
             for bt in range(4):
                 hit(s, b, k["kick"], o + bt, 0.5, r, 0.0)
                 hit(s, b, k["ohat"], o + bt + 0.5, 0.22, r, 0.0)
+        elif style == "ranch":  # the whole barn: the washboard on the 16ths, boots on every beat, spoons galloping
+            for i in range(16):
+                hit(s, b, k["wash_acc" if i % 4 == 2 else "wash"], o + i * 0.25, 0.4 if i % 4 == 2 else 0.22, r, 0.003)
+            for bt in range(4):
+                hit(s, b, k["stomp"], o + bt, 0.55, r, 0.0)
+            for bt, drum, v in ((0.0, "lo", 0.5), (0.5, "hi", 0.4), (0.75, "hi", 0.3), (1.0, "lo", 0.5),
+                                (1.5, "hi", 0.4), (2.0, "lo", 0.5), (2.5, "hi", 0.4), (2.75, "hi", 0.3),
+                                (3.0, "lo", 0.5), (3.5, "hi", 0.4), (3.75, "lo", 0.3)):
+                hit(s, b, k["spoon_" + drum], o + bt, 0.5 * v, r, 0.002)
         else:
             for i in range(16):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
@@ -3413,6 +3837,8 @@ def party_stem(s, style):
                     x = ins.epiano(m, s.sec(0.3), s.sr, vel=0.8, bright=1.0, release=0.1)
                 elif style == "skyclub":  # house piano
                     x = ins.piano(m, round(s.sec(0.4), 4), s.sr, vel=0.85, bright=0.9, release=0.12)
+                elif style == "ranch":  # the upright piano of the barn dance, short bright chords
+                    x = ins.piano(m, round(s.sec(0.3), 4), s.sr, vel=0.9, bright=1.0, release=0.08, key=j % 2)
                 else:
                     x = ins.brass(m, s.sec(0.3), s.sr, vel=0.9, key=j)
                 s.add(st, x, beat, 1.0)
@@ -3432,6 +3858,8 @@ def party_stem(s, style):
                 x = qanun(m, s.sr, key=i % 2, dur=0.6)
             elif style == "island":  # a second steel pan runs up the chord, an octave under the glockenspiel's place
                 x = steel_pan(m - 12, s.sr, 0.8, 0.5, key=i % 2)
+            elif style == "ranch":  # a second banjo runs up the chord, an octave under the glockenspiel's place
+                x = banjo_note(m - 12, 0.3, s.sr, 0.9, key=i % 2)
             else:
                 x = ins.glock(m, s.sr, vel=0.7, dur=0.8, octave_up=False)
             s.add(arp, x, c.start + i * 0.5, 0.8 if i % 2 == 0 else 0.6)
@@ -3479,6 +3907,9 @@ DISTRICTS = {
     "island": dict(song=island_song, stems={
         "drums": island_drums, "bass": island_bass, "rhythm": island_rhythm, "organ": island_organ,
         "steelpan": island_steelpan, "brass": island_brass}),
+    "ranch": dict(song=ranch_song, stems={
+        "drums": ranch_drums, "banjo": ranch_banjo, "guitar": ranch_guitar, "claps": ranch_claps,
+        "fiddle": ranch_fiddle, "harmonica": ranch_harmonica}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -3512,6 +3943,8 @@ LOUDNESS = {
               "tension": -18, "party": -16},
     "island": {"drums": -17, "bass": -19, "rhythm": -18, "organ": -20, "steelpan": -18, "brass": -18,
                "tension": -18, "party": -16},
+    "ranch": {"drums": -17, "banjo": -19, "guitar": -19, "claps": -18, "fiddle": -18, "harmonica": -18,
+              "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on
