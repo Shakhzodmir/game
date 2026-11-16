@@ -179,6 +179,14 @@ function HS.state(s)
 			h = fold(h, id ~= 0 and objs[id].ice or 0)
 		end
 	end
+	-- the hay bales (10.12): the gift hidden in the bale of every cell, written only on a level that has
+	-- hay, so every other level hashes as before
+	if s.level.has_hay then
+		for i = 1, N do
+			local id = slot[i]
+			h = fold(h, id ~= 0 and objs[id].gift or 0)
+		end
+	end
 	return h
 end
 

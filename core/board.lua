@@ -11,7 +11,8 @@
 --   target cell), mv, wv (label), offx, offy, vy, delay, settle (settle_tick),
 --   tk, td (timer kind and due tick), pins (source ids, ascending),
 --   chain (hp of the chain on a regular piece, 10.6; 0 = none),
---   ice (hp of the ice a regular piece is frozen in, 10.11; 0 = none).
+--   ice (hp of the ice a regular piece is frozen in, 10.11; 0 = none),
+--   gift (C.GIFT_* hidden in a hay bale, 10.12; 0 = none).
 
 local C = require("core.const")
 local U = require("core.util")
@@ -87,7 +88,7 @@ function B.new_obj(s, kind, fields)
 	local o = {
 		id = id, kind = kind, color = 0, special = 0, axis = 0, blocker = 0, hp = 0,
 		state = S_IDLE, cell = 0, mv = 0, wv = 0, offx = 0, offy = 0, vy = 0, delay = 0,
-		settle = 0, tk = 0, td = 0, pins = {}, chain = 0, ice = 0,
+		settle = 0, tk = 0, td = 0, pins = {}, chain = 0, ice = 0, gift = 0,
 	}
 	if fields then
 		for k, v in pairs(fields) do o[k] = v end -- order-independent

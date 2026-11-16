@@ -5,7 +5,8 @@
 --      expired: match search with rule 6.2.1, refunds (5.1.3)
 --   3. queue: every record with due <= now in (due, seq) order, including
 --      the ones queued during this step
---   4. objects in clear whose timer expired vanish
+--   4. objects in clear whose timer expired vanish (a hay bale with a gift
+--      turns into that special once the queue is empty, 10.12)
 --   5. gravity assignment and spawn (10.1)
 --   6. movement (10.2)
 --   7. match search if the board is dirty; microphone delivery (10.4),
@@ -25,6 +26,7 @@ local EF = require("core.effects")
 local BO = require("core.boosters")
 local I = require("core.input")
 local sched = require("core.sched")
+local HY = require("core.hay")
 
 local TK = {}
 
@@ -179,7 +181,13 @@ local function step4(s)
 	for i = 1, s.N do
 		local o = B.get(s, i)
 		if o and o.cell == i and o.state == S_CLEAR and o.td <= now then
-			B.remove(s, o)
+			if o.gift ~= 0 then
+				-- a destroyed hay bale with a gift (10.12) waits for the end of every effect, then the gift
+				-- takes its cell
+				if s.queue[1] == nil then HY.reveal(s, o) end
+			else
+				B.remove(s, o)
+			end
 		end
 	end
 end

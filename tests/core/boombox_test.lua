@@ -108,7 +108,7 @@ describe("core boombox: level schema and rules (2.0, 2.1)", function()
 		expect(H.level(FULL, { slots = { box(2, 2, 1) }, goals = { { type = "break", item = "boombox", count = 2 } } }),
 			"2.1.5 break count exceeds the boombox objects on the board")
 		expect(H.level(FULL, { goals = { { type = "break", item = "jukebox", count = 1 } } }),
-			"2.1.5 break item must be record_box, concrete, noise, balloon, column or boombox")
+			"2.1.5 break item must be record_box, concrete, noise, balloon, column, boombox or hay")
 	end)
 
 	it("2.1.6: the boombox is one of the three element kinds of a level", function()

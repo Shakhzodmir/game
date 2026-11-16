@@ -33,11 +33,21 @@ C.AXIS = { h = 1, v = 2 }
 -- Blockers.
 C.BK_BOX, C.BK_CONCRETE, C.BK_NOISE, C.BK_BALLOON, C.BK_COLUMN = 1, 2, 3, 4, 5
 C.BK_BOOMBOX = 6 -- a box that answers back: an adjacent match makes it clear pieces of the match colour (10.10)
-C.BLOCKER_NAME = { "record_box", "concrete", "noise", "balloon", "column", "boombox" }
-C.BLOCKER = { record_box = 1, concrete = 2, noise = 3, balloon = 4, column = 5, boombox = 6 }
-C.NBLOCKERS = 6
+C.BK_HAY = 7 -- a hay bale: breaks like a record box and may leave the special hidden inside it (10.12)
+C.BLOCKER_NAME = { "record_box", "concrete", "noise", "balloon", "column", "boombox", "hay" }
+C.BLOCKER = { record_box = 1, concrete = 2, noise = 3, balloon = 4, column = 5, boombox = 6, hay = 7 }
+C.NBLOCKERS = 7
 -- The boombox (10.10): pieces cleared by one play, and by the last play (the one that destroys it).
 C.BLAST, C.BLAST_LAST = 3, 5
+
+-- The gift hidden in a hay bale (10.12), field `gift` of the object. GIFT_RANDOM is drawn from the
+-- `effects` stream when the bale is destroyed: one of the first four codes with equal chance.
+C.GIFT_NONE, C.GIFT_RIFF_H, C.GIFT_RIFF_V, C.GIFT_SUB, C.GIFT_BIRD, C.GIFT_DISCO, C.GIFT_RANDOM = 0, 1, 2, 3, 4, 5, 6
+C.GIFT_DRAW = 4 -- the random gift is one of the codes 1..GIFT_DRAW (never the disco ball)
+C.GIFT_SPECIAL = { 1, 1, 2, 3, 4 } -- gift code -> special code (C.SP_*)
+C.GIFT_AXIS = { 1, 2, 0, 0, 0 }    -- gift code -> riff axis (C.AX_*)
+-- Level names of the gifts: {"gift": name}; a riff also carries {"axis": "h" | "v"}.
+C.GIFT = { none = 0, riff = 1, sub = 3, bird = 4, disco = 5, random = 6 }
 
 -- Object states.
 C.S_IDLE, C.S_FALL, C.S_SWAP, C.S_CLEAR, C.S_ARMED = 1, 2, 3, 4, 5
