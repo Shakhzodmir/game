@@ -5,6 +5,7 @@ local Bot = require("tools.bot.bot")
 local Run = require("tools.bot.run")
 local F = require("tests.tools.fixture")
 local core = require("core.game")
+local CH = require("tests.core.helper")
 
 local function fingerprint(r)
 	return common.encode(r)
@@ -858,6 +859,175 @@ describe("tools bot: the documented behaviour", function()
 			if Bot.ice_hp(bb, gg) < 11 then hit = hit + 1 end
 		end
 		assert_true(hit >= 3, "ice was melted in " .. hit .. " of 4 games within four moves")
+	end)
+
+	-- the stage fog (core-rules 10.13): the bot plays like a person who cannot see under it
+	local FOG_SIX = { "red", "orange", "yellow", "green", "blue", "purple" }
+	local FOG_CELLS = { "######", "######", "######", "######", "######", "######" }
+	-- two moves for the core: (5,2) -> (5,3) makes an orange three in row 3; (3,5) -> (3,6) makes a purple FOUR in
+	-- the bottom row, (1,6) (2,6) (3,6) (4,6): a Riff and four pieces of the collect goal. ((3,6) -> (4,6) makes the
+	-- purple three (1,6) (2,6) (3,6).) With (2,6) under the fog both purple moves need a colour nobody sees.
+	local FOG_BOARD = { "byrgby", "yrgboy", "rgbopo", "gbyrgb", "bypgby", "ppgpyr" }
+	-- the same without the orange move
+	local FOG_ONLY = { "byrgby", "yrgbyr", "rgbyrg", "gbyrgb", "bypgby", "ppgpyr" }
+	local PURPLE, ORANGE = { type = "swap", from = { 3, 5 }, to = { 3, 6 } }, { type = "swap", from = { 5, 2 }, to = { 5, 3 } }
+
+	local function fog_board(rows, fog)
+		local e = F.entry({ size = { 6, 6 }, cells = FOG_CELLS, colors = FOG_SIX, fog = fog,
+			goals = { { type = "collect", color = "purple", count = 30 } } })
+		local g = core.new(e.level, { seed = 1, timing = "turbo" })
+		CH.board(g, rows)
+		g:drain_events()
+		return g, e
+	end
+
+	local function with_cell(rows, x, y, ch)
+		local out = {}
+		for k = 1, #rows do out[k] = rows[k] end
+		out[y] = out[y]:sub(1, x - 1) .. ch .. out[y]:sub(x + 1)
+		return out
+	end
+
+	local function fog_level(extra)
+		local fog = {}
+		for y = 2, 4 do
+			for x = 1, 5 do fog[#fog + 1] = { x, y } end
+		end
+		local t = { moves = 20, goals = { { type = "fog" } }, fog = fog }
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small fog level and plays the same game twice", function()
+		local e = fog_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 20 moves")
+		end
+		local a = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		local b = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		assert_same({ a.won, a.moves_used, a.score }, { b.won, b.moves_used, b.score })
+	end)
+
+	it("never chooses a move that needs what the fog hides while a visible move exists", function()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			-- seen, the purple four is by far the best move ...
+			local open, eo = fog_board(FOG_BOARD, nil)
+			assert_same((Bot.new(kind, { seed = 1, goals = eo.goals, width = 6 }):choose(open)), PURPLE, kind)
+			-- ... with (2,6) under the fog it is still the best move of the true board, and no candidate of the bot
+			local g, e = fog_board(FOG_BOARD, { { 1, 5 } })
+			assert_eq(#g:moves(), 3)
+			for bot_seed = 1, 6 do -- (the greedy bot draws among its top three: every draw is the visible move)
+				local bot = Bot.new(kind, { seed = bot_seed, goals = e.goals, width = 6 })
+				local cmd, info = bot:choose(g)
+				assert_same(cmd, ORANGE, kind)
+				assert_eq(info.n, 1)
+				assert_eq(info.blind, nil)
+			end
+		end
+	end)
+
+	it("offers no candidate that starts or ends in the fog, and looks ahead on the blind view only", function()
+		-- the purple move ends in the fogged (3,6): for a player it is a guess, for the bot no candidate
+		local g, e = fog_board(FOG_BOARD, { { 2, 5 } })
+		local bot = Bot.new("strong", { seed = 1, goals = e.goals, width = 6 })
+		local fog = Bot.fog_cells(bot, g)
+		local cands = Bot.candidates(g:clone({ blind = true }), fog)
+		assert_eq(#cands, 1)
+		assert_same(cands[1].cmd, ORANGE)
+		assert_same((bot:choose(g)), ORANGE)
+		-- the choice and its score do not depend on what stands under the fog: other colours, specials
+		local cells = { { 1, 5 }, { 1, 2 }, { 3, 3 } }
+		local g2, e2 = fog_board(FOG_BOARD, cells)
+		local cmd, info = Bot.new("strong", { seed = 1, goals = e2.goals, width = 6 }):choose(g2)
+		assert_same(cmd, ORANGE)
+		for _, alt in ipairs({ { "b", "y", "g" }, { "D", "S", "R" }, { "o", "o", "o" } }) do
+			local rows = with_cell(with_cell(with_cell(FOG_BOARD, 2, 6, alt[1]), 2, 3, alt[2]), 4, 4, alt[3])
+			local h = fog_board(rows, cells)
+			local c2, i2 = Bot.new("strong", { seed = 1, goals = e2.goals, width = 6 }):choose(h)
+			assert_same(c2, cmd)
+			assert_same({ i2.score, i2.n, i2.best }, { info.score, info.n, info.best })
+		end
+		-- a special in the open is a candidate (a tap), the same special under the fog is not, nor are its swaps
+		local sp = with_cell(FOG_BOARD, 2, 4, "R")
+		local seen, hidden = 0, 0
+		for _, cd in ipairs(Bot.candidates((fog_board(sp, { { 4, 4 } })), nil)) do
+			if cd.cmd.type == "tap" then seen = seen + 1 end
+		end
+		local hg = fog_board(sp, { { 1, 3 } })
+		local hfog = Bot.fog_cells(Bot.new("strong", { seed = 1, width = 6 }), hg)
+		for _, cd in ipairs(Bot.candidates(hg:clone({ blind = true }), hfog)) do
+			local c = cd.cmd
+			if c.type == "tap" or (c.from[1] == 2 and c.from[2] == 4) or (c.to[1] == 2 and c.to[2] == 4) then hidden = hidden + 1 end
+		end
+		assert_same({ seen, hidden }, { 1, 0 })
+	end)
+
+	it("with nothing visible to play it makes the blind move of the fixed rule, and says so", function()
+		local g, e = fog_board(FOG_ONLY, { { 1, 5 } })
+		assert_same(g:clone({ blind = true }):moves(), {})
+		local cmd, info = Bot.new("strong", { seed = 1, goals = e.goals, width = 6 }):choose(g)
+		-- the first swap of game:moves(): what trying the swaps in reading order finds, a refused swap being free
+		assert_same(cmd, PURPLE)
+		assert_true(info.blind)
+		assert_same(Bot.blind_move(g), PURPLE)
+		-- no ranking: the rule takes the first of the true moves, not the best (the purple four comes second here)
+		local two = fog_board(FOG_BOARD, { { 1, 5 }, { 4, 1 }, { 4, 2 } })
+		assert_same(two:clone({ blind = true }):moves(), {})
+		local c2, i2 = Bot.new("strong", { seed = 1, goals = e.goals, width = 6 }):choose(two)
+		assert_same(c2, ORANGE)
+		assert_true(i2.blind)
+	end)
+
+	it("over whole games: every chosen move is a move of the blind view with both ends in the open", function()
+		local e = fog_level({ moves = 30, goals = { { type = "collect", color = "red", count = 200 } },
+			slots = { { at = { 3, 0 }, type = "riff", axis = "v" }, { at = { 2, 5 }, type = "sub" } } })
+		local checked = 0
+		for seed = 1, 3 do
+			local g = core.new(e.level, { seed = seed, timing = "turbo" })
+			local bot = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+			for _ = 1, 30 do
+				g:run_to_rest()
+				if g:status().state ~= "playing" then break end
+				local cells = g:cells()
+				local cmd, info = bot:choose(g)
+				if not cmd then break end
+				if not info.blind then
+					local view = g:clone({ blind = true })
+					if cmd.type == "swap" then
+						assert_eq(cells[(cmd.from[2] - 1) * 7 + cmd.from[1]].fog, nil)
+						assert_eq(cells[(cmd.to[2] - 1) * 7 + cmd.to[1]].fog, nil)
+						local found = false
+						for _, m in ipairs(view:moves()) do
+							if m.from[1] == cmd.from[1] and m.from[2] == cmd.from[2] and m.to[1] == cmd.to[1] and m.to[2] == cmd.to[2] then
+								found = true
+							end
+						end
+						assert_true(found, "the swap is a move for someone who sees no fogged piece")
+					else
+						assert_eq(cells[(cmd.at[2] - 1) * 7 + cmd.at[1]].fog, nil)
+					end
+					checked = checked + 1
+				end
+				assert_true(g:input(cmd))
+			end
+		end
+		assert_true(checked >= 20, "moves checked: " .. checked)
+	end)
+
+	it("a level without fog never builds a view: the candidates and the choice are as before", function()
+		local e = F.entry({ goals = { { type = "collect", color = "red", count = 30 } } })
+		local g = core.new(e.level, { seed = 3, timing = "turbo" })
+		local bot = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+		assert_eq(Bot.fog_cells(bot, g), nil)
+		assert_eq(bot.fog, false)
+		local cmd, info = bot:choose(g)
+		assert_true(cmd ~= nil and info.blind == nil)
+		assert_eq(#Bot.candidates(g), info.n)
 	end)
 
 	it("refuses an unknown bot kind and a budget below the schema's minimum", function()

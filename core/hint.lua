@@ -3,7 +3,8 @@
 -- On a level with the stage fog (10.13) the hint is fair: it sees what the player sees. A fogged piece has
 -- no colour for it, a fogged cell is never an end of a suggested swap or tap, and what stands in a fogged
 -- cell next to a group gives no goal progress. Only when the visible board offers nothing does it fall back
--- to the first move of the true board, marked `blind`.
+-- to the first move of the true board that starts or ends in the fog, marked `blind` (the client swells
+-- the cloud and shows nothing of what is under it); failing that it is silent.
 
 local C = require("core.const")
 local U = require("core.util")
@@ -175,17 +176,22 @@ function HI.hint(s)
 		end
 	end
 	if not best and fog then
-		-- nothing the player can see: the first move of the true board (12.1 order), then the first tap by
-		-- cell, chosen without ranking (a ranking would tell what hides in the fog). `blind` tells the client
-		-- to point at the cells without showing their content
-		if list[1] then
-			local ax, ay = U.xy(W, list[1][1])
-			local bx, by = U.xy(W, list[1][2])
-			return { from = { ax, ay }, to = { bx, by }, blind = true }
+		-- nothing the player can see: the first move of the true board (12.1 order) that has an end in the
+		-- fog, then the first tap on a fogged special by cell, chosen without ranking (a ranking would tell
+		-- what hides in the fog). `blind` tells the client to point at the cells without showing their content.
+		-- A swap of two visible pieces that works only thanks to a fogged colour is never shown (two visible
+		-- pieces wobbling would give that colour away): if nothing else is left, the hint stays silent
+		for k = 1, #list do
+			local a, b = list[k][1], list[k][2]
+			if fog[a] or fog[b] then
+				local ax, ay = U.xy(W, a)
+				local bx, by = U.xy(W, b)
+				return { from = { ax, ay }, to = { bx, by }, blind = true }
+			end
 		end
 		for i = 1, s.N do
 			local o = B.get(s, i)
-			if o and o.kind == K_SPECIAL and o.state == C.S_IDLE and o.pins[1] == nil and not B.veiled(s, i) then
+			if fog[i] and o and o.kind == K_SPECIAL and o.state == C.S_IDLE and o.pins[1] == nil and not B.veiled(s, i) then
 				local x, y = U.xy(W, i)
 				return { at = { x, y }, blind = true }
 			end
