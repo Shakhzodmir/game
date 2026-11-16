@@ -119,7 +119,8 @@ describe("the audio manifest of the jukebox songs", function()
 
 	-- notes + SFX + district music: 14 MB since 16.11.2026 (10 MB since 13.11.2026, 7 MB before; raised for districts
 	-- 11-15 with the producer's approval, about 0.6-0.9 MB a district) -- the same number as SIZE_BUDGET of
-	-- tools/audio/gen_audio.py
+	-- tools/audio/gen_audio.py. The songs of the district genres: 5.94 of their 6 MB with twelve districts (16.11.2026,
+	-- about 0.45-0.5 MB a district): the songs of district 13 will not fit until that cap is raised
 	it("costs at most 6 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 14 MB", function()
 		local bytes, extra = 0, 0
 		local extra_ids = {}
