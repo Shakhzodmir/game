@@ -53,7 +53,13 @@
    "gate": "mapbg/gate_cafe",
    "gate_y": 230,
    "tint": "#F7D9B5",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -2,
+    "dy": 105,
+    "h": 71,
+    "w": 333
+   }
   },
   {
    "id": "jazz",
@@ -66,7 +72,13 @@
    "gate": "mapbg/gate_jazz",
    "gate_y": 4375,
    "tint": "#CFC3F2",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -2,
+    "dy": 105,
+    "h": 84,
+    "w": 318
+   }
   },
   {
    "id": "square",
@@ -79,7 +91,13 @@
    "gate": "mapbg/gate_square",
    "gate_y": 8655,
    "tint": "#BFE6D0",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -1,
+    "dy": 107,
+    "h": 84,
+    "w": 258
+   }
   },
   {
    "id": "stadium",
@@ -92,7 +110,13 @@
    "gate": "mapbg/gate_stadium",
    "gate_y": 12935,
    "tint": "#CDEBFF",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -1,
+    "dy": 82,
+    "h": 85,
+    "w": 391
+   }
   },
   {
    "id": "garage",
@@ -105,7 +129,13 @@
    "gate": "mapbg/gate_garage",
    "gate_y": 17215,
    "tint": "#C5BFD9",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": 0,
+    "dy": 91,
+    "h": 61,
+    "w": 320
+   }
   },
   {
    "id": "beach",
@@ -118,7 +148,13 @@
    "gate": "mapbg/gate_beach",
    "gate_y": 21495,
    "tint": "#F6E3C0",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -1,
+    "dy": 115,
+    "h": 55,
+    "w": 201
+   }
   },
   {
    "id": "carnival",
@@ -131,7 +167,13 @@
    "gate": "mapbg/gate_carnival",
    "gate_y": 25775,
    "tint": "#FBE3C8",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": 0,
+    "dy": 115,
+    "h": 50,
+    "w": 261
+   }
   },
   {
    "id": "cinema",
@@ -144,7 +186,13 @@
    "gate": "mapbg/gate_cinema",
    "gate_y": 30055,
    "tint": "#FBEBD0",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -3,
+    "dy": 119,
+    "h": 55,
+    "w": 254
+   }
   },
   {
    "id": "bazaar",
@@ -157,7 +205,13 @@
    "gate": "mapbg/gate_bazaar",
    "gate_y": 34335,
    "tint": "#FBEED2",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -1,
+    "dy": 93,
+    "h": 50,
+    "w": 214
+   }
   },
   {
    "id": "skyclub",
