@@ -544,35 +544,35 @@ Tension adds +0.9 LU, party +1.6 LU. Brightness of the task mix: centroid 591 Hz
 
 ### ranch — G major, 108 BPM, 8 bars
 
-Loop: 392000 samples at 22.05 kHz (784000 at 44.1 kHz) = 17.777778 s (exact 17.777778 s). Chords: G | C | G | D | G | C | G | D | G. Mix seam step/beats 0.029, click/beats 0.605.
+Loop: 392000 samples at 22.05 kHz (784000 at 44.1 kHz) = 17.777778 s (exact 17.777778 s). Chords: G | C | G | D | G | C | G | D | G. Mix seam step/beats 0.008, click/beats 0.63.
 
 | Combination | Peak dBFS | True peak dBTP | LUFS |
 |---|---|---|---|
-| tasks | -3.15 | -3.01 | -20.2 |
-| tasks+tension | -1.32 | -1.31 | -19.4 |
-| tasks+party | -2.18 | -1.79 | -19.0 |
-| all stems (never played together) | -0.31 | -0.19 | -18.4 |
+| tasks | -3.19 | -3.05 | -20.2 |
+| tasks+tension | -1.31 | -1.24 | -19.5 |
+| tasks+party | -2.28 | -1.91 | -19.0 |
+| all stems (never played together) | -0.60 | -0.52 | -18.4 |
 
-Tension adds +0.8 LU, party +1.2 LU. Brightness of the task mix: centroid 1529 Hz, 2–8 kHz -2.4 dB and 8–16 kHz -15.0 dB vs 0.2–2 kHz, 28 % of the energy below 150 Hz. Key reading (Krumhansl, major vs relative minor): tasks 0.92 / 0.61 (best G maj); tasks+party 0.88 / 0.57 (best G maj); party alone 0.80 / 0.48 (best G maj); tension alone 0.48 / -0.04 (best D maj).
+Tension adds +0.7 LU, party +1.2 LU. Brightness of the task mix: centroid 1529 Hz, 2–8 kHz -2.4 dB and 8–16 kHz -15.0 dB vs 0.2–2 kHz, 28 % of the energy below 150 Hz. Key reading (Krumhansl, major vs relative minor): tasks 0.92 / 0.61 (best G maj); tasks+party 0.88 / 0.57 (best G maj); party alone 0.80 / 0.48 (best G maj); tension alone 0.88 / 0.32 (best G maj).
 
 | Stem | Task (cost) | Hz | Gain dB | Peak dBFS | dBTP | LUFS | In-scale % | Step/beats | Click/beats | Codec edge |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `drums` | washboard_tub (1) | 22050 | -11.9 | -8.2 | -7.0 | -25.6 | 99.6 | 0.018 | 0.002 | 0.14 |
-| `banjo` | banjo (4) | 22050 | -11.3 | -11.1 | -9.4 | -28.5 | 90.8 | 0.051 | 0.84 | 1.12 |
-| `guitar` | hay_stage (5) | 22050 | -13.3 | -11.1 | -11.1 | -28.4 | 96.9 | 0.045 | 0.165 | 0.53 |
-| `claps` | boots_rack (5) | 22050 | -7.1 | -7.4 | -7.0 | -28.0 | 93.3 | 0.086 | 0.041 | 0.27 |
-| `fiddle` | fiddle (5) | 22050 | -13.2 | -13.2 | -13.2 | -27.5 | 100.0 | 0.002 | 0.002 | 0.4 |
-| `harmonica` | bench (6) | 22050 | -14.3 | -13.8 | -13.7 | -27.6 | 100.0 | 0.081 | 0.03 | 0.15 |
-| `tension` | level stem | 22050 | -10.4 | -7.6 | -7.5 | -27.3 | 99.7 | 0.007 | 0.705 | 0.58 |
-| `party` | level stem | 22050 | -9.7 | -8.6 | -8.1 | -25.3 | 98.9 | 0.027 | 0.402 | 0.53 |
+| `drums` | washboard_tub (1) | 22050 | -11.9 | -8.0 | -7.0 | -25.6 | 99.7 | 0.019 | 0.002 | 0.14 |
+| `banjo` | banjo (4) | 22050 | -11.4 | -11.1 | -9.4 | -28.5 | 90.8 | 0.051 | 0.846 | 1.14 |
+| `guitar` | hay_stage (5) | 22050 | -13.3 | -10.9 | -10.9 | -28.4 | 96.9 | 0.066 | 0.173 | 0.52 |
+| `claps` | boots_rack (5) | 22050 | -7.1 | -7.3 | -7.0 | -28.0 | 93.2 | 0.171 | 0.043 | 0.4 |
+| `fiddle` | fiddle (5) | 22050 | -13.2 | -13.2 | -13.2 | -27.5 | 100.0 | 0.004 | 0.002 | 0.39 |
+| `harmonica` | bench (6) | 22050 | -14.3 | -13.8 | -13.7 | -27.6 | 100.0 | 0.086 | 0.03 | 0.15 |
+| `tension` | level stem | 22050 | -9.6 | -6.9 | -6.8 | -27.4 | 99.7 | 0.04 | 0.666 | 0.52 |
+| `party` | level stem | 22050 | -9.7 | -8.4 | -8.2 | -25.3 | 98.9 | 0.036 | 0.401 | 0.53 |
 
 | Unlock order | Task (cost) | Stem LUFS | Stem vs mix LU | Δ mix LU |
 |---|---|---|---|---|
 | `drums` | washboard_tub (1) | -25.6 | – | first layer |
 | `banjo` | banjo (4) | -28.5 | -2.9 | +1.80 |
-| `guitar` | hay_stage (5) | -28.4 | -4.6 | +1.28 |
+| `guitar` | hay_stage (5) | -28.4 | -4.6 | +1.27 |
 | `claps` | boots_rack (5) | -28.0 | -5.5 | +0.99 |
-| `fiddle` | fiddle (5) | -27.5 | -6.0 | +0.91 |
+| `fiddle` | fiddle (5) | -27.5 | -6.0 | +0.92 |
 | `harmonica` | bench (6) | -27.6 | -7.0 | +0.39 |
 
 ## 3b. Jukebox songs
@@ -814,7 +814,7 @@ the engine's layer calls are silent for it.
 - Music `skyclub`: 8 stems, identical duration (336000 samples at 22.05 kHz): PASS; worst realistic mix -1.33 dBTP / -1.34 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.39): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
 - Music `block`: 8 stems, identical duration (470400 samples at 22.05 kHz): PASS; worst realistic mix -2.29 dBTP / -2.36 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.31): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
 - Music `island`: 8 stems, identical duration (529200 samples at 22.05 kHz): PASS; worst realistic mix -1.05 dBTP / -1.06 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -4.16): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
-- Music `ranch`: 8 stems, identical duration (392000 samples at 22.05 kHz): PASS; worst realistic mix -1.31 dBTP / -1.32 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.99): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
+- Music `ranch`: 8 stems, identical duration (392000 samples at 22.05 kHz): PASS; worst realistic mix -1.24 dBTP / -1.31 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.78): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
 - Songs `cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.6 … 28.2 s within 16–32: PASS; worst mix -1.17 dBTP / -1.31 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.6) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 89.7): PASS; seams clean: PASS.
 - Songs `jazz`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.1 … 29.1 s within 16–32: PASS; worst mix -1.23 dBTP / -1.23 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.5 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.19): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Songs `square`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.8 … 25.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.27 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.4) and ≤ 1 dB of the energy (max 0.04): PASS; in the key of the genre ≥ 85 % (min 94.5): PASS; seams clean: PASS.

@@ -3689,7 +3689,12 @@ def tension_stem(s, style):
     b = b / dsp.peak(b) * 0.55 + pb / dsp.peak(pb)
     fifth = nearest((s.tonic + 7) % 12, 76, 70, 82)
     tr = s.zeros()
-    s.add(tr, pad_note(fifth, s.sec(s.beats) - 0.5, s.sr, cutoff=2500, attack=1.0, release=1.0, det=5, key=3), 0.0)
+    if style == "ranch":  # no synthesizer in the barn: a fiddle shivers on two strings, the fifth and the root above it
+        hold = round(s.sec(s.beats) - 0.5, 4)
+        s.add(tr, fiddle_note(fifth, hold, s.sr, 0.8, key=3, vib=1.0), 0.0)
+        s.add(tr, fiddle_note(fifth + 5, hold, s.sr, 0.8, key=4, vib=1.0), 0.0, 0.8)
+    else:
+        s.add(tr, pad_note(fifth, s.sec(s.beats) - 0.5, s.sr, cutoff=2500, attack=1.0, release=1.0, det=5, key=3), 0.0)
     tr *= 0.6 + 0.4 * np.sin(TAU * np.arange(s.n) / s.n * s.beats * 2) ** 2  # 8th-note tremolo
     b += 0.35 * tr / (dsp.peak(tr) + 1e-9)
     return room(s, b, 0.14, 1.0, "tension", damp=5000)

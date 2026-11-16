@@ -12,7 +12,7 @@ local function read(path)
 end
 
 local districts = json.decode(read("content/districts.json")).districts
--- the twelve district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
+-- the thirteen district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
 local extra_genres = json.decode(read("content/genres.json")).genres
 local catalogue = {}
 for _, d in ipairs(districts) do catalogue[#catalogue + 1] = d end
@@ -38,7 +38,7 @@ describe("the registry of the jukebox songs", function()
 				assert_true(e.loop >= 16 and e.loop <= 32, s.id .. " loops " .. e.loop .. " s")
 			end
 		end
-		assert_eq(n, 97)
+		assert_eq(n, 101)
 	end)
 
 	it("has no song that the catalogue does not name, and no id of a district", function()
@@ -119,9 +119,9 @@ describe("the audio manifest of the jukebox songs", function()
 
 	-- notes + SFX + district music: 14 MB since 16.11.2026 (10 MB since 13.11.2026, 7 MB before; raised for districts
 	-- 11-15 with the producer's approval, about 0.6-0.9 MB a district) -- the same number as SIZE_BUDGET of
-	-- tools/audio/gen_audio.py. The songs of the district genres: 5.94 of their 6 MB with twelve districts (16.11.2026,
-	-- about 0.45-0.5 MB a district): the songs of district 13 will not fit until that cap is raised
-	it("costs at most 6 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 14 MB", function()
+	-- tools/audio/gen_audio.py. The songs of the district genres: 8 MB (6 MB before; raised 16.11.2026 for districts
+	-- 13-15, approved by the producer): 6.50 MB with thirteen districts, about 0.45-0.55 MB a district
+	it("costs at most 8 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 14 MB", function()
 		local bytes, extra = 0, 0
 		local extra_ids = {}
 		for _, g in ipairs(extra_genres) do
@@ -130,7 +130,7 @@ describe("the audio manifest of the jukebox songs", function()
 		for id, m in pairs(songs) do
 			if extra_ids[id] then extra = extra + m.bytes else bytes = bytes + m.bytes end
 		end
-		assert_true(bytes <= 6 * 1024 * 1024, "the district songs weigh " .. bytes .. " bytes")
+		assert_true(bytes <= 8 * 1024 * 1024, "the district songs weigh " .. bytes .. " bytes")
 		assert_true(extra <= 8 * 1024 * 1024, "the songs of the new genres weigh " .. extra .. " bytes (the WP-6 budget is +8 MB)")
 		bytes = bytes + extra
 		assert_true(manifest.total_bytes - bytes <= 14 * 1024 * 1024, "the rest of the audio grew past its 14 MB")
@@ -187,6 +187,13 @@ describe("the audio manifest of the jukebox songs", function()
 		assert_eq(manifest.music.island.key_reading["tasks+party"].best, "A maj")
 		assert_eq(manifest.music.island.key_reading["party alone"].best, "A maj")
 		assert_eq(manifest.music.island.key_reading["tension alone"].best, "A maj")
+		-- the ranch: three chords, the tub bass on root and fifth and a fiddle tune that ends on G, so it reads as
+		-- G major (not E minor, not the D or C major next door), with the finale too, and the finale and the
+		-- tension alone
+		assert_eq(manifest.music.ranch.key_reading.tasks.best, "G maj")
+		assert_eq(manifest.music.ranch.key_reading["tasks+party"].best, "G maj")
+		assert_eq(manifest.music.ranch.key_reading["party alone"].best, "G maj")
+		assert_eq(manifest.music.ranch.key_reading["tension alone"].best, "G maj")
 	end)
 
 	it("passes every check the generator ran", function()

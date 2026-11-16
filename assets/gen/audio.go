@@ -384,6 +384,46 @@ embedded_components {
   data: "sound: \"/assets/music/jazz/vibes.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_ranch_banjo"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/banjo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_ranch_claps"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/claps.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_ranch_drums"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/drums.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_ranch_fiddle"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/fiddle.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_ranch_guitar"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/guitar.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_ranch_harmonica"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/harmonica.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_ranch_party"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_ranch_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/ranch/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_skyclub_arp"
   type: "sound"
   data: "sound: \"/assets/music/skyclub/arp.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1084,6 +1124,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/barn_dance.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_barn_piano_romp"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/barn_piano_romp.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_bazaar_noon"
   type: "sound"
   data: "sound: \"/assets/music/songs/bazaar_noon.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1127,6 +1172,11 @@ embedded_components {
   id: "song_calypso_sun"
   type: "sound"
   data: "sound: \"/assets/music/songs/calypso_sun.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_campfire_waltz"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/campfire_waltz.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_candlelight_bolero"
@@ -1242,6 +1292,11 @@ embedded_components {
   id: "song_harpsichord_garden"
   type: "sound"
   data: "sound: \"/assets/music/songs/harpsichord_garden.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_haystack_breakdown"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/haystack_breakdown.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_hero_dawn"
@@ -1522,6 +1577,11 @@ embedded_components {
   id: "song_trap_playground"
   type: "sound"
   data: "sound: \"/assets/music/songs/trap_playground.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_tumbleweed_swing"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/tumbleweed_swing.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_velvet_evening"
