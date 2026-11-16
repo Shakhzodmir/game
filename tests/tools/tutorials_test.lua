@@ -34,6 +34,7 @@ local PLAN_ELEMENTS = {
 	chain = 121, -- district 7 (WP-17)
 	curtain = 141, -- district 8 (WP-17)
 	carpet = 161, -- district 9 (WP-17)
+	conveyor = 181, -- district 10 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -162,6 +163,7 @@ local function elements_of(raw)
 	end
 	if raw.curtain then kinds.curtain = true end -- (10.7: a block of its own, not a slot)
 	if raw.carpet then kinds.carpet = true end -- (10.8: a list of cells of its own, not a slot)
+	if raw.conveyor then kinds.conveyor = true end -- (10.9: a list of belts of its own, not a slot)
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
@@ -410,6 +412,18 @@ local function snap(game, info)
 	local st = game:status()
 	t.goals, t.moves, t.state = st.goals, st.moves_left, st.state
 	t.curtain = st.curtain -- {phase, left} on a level with curtains (10.7), else nil
+	-- the riders of the conveyor belts (10.9): piece id -> {belt, pos, len} of the belt cell it stands on
+	t.riders = {}
+	local belt_len = {}
+	for i = 1, #cells do
+		local cv = cells[i].conveyor
+		if cv then belt_len[cv.belt] = math.max(belt_len[cv.belt] or 0, cv.pos) end
+	end
+	for i = 1, #list do
+		local p = list[i]
+		local cv = cells[(p.y - 1) * info.W + p.x].conveyor
+		if cv then t.riders[p.id] = { belt = cv.belt, pos = cv.pos, len = belt_len[cv.belt] } end
+	end
 	return t
 end
 
@@ -440,6 +454,19 @@ local EFFECTS = {
 	["tutorial.carpet"] = function(a, b, info)
 		local k = info.carpet_goal
 		return (k and b.goals[k] < a.goals[k]) or "the carpet did not roll out"
+	end,
+	-- the belt moves after the hinted move (10.9) and the player sees it: the match itself does not touch the belt,
+	-- so its riders are carried exactly one cell forward (the last cell of the path goes to the first). All of them
+	-- on most seeds; a cascade of the new pieces may take a few riders away, so half of the belt is asked for
+	["tutorial.conveyor"] = function(a, b)
+		local riders, carried = 0, 0
+		for id, r in pairs(a.riders) do
+			riders = riders + 1
+			local now = b.riders[id]
+			if now and now.belt == r.belt and now.pos == r.pos % r.len + 1 then carried = carried + 1 end
+		end
+		if riders == 0 then return "the level has no conveyor belt with pieces on it" end
+		return carried * 2 >= riders or ("the belt carried " .. carried .. " of its " .. riders .. " riders one cell forward (less than half)")
 	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
@@ -713,11 +740,11 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
 		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, the
-		-- chain of 121, the curtain of 141 and the carpet of 161, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161 }) do
+		-- chain of 121, the curtain of 141, the carpet of 161 and the conveyor of 181, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 23)
+		assert_eq(#ids_of(defs), 24)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()

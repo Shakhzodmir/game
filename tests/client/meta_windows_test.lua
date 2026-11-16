@@ -796,7 +796,7 @@ describe("meta windows: jukebox", function()
 
 	-- the row of genre tabs pages: turn to the page that holds the genre, then tap it
 	local function tab_to(c, tab)
-		for _ = 1, 7 do
+		for _ = 1, c.app.ui.jukebox.tab_pages do -- (a full turn: the row wraps round; 9 pages with ten districts)
 			if c.app.ui.popup_targets["tab_" .. tab] then break end
 			wtap(c, "tabs_next")
 		end

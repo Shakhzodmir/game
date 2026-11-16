@@ -87,5 +87,8 @@
   ]},
   "161": {"steps": [
     {"kind": "swap", "from": [2, 2], "to": [3, 2], "text": "tutorial.carpet"}
+  ]},
+  "181": {"steps": [
+    {"kind": "swap", "from": [3, 0], "to": [3, 1], "text": "tutorial.conveyor"}
   ]}
 }
