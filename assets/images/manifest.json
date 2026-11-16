@@ -462,15 +462,13 @@
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 10473,
-      "placeholder": true
+      "bytes": 36033
     },
     "blockers/curtain_open.png": {
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 8585,
-      "placeholder": true
+      "bytes": 37660
     },
     "blockers/floor_1.png": {
       "w": 160,
