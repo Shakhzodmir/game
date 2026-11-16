@@ -58,7 +58,9 @@ function BD.levels(s)
 		if s.exists[i] then
 			local o = B.get(s, i)
 			local idle = o ~= nil and o.state == S_IDLE
-			if idle and o.pins[1] then
+			if B.veiled(s, i) then
+				l = 0 -- a closed curtain (10.7): no hit does anything there
+			elseif idle and o.pins[1] then
 				l = 0 -- a pinned piece zeroes the whole cell
 			elseif idle and o.blocker == BK_COLUMN then
 				-- an intact column: blocker rows at its top-left cell only, no tiles

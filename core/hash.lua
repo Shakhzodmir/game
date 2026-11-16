@@ -160,6 +160,11 @@ function HS.state(s)
 		local r = s.rng[st]
 		for j = 1, 6 do h = fold(h, r[j]) end
 	end
+	-- the timed curtains (10.7): written only on a level that has them, so every other level hashes as before
+	if s.level.curtain then
+		h = fold(h, s.cur_closed)
+		h = fold(h, s.cur_left)
+	end
 	return h
 end
 

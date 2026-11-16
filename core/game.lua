@@ -164,6 +164,7 @@ function Game:pieces()
 		if o.special ~= 0 then p.special = C.SPECIAL_NAME[o.special] end
 		if o.axis ~= 0 then p.axis = C.AXIS_NAME[o.axis] end
 		if o.chain > 0 then p.chain = o.chain end
+		if B.veiled(s, o.cell) then p.veiled = true end -- under a closed curtain (10.7)
 		if o.blocker ~= 0 then
 			p.item = C.BLOCKER_NAME[o.blocker]
 			p.hp = o.hp
@@ -176,18 +177,24 @@ end
 function Game:cells()
 	local s = self.s
 	local out = {}
+	local cu = s.level.curtain
 	for i = 1, s.N do
 		out[i] = { exists = s.exists[i], spawner = s.spawner[i], exit = s.exit[i], floor = s.floor[i], wires = s.wires[i] }
+		if cu and cu.at[i] then out[i].curtain = true end
 	end
 	return out
 end
 
 function Game:status()
 	local s = self.s
-	return {
+	local st = {
 		state = C.GAME_NAME[s.state], stuck = s.stuck, tick = s.tick,
 		moves_left = s.moves_left, score = s.score, goals = U.copy_array(s.goal_left),
 	}
+	if s.level.curtain then
+		st.curtain = { phase = s.cur_closed and "closed" or "open", left = s.cur_left }
+	end
+	return st
 end
 
 function Game:result()

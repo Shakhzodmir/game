@@ -37,6 +37,8 @@ function B.new_state(level)
 		state = C.G_PLAYING, stuck = false, timing = C.TIMING_NORMAL,
 		input_lock = false, rest_flag = false, dirty = false, last_assign = 0,
 		tc = 0, rounds = 0, moves_at_win = 0, concert_A = 0,
+		-- the timed curtains (10.7): are they closed, moves left until the next change (0 without curtains)
+		cur_closed = false, cur_left = 0,
 		swaps = {}, queue = {}, sources = {}, eom = {}, praise = {}, unplaced = {},
 		rng = nil, help = 0, colorless = false, in_group = false,
 		ev = {}, cmds = {},
@@ -53,6 +55,11 @@ function B.new_state(level)
 		s.seg_bot[i] = level.seg_bot[i]
 	end
 	for k = 1, #level.goals do s.goal_left[k] = level.goals[k].count end
+	local cu = level.curtain
+	if cu then
+		s.cur_closed = cu.start_closed
+		s.cur_left = cu.start_closed and cu.closed_moves or cu.open_moves
+	end
 	return s
 end
 
@@ -118,6 +125,12 @@ function B.key(s, i)
 	return i
 end
 
+-- Is cell i under a closed curtain (10.7)? Such a cell is frozen: nothing in it moves, matches or is hit.
+-- Always false on a level without curtains.
+function B.veiled(s, i)
+	return s.cur_closed and s.level.curtain.at[i]
+end
+
 -- A movable piece: regular, special, mic or coconut without wires (0.1).
 function B.is_movable(s, o)
 	local k = o.kind
@@ -129,6 +142,7 @@ end
 -- A chained piece falls like a free one but is never swapped.
 function B.can_swap(s, o)
 	return o.chain == 0 and o.state == S_IDLE and o.pins[1] == nil and B.is_movable(s, o)
+		and not (s.cur_closed and s.level.curtain.at[o.cell])
 end
 
 function B.is_pinned(o)
@@ -219,12 +233,14 @@ end
 
 -- Most frequent colour mf(filter) of 3.2.3: regular idle unpinned pieces
 -- without a chain; `unwired_only` restricts to pieces without wires. 0 = no colour.
+-- Pieces under a closed curtain are not counted (10.7).
 function B.most_frequent(s, unwired_only)
 	local count = { 0, 0, 0, 0, 0, 0 }
 	local slot, objs, wires = s.slot, s.objs, s.wires
+	local veil = s.cur_closed and s.level.curtain.at or nil
 	for i = 1, s.N do
 		local id = slot[i]
-		if id ~= 0 then
+		if id ~= 0 and not (veil and veil[i]) then
 			local o = objs[id]
 			if o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and o.chain == 0
 				and (not unwired_only or wires[i] == 0) then

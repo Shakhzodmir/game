@@ -12,13 +12,15 @@ local M = {}
 local K_REGULAR, S_IDLE = C.K_REGULAR, C.S_IDLE
 
 -- Colour of every regular idle piece (wired and pinned too), else 0.
+-- A piece under a closed curtain has no colour: it takes no part in matches (10.7).
 function M.color_map(s)
 	local col = {}
 	local slot, objs = s.slot, s.objs
+	local veil = s.cur_closed and s.level.curtain.at or nil
 	for i = 1, s.N do
 		local id = slot[i]
 		local c = 0
-		if id ~= 0 then
+		if id ~= 0 and not (veil and veil[i]) then
 			local o = objs[id]
 			if o.kind == K_REGULAR and o.state == S_IDLE then c = o.color end
 		end

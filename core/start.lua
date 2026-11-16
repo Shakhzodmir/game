@@ -63,7 +63,7 @@ local function place_boosters(s, st, boosters)
 		local cands, any = {}, {}
 		for i = 1, s.N do
 			local o = B.get(s, i)
-			if o and o.kind == C.K_REGULAR and s.wires[i] == 0 and o.chain == 0 then
+			if o and o.kind == C.K_REGULAR and s.wires[i] == 0 and o.chain == 0 and not B.veiled(s, i) then
 				any[#any + 1] = o
 				if s.floor[i] == 0 and not B.goal_open(s, C.GOAL_COLLECT, o.color) then
 					cands[#cands + 1] = o
@@ -107,11 +107,17 @@ function ST.build(level, seed, boosters)
 	end
 	local report = { fills = 0, shuffle = 0, dirty = false }
 	local passed = false
+	-- Curtains that start closed (10.7): the board must have no match with the curtains open (nothing
+	-- ready-made hides under them at the start), and three moves with the curtains as they are.
+	local closed = s.cur_closed
 	for n = 1, C.START_FILLS do
 		if n > 1 then unfill(s, free) end
 		fill(s, st, free)
 		report.fills = n
-		if not M.any_match(M.color_map(s), s.W, s.H) and #MV.pair_list(s) >= 3 then
+		s.cur_closed = false
+		local clean = not M.any_match(M.color_map(s), s.W, s.H)
+		s.cur_closed = closed
+		if clean and #MV.pair_list(s) >= 3 then
 			passed = true
 			break
 		end

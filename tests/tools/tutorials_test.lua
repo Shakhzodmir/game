@@ -155,6 +155,7 @@ local function elements_of(raw)
 		if o.type == "wires" then kinds.wires = true end
 		if o.type == "chain" then kinds.chain = true end -- (10.6: another element of the same layer)
 	end
+	if raw.curtain then kinds.curtain = true end -- (10.7; its PLAN_ELEMENTS entry comes with its first level, 141)
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end

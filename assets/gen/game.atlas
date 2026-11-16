@@ -112,6 +112,20 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_curtain_closed"
+  images {
+    image: "/assets/images/blockers/curtain_closed.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "blockers_curtain_open"
+  images {
+    image: "/assets/images/blockers/curtain_open.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_floor_1"
   images {
     image: "/assets/images/blockers/floor_1.png"

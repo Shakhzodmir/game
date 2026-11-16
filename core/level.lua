@@ -17,6 +17,8 @@
 --   coconut = {total, on_board_max, gap_moves, cols[x]} or nil (cols: may a
 --   coconut enter in column x), canonical, hash.
 --   exit[i] is also kept with a drop goal (10.5).
+--   curtain = {at[i] (is cell i under a curtain), cells (indices, ascending),
+--   closed_moves, open_moves, start_closed} or nil (10.7).
 
 local C = require("core.const")
 local U = require("core.util")
@@ -211,6 +213,29 @@ local function read_layers(ctx)
 	end
 end
 
+-- The timed curtain (10.7): the covered cells (geometry by 2.1.2) and the rhythm.
+local function read_curtain(ctx)
+	local cu = ctx.raw.curtain
+	if cu == nil then return end
+	local lvl = ctx.lvl
+	local at, cells = {}, {}
+	for i = 1, ctx.N do at[i] = false end
+	for k = 1, #cu.covers do
+		local c = cu.covers[k]
+		local i = cell_of(ctx, c)
+		if not i then err_at(ctx, "2.1.2", "curtain is not on an existing cell", c)
+		elseif at[i] then err_at(ctx, "2.1.2", "two curtains in one cell", c)
+		else at[i] = true end
+	end
+	for i = 1, ctx.N do
+		if at[i] then cells[#cells + 1] = i end
+	end
+	lvl.curtain = {
+		at = at, cells = cells, closed_moves = cu.closed_moves, open_moves = cu.open_moves,
+		start_closed = cu.start == "closed",
+	}
+end
+
 local function preset_of(ctx, item, i)
 	local ty = item.type
 	local p = { cell = i, kind = 0, color = 0, special = 0, axis = 0, blocker = 0, hp = 0 }
@@ -309,7 +334,21 @@ local function static_rules(ctx)
 			errs[#errs + 1] = "2.1.5 drop goal needs a coconut block and an exit"
 		end
 	end
-	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain
+	-- 2.1.12: what may stand under a curtain at the start (10.7): a regular piece (random or `piece`) and
+	-- a floor tile, nothing else; never a spawner, never a cell where mics or coconuts leave the field
+	if lvl.curtain then
+		for i = 1, N do
+			if lvl.curtain.at[i] then
+				if slot_at[i] and slot_at[i].kind ~= C.K_REGULAR then
+					err(ctx, "2.1.12", "only a regular piece may stand under a curtain", i)
+				end
+				if lvl.wires[i] > 0 or lvl.chain[i] > 0 then err(ctx, "2.1.12", "wires or a chain under a curtain", i) end
+				if lvl.spawner[i] then err(ctx, "2.1.12", "curtain over a spawner", i) end
+				if lvl.exit[i] then err(ctx, "2.1.12", "curtain over an exit", i) end
+			end
+		end
+	end
+	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain
 	local n_el = 0
 	for b = 1, 5 do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -322,6 +361,7 @@ local function static_rules(ctx)
 		end
 	end
 	if ctx.n_chains > 0 then n_el = n_el + 1 end
+	if lvl.curtain then n_el = n_el + 1 end
 	if ctx.deliver or ctx.raw.mic ~= nil or ctx.n_mics > 0 then n_el = n_el + 1 end
 	if ctx.drop or ctx.raw.coconut ~= nil or ctx.n_coconuts > 0 then n_el = n_el + 1 end
 	if n_el > 3 then errs[#errs + 1] = "2.1.6 more than three different elements" end
@@ -385,7 +425,7 @@ local function normalize(raw, errs)
 			difficulty = C.DIFFICULTY[raw.difficulty],
 			colors = {}, weights = {}, goals = {},
 			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {},
-			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil,
+			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil,
 		},
 	}
 	read_cells(ctx)
@@ -393,6 +433,7 @@ local function normalize(raw, errs)
 	read_spawners_and_exits(ctx)
 	read_layers(ctx)
 	read_slots(ctx)
+	read_curtain(ctx)
 	static_rules(ctx)
 	return ctx.lvl, ctx.slot_at
 end
@@ -408,6 +449,7 @@ local function settle(lvl, slot_at, keep_fixed)
 	local s = B.new_state(lvl)
 	s.colorless = true
 	s.timing = C.TIMING_TURBO
+	s.cur_closed = false -- the curtains count as open here: every cell must be fillable once they are (10.7)
 	for i = 1, s.N do s.exit[i] = false end
 	-- B1 keeps only the voids: the pieces under wires are gone, and wires exist
 	-- only over a regular piece (1.1), so the overlay is gone with them.

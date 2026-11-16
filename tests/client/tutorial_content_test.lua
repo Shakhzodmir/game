@@ -95,7 +95,8 @@ local function play(level, defs, mode)
 end
 
 -- The first level that has each of the elements of the plan (slots, floor tiles, overlay): the level that brings it.
-local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain" }
+local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain",
+	"curtain" }
 
 -- the last level of the game: the `last` of the last district of content/districts.json
 local function last_level()
@@ -114,6 +115,7 @@ local function first_levels()
 			for _, slot in ipairs(level.slots or {}) do kinds[slot.type] = true end
 			for _, o in ipairs(level.overlay or {}) do kinds[o.type] = true end
 			if level.floor and #level.floor > 0 then kinds.dancefloor = true end
+			if level.curtain then kinds.curtain = true end -- (core-rules 10.7: a block of its own, not a slot)
 			for _, k in ipairs(ELEMENTS) do
 				if kinds[k] and not first[k] then first[k] = n end
 			end

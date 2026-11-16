@@ -19,6 +19,8 @@ return {
 	["blocker.dancefloor_desc"] = "보라색 타일 위에서 매치하면 금빛으로 켜져요. 이중 테두리는 두 번 맞춰야 해요.",
 	["blocker.mic"] = "마이크",
 	["blocker.chain"] = "사슬",
+	["blocker.curtain"] = "커튼",
+	["blocker.curtain_desc"] = "커튼이 닫혀 있는 동안에는 그 아래 조각을 건드릴 수 없어요. 커튼이 열릴 때까지 기다려 주세요.",
 	["blocker.chain_desc"] = "사슬에 묶인 조각은 직접 옮길 수 없어요. 같은 색으로 줄을 맞추면 사슬이 끊어져요.",
 	["blocker.coconut"] = "코코넛",
 	["blocker.coconut_desc"] = "코코넛은 터지지 않아요. 아래 조각을 없애서 맨 아랫줄까지 내려 주세요.",
@@ -171,6 +173,7 @@ return {
 
 	["level.fixed_blocker"] = "움직이지 않아요. 옆에서 매치해서 부수세요",
 	["level.fixed_chained"] = "사슬에 묶인 조각은 옮길 수 없어요. 같은 색으로 줄을 맞추세요",
+	["level.fixed_veiled"] = "커튼이 닫혀 있어요. 열릴 때까지 기다리세요",
 	["level.fixed_wired"] = "전선에 묶인 조각은 움직이지 않아요. 그 자리에서 맞추세요",
 
 	["lives.free_levels"] = "1~{n}레벨은 하트가 들지 않아요",
@@ -411,6 +414,7 @@ return {
 	["tutorial.balloon_match"] = "풍선 옆에서 같은 색을 맞추면 터져요",
 	["tutorial.bird"] = "2×2 정사각형을 맞추면 노래새가 나와요!",
 	["tutorial.booster"] = "부스터를 누르고 대상을 고르세요",
+	["tutorial.curtain"] = "커튼이 닫히면 기다리고, 열리면 움직여요!",
 	["tutorial.chain"] = "사슬이 조각을 붙잡고 있어요. 줄을 맞춰 끊어요!",
 	["tutorial.chain_match"] = "이 조각과 같은 색을 맞추면 사슬이 끊어져요",
 	["tutorial.coconut"] = "코코넛은 터지지 않아요. 맨 아랫줄까지 내려 주세요!",
