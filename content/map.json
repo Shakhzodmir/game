@@ -224,7 +224,13 @@
    "gate": "mapbg/gate_skyclub",
    "gate_y": 38615,
    "tint": "#E8E0FA",
-   "deco": []
+   "deco": [],
+   "sign": {
+    "dx": -1,
+    "dy": 112,
+    "h": 67,
+    "w": 281
+   }
   }
  ],
  "nodes": [
