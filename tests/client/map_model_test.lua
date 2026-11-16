@@ -194,7 +194,7 @@ describe("client.map_model", function()
 		assert_eq(m:segment_at(0), 1)
 		assert_eq(m:segment_at(m:node(21).y), 2)
 		assert_eq(m:segment_at(m.world_h + 500), #m.segments)
-		assert_eq(#m.segments, 14, "fourteen districts")
+		assert_eq(#m.segments, 15, "fifteen districts")
 		local seg = m.segments[2]
 		local a, b = m:tiles(2, seg.y0 + 100, 1280, 0)
 		assert_eq(a, 0)

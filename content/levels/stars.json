@@ -298,5 +298,5 @@
   "297":{"kind":"normal","t":[7100,8300,9600],"best":11700,"witness":["strong",4128],"wins":18,"games":40,"share3":333,"sig":"5c37a8537f94ac66"},
   "298":{"kind":"normal","t":[10000,11300,14000],"best":17350,"witness":["greedy",4113],"wins":36,"games":40,"share3":306,"sig":"2e58133b64df7310"},
   "299":{"kind":"normal","t":[11700,14700,18000],"best":21770,"witness":["strong",4126],"wins":34,"games":40,"share3":265,"sig":"60add8c930f5e276"},
-  "300":{"kind":"concert","t":[16100,17400,19500],"best":28640,"witness":["strong",4110],"wins":14,"games":50,"share3":214,"sig":"2d66cd511cdd7bc9"}
+  "300":{"kind":"concert","t":[21200,24000,26500],"best":29430,"witness":["strong",4110],"wins":20,"games":40,"share3":200,"sig":"1ffb144a515c684a"}
 }}

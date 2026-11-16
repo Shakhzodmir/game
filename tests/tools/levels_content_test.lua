@@ -4,8 +4,8 @@
 -- (or the level, if the plan is right).
 --   * every file loads through the core (rules 2.1) and keeps the plan of levels-plan.md: the difficulty saw,
 --     the colours of its stretch, 20-35 moves (the same as `luajit tools/levels.lua validate --strict`);
---   * the saw earns 126 stars in the first hundred, the files 364 in all; the town costs 363 (meta-economy.md,
---     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11, 12, 13 and 14 cost what
+--   * the saw earns 126 stars in the first hundred, the files 390 in all; the town costs 389 (meta-economy.md,
+--     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11, 12, 13, 14 and 15 cost what
 --     their saws earn, 26 each);
 --   * every level of the README table agrees with its file: difficulty, size and cells, colours, elements,
 --     goals, and the "(обучение)" mark with the lessons of content/tutorials.json. The moves column is only
@@ -103,9 +103,9 @@ local function cell_count(raw)
 end
 
 describe("level content: the files", function()
-	it("has every level of the fourteen districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
+	it("has every level of the fifteen districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
 		local problems = {}
-		assert_eq(LAST, 280, "the last level of the last district")
+		assert_eq(LAST, 300, "the last level of the last district")
 		for n, f in ipairs(files()) do
 			for _, e in ipairs(f.res.errors) do problems[#problems + 1] = "level " .. n .. ": " .. e end
 			for _, w in ipairs(f.res.warnings) do problems[#problems + 1] = "level " .. n .. ": " .. w end
@@ -117,9 +117,9 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 364 stars on the saw (130 in the first hundred), more than the 363 of the town", function()
+	it("earns 390 stars on the saw (130 in the first hundred), more than the 389 of the town", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
-		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220, stars240, counts240, stars260, counts260
+		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220, stars240, counts240, stars260, counts260, stars280, counts280
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
@@ -160,6 +160,10 @@ describe("level content: the files", function()
 				stars260 = stars
 				counts260 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
 			end
+			if n == 280 then
+				stars280 = stars
+				counts280 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
+			end
 		end
 		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
 		assert_same(counts100, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
@@ -199,14 +203,18 @@ describe("level content: the files", function()
 		assert_eq(stars260, 338)
 		-- district 14 (WP-17, levels 261-280) has the same saw: 10 easy, 6 medium, hard 267 and 273, super hard 277
 		-- and the concert 280: 26 stars for a price of 26, the spare stays 1 star
-		assert_same(counts, { easy = 139, medium = 82, hard = 34, super_hard = 25 })
-		assert_eq(stars, 364)
+		assert_same(counts280, { easy = 139, medium = 82, hard = 34, super_hard = 25 })
+		assert_eq(stars280, 364)
+		-- district 15 (WP-17, levels 281-300), the last of the plan, has the same saw: 10 easy, 6 medium, hard 287 and 293,
+		-- super hard 297 and the concert 300: 26 stars for a price of 26, the spare stays 1 star
+		assert_same(counts, { easy = 149, medium = 88, hard = 36, super_hard = 27 })
+		assert_eq(stars, 390)
 		local town = json.decode(read("content/districts.json"))
 		local cost = 0
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 363, "the stars the town costs (content/districts.json)")
+		assert_eq(cost, 389, "the stars the town costs (content/districts.json)")
 		assert_eq(stars - cost, 1, "one spare star is left")
 		assert_true(stars >= cost, "the town cannot be finished: " .. stars .. " stars for " .. cost)
 	end)
@@ -305,6 +313,8 @@ local function row_problems(n, cells, raw)
 	expect("лёд (%d+)", count_overlay(raw, "ice"), "лёд") -- (10.11)
 	-- the fog (10.13): "туман N" exactly where the file has the list; N = the cells under the fog at the start
 	expect("туман (%d+)", #(raw.fog or {}), "туман")
+	-- the portals (10.14): "порталы N" exactly where the file has the list; N = the pairs of an entrance and an exit
+	expect("порталы (%d+)", #(raw.portals or {}), "порталы")
 	local columns = count_slots(raw, "column")
 	if columns == 1 then
 		if not elements:find("колонка (", 1, true) then bad("элементы", "one column must be named 'колонка (hpN)'") end
