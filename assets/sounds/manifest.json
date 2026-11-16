@@ -5814,6 +5814,345 @@
      }
     }
    ]
+  },
+  "cinema": {
+   "id": "cinema",
+   "bpm": 92,
+   "key": "Eb",
+   "bars": 8,
+   "sample_rate": 22050,
+   "loop_samples": 460174,
+   "loop_samples_44100": 920348,
+   "loop_seconds": 20.869569,
+   "exact_seconds": 20.869565,
+   "chords": [
+    "Eb",
+    "Ab",
+    "Cm",
+    "Bbsus4",
+    "Bb",
+    "Ab",
+    "Eb",
+    "Fm7",
+    "Bb",
+    "Eb"
+   ],
+   "chord_beats": [
+    4,
+    4,
+    4,
+    2,
+    2,
+    4,
+    4,
+    2,
+    2,
+    4
+   ],
+   "stem_gain_db": {
+    "timpani": -6.73,
+    "cello": -22.83,
+    "harp": -13.48,
+    "drums": -9.26,
+    "brass": -17.49,
+    "choir": -31.3,
+    "tension": -15.3,
+    "party": -10.16
+   },
+   "combos": {
+    "tasks": {
+     "peak_dbfs": -1.62,
+     "true_peak_dbtp": -1.62,
+     "lufs": -19.9
+    },
+    "tasks+tension": {
+     "peak_dbfs": -1.07,
+     "true_peak_dbtp": -1.06,
+     "lufs": -19.1
+    },
+    "tasks+party": {
+     "peak_dbfs": -1.2,
+     "true_peak_dbtp": -1.2,
+     "lufs": -18.8
+    },
+    "all stems (never played together)": {
+     "peak_dbfs": -0.43,
+     "true_peak_dbtp": -0.43,
+     "lufs": -18.2
+    }
+   },
+   "tension_delta_lu": 0.8,
+   "party_delta_lu": 1.1,
+   "unlock": [
+    {
+     "stem": "timpani",
+     "task": "timpani",
+     "cost": 1,
+     "stem_lufs": -25.8,
+     "mix_before_lufs": null,
+     "stem_vs_mix_lu": null,
+     "delta_lu": null
+    },
+    {
+     "stem": "cello",
+     "task": "cello",
+     "cost": 5,
+     "stem_lufs": -28.1,
+     "mix_before_lufs": -25.8,
+     "stem_vs_mix_lu": -2.4,
+     "delta_lu": 1.85
+    },
+    {
+     "stem": "harp",
+     "task": "harp",
+     "cost": 5,
+     "stem_lufs": -29.3,
+     "mix_before_lufs": -23.9,
+     "stem_vs_mix_lu": -5.4,
+     "delta_lu": 1.16
+    },
+    {
+     "stem": "drums",
+     "task": "drum",
+     "cost": 6,
+     "stem_lufs": -27.3,
+     "mix_before_lufs": -22.8,
+     "stem_vs_mix_lu": -4.6,
+     "delta_lu": 1.3
+    },
+    {
+     "stem": "brass",
+     "task": "projector",
+     "cost": 7,
+     "stem_lufs": -28.2,
+     "mix_before_lufs": -21.5,
+     "stem_vs_mix_lu": -6.7,
+     "delta_lu": 0.82
+    },
+    {
+     "stem": "choir",
+     "task": "clapper",
+     "cost": 7,
+     "stem_lufs": -27.3,
+     "mix_before_lufs": -20.6,
+     "stem_vs_mix_lu": -6.7,
+     "delta_lu": 0.79
+    }
+   ],
+   "brightness": {
+    "centroid_hz": 753,
+    "hf_2k_8k_vs_mid_db": -9.5,
+    "air_8k_16k_vs_mid_db": -22.5,
+    "share_below_150hz_pct": 18.5
+   },
+   "key_reading": {
+    "tasks": {
+     "major": 0.9,
+     "relative_minor": 0.44,
+     "best": "Eb maj",
+     "best_r": 0.9
+    },
+    "tasks+party": {
+     "major": 0.93,
+     "relative_minor": 0.53,
+     "best": "Eb maj",
+     "best_r": 0.93
+    },
+    "party alone": {
+     "major": 0.83,
+     "relative_minor": 0.75,
+     "best": "Eb maj",
+     "best_r": 0.83
+    },
+    "tension alone": {
+     "major": 0.82,
+     "relative_minor": 0.4,
+     "best": "Eb maj",
+     "best_r": 0.82
+    }
+   },
+   "mix_seam": {
+    "step_vs_beats": 0.1,
+    "click_vs_beats": 0.642
+   },
+   "stems": [
+    {
+     "path": "assets/music/cinema/timpani.ogg",
+     "duration": 20.8696,
+     "samples": 460174,
+     "sample_rate": 22050,
+     "peak_dbfs": -4.13,
+     "true_peak_dbtp": -3.84,
+     "rms_dbfs": -25.25,
+     "bytes": 113157,
+     "stem": "timpani",
+     "task": "timpani",
+     "cost": 1,
+     "loudness_db": -25.7,
+     "lufs": -25.8,
+     "centroid_hz": 499,
+     "harmony_in_scale_pct": 90.3,
+     "seam": {
+      "step_vs_beats": 0.008,
+      "click_vs_beats": 0.002,
+      "codec_edge": 1.0
+     }
+    },
+    {
+     "path": "assets/music/cinema/cello.ogg",
+     "duration": 20.8696,
+     "samples": 460174,
+     "sample_rate": 22050,
+     "peak_dbfs": -14.81,
+     "true_peak_dbtp": -14.78,
+     "rms_dbfs": -27.42,
+     "bytes": 80715,
+     "stem": "cello",
+     "task": "cello",
+     "cost": 5,
+     "loudness_db": -27.7,
+     "lufs": -28.1,
+     "centroid_hz": 396,
+     "harmony_in_scale_pct": 98.7,
+     "seam": {
+      "step_vs_beats": 0.106,
+      "click_vs_beats": 0.022,
+      "codec_edge": 0.25
+     }
+    },
+    {
+     "path": "assets/music/cinema/harp.ogg",
+     "duration": 20.8696,
+     "samples": 460174,
+     "sample_rate": 22050,
+     "peak_dbfs": -9.51,
+     "true_peak_dbtp": -9.31,
+     "rms_dbfs": -30.28,
+     "bytes": 129574,
+     "stem": "harp",
+     "task": "harp",
+     "cost": 5,
+     "loudness_db": -28.6,
+     "lufs": -29.3,
+     "centroid_hz": 1785,
+     "harmony_in_scale_pct": 92.1,
+     "seam": {
+      "step_vs_beats": 0.085,
+      "click_vs_beats": 0.185,
+      "codec_edge": 1.26
+     }
+    },
+    {
+     "path": "assets/music/cinema/drums.ogg",
+     "duration": 20.8696,
+     "samples": 460174,
+     "sample_rate": 22050,
+     "peak_dbfs": -7.87,
+     "true_peak_dbtp": -7.73,
+     "rms_dbfs": -26.69,
+     "bytes": 115650,
+     "stem": "drums",
+     "task": "drum",
+     "cost": 6,
+     "loudness_db": -27.4,
+     "lufs": -27.3,
+     "centroid_hz": 1043,
+     "harmony_in_scale_pct": 57.2,
+     "seam": {
+      "step_vs_beats": 0.111,
+      "click_vs_beats": 1.237,
+      "codec_edge": 0.77
+     }
+    },
+    {
+     "path": "assets/music/cinema/brass.ogg",
+     "duration": 20.8696,
+     "samples": 460174,
+     "sample_rate": 22050,
+     "peak_dbfs": -15.11,
+     "true_peak_dbtp": -15.1,
+     "rms_dbfs": -27.48,
+     "bytes": 83202,
+     "stem": "brass",
+     "task": "projector",
+     "cost": 7,
+     "loudness_db": -27.6,
+     "lufs": -28.2,
+     "centroid_hz": 465,
+     "harmony_in_scale_pct": 99.9,
+     "seam": {
+      "step_vs_beats": 0.077,
+      "click_vs_beats": 0.016,
+      "codec_edge": 0.12
+     }
+    },
+    {
+     "path": "assets/music/cinema/choir.ogg",
+     "duration": 20.8696,
+     "samples": 460174,
+     "sample_rate": 22050,
+     "peak_dbfs": -14.57,
+     "true_peak_dbtp": -14.5,
+     "rms_dbfs": -27.12,
+     "bytes": 101256,
+     "stem": "choir",
+     "task": "clapper",
+     "cost": 7,
+     "loudness_db": -26.6,
+     "lufs": -27.3,
+     "centroid_hz": 895,
+     "harmony_in_scale_pct": 99.1,
+     "seam": {
+      "step_vs_beats": 0.048,
+      "click_vs_beats": 0.003,
+      "codec_edge": 0.07
+     }
+    },
+    {
+     "path": "assets/music/cinema/tension.ogg",
+     "duration": 20.8696,
+     "samples": 460174,
+     "sample_rate": 22050,
+     "peak_dbfs": -12.94,
+     "true_peak_dbtp": -12.92,
+     "rms_dbfs": -25.91,
+     "bytes": 119162,
+     "stem": "tension",
+     "task": null,
+     "cost": null,
+     "loudness_db": -26.6,
+     "lufs": -26.8,
+     "centroid_hz": 378,
+     "harmony_in_scale_pct": 99.0,
+     "seam": {
+      "step_vs_beats": 0.106,
+      "click_vs_beats": 0.901,
+      "codec_edge": 0.7
+     }
+    },
+    {
+     "path": "assets/music/cinema/party.ogg",
+     "duration": 20.8696,
+     "samples": 920348,
+     "sample_rate": 44100,
+     "peak_dbfs": -7.83,
+     "true_peak_dbtp": -7.83,
+     "rms_dbfs": -26.07,
+     "bytes": 199458,
+     "stem": "party",
+     "task": null,
+     "cost": null,
+     "loudness_db": -24.7,
+     "lufs": -25.5,
+     "centroid_hz": 1788,
+     "harmony_in_scale_pct": 99.5,
+     "seam": {
+      "step_vs_beats": 0.079,
+      "click_vs_beats": 0.945,
+      "codec_edge": 0.96
+     }
+    }
+   ]
   }
  },
  "songs": {
@@ -7920,6 +8259,340 @@
     "step_vs_beats": 0.012,
     "click_vs_beats": 0.098,
     "codec_edge": 0.49
+   }
+  },
+  "adventure_overture": {
+   "id": "adventure_overture",
+   "genre": "cinema",
+   "bpm": 132,
+   "key": "Eb",
+   "bars": 16,
+   "path": "assets/music/songs/adventure_overture.ogg",
+   "duration": 29.0909,
+   "samples": 641455,
+   "sample_rate": 22050,
+   "peak_dbfs": -2.79,
+   "true_peak_dbtp": -2.76,
+   "rms_dbfs": -19.28,
+   "bytes": 168644,
+   "loop_samples": 641455,
+   "loop_samples_44100": 1282910,
+   "loop_seconds": 29.09093,
+   "exact_seconds": 29.090909,
+   "chords": [
+    "Eb",
+    "Eb",
+    "Ab",
+    "Eb",
+    "Cm",
+    "Fm",
+    "Bb",
+    "Bb",
+    "Eb",
+    "Eb",
+    "Ab",
+    "Eb",
+    "Ab",
+    "Bb",
+    "Eb",
+    "Bb"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "timp",
+    "strings",
+    "bass",
+    "lead",
+    "brass"
+   ],
+   "lufs": -19.9,
+   "lufs_target": -20.0,
+   "limiter_gr_db": 0.0,
+   "limiter_energy_gr_db": 0.0,
+   "centroid_hz": 628,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -8.9,
+    "air_8k_16k_vs_mid_db": -28.8,
+    "share_below_150hz_pct": 29.3
+   },
+   "key_reading": {
+    "major": 0.91,
+    "relative_minor": 0.45,
+    "best": "Eb maj",
+    "best_r": 0.91
+   },
+   "harmony_in_scale_pct": 98.1,
+   "harmony_in_scale_full_mix_pct": 97.2,
+   "seam": {
+    "step_vs_beats": 0.03,
+    "click_vs_beats": 0.37,
+    "codec_edge": 0.81
+   }
+  },
+  "balcony_waltz": {
+   "id": "balcony_waltz",
+   "genre": "cinema",
+   "bpm": 112,
+   "key": "Eb",
+   "bars": 12,
+   "path": "assets/music/songs/balcony_waltz.ogg",
+   "duration": 25.7143,
+   "samples": 567000,
+   "sample_rate": 22050,
+   "peak_dbfs": -2.5,
+   "true_peak_dbtp": -2.22,
+   "rms_dbfs": -19.95,
+   "bytes": 148101,
+   "loop_samples": 567000,
+   "loop_samples_44100": 1134000,
+   "loop_seconds": 25.714286,
+   "exact_seconds": 25.714286,
+   "chords": [
+    "Eb",
+    "Cm",
+    "Fm",
+    "Bb7",
+    "Eb",
+    "Cm",
+    "Ab",
+    "Bb7",
+    "Gm",
+    "Cm",
+    "Fm",
+    "Bb7",
+    "Ab",
+    "Bb7",
+    "Eb"
+   ],
+   "chord_beats": [
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    3.0,
+    6.0
+   ],
+   "parts": [
+    "arp",
+    "lead",
+    "clarinet",
+    "bass",
+    "strings",
+    "celesta"
+   ],
+   "lufs": -20.0,
+   "lufs_target": -20.0,
+   "limiter_gr_db": 0.0,
+   "limiter_energy_gr_db": 0.0,
+   "centroid_hz": 987,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -9.3,
+    "air_8k_16k_vs_mid_db": -21.6,
+    "share_below_150hz_pct": 11.2
+   },
+   "key_reading": {
+    "major": 0.82,
+    "relative_minor": 0.5,
+    "best": "Eb maj",
+    "best_r": 0.82
+   },
+   "harmony_in_scale_pct": 94.9,
+   "harmony_in_scale_full_mix_pct": 94.9,
+   "seam": {
+    "step_vs_beats": 0.057,
+    "click_vs_beats": 0.244,
+    "codec_edge": 1.0
+   }
+  },
+  "popcorn_chase": {
+   "id": "popcorn_chase",
+   "genre": "cinema",
+   "bpm": 152,
+   "key": "Eb",
+   "bars": 16,
+   "path": "assets/music/songs/popcorn_chase.ogg",
+   "duration": 25.2632,
+   "samples": 557053,
+   "sample_rate": 22050,
+   "peak_dbfs": -1.06,
+   "true_peak_dbtp": -1.06,
+   "rms_dbfs": -19.27,
+   "bytes": 140389,
+   "loop_samples": 557053,
+   "loop_samples_44100": 1114106,
+   "loop_seconds": 25.263175,
+   "exact_seconds": 25.263158,
+   "chords": [
+    "Eb",
+    "Eb",
+    "Bb7",
+    "Bb7",
+    "Fm7",
+    "Bb7",
+    "Eb",
+    "Eb",
+    "Ab",
+    "Ab",
+    "Eb",
+    "Cm",
+    "Fm",
+    "Bb7",
+    "Eb",
+    "Bb7"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "bass",
+    "guitar",
+    "lead",
+    "piccolo",
+    "brass"
+   ],
+   "lufs": -20.0,
+   "lufs_target": -20.0,
+   "limiter_gr_db": -0.19,
+   "limiter_energy_gr_db": -0.0,
+   "centroid_hz": 769,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -10.2,
+    "air_8k_16k_vs_mid_db": -25.6,
+    "share_below_150hz_pct": 31.4
+   },
+   "key_reading": {
+    "major": 0.94,
+    "relative_minor": 0.59,
+    "best": "Eb maj",
+    "best_r": 0.94
+   },
+   "harmony_in_scale_pct": 98.4,
+   "harmony_in_scale_full_mix_pct": 96.3,
+   "seam": {
+    "step_vs_beats": 0.085,
+    "click_vs_beats": 0.063,
+    "codec_edge": 0.55
+   }
+  },
+  "closing_credits": {
+   "id": "closing_credits",
+   "genre": "cinema",
+   "bpm": 88,
+   "key": "Eb",
+   "bars": 10,
+   "path": "assets/music/songs/closing_credits.ogg",
+   "duration": 27.2727,
+   "samples": 601364,
+   "sample_rate": 22050,
+   "peak_dbfs": -3.02,
+   "true_peak_dbtp": -2.74,
+   "rms_dbfs": -19.39,
+   "bytes": 152035,
+   "loop_samples": 601364,
+   "loop_samples_44100": 1202728,
+   "loop_seconds": 27.272744,
+   "exact_seconds": 27.272727,
+   "chords": [
+    "Eb",
+    "Gm",
+    "Ab",
+    "Bb",
+    "Cm",
+    "Ab",
+    "Fm7",
+    "Bb7",
+    "Eb",
+    "Ab",
+    "Eb"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    2.0,
+    2.0,
+    4.0,
+    4.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "timp",
+    "lead",
+    "brass",
+    "choir",
+    "strings",
+    "bass",
+    "arp"
+   ],
+   "lufs": -20.0,
+   "lufs_target": -20.0,
+   "limiter_gr_db": 0.0,
+   "limiter_energy_gr_db": 0.0,
+   "centroid_hz": 664,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -11.3,
+    "air_8k_16k_vs_mid_db": -28.3,
+    "share_below_150hz_pct": 27.4
+   },
+   "key_reading": {
+    "major": 0.91,
+    "relative_minor": 0.6,
+    "best": "Eb maj",
+    "best_r": 0.91
+   },
+   "harmony_in_scale_pct": 93.1,
+   "harmony_in_scale_full_mix_pct": 93.1,
+   "seam": {
+    "step_vs_beats": 0.022,
+    "click_vs_beats": 0.736,
+    "codec_edge": 0.53
    }
   },
   "salon_morning": {
@@ -11597,16 +12270,16 @@
      "orange"
     ]
    ],
-   "with_music_dbtp": -0.35,
+   "with_music_dbtp": -0.1,
    "with_music_combo": [
-    4,
+    1,
     [
-     "blue",
-     "green"
+     "green",
+     "orange"
     ]
    ],
-   "with_music_district": "night_tide",
-   "with_music_beat": 24
+   "with_music_district": "cinema",
+   "with_music_beat": 28
   },
   "3": {
    "notes_clear_dbtp": -2.52,
@@ -11640,12 +12313,12 @@
    "with_music_beat": 0
   }
  },
- "total_bytes": 17150781,
+ "total_bytes": 18702124,
  "counts": {
   "notes": 66,
   "sfx": 40,
-  "music": 64,
-  "songs": 77
+  "music": 72,
+  "songs": 81
  },
  "checks": [
   "Notes: 66 files, phone M-max -20.04 … -19.93 LUFS within -20 ± 1: PASS; true peak ≤ -7 dBTP (max -7.07): PASS; max pitch error 1.60 cents < 5: PASS; YIN hears the written pitch on every note: PASS; purple C4–E4 harmonics 1–2 within 10 dB of the loudest: PASS; lengths 0.6–1.2 s: PASS.",
@@ -11658,6 +12331,7 @@
   "Music `garage`: 11 stems, identical duration (423360 samples at 22.05 kHz): PASS; worst realistic mix -1.15 dBTP / -1.18 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.18): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `beach`: 8 stems, identical duration (378000 samples at 22.05 kHz): PASS; worst realistic mix -1.19 dBTP / -1.32 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.30): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `carnival`: 8 stems, identical duration (341419 samples at 22.05 kHz): PASS; worst realistic mix -1.10 dBTP / -1.15 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -8.63): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
+  "Music `cinema`: 8 stems, identical duration (460174 samples at 22.05 kHz): PASS; worst realistic mix -1.06 dBTP / -1.07 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -3.84): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Songs `cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.6 … 28.2 s within 16–32: PASS; worst mix -1.17 dBTP / -1.31 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.6) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 89.7): PASS; seams clean: PASS.",
   "Songs `jazz`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.1 … 29.1 s within 16–32: PASS; worst mix -1.23 dBTP / -1.23 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.5 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.19): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
   "Songs `square`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.8 … 25.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.27 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.4) and ≤ 1 dB of the energy (max 0.04): PASS; in the key of the genre ≥ 85 % (min 94.5): PASS; seams clean: PASS.",
@@ -11665,6 +12339,7 @@
   "Songs `garage`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.5 … 26.7 s within 16–32: PASS; worst mix -1.21 dBTP / -1.59 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 4.5) and ≤ 1 dB of the energy (max 0.30): PASS; in the key of the genre ≥ 85 % (min 89.0): PASS; seams clean: PASS.",
   "Songs `beach`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.2 … 24.0 s within 16–32: PASS; worst mix -1.09 dBTP / -1.14 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.7 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.2) and ≤ 1 dB of the energy (max 0.14): PASS; in the key of the genre ≥ 85 % (min 96.5): PASS; seams clean: PASS.",
   "Songs `carnival`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 24.6 s within 16–32: PASS; worst mix -1.04 dBTP / -1.08 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.8) and ≤ 1 dB of the energy (max 0.17): PASS; in the key of the genre ≥ 85 % (min 95.5): PASS; seams clean: PASS.",
+  "Songs `cinema`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 25.3 … 29.1 s within 16–32: PASS; worst mix -1.06 dBTP / -1.06 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.2) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 93.1): PASS; seams clean: PASS.",
   "Songs `classical`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 29.1 s within 16–32: PASS; worst mix -1.10 dBTP / -1.34 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.9) and ≤ 1 dB of the energy (max 0.23): PASS; in the key of the genre ≥ 85 % (min 98.4): PASS; seams clean: PASS.",
   "Songs `folk`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.22 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.7) and ≤ 1 dB of the energy (max 0.08): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
   "Songs `latin`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 24.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.15 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.6 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.4) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 91.2): PASS; seams clean: PASS.",
@@ -11680,7 +12355,7 @@
   "Songs `ambient`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.7 … 30.0 s within 16–32: PASS; worst mix -4.46 dBTP / -4.46 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 91.8): PASS; seams clean: PASS.",
   "Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.",
   "Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
-  "Notes, SFX and district music 7.33 MB ≤ 10 MB: PASS.",
-  "Songs 77 files, 9.02 MB ≤ 14 MB: PASS."
+  "Notes, SFX and district music 8.23 MB ≤ 10 MB: PASS.",
+  "Songs 81 files, 9.60 MB ≤ 14 MB: PASS."
  ]
 }

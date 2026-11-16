@@ -124,6 +124,46 @@ embedded_components {
   data: "sound: \"/assets/music/carnival/trumpet.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_cinema_brass"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/brass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_cinema_cello"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/cello.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_cinema_choir"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/choir.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_cinema_drums"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/drums.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_cinema_harp"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/harp.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_cinema_party"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_cinema_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_cinema_timpani"
+  type: "sound"
+  data: "sound: \"/assets/music/cinema/timpani.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_garage_bass"
   type: "sound"
   data: "sound: \"/assets/music/garage/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -854,9 +894,19 @@ embedded_components {
   data: "sound: \"/assets/sounds/sfx/wires_snap.ogg\"\nlooping: 0\ngroup: \"sfx\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_adventure_overture"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/adventure_overture.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_arcade_sunrise"
   type: "sound"
   data: "sound: \"/assets/music/songs/arcade_sunrise.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_balcony_waltz"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/balcony_waltz.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_bamboo_garden"
@@ -927,6 +977,11 @@ embedded_components {
   id: "song_city_lights_pop"
   type: "sound"
   data: "sound: \"/assets/music/songs/city_lights_pop.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_closing_credits"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/closing_credits.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_coconut_cha_cha"
@@ -1102,6 +1157,11 @@ embedded_components {
   id: "song_pixel_quest"
   type: "sound"
   data: "sound: \"/assets/music/songs/pixel_quest.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_popcorn_chase"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/popcorn_chase.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_porch_pickin"

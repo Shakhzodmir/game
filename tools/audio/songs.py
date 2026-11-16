@@ -89,12 +89,14 @@ def _dur(text):
     return float(text)
 
 
-def tune(text, tonic, octave=5):
-    """Tune in scale degrees -> [(beat, beats, midi, vel)] ; octave = the octave of degree 1 (C4 = 60)."""
+def tune(text, tonic, octave=5, bar=4.0):
+    """Tune in scale degrees -> [(beat, beats, midi, vel)] ; octave = the octave of degree 1 (C4 = 60);
+    bar = the beats between two | (3 for a waltz)."""
     base = 12 * (octave + 1) + tonic
     out = []
+    bar_len = bar
     for bar, chunk in enumerate(text.split("|")):
-        pos = bar * 4.0
+        pos = bar * bar_len
         for tok in chunk.split():
             m = TUNE_RE.match(tok)
             if not m:
@@ -106,8 +108,8 @@ def tune(text, tonic, octave=5):
                 midi += 12 * (octs.count("+") - octs.count("-"))
                 out.append((pos, d, midi, {"!": 1.0, "_": 0.55, "": 0.8}[mark]))
             pos += d
-        if abs(pos - (bar + 1) * 4.0) > 1e-6:
-            raise ValueError("bar %d of the tune has %.3f beats" % (bar + 1, pos - bar * 4.0))
+        if abs(pos - (bar + 1) * bar_len) > 1e-6:
+            raise ValueError("bar %d of the tune has %.3f beats" % (bar + 1, pos - bar * bar_len))
     return out
 
 
@@ -1848,6 +1850,254 @@ def mambo_fireworks(s):
             "gang": room(s, shout, 0.2, 1.0, "gang", damp=5000)}
 
 
+# ================================================================== CINEMA (Eb)
+# A small film orchestra (the voices of the district theme in music.py: bowed and plucked strings, french horns,
+# harp, timpani). The genre "cinematic" of songs_ambient.py is another thing: string pads under a brass tune.
+
+def v_bow(s, m, d, v=0.8, k=0, att=0.07, vib=1.0, cutoff=2600.0, rel=0.2):
+    return M.bowed(m, s.sec(d), s.sr, key=k, attack=att, release=rel, vib=vib, cutoff=cutoff) * v
+
+
+def v_horn(s, m, d, v=0.8, k=0):
+    return M.horn(m, s.sec(d), s.sr, vel=v, key=k)
+
+
+def v_harp(s, m, d=1.0, v=0.7):
+    return M.harp(m, s.sr, key=m % 2) * v
+
+
+def v_opizz(s, m, d=0.3, v=0.8):
+    return M.pizz(m, s.sr, key=m % 3) * v
+
+
+def v_timp(s, m, v=0.8):
+    return M.timpani(m, s.sr, hard=round(0.3 + 0.7 * v, 1)) * v
+
+
+def timp_roll(s, buf, end_beat, m, beats=2.0, lo=0.2, hi=0.8):
+    """A timpani roll on `m` (eight strokes a beat) that swells up to `end_beat`."""
+    n = int(round(beats * 8))
+    for i in range(n):
+        s.add(buf, v_timp(s, m, lo + (hi - lo) * i / n), end_beat - beats + i / 8.0)
+
+
+def harp_gliss(s, buf, end_beat, top, n=12, beats=1.0, gain=1.0):
+    """A harp glissando up the scale of the key: `n` strings in `beats` beats, landing on `top` at `end_beat`."""
+    run = [m for m in range(48, top + 1) if (m - s.tonic) % 12 in MAJOR][-(n + 1):]
+    for i, m in enumerate(run[:-1]):
+        s.add(buf, M.harp(m, s.sr, key=2, dur=0.6), end_beat - beats + i * beats / n, gain * (0.3 + 0.5 * i / n))
+    s.add(buf, M.harp(run[-1], s.sr, key=3), end_beat, gain)
+
+
+def choir_even(s, chords, lo=60, hi=79, center=69):
+    """A sustained choir "ah" on the chords like choir_pad, but sung note by note (music.choir_ah): every note
+    has the same level, whichever formant it sits on."""
+    buf = s.zeros()
+    for c, v in zip(chords, voicing(chords, lo, hi, center, no_root, span=14)):
+        for j, m in enumerate(v):
+            s.add(buf, M.choir_ah(m, s.sec(c.dur) + 0.1, s.sr, key=j), c.start - 0.05)
+    return room(s, loop_filter(s, buf, "hp", 150), 0.45, 2.4, "choir", damp=5000, predelay=0.03)
+
+
+def adventure_overture(s):
+    """132 BPM overture: violins gallop on the chords (an 8th and two 16ths a beat), a trumpet plays the fanfare
+    tune, french horns answer it and hold the middle section, timpani on root and fifth, a soft snare gallop,
+    the bass drum and two cymbal crashes; a timpani roll leads back to the top."""
+    r = dsp.rng(s.id, "overture")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "march", "cinema")
+    d = s.zeros()
+    hits(s, d, k["snare"], ["x.ogx.ogx.ogx.oo", "x.ogx.ogx.ogxooo"], r, gain=0.5)
+    hits(s, d, k["bd"], "X.......x.......", r, gain=0.45)
+    hits(s, d, k["crash"], {0: "X...............", 8: "X..............."}, r, gain=0.5, jit=0.0)
+    d = room(s, d, 0.16, 1.2, "drums", damp=6000)
+    tp = s.zeros()
+    for i, c in enumerate(ch):
+        R = root_of(c, 44, 39, 50)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        for bt, m, v in ((0, R, 0.95), (2, F, 0.7), (3, F, 0.5), (3.5, R, 0.6)):
+            if i < len(ch) - 1 or bt < 2:
+                s.add(tp, v_timp(s, m, v), c.start + bt, dt=float(r.normal(0.002, 0.002)))
+    timp_roll(s, tp, s.beats, root_of(ch[-1], 44, 39, 50))
+    tp = room(s, loop_filter(s, tp, "hp", 45), 0.18, 1.4, "timp", damp=4000)
+    st = s.zeros()
+    for c, v in zip(ch, voicing(ch, 60, 77, 68)):
+        for q in range(int(c.dur)):
+            for bt, du, vel in ((0.0, 0.4, 0.85), (0.5, 0.2, 0.55), (0.75, 0.2, 0.65)):
+                for j, m in enumerate(v):
+                    s.add(st, v_bow(s, m, du, vel, k=j, att=0.012, vib=0.0, cutoff=3000.0, rel=0.06), c.start + q + bt,
+                          dt=float(r.normal(0.003, 0.002)))
+    st = room(s, loop_filter(s, st, "hp", 200), 0.2, 1.4, "strings", damp=5000)
+
+    def bass(c, n, i):
+        R = root_of(c, 46, 41, 52)
+        return [(0, 1.6, R, 0.9), (2, 0.9, R, 0.75), (3, 0.9, R + 7 if R + 7 <= 53 else R - 5, 0.8)]
+    bs_ = line(s, ch, bass, lambda ss, m, du, v: v_bow(ss, m, du, v, k=5, att=0.03, vib=0.0, cutoff=1200.0, rel=0.1),
+               r=r)
+    bs_ = room(s, loop_filter(s, bs_, "lp", 1200), 0.1, 1.0, "bass", damp=2500)
+    tn = tune("5:.5 5:.25 5:.25 1+:1 5:1 1+:1 | 3+:1.5 2+:.5 1+:2 | 6:.5 6:.25 6:.25 1+:1 4+:1.5 3+:.5 |"
+              " 2+:1 1+:1 5:1 r:1 | 3+:1.5 1+:.5 6:2 | 4+:1.5 2+:.5 6:2 | 5:1 7:1 2+:1 4+:1 | 5+:2.5 r:.5 5:.5 5:.5 |"
+              " 5:.5 5:.25 5:.25 1+:1 5:1 1+:1 | 3+:1.5 2+:.5 1+:2 | 6:.5 6:.25 6:.25 1+:1 4+:1.5 3+:.5 |"
+              " 3+:1 5+:1 3+:1 r:1 | 4+:1.5 3+:.5 4+:1 6:1 | 5+:1.5 4+:.5 2+:1 7:1 | 1+:3 r:1 | r:4", t, 4)
+    tr = room(s, mono(s, tn, "trumpet", key="overture"), 0.18, 1.3, "tpt", damp=4500)
+
+    def call(c, i):
+        bar = int(c.start // 4)
+        if bar in (4, 5, 6, 7, 12, 13, 14):
+            return [(0, 3.6, 0.75)]
+        if bar == 15:  # the horns alone turn the tune round: long, short-short-long
+            return [(0, 1.4, 0.8), (2, 0.4, 0.8), (2.75, 0.2, 0.7), (3, 0.9, 0.9)]
+        return [(0, 0.5, 0.8)] + ([(2.5, 0.4, 0.7), (3, 0.9, 0.85)] if bar in (3, 11) else [])
+    hn = room(s, comp(s, ch, voicing(ch, 55, 70, 63), call, v_horn, r=r), 0.22, 1.5, "horns", damp=4500)
+    return {"drums": d, "timp": tp, "strings": st, "bass": bs_, "lead": tr, "brass": hn}
+
+
+def balcony_waltz(s):
+    """112 BPM love theme, a waltz (three beats a bar, sixteen bars): a solo violin sings over a harp that plays
+    the bass on one and the chord on two and three, a clarinet joins a third or a sixth below in the second half
+    and answers alone in the last bar, cellos hold the roots, strings the chords, a celesta echoes every fourth
+    bar. No percussion."""
+    r = dsp.rng(s.id, "waltz")
+    t, ch = s.tonic, s.chords
+    hp = s.zeros()
+    for c, v in zip(ch, voicing(ch, 58, 74, 66, no_root)):
+        for w in range(int(c.dur // 3)):
+            o = c.start + w * 3
+            R = root_of(c, 44, 39, 50)
+            s.add(hp, v_harp(s, R if w == 0 else R + 7, 1.0, 0.9), o, dt=float(r.normal(0.003, 0.003)))
+            for bt, vel in ((1, 0.55), (2, 0.5)):
+                for j, m in enumerate(v):
+                    s.add(hp, v_harp(s, m, 1.0, vel), o + bt, dt=j * 0.012 + float(r.normal(0.003, 0.003)))
+    hp = room(s, loop_filter(s, hp, "hp", 70), 0.24, 1.7, "harp", damp=6000)
+    tn = tune("5:2 3+:1 | 3+:1.5 2+:.5 1+:1 | 6:1 2+:1 4+:1 | 4+:1.5 3+:.5 2+:1 |"
+              " 5:2 3+:1 | 5+:1.5 3+:.5 1+:1 | 4+:2 1+:1 | 2+:2 5:1 |"
+              " 7:1 3+:1 5+:1 | 5+:2 3+:1 | 4+:1 2+:1 6:1 | 7:1.5 1+:.5 2+:1 |"
+              " 4+:1.5 3+:.5 1+:1 | 2+:1 7:1 2+:1 | 1+:3 | r:3", t, 4, bar=3.0)
+    vn = lay(s, lambda ss, m, du, v: v_bow(ss, m, du, v, k=3, att=0.06, vib=1.3, cutoff=3400.0, rel=0.22), tn, r=r,
+             jit=0.006)
+    vn = room(s, loop_filter(s, vn, "hp", 180), 0.3, 1.9, "violin", damp=5000, predelay=0.025)
+    cl = second_voice(s, [e for e in tn if e[0] >= 24], 0.9) + [(45.0, 1.0, 58, 0.7), (46.0, 1.0, 63, 0.75),
+                                                                  (47.0, 1.0, 67, 0.8)]
+    cl = room(s, mono(s, cl, "clarinet", key="waltz"), 0.28, 1.8, "clar", damp=5000)
+
+    def roots(c, n, i):
+        return [(0, c.dur * 0.97, root_of(c, 44, 39, 50), 0.85)]
+    vc = line(s, ch, roots, lambda ss, m, du, v: v_bow(ss, m, du, v, k=6, att=0.12, vib=0.8, cutoff=1300.0, rel=0.3),
+              r=r)
+    vc = room(s, loop_filter(s, vc, "lp", 1300), 0.15, 1.5, "cellos", damp=3000)
+    st = comp(s, ch, voicing(ch, 55, 72, 63), lambda c, i: [(0, c.dur * 0.97, 0.6)], v_strings, r=r)
+    st = room(s, loop_filter(s, st, "lp", 3000), 0.3, 1.9, "strings", damp=4000)
+    ce = s.zeros()
+    for w in (3, 7, 11):  # the dominant bars
+        ns = chord_notes(chord_at(s, w * 3), 82, 95)
+        for i, bt in enumerate((1.0, 1.5, 2.0)):
+            s.add(ce, v_celesta(s, ns[(2 - i) % len(ns)], 0.8, 0.5), w * 3 + bt, dt=float(r.normal(0.003, 0.002)))
+    ce = room(s, ce, 0.3, 1.6, "celesta", damp=7000)
+    return {"arp": hp, "lead": vn, "clarinet": cl, "bass": vc, "strings": st, "celesta": ce}
+
+
+def popcorn_chase(s):
+    """152 BPM chase scherzo: a xylophone runs up and down the chords in staccato 8ths, a piccolo chirps in its
+    rests and races up the scale before the repeat, pizzicato strings play the off-beats, a tuba hops between
+    root and fifth (high, like a bassoon), muted brass pokes at the bars that wait on the dominant; two temple
+    blocks, a light snare and the bass drum."""
+    r = dsp.rng(s.id, "chase")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "march", "cinema")
+    d = s.zeros()
+    # two temple blocks on the tonic and the fifth (Eb6 on the beats, Bb5 between them): tick-tock
+    for f, pat in ((87, "x...x...x...x..."), (82, "..o...o...o...o.")):
+        hits(s, d, [ins.woodblock(s.sr, f=float(midi_hz(f)), key=i) for i in range(2)], pat, r, gain=0.5)
+    hits(s, d, k["snare"], ["....x.......x...", "....x.......x.oo"], r, gain=0.6)
+    hits(s, d, k["bd"], "X.......x.......", r, gain=0.4)
+    hits(s, d, k["cym"], {0: "X...............", 8: "X..............."}, r, gain=0.4, jit=0.0)
+    d = room(s, d, 0.12, 0.9, "drums", damp=6000)
+    tub = []
+    for c in ch:
+        R = root_of(c, 46, 43, 54)
+        tub += [(c.start, 0.45, R, 0.95), (c.start + 2, 0.45, R + 7 if R + 7 <= 55 else R - 5, 0.85)]
+    tuba = room(s, mono(s, tub, "tuba", key="chase"), 0.08, 0.7, "tuba", damp=3000)
+    pz = comp(s, ch, voicing(ch, 58, 75, 66, no_root), [(1, 0.3, 0.75), (3, 0.3, 0.75), (3.5, 0.3, 0.5)], v_opizz,
+              spread=0.006, r=r)
+    pz = room(s, loop_filter(s, pz, "hp", 180), 0.12, 0.9, "pizz", damp=6000)
+    tn = tune("1:.5 3:.5 5:.5 3:.5 1+:.5 5:.5 3:.5 5:.5 | 1:.5 3:.5 5:.5 3:.5 1+:1 r:1 |"
+              " 7-:.5 2:.5 4:.5 2:.5 5:.5 4:.5 2:.5 4:.5 | 7-:.5 2:.5 4:.5 2:.5 5:1 r:1 |"
+              " 4:.5 6:.5 1+:.5 6:.5 2+:.5 1+:.5 6:.5 4:.5 | 2:.5 4:.5 5:.5 7:.5 2+:1 r:1 |"
+              " 1+:.5 5:.5 3:.5 5:.5 1+:.5 5:.5 3:.5 1:.5 | 3:.5 1:.5 5-:.5 1:.5 3:1 r:1 |"
+              " 4:.5 6:.5 1+:.5 6:.5 1+:.5 6:.5 4:.5 6:.5 | 4:.5 6:.5 1+:.5 6:.5 4:1 r:1 |"
+              " 3:.5 5:.5 1+:.5 5:.5 3+:.5 1+:.5 5:.5 1+:.5 | 6:.5 1+:.5 3+:.5 1+:.5 6:1 r:1 |"
+              " 2:.5 4:.5 6:.5 4:.5 2+:.5 6:.5 4:.5 6:.5 | 5:.5 4:.5 2:.5 7-:.5 5-:.5 7-:.5 2:.5 4:.5 |"
+              " 3:.5 5:.5 1+:1 5:.5 3:.5 1:1 | r:4", t, 5)
+    xy = lay(s, lambda ss, m, du, v: ins.marimba(m, ss.sr, vel=v, dur=0.3, pan_sheen=0.05), tn, r=r, jit=0.003)
+    xy = room(s, loop_eq(s, loop_filter(s, xy, "hp", 300), "highshelf", 3000, 3.0), 0.14, 1.0, "xylo", damp=7000)
+    pc = []
+    for bar in (1, 3, 5, 7, 9, 11):  # a chirp where the xylophone breathes
+        ns = chord_notes(chord_at(s, bar * 4), 82, 94)
+        pc += [(bar * 4 + 3.0, 0.25, ns[1], 0.8), (bar * 4 + 3.25, 0.25, ns[0], 0.7), (bar * 4 + 3.5, 0.4, ns[1], 0.85)]
+    pc += [(60.0 + b, du, m, v) for b, du, m, v in tune("5-:.5 6-:.5 7-:.5 1:.5 2:.5 3:.5 4:.5 5:.5", t, 6)]
+    pic = room(s, mono(s, pc, "piccolo", key="chase"), 0.14, 0.9, "pic", damp=6000)
+
+    def poke(c, i):
+        return [(1.5, 0.2, 0.8), (2.5, 0.2, 0.7)] if int(c.start // 4) in (2, 3, 4, 5, 13) else []
+    br = comp(s, ch, voicing(ch, 60, 77, 68, no_root), poke, v_brass, r=r)
+    br = room(s, loop_filter(s, loop_filter(s, br, "hp", 500), "lp", 2600), 0.1, 0.8, "mute", damp=4000)
+    return {"drums": d, "bass": tuba, "guitar": pz, "lead": xy, "piccolo": pic, "brass": br}
+
+
+def closing_credits(s):
+    """88 BPM end credits, broad and slow: the violins sing the tune in octaves, french horns hold the chords in
+    a noble rhythm, a wordless choir and the inner strings fill the hall, basses bow the roots, the timpani mark
+    every chord and roll with a soft snare into bars 5, 9 and the repeat, where a cymbal crash, the bass drum and
+    a harp glissando land together."""
+    r = dsp.rng(s.id, "credits")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "cinema")
+    peaks = (0, 16, 32)  # the downbeats of bars 1, 5 and 9
+    d = s.zeros()
+    for b in peaks:
+        s.add(d, k["crash"][0], b, 0.6)
+        s.add(d, k["bd"][0], b, 1.0)
+        for i in range(24):  # a soft snare roll through the two beats before
+            hit(s, d, k["snare"], (b - 2.0 + i / 12.0) % s.beats, 0.1 + 0.02 * i, r, 0.006)
+    d = room(s, d, 0.25, 1.8, "drums", damp=6000)
+    tp = s.zeros()
+    for c in ch:
+        s.add(tp, v_timp(s, root_of(c, 44, 39, 50), 0.9 if c.dur >= 4 else 0.7), c.start,
+              dt=float(r.normal(0.002, 0.002)))
+    for b in peaks:
+        timp_roll(s, tp, b if b else s.beats, 46, hi=0.7)
+    tp = room(s, loop_filter(s, tp, "hp", 45), 0.2, 1.6, "timp", damp=4000)
+    tn = tune("3:1.5 4:.5 5:2 | 7:1.5 1+:.5 2+:2 | 3+:1.5 1+:.5 6:2 | 7:1.5 2+:.5 5+:2 | 5+:1.5 3+:.5 1+:2 |"
+              " 4+:1.5 3+:.5 1+:1 6:1 | 4:1 6:1 2+:1 4+:1 | 3+:3 5:1 | 4+:1.5 1+:.5 6:1 1+:1 | 1+:3.5 r:.5", t, 4)
+    vn = s.zeros()
+    for b, du, m, v in tn:
+        j = float(r.normal(0.004, 0.004))
+        s.add(vn, v_bow(s, m + 12, du, v, k=1, att=0.08, vib=1.2, cutoff=3600.0, rel=0.25), b, 1.0, dt=j)
+        s.add(vn, v_bow(s, m, du, v, k=2, att=0.08, vib=1.0, cutoff=3000.0, rel=0.25), b, 0.8, dt=j + 0.006)
+    vn = room(s, loop_filter(s, vn, "hp", 180), 0.32, 2.2, "violins", damp=5000, predelay=0.03)
+
+    def noble(c, i):
+        if c.dur < 4:
+            return [(0, c.dur - 0.15, 0.8)]
+        return [(0.0, 2.4, 0.85), (2.5, 0.45, 0.6), (3.0, 0.95, 0.8)] if i < len(ch) - 1 else [(0, 3.5, 0.85)]
+    hn = room(s, comp(s, ch, voicing(ch, 55, 70, 63, lambda c: c.tones[:3]), noble, v_horn, r=r), 0.28, 1.9, "horns",
+              damp=4500)
+    st = comp(s, ch, voicing(ch, 58, 75, 67), lambda c, i: [(0, c.dur * 0.97, 0.6)], v_strings, r=r)
+    st = room(s, loop_filter(s, st, "lp", 3200), 0.3, 2.0, "strings", damp=4000)
+    bs_ = line(s, ch, lambda c, n, i: [(0, c.dur * 0.96, root_of(c, 39, 34, 45), 0.9)],
+               lambda ss, m, du, v: v_bow(ss, m, du, v, k=5, att=0.1, vib=0.0, cutoff=1100.0, rel=0.25), r=r)
+    bs_ = room(s, loop_filter(s, bs_, "lp", 1100), 0.12, 1.4, "bass", damp=2500)
+    hp = s.zeros()
+    for c in ch:  # a rolled chord on every change
+        for j, m in enumerate(chord_notes(c, 51, 82, c.tones[:3])[:7]):
+            s.add(hp, v_harp(s, m, 1.0, 0.5 + 0.04 * j), c.start, dt=0.028 * j)
+    for b, top in zip(peaks, (87, 82, 87)):
+        harp_gliss(s, hp, b if b else s.beats, top)
+    hp = room(s, loop_filter(s, hp, "hp", 120), 0.26, 1.8, "harp", damp=7000)
+    return {"drums": d, "timp": tp, "lead": vn, "brass": hn, "choir": choir_even(s, ch), "strings": st, "bass": bs_,
+            "arp": hp}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -1904,6 +2154,16 @@ SONGS = {
                            {"drums": -24, "guitar": -20, "lead": -18, "strings": -26, "bass": -21}),
     "mambo_fireworks": ("I6:4 V7:4 V7:4 I6:4 I6:4 V7:4 V7:4 I6:4 IV6:4 I6:4 V7:4 I6:4 IV6:4 I6:4 ii7:2 V7:2 I6:4",
                         mambo_fireworks, {"sax": -19, "brass": -21, "lead": -19, "keys": -24, "gang": -20}),
+    # cinema (Eb major)
+    "adventure_overture": ("I:4 I:4 IV:4 I:4 vi:4 ii:4 V:4 V:4 I:4 I:4 IV:4 I:4 IV:4 V:4 I:4 V:4", adventure_overture,
+                           {"drums": -21, "timp": -21, "strings": -21, "bass": -21, "lead": -18, "brass": -20}),
+    "balcony_waltz": ("I:3 vi:3 ii:3 V7:3 I:3 vi:3 IV:3 V7:3 iii:3 vi:3 ii:3 V7:3 IV:3 V7:3 I:6", balcony_waltz,
+                      {"arp": -20, "lead": -18, "clarinet": -22, "bass": -24, "strings": -25, "celesta": -25}),
+    "popcorn_chase": ("I:4 I:4 V7:4 V7:4 ii7:4 V7:4 I:4 I:4 IV:4 IV:4 I:4 vi:4 ii:4 V7:4 I:4 V7:4", popcorn_chase,
+                      {"drums": -21, "bass": -20, "guitar": -23, "lead": -18, "piccolo": -21, "brass": -23}),
+    "closing_credits": ("I:4 iii:4 IV:4 V:4 vi:4 IV:4 ii7:2 V7:2 I:4 IV:4 I:4", closing_credits,
+                        {"drums": -23, "timp": -22, "lead": -18, "brass": -21, "choir": -25, "strings": -24,
+                         "bass": -21, "arp": -23}),
 }
 
 

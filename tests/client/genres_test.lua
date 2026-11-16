@@ -1,5 +1,5 @@
 -- The jukebox genres that are not districts (content/genres.json): the catalogue, the unlock switch
--- (meta/config.lua genres_unlock), the song of every room, and the window that pages through its genres (seven districts + 15 more).
+-- (meta/config.lua genres_unlock), the song of every room, and the window that pages through its genres (eight districts + 15 more).
 
 local G = require("tests.client.meta_gui_helper")
 local json = require("tools.lib.json")
@@ -126,18 +126,20 @@ describe("genres open with their district (the default) or all at once (config)"
 		with_mode("districts", function()
 			local m = new_meta()
 			local vm = views.jukebox(m, nil, nil)
-			assert_eq(#vm.tabs, 22)
+			assert_eq(#vm.tabs, 23)
 			assert_eq(vm.tabs[5].id, "garage")
 			assert_eq(vm.tabs[6].id, "beach")
 			assert_eq(vm.tabs[6].state, "locked")
 			assert_eq(vm.tabs[7].id, "carnival")
 			assert_eq(vm.tabs[7].state, "locked")
-			assert_eq(vm.tabs[8].id, "classical")
-			assert_eq(vm.tabs[8].state, "open")
-			assert_eq(vm.tabs[8].group, "classic")
-			assert_eq(vm.tabs[8].icon, "ui/genres/classical")
-			assert_eq(vm.tabs[10].id, "latin")
-			assert_eq(vm.tabs[10].state, "locked")
+			assert_eq(vm.tabs[8].id, "cinema")
+			assert_eq(vm.tabs[8].state, "locked")
+			assert_eq(vm.tabs[9].id, "classical")
+			assert_eq(vm.tabs[9].state, "open")
+			assert_eq(vm.tabs[9].group, "classic")
+			assert_eq(vm.tabs[9].icon, "ui/genres/classical")
+			assert_eq(vm.tabs[11].id, "latin")
+			assert_eq(vm.tabs[11].state, "locked")
 			assert_eq(#vm.songs.classical, 4)
 			assert_true(vm.songs.classical[1].playable)
 			assert_false(vm.songs.latin[1].playable)
@@ -149,6 +151,15 @@ describe("genres open with their district (the default) or all at once (config)"
 			assert_eq(#full.songs.carnival, 5, "the theme and four songs")
 			local seen = {}
 			for _, id in ipairs({ "carnival", "latin" }) do
+				for _, row in ipairs(full.songs[id]) do
+					assert_true(seen[row.id] == nil, row.id .. " is in two genres")
+					seen[row.id] = id
+				end
+			end
+			-- the same for the district "cinema" (genre name Soundtrack) and the extra genre "cinematic"
+			assert_eq(#full.songs.cinema, 5, "the theme and four songs")
+			assert_eq(#full.songs.cinematic, 3)
+			for _, id in ipairs({ "cinema", "cinematic" }) do
 				for _, row in ipairs(full.songs[id]) do
 					assert_true(seen[row.id] == nil, row.id .. " is in two genres")
 					seen[row.id] = id
@@ -175,6 +186,7 @@ describe("every room has its own song", function()
 		assert_eq(#m:districts(), #H.districts().districts)
 		assert_true(seen.beach, "district 6 has its own theme")
 		assert_true(seen.carnival, "district 7 has its own theme")
+		assert_true(seen.cinema, "district 8 has its own theme")
 	end)
 
 	it("a pick wins over the room until the way home is taken", function()
@@ -193,7 +205,7 @@ describe("every room has its own song", function()
 	end)
 end)
 
-describe("the jukebox window with twenty-two genres", function()
+describe("the jukebox window with twenty-three genres", function()
 	it("shows three tabs a page, pages with two arrows and plays a song of a new genre", function()
 		G.with_town({ setup = function(app) G.build_tasks(app, "cafe") end }, function(c)
 			open(c, "jukebox")
@@ -213,6 +225,7 @@ describe("the jukebox window with twenty-two genres", function()
 			wtap(c, "tabs_next")
 			assert_eq(c.app.ui.jukebox.tab_page, 3)
 			assert_true(c.app.ui.popup_targets.tab_carnival ~= nil)
+			assert_true(c.app.ui.popup_targets.tab_cinema ~= nil, "the eighth district sits between the carnival and the first extra genre")
 			assert_true(c.app.ui.popup_targets.tab_classical ~= nil)
 			assert_eq(c.app.ui.jukebox.tab, "jazz", "turning the page does not change the genre")
 			wtap(c, "tab_classical")
