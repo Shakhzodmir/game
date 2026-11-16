@@ -620,10 +620,14 @@ describe("core fog: the blind clone, the view of a fair bot (17.3, 10.13)", func
 		assert_false(v:has_move())
 	end)
 
-	it("wires under the fog are not in the view; a level without fog clones as ever", function()
-		local g = fresh(PA, { { 4, 4 } }, { overlay = { { at = { 3, 3 }, type = "wires", hp = 1 } } })
+	it("wires and a floor tile under the fog are not in the view; a level without fog clones as ever", function()
+		local g = fresh(PA, { { 4, 4 } }, { overlay = { { at = { 3, 3 }, type = "wires", hp = 1 } },
+			floor = { { at = { 3, 3 }, hp = 2 }, { at = { 0, 5 }, hp = 1 } } })
 		assert_eq(g.s.wires[idx(4, 4)], 1)
-		assert_eq(g:clone({ blind = true }).s.wires[idx(4, 4)], 0)
+		local v = g:clone({ blind = true })
+		assert_eq(v.s.wires[idx(4, 4)], 0)
+		-- the tile under the cloud is unknown, the tile in the open is seen
+		assert_same({ g.s.floor[idx(4, 4)], v.s.floor[idx(4, 4)], v.s.floor[idx(1, 6)] }, { 2, 0, 1 })
 		local plain = fresh(PA, nil)
 		assert_eq(plain:clone({ blind = true }):hash(), plain:hash())
 	end)

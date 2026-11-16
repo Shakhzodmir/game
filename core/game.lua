@@ -261,10 +261,12 @@ function Game:clone(opts)
 	if opts and opts.blind and s.fog then
 		-- a clone that knows only what the player sees (10.13): whatever stands in a fogged cell becomes a
 		-- colourless regular piece (it falls and can be destroyed, but it matches nothing and is nobody's
-		-- colour), without wires, chain or ice. The bots look ahead only on such clones.
+		-- colour), without wires, chain or ice, and the floor tile of a fogged cell is not there (the cloud
+		-- covers the tile too). The bots look ahead only on such clones.
 		for i = 1, s.N do
 			if s.fog[i] then
 				s.wires[i] = 0
+				s.floor[i] = 0
 				local o = B.get(s, i)
 				if o and o.cell == i and o.blocker ~= C.BK_COLUMN and (o.state == C.S_IDLE or o.state == C.S_FALL) then
 					o.kind, o.color, o.special, o.axis, o.blocker, o.hp = C.K_REGULAR, 0, 0, 0, 0, 0

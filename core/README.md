@@ -415,3 +415,28 @@ gift. An empty bale (`gift` none) is exactly a record box. `pieces()` never
 tells the gift. Hash: the gift code of every cell is appended only when
 `level.has_hay`; nothing is drawn and nothing changes on a level without hay.
 Goal: the ordinary `break` with item `hay`. Tests: `tests/core/hay_test.lua`.
+
+## Stage fog (§10.13)
+
+The fog of district 14 is a flag of the cell (`s.fog[i]`; `false` on a level
+without the field `fog`), not a layer with hp and not a property of the piece:
+it is the first element that only HIDES. No rule of the board reads it: moves,
+matches, gravity, the shuffle and the deadlock check work on the true board.
+It is cleared by one function only, step 0b of the hit (`hits.lua`,
+`fog_clear`): any hit that reaches a fogged cell (match, adjacent, effect)
+clears the flag for good, before the deduplication and the layers, whatever
+stands in the cell (score `C.SCORE_HP`, event `fog`, goal `C.GOAL_FOG`).
+Level: field `fog` (a list of cells) and goal `{type: "fog"}` (`level.lua`
+`read_fog`, rule 2.1.15: no fog over a blocker, a spawner, an exit or under a
+curtain). Fairness lives in three places: the hint (`hint.lua`) masks the
+colours of fogged cells and never shows a pair with an end in the fog unless
+nothing visible is left (`blind = true`), and is silent rather than show two
+visible pieces that need a hidden colour; `game:clone({blind = true})`
+(`game.lua`) replaces what stands in fogged cells by colourless stand-ins
+(colour 0, `B.most_frequent` skips them) and drops the wires and floor tiles
+there: the bots choose and evaluate on such clones only; the Crossfader refuses
+a fogged cell and a paid starting special is not placed under the fog
+(`boosters.lua`, `start.lua`). `cells()` carries `fog`, `pieces()` carries
+`fogged` with the true content: hiding it is the client's work
+(`client/level_fog.lua`). Hash: the flags are appended only when `level.fog`.
+Tests: `tests/core/fog_test.lua`.
