@@ -168,6 +168,18 @@
         { "kind": "notes", "item": "guitar", "x": 632, "y": 500, "count": 2, "layer": "over", "colors": ["#FFB347", "#7CC8FF"], "rise": 170, "period": 4.6 },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "arcade": {
+      "mood": "neon",
+      "details": [
+        { "kind": "shaft", "x": 360, "y": 180, "w": 220, "h": 860, "angle": 10, "layer": "mid", "view": "day", "color": "#F1ECFF", "alpha": [0.1, 0.2], "period": 5.0 },
+        { "kind": "motes", "style": "sparkle", "rect": [150, 240, 420, 420], "count": 8, "layer": "mid", "color": "#FFFFFF" },
+        { "kind": "blink", "item": "cabinet", "points": [[106, 580]], "r": 40, "layer": "over", "colors": ["#3CF2FF", "#FF8FBE", "#FFD84D"], "period": 0.8, "alpha": [0.25, 0.8] },
+        { "kind": "blink", "item": "tv_stack", "points": [[268, 560], [268, 606], [268, 652]], "r": 30, "layer": "over", "colors": ["#FFD84D", "#3CF2FF", "#FF8FBE"], "period": 1.1, "alpha": [0.25, 0.8] },
+        { "kind": "blink", "item": "pixel_heart", "points": [[442, 612]], "r": 60, "layer": "over", "colors": ["#3CF2FF", "#B79CFF"], "period": 1.6, "alpha": [0.2, 0.6] },
+        { "kind": "notes", "item": "robot_dj", "x": 502, "y": 690, "count": 3, "layer": "over", "colors": ["#3CF2FF", "#FF8FBE", "#FFD84D"], "rise": 190, "period": 3.0 },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }

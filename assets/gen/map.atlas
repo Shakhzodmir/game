@@ -7,6 +7,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_arcade_1"
+  images {
+    image: "/assets/images/map/deco_arcade_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_arcade_2"
+  images {
+    image: "/assets/images/map/deco_arcade_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_arcade_3"
+  images {
+    image: "/assets/images/map/deco_arcade_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_arcade_4"
+  images {
+    image: "/assets/images/map/deco_arcade_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_arcade_5"
+  images {
+    image: "/assets/images/map/deco_arcade_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_arcade_6"
+  images {
+    image: "/assets/images/map/deco_arcade_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_bazaar_1"
   images {
     image: "/assets/images/map/deco_bazaar_1.png"

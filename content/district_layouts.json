@@ -924,5 +924,66 @@
         "h": 270
       }
     }
+  },
+  "arcade": {
+    "bg": "assets/images/districts/arcade/bg.png",
+    "bg_concert": "assets/images/districts/arcade/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "joystick": {
+        "image": "assets/images/districts/arcade/joystick.png",
+        "ghost": "assets/images/districts/arcade/joystick_ghost.png",
+        "x": 222,
+        "y": 770,
+        "scale": 0.7,
+        "w": 243,
+        "h": 240
+      },
+      "cabinet": {
+        "image": "assets/images/districts/arcade/cabinet.png",
+        "ghost": "assets/images/districts/arcade/cabinet_ghost.png",
+        "x": 110,
+        "y": 604,
+        "scale": 0.7,
+        "w": 186,
+        "h": 243
+      },
+      "tv_stack": {
+        "image": "assets/images/districts/arcade/tv_stack.png",
+        "ghost": "assets/images/districts/arcade/tv_stack_ghost.png",
+        "x": 272,
+        "y": 604,
+        "scale": 0.7,
+        "w": 171,
+        "h": 238
+      },
+      "synth": {
+        "image": "assets/images/districts/arcade/synth.png",
+        "ghost": "assets/images/districts/arcade/synth_ghost.png",
+        "x": 612,
+        "y": 624,
+        "scale": 0.7,
+        "w": 214,
+        "h": 191
+      },
+      "pixel_heart": {
+        "image": "assets/images/districts/arcade/pixel_heart.png",
+        "ghost": "assets/images/districts/arcade/pixel_heart_ghost.png",
+        "x": 442,
+        "y": 624,
+        "scale": 0.7,
+        "w": 214,
+        "h": 193
+      },
+      "robot_dj": {
+        "image": "assets/images/districts/arcade/robot_dj.png",
+        "ghost": "assets/images/districts/arcade/robot_dj_ghost.png",
+        "x": 502,
+        "y": 760,
+        "scale": 0.7,
+        "w": 229,
+        "h": 296
+      }
+    }
   }
 }

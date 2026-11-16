@@ -2089,6 +2089,104 @@
           "stem_desc": "clean electric guitar licks answering the harmonica"
         }
       ]
+    },
+    {
+      "id": "arcade",
+      "first": 281,
+      "last": 300,
+      "map_tint": "#EDE4FA",
+      "name": {
+        "ru": "Аркада",
+        "en": "Pixel Arcade",
+        "ko": "픽셀 아케이드"
+      },
+      "genre": {
+        "ru": "8 бит",
+        "en": "8-Bit",
+        "ko": "8비트"
+      },
+      "bpm": 140,
+      "key": "C",
+      "semitones_from_c": 0,
+      "bars": 8,
+      "mood": "bright retro game-console music: square and triangle waves, fast arpeggios, heroic and playful",
+      "songs": [],
+      "chest": {
+        "coins": 3000,
+        "boosters": [
+          "disco",
+          "riff",
+          "remix"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "joystick",
+          "name": {
+            "ru": "Джойстик",
+            "en": "Joystick",
+            "ko": "조이스틱"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "noise-channel drums with a triangle-wave bass blip on the root, so the key is heard"
+        },
+        {
+          "id": "cabinet",
+          "name": {
+            "ru": "Игровой автомат",
+            "en": "Arcade cabinet",
+            "ko": "오락기"
+          },
+          "cost": 4,
+          "stem": "bass",
+          "stem_desc": "bouncy triangle-wave bass line"
+        },
+        {
+          "id": "tv_stack",
+          "name": {
+            "ru": "Стопка телевизоров",
+            "en": "Stack of TVs",
+            "ko": "텔레비전 탑"
+          },
+          "cost": 5,
+          "stem": "arp",
+          "stem_desc": "fast square-wave arpeggios"
+        },
+        {
+          "id": "synth",
+          "name": {
+            "ru": "Синтезатор",
+            "en": "Synthesizer",
+            "ko": "신시사이저"
+          },
+          "cost": 5,
+          "stem": "chords",
+          "stem_desc": "pulse-wave chord stabs"
+        },
+        {
+          "id": "pixel_heart",
+          "name": {
+            "ru": "Пиксельное сердце",
+            "en": "Pixel heart sign",
+            "ko": "픽셀 하트 간판"
+          },
+          "cost": 5,
+          "stem": "lead",
+          "stem_desc": "heroic square-wave lead melody with vibrato, singable"
+        },
+        {
+          "id": "robot_dj",
+          "name": {
+            "ru": "Робот-диджей",
+            "en": "Robot DJ",
+            "ko": "로봇 디제이"
+          },
+          "cost": 6,
+          "stem": "fx",
+          "stem_desc": "coin blips, power-up sweeps and a counter-melody"
+        }
+      ]
     }
   ],
   "level_stems": {
