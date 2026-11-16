@@ -12,7 +12,7 @@ local function read(path)
 end
 
 local districts = json.decode(read("content/districts.json")).districts
--- the ten district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
+-- the eleven district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
 local extra_genres = json.decode(read("content/genres.json")).genres
 local catalogue = {}
 for _, d in ipairs(districts) do catalogue[#catalogue + 1] = d end
@@ -38,7 +38,7 @@ describe("the registry of the jukebox songs", function()
 				assert_true(e.loop >= 16 and e.loop <= 32, s.id .. " loops " .. e.loop .. " s")
 			end
 		end
-		assert_eq(n, 89)
+		assert_eq(n, 93)
 	end)
 
 	it("has no song that the catalogue does not name, and no id of a district", function()
@@ -117,9 +117,10 @@ describe("the audio manifest of the jukebox songs", function()
 		end
 	end)
 
-	-- notes + SFX + district music: 10 MB since 13.11.2026 (7 MB before; raised for districts 7+ with the producer's
-	-- approval, about 0.8 MB a district) -- the same number as SIZE_BUDGET of tools/audio/gen_audio.py
-	it("costs at most 6 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 10 MB", function()
+	-- notes + SFX + district music: 14 MB since 16.11.2026 (10 MB since 13.11.2026, 7 MB before; raised for districts
+	-- 11-15 with the producer's approval, about 0.6-0.9 MB a district) -- the same number as SIZE_BUDGET of
+	-- tools/audio/gen_audio.py
+	it("costs at most 6 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 14 MB", function()
 		local bytes, extra = 0, 0
 		local extra_ids = {}
 		for _, g in ipairs(extra_genres) do
@@ -131,9 +132,9 @@ describe("the audio manifest of the jukebox songs", function()
 		assert_true(bytes <= 6 * 1024 * 1024, "the district songs weigh " .. bytes .. " bytes")
 		assert_true(extra <= 8 * 1024 * 1024, "the songs of the new genres weigh " .. extra .. " bytes (the WP-6 budget is +8 MB)")
 		bytes = bytes + extra
-		assert_true(manifest.total_bytes - bytes <= 10 * 1024 * 1024, "the rest of the audio grew past its 10 MB")
+		assert_true(manifest.total_bytes - bytes <= 14 * 1024 * 1024, "the rest of the audio grew past its 14 MB")
 		local gen = read("tools/audio/gen_audio.py")
-		assert_true(string.find(gen, "SIZE_BUDGET = 10 * 1024 * 1024", 1, true) ~= nil, "the generator checks another budget")
+		assert_true(string.find(gen, "SIZE_BUDGET = 14 * 1024 * 1024", 1, true) ~= nil, "the generator checks another budget")
 		assert_true(string.find(gen, "SONG_BUDGET = 14 * 1024 * 1024", 1, true) ~= nil, "the generator checks another song budget")
 	end)
 
@@ -172,6 +173,12 @@ describe("the audio manifest of the jukebox songs", function()
 		assert_eq(manifest.music.skyclub.key_reading.tasks.best, "Ab maj")
 		assert_eq(manifest.music.skyclub.key_reading["tasks+party"].best, "Ab maj")
 		assert_eq(manifest.music.skyclub.key_reading["party alone"].best, "Ab maj")
+		-- the block: the kick, the bass and the hook all lean on Bb, so it reads as Bb major (not D minor, the
+		-- neighbour that a Bbmaj9 without its root spells), with the finale too, and the finale and the tension alone
+		assert_eq(manifest.music.block.key_reading.tasks.best, "Bb maj")
+		assert_eq(manifest.music.block.key_reading["tasks+party"].best, "Bb maj")
+		assert_eq(manifest.music.block.key_reading["party alone"].best, "Bb maj")
+		assert_eq(manifest.music.block.key_reading["tension alone"].best, "Bb maj")
 	end)
 
 	it("passes every check the generator ran", function()

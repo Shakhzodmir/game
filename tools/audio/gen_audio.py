@@ -90,8 +90,9 @@ FEEDBACK_SFX = ("tap", "swap", "swap_fail", "land", "clear", "box_hit", "concret
 PITCHED_SFX_MIN_IN_KEY = 75.0  # % of tonal energy on the C major scale for the short pitched cues
 PITCHED_CUES = ("tap", "swap_fail", "bird", "moves_low", "coin", "star", "floor_light")
 # notes + sfx + the district music; raised 13.11.2026 from 7 MB for districts 7+, approved by the producer
-# (≈0.8 MB per district)
-SIZE_BUDGET = 10 * 1024 * 1024
+# (≈0.8 MB per district); raised 16.11.2026 for districts 11-15, approved by the producer; about 0.6-0.9 MB per
+# district
+SIZE_BUDGET = 14 * 1024 * 1024
 SONG_BUDGET = 14 * 1024 * 1024       # the jukebox songs: 6 MB of the district genres + 8 MB of the extra genres (WP-6)
 SONG_LUFS = -20.0     # integrated loudness of every song (the district full songs sit at -19.0 ... -20.0; in a level the song is a music bed: see the headroom check)
 SONG_TOL = 1.0
@@ -335,7 +336,9 @@ def build_district(d):
         return {name: A.true_peak(sum(sig[k] for k in ks), circular=True) for name, ks in combos.items()}
 
     pre = {k: hi_rate(gains[k] * x, rates[k]) for k, x in raw.items()}
-    common = dsp.db_amp(MIX_TP_AIM - max(combo_tp(pre).values()))
+    trim = float(music.LEVEL_TRIM.get(d["id"], 0.0))  # a district may sit lower than the common peak target
+    aim = MIX_TP_AIM + trim
+    common = dsp.db_amp(aim - max(combo_tp(pre).values()))
     worst_stem = max(A.true_peak(v, circular=True) for v in pre.values()) + dsp.amp_db(common)
     if worst_stem > STEM_TP_MAX - 0.2:  # no single stem may get near clipping
         common *= dsp.db_amp(STEM_TP_MAX - 0.2 - worst_stem)
@@ -351,9 +354,9 @@ def build_district(d):
     enc, dec_hi, tps = encode_all(common)
     for _ in range(5):  # Vorbis moves peaks a little: settle the worst combination in [-1.35, -1.02] dBTP
         w = max(tps.values())
-        if MIX_TP_AIM - 0.2 <= w <= MIX_TP_MAX - 0.02:
+        if aim - 0.2 <= w <= MIX_TP_MAX - 0.02 + trim:
             break
-        common *= dsp.db_amp(MIX_TP_AIM - w)
+        common *= dsp.db_amp(aim - w)
         enc, dec_hi, tps = encode_all(common)
 
     task_of = {t["stem"]: t for t in d["tasks"]}

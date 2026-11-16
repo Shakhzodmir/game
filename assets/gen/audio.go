@@ -84,6 +84,46 @@ embedded_components {
   data: "sound: \"/assets/music/beach/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_block_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/block/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_block_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/block/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_block_claps"
+  type: "sound"
+  data: "sound: \"/assets/music/block/claps.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_block_hook"
+  type: "sound"
+  data: "sound: \"/assets/music/block/hook.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_block_keys"
+  type: "sound"
+  data: "sound: \"/assets/music/block/keys.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_block_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/block/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_block_party"
+  type: "sound"
+  data: "sound: \"/assets/music/block/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_block_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/block/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_cafe_bass"
   type: "sound"
   data: "sound: \"/assets/music/cafe/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1019,6 +1059,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/bit_boss_battle.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_block_party_jam"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/block_party_jam.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_boogie_mouse"
   type: "sound"
   data: "sound: \"/assets/music/songs/boogie_mouse.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1157,6 +1202,11 @@ embedded_components {
   id: "song_hero_dawn"
   type: "sound"
   data: "sound: \"/assets/music/songs/hero_dawn.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_hopscotch_bounce"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/hopscotch_bounce.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_idol_ballad"
@@ -1369,6 +1419,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/stomp_clap.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_stoop_sunset"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/stoop_sunset.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_street_cipher"
   type: "sound"
   data: "sound: \"/assets/music/songs/street_cipher.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1412,6 +1467,11 @@ embedded_components {
   id: "song_velvet_evening"
   type: "sound"
   data: "sound: \"/assets/music/songs/velvet_evening.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_we_made_it"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/we_made_it.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_wedding_drums"

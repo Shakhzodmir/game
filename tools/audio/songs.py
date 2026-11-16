@@ -2548,6 +2548,193 @@ def afterglow_lounge(s):
     return {"drums": d, "keys": ep, "pad": pad, "lead": ld, "celesta": st, "bass": loop_filter(s, bass, "lp", 600)}
 
 
+# ============================================================ HIP-HOP BLOCK (Bb)
+# The block in the sun: the boom-bap kit, the scratches and the cowbell of the district theme in music.py. All four
+# start from a major chord and come home to Bb (the three songs of the genre "hiphop" of songs_pop.py, in Eb, all
+# start on vi and are built on an e-piano or pluck loop with a vibes, bell or pluck tune): block_party_jam is an
+# old-school party break with a horn riff, a cowbell and shouts, stoop_sunset a slow jazzy head-nodder with a
+# nylon guitar, a flute and a muted trumpet, hopscotch_bounce a playground beat on a marimba with an octave bass,
+# we_made_it an anthem with a fanfare, strings and a choir.
+
+def scratches(s, spots):
+    """The DJ's cuts: (bar0, beat, strokes) -> a loop of vinyl scratches (music.scratch)."""
+    buf = s.zeros()
+    for i, (bar, bt, strokes) in enumerate(spots):
+        s.add(buf, M.scratch(s.sr, strokes, key=100 + i), bar * 4 + bt)
+    return loop_filter(s, buf, "hp", 300)
+
+
+def within(c, pat):
+    """The events of a bar pattern that fit into chord c (a chord of two beats takes the first half)."""
+    return [e for e in pat if e[0] < c.dur - 1e-9]
+
+
+def block_party_jam(s):
+    """104 BPM old-school block party: a funky break (kick pushes, snare on 2 and 4, open hat), a cowbell, a
+    synth bass that jumps the octave, clavinet-like stabs, an organ under them, a horn riff in call and answer,
+    the friends shouting 'hey!' and the DJ's scratches at the end of every phrase."""
+    r = dsp.rng(s.id, "jam")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "block")
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X.....x.x.x.....", "X..x..x...x....."], r, swing=0.12, jit=0.002)
+    hits(s, d, k["snare"], {"*": "....X.......X...", 3: "....X.......X.xx", 7: "....X.......X.xx",
+                            11: "....X.....x.X.xx"}, r, jit=0.002)
+    hits(s, d, k["ghost"], ".......g.g......", r, gain=0.6, swing=0.12, jit=0.003)
+    hits(s, d, k["hat"], "x.o.x.o.x.o.x.o.", r, gain=0.5, jit=0.003)
+    hits(s, d, k["ohat"], ["..............x.", ""], r, gain=0.5, jit=0.0)
+    hits(s, d, k["clap"], "....x.......x...", r, gain=0.5, jit=0.004, mask=bs("5-12"))
+    hits(s, d, k["crash"], {0: "X...............", 8: "X..............."}, r, gain=0.3, jit=0.0)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.3, 1.5), 0.1, 0.6, "drums", damp=6000)
+    bell = s.zeros()
+    hits(s, bell, [M.BLOCK_BELL(s.sr)], "x.o.x.oox.o.x.o.", r, gain=0.7, swing=0.12, jit=0.003, mask=bs("3-12"))
+    bell = room(s, bell, 0.12, 0.7, "bell", damp=6000)
+
+    def funk(c, n, i):
+        R = root_of(c, 46, 41, 52)
+        ap = scale_step(t, root_of(n, 46, 41, 52), False)
+        return within(c, [(0, 0.4, R, 1.0), (0.75, 0.2, R, 0.7), (1.5, 0.35, R + 12, 0.8)]) + (
+            [(2.0, 0.4, R, 0.9), (2.75, 0.2, R + 12, 0.7), (3.5, 0.4, ap, 0.75)] if c.dur >= 4 else [(1.5, 0.4, ap, 0.75)])
+    bass = line(s, ch, funk, lambda ss, m, du, v: v_sbass(ss, m, du, v, cutoff=1100.0, decay=0.08), r=r, jit=0.002)
+    bass = loop_filter(s, bass, "lp", 1800)
+    vo = voicing(ch, 58, 77, 67)  # with the root: Bb6 without it is a plain Gm
+    stab = [(0, 0.2, 0.85), (0.75, 0.2, 0.6), (1.5, 0.2, 0.8), (2.5, 0.2, 0.7), (3.25, 0.2, 0.6)]
+    clav = comp(s, ch, vo, lambda c, i: within(c, stab),
+                lambda ss, m, du, v: v_pluck(ss, m, du, v, cutoff=3000.0, decay=0.07), r=r, jit=0.003, swing=0.12)
+    clav = room(s, loop_filter(s, clav, "hp", 200), 0.1, 0.6, "clav", damp=6000)
+    org = comp(s, ch, voicing(ch, 53, 70, 62, lambda c: [0] + guide(c)[:1]), lambda c, i: [(0, c.dur * 0.95, 0.7)],
+               lambda ss, m, du, v: v_organ(ss, m, du, v, bars=(6, 8, 4, 2, 0, 0, 0, 0, 0), perc=0.0), r=r)
+    org = room(s, M.leslie(s, org, 0.75, 0.3), 0.15, 0.9, "organ", damp=4500)
+    A = "1:.5 3:.5 5:.5 6:.5 r:.5 5:.5 r:1 | r:2.5 3:.5 2:.5 1:.5"
+    tn = tune(A + " | 4:.5 6:.5 1+:.5 2+:.5 r:.5 1+:.5 r:1 | 5:.5 1+:.5 2+:1 r:2 | " + A
+              + " | 2:.5 4:.5 6:.5 1+:.5 r:.5 6:.5 r:1 | 5:.5 7:.5 2+:.5 4+:.5 r:.5 2+:.5 r:1 |"
+              " 6:1 1+:.5 6:.5 r:.5 4:.5 r:1 | 5:1 7:.5 5:.5 r:.5 3:.5 r:1 | 4:.5 6:.5 1+:1 2+:.5 1+:.5 2+:1 |"
+              " 1+:2.5 r:1.5", t, 4)
+    horns = lay(s, lambda ss, m, du, v: v_brass(ss, m, min(du, 0.8) * 0.9, v, k=0), tn, r=r, jit=0.003)
+    horns += lay(s, lambda ss, m, du, v: v_brass(ss, m - 12, min(du, 0.8) * 0.9, v * 0.7, k=1), tn, r=r, jit=0.003)
+    horns = room(s, horns, 0.15, 0.9, "horns", damp=5500)
+    hey = gang(s, [(1, 1.0), (3, 3.0), (5, 1.0), (7, 3.0), (9, 3.0), (11, 2.0), (11, 3.0)], voices=6, lo=150, hi=260,
+               level=0.9)
+    fx = scratches(s, [(3, 3.5, M.WICKA), (7, 3.0, M.WICKA), (7, 3.5, ((0.06, 1), (0.06, -1), (0.1, 1))),
+                       (11, 2.5, M.WICKA), (11, 3.5, ((0.07, 1), (0.12, -1)))])
+    return {"drums": d, "tamb": bell, "bass": bass, "keys": clav, "organ": org, "brass": horns,
+            "gang": room(s, hey, 0.18, 0.9, "hey", damp=5000), "fx": room(s, fx, 0.12, 0.8, "fx", damp=6000)}
+
+
+def stoop_sunset(s):
+    """84 BPM jazzy head-nodder for the evening on the front steps: a soft swung beat with a rim click, a nylon
+    guitar that comps ninth chords, a quiet electric piano under it, a round bass that walks into every chord,
+    a flute that sings the first four bars and a muted trumpet that answers in the last four, vinyl dust."""
+    r = dsp.rng(s.id, "stoop")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "lofi")
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X.....x...x.....", "X.....x..xx....."], r, gain=0.8, swing=0.3, jit=0.004)
+    hits(s, d, k["rim"], "....x.......x...", r, gain=0.8, jit=0.004)
+    hits(s, d, k["snare"], {3: "..............gx", 7: "............g.gx"}, r, gain=0.5, swing=0.3, jit=0.004)
+    hits(s, d, k["hat"], "x.o.x.oox.o.x.o.", r, gain=0.4, swing=0.3, jit=0.005)
+    d = room(s, loop_filter(s, d, "lp", 7000), 0.15, 0.9, "drums", damp=5000)
+    vo = voicing(ch, 55, 74, 64, no_root)
+    strum = [(0, 1.2, 0.75), (1.75, 0.35, 0.5), (2.5, 1.1, 0.65)]
+    gtr = comp(s, ch, vo, lambda c, i: within(c, strum), v_nylon, spread=0.022, r=r, jit=0.005, swing=0.3)
+    gtr = room(s, loop_filter(s, gtr, "hp", 110), 0.2, 1.2, "guitar", damp=5000)
+    ep = comp(s, ch, voicing(ch, 60, 79, 70, guide), lambda c, i: [(0, c.dur * 0.9, 0.5)],
+              lambda ss, m, du, v: v_epiano(ss, m, du, v, 0.6, 0.4), r=r)
+    ep = room(s, tape(s, ep, 5.0, 0.35), 0.25, 1.6, "ep", damp=4500)
+
+    def walkin(c, n, i):
+        R = root_of(c, 46, 41, 52)
+        ap = scale_step(t, root_of(n, 46, 41, 52), True)
+        return [(0, 1.4, R, 0.9)] + ([(2.5, 0.9, R, 0.8), (3.5, 0.4, ap, 0.7)] if c.dur >= 4 else [(1.5, 0.4, ap, 0.7)])
+    bass = loop_filter(s, line(s, ch, walkin, v_sub, r=r, jit=0.003, swing=0.3), "lp", 900)
+    fl = tune("5:1.5 3:.5 2:1 1:1 | r:.5 1:.5 2:.5 5:.5 3:2 | 4:1.5 2:.5 1:1 6-:1 | r:.5 6-:.5 1:.5 2:.5 1:2 |"
+              " r:4 | r:4 | r:4 | r:4", t, 5)
+    flute = room(s, echo(s, mono(s, fl, "flute", key="stoop"), 0.75, 0.2, 0.35, 3, 3500), 0.28, 1.8, "flute", damp=5000,
+                 predelay=0.02)
+    tp = tune("r:4 | r:4 | r:4 | r:4 | 3:1 5:.5 7:.5 1+:2 | 7:1 5:.5 2:.5 3:2 | 6:.5 1+:.5 6:.5 4:.5 5:.5 1+:.5 2+:1 |"
+              " 1+:3 r:1", t, 4)
+    trp = mono(s, tp, "trumpet", key="stoop")
+    trp = loop_filter(s, loop_eq(s, trp, "peak", 1500, 6.0, 2.0), "lp", 3200)  # the mute: nasal and soft
+    trp = room(s, echo(s, trp, 0.75, 0.18, 0.35, 3, 3000), 0.28, 1.8, "trumpet", damp=4500, predelay=0.02)
+    return {"drums": d, "guitar": gtr, "keys": ep, "bass": bass, "lead": flute, "trumpet": trp,
+            "dust": M.vinyl_crackle(s)}
+
+
+def hopscotch_bounce(s):
+    """96 BPM playground beat: a bouncing kick and a double clap, woodblocks, a staccato bass that hops between
+    the octaves on every 8th, piano chords on the off-beats, a marimba tune like a counting rhyme that a bell
+    doubles two octaves up the second time round, and the DJ's scratches into the repeats."""
+    r = dsp.rng(s.id, "hopscotch")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "march", "block")
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X..x....X.x.....", "X..x....X.x...x."], r, swing=0.25, jit=0.002)
+    hits(s, d, k["snare"], "....x.......x...", r, gain=0.7, jit=0.002)
+    hits(s, d, k["clap"], ["....X.......X...", "....X.......X.X."], r, gain=0.8, jit=0.004)
+    hits(s, d, k["hat"], "x.x.x.x.x.x.x.x.", r, gain=0.4, jit=0.003)
+    hits(s, d, k["wood"], ["..x...x...x..xx.", "..x...x..x..x.x."], r, gain=0.45, swing=0.25, jit=0.003)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.2, 1.3), 0.1, 0.6, "drums", damp=6000)
+
+    def hop(c, n, i):
+        R = root_of(c, 43, 38, 49)
+        return [(q * 0.5, 0.28, R + (12 if q % 2 else 0), 0.9 if q % 2 == 0 else 0.7) for q in range(int(c.dur * 2))]
+    bass = line(s, ch, hop, lambda ss, m, du, v: v_sbass(ss, m, du, v, cutoff=900.0, decay=0.07), r=r, jit=0.002)
+    bass = loop_filter(s, bass, "lp", 1500)
+    pno = comp(s, ch, voicing(ch, 58, 76, 67), lambda c, i: [(q + 0.5, 0.25, 0.7) for q in range(int(c.dur))],
+               lambda ss, m, du, v: v_piano(ss, m, du, v, 0.8, 0.1), r=r, jit=0.003)
+    pno = room(s, loop_filter(s, pno, "hp", 180), 0.14, 0.8, "piano", damp=6000)
+    tn = tune("1:.5 1:.5 3:.5 5:.5 6:.5 5:.5 3:1 | 4:.5 4:.5 6:.5 1+:.5 2+:.5 1+:.5 6:1 | 5:.5 5:.5 3:.5 5:.5 1+:1 5:1 |"
+              " 2:.5 2:.5 5:.5 7:.5 2+:1 r:1 | 1:.5 1:.5 3:.5 5:.5 6:.5 5:.5 1+:1 |"
+              " 4:.5 4:.5 6:.5 1+:.5 4+:.5 2+:.5 1+:1 | 2+:.5 1+:.5 6:.5 4:.5 5:.5 7:.5 2+:1 | 1+:1 5:.5 3:.5 1:1 r:1", t, 4)
+    mar = room(s, lay(s, v_marimba, tn, r=r, jit=0.003), 0.16, 0.9, "marimba", damp=6000)
+    bl = lay(s, lambda ss, m, du, v: v_celesta(ss, m + 24, du, v * 0.8, t60=0.5), [e for e in tn if e[0] >= 16])
+    bl = room(s, echo(s, bl, 0.75, 0.2, 0.35, 2, 6000), 0.2, 1.2, "bells", damp=7000)
+    fx = scratches(s, [(3, 3.0, M.WICKA), (3, 3.5, M.WICKA), (7, 3.0, ((0.07, 1), (0.07, -1), (0.12, 1)))])
+    return {"drums": d, "bass": bass, "keys": pno, "lead": mar, "celesta": bl,
+            "fx": room(s, fx, 0.12, 0.8, "fx", damp=6000)}
+
+
+def we_made_it(s):
+    """86 BPM anthem, IV - V - iii - vi and home: a big slow beat with claps on the snare and a roll into the
+    last line, a deep bass, a piano that marks every beat, strings and a choir that hold the chords, a brass
+    fanfare that climbs to the high Bb and bells over the last two bars."""
+    r = dsp.rng(s.id, "madeit")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "block")
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X.....x...X..x..", "X.....x...X....."], r, swing=0.2, jit=0.002)
+    hits(s, d, k["snare"], {"*": "....X.......X...", 5: "....X.....ggxxxX"}, r, jit=0.002)
+    hits(s, d, k["clap"], "....X.......X...", r, gain=0.6, jit=0.005)
+    hits(s, d, k["hat"], "x.o.x.o.x.o.x.oo", r, gain=0.4, swing=0.2, jit=0.003)
+    hits(s, d, k["crash"], {0: "X...............", 6: "X..............."}, r, gain=0.4, jit=0.0)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.3, 1.5), 0.14, 0.9, "drums", damp=6000)
+
+    def deep(c, n, i):
+        R = root_of(c, 46, 41, 52)
+        return [(0, 2.3, R, 0.9), (2.5, 0.9, R, 0.8), (3.5, 0.4, R + 12, 0.6)]
+    bass = loop_filter(s, line(s, ch, deep, v_sub, r=r, jit=0.002), "lp", 900)
+    pno = comp(s, ch, voicing(ch, 55, 76, 66), [(0, 0.95, 0.85), (1, 0.95, 0.6), (2, 0.95, 0.75), (3, 0.95, 0.6)],
+               lambda ss, m, du, v: v_piano(ss, m, du, v, 0.75, 0.25), r=r, jit=0.004)
+    pno = room(s, pno, 0.2, 1.4, "piano", damp=5500)
+    st = comp(s, ch, voicing(ch, 60, 81, 71), lambda c, i: [(0, c.dur * 0.98, 0.7)],
+              lambda ss, m, du, v: v_strings(ss, m, du, v, k=m % 3), r=r)
+    st = room(s, loop_filter(s, st, "hp", 200), 0.3, 2.0, "strings", damp=5000)
+    chr_ = room(s, choir_pad(s, ch, 60, 79, 69, "a_sop", mask=bs("5-8")), 0.3, 2.2, "choir", damp=5000)
+    tn = tune("6:1 1+:.5 3+:.5 5+:1.5 3+:.5 | 2+:1 7:.5 2+:.5 5+:2 | 5+:1 3+:.5 2+:.5 3+:1.5 5:.5 | 1+:1 6:.5 1+:.5 3+:2 |"
+              " 6:1 1+:.5 3+:.5 6+:1.5 5+:.5 | 4+:1 2+:.5 4+:.5 5+:1 6+:.5 7+:.5 | 1++:3 5+:.5 6+:.5 | 1++:2.5 r:1.5", t, 3)
+    fan = lay(s, lambda ss, m, du, v: v_brass(ss, m, du * 0.92, v, k=0), tn, r=r, jit=0.003)
+    fan += lay(s, lambda ss, m, du, v: v_brass(ss, m - 12, du * 0.92, v * 0.6, k=1), tn, r=r, jit=0.003)
+    fan = room(s, fan, 0.22, 1.5, "fanfare", damp=5500)
+    bl = s.zeros()
+    for c in ch:
+        if c.start >= 24:
+            ns = chord_notes(c, 82, 98)
+            for q in range(8):
+                s.add(bl, v_celesta(s, ns[(0, 2, 1, 3, 2, 4, 3, 1)[q] % len(ns)], 0.5, 0.5, t60=0.5), c.start + q * 0.5)
+    bl = room(s, echo(s, bl, 0.75, 0.22, 0.35, 3, 6000), 0.25, 1.6, "bells", damp=7000)
+    return {"drums": d, "bass": bass, "keys": pno, "strings": st, "choir": chr_, "brass": fan, "celesta": bl}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -2635,6 +2822,17 @@ SONGS = {
                            "brass": -22}),
     "afterglow_lounge": ("Imaj9:4 vi7:4 IVmaj7:4 V7sus4:4 Imaj9:4 iii7:4 IVmaj7:2 ii7:2 Iadd9:4", afterglow_lounge,
                          {"drums": -25, "keys": -20, "pad": -24, "lead": -19, "celesta": -27, "bass": -22}),
+    # block (Bb major)
+    "block_party_jam": ("I6:4 I6:4 IVmaj7:4 V7sus4:4 I6:4 I6:4 ii7:4 V7:4 IVmaj7:4 iii7:4 ii7:2 V7sus4:2 I6:4",
+                        block_party_jam, {"drums": -16.5, "tamb": -26, "bass": -19, "keys": -23, "organ": -26,
+                                          "brass": -18.5, "gang": -23, "fx": -24}),
+    "stoop_sunset": ("Imaj9:4 vi7:4 ii9:4 V7sus4:4 Imaj9:4 iii7:4 IVmaj7:2 V7sus4:2 I6:4", stoop_sunset,
+                     {"drums": -20, "guitar": -20, "keys": -25, "bass": -20, "lead": -18.5, "trumpet": -19}),
+    "hopscotch_bounce": ("I:4 IV:4 I:4 V:4 I:4 IV:4 ii7:2 V7:2 I:4", hopscotch_bounce,
+                         {"drums": -17, "bass": -19, "keys": -22, "lead": -18, "celesta": -25, "fx": -25}),
+    "we_made_it": ("IVmaj7:4 V:4 iii7:4 vi7:4 IVmaj7:4 V7sus4:4 Iadd9:4 I:4", we_made_it,
+                   {"drums": -17, "bass": -20, "keys": -21, "strings": -23, "choir": -25, "brass": -18,
+                    "celesta": -26}),
 }
 
 
