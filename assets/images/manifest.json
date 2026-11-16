@@ -583,15 +583,13 @@
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 48349,
-      "placeholder": true
+      "bytes": 40007
     },
     "blockers/portal_out.png": {
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 48912,
-      "placeholder": true
+      "bytes": 40073
     },
     "blockers/record_box_1.png": {
       "w": 160,

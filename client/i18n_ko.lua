@@ -27,7 +27,7 @@ return {
 	["blocker.hay"] = "건초 더미",
 	["blocker.fog"] = "안개",
 	["blocker.portal"] = "포털",
-	["blocker.portal_desc"] = "조각이 한쪽 포털로 떨어지면 같은 색의 다른 포털에서 나와요.",
+	["blocker.portal_desc"] = "조각이 파란 포털로 떨어지면 같은 표시가 있는 주황 포털에서 나와요.",
 	["blocker.fog_desc"] = "안개 아래 조각은 보이지 않아요. 옆에서 줄을 맞추면 안개가 걷혀요.",
 	["blocker.hay_desc"] = "옆에서 줄을 맞춰 건초 더미를 헐어요. 안에 보너스가 숨어 있을 수도 있어요.",
 	["blocker.ice_desc"] = "얼음 속 조각은 움직이지도, 줄에 맞춰지지도 않아요. 옆에서 줄을 맞추면 얼음이 녹아요.",

@@ -221,8 +221,8 @@ local S = {
 		ru = "Разбери стог рядами по соседству: внутри может прятаться бонус.",
 	},
 	["blocker.portal_desc"] = {
-		en = "Pieces fall into one portal and drop out of the other one of the same colour.",
-		ru = "Фишки падают в один портал и выпадают из другого такого же цвета.",
+		en = "Pieces fall into the blue portal and drop out of the orange one with the same mark.",
+		ru = "Фишки падают в синий портал и выпадают из оранжевого с такой же меткой.",
 	},
 	["blocker.fog_desc"] = {
 		en = "You can't see the pieces under the fog. Make a match next to it and the fog clears.",
