@@ -1681,7 +1681,52 @@
       "semitones_from_c": 9,
       "bars": 8,
       "mood": "sunny laid-back island reggae at golden hour, one-drop drums, off-beat skank, warm and happy",
-      "songs": [],
+      "songs": [
+        {
+          "id": "sunny_side_ska",
+          "name": {
+            "ru": "Ска на солнечной стороне",
+            "en": "Sunny Side Ska",
+            "ko": "햇살 가득 스카"
+          },
+          "bpm": 132,
+          "bars": 10,
+          "mood": "bouncy ska: the kick on every beat, snare on two and four, guitar and piano chops on every off-beat, a walking upright bass, a skipping horn tune in octaves"
+        },
+        {
+          "id": "palm_shade_sway",
+          "name": {
+            "ru": "В тени пальм",
+            "en": "Palm Shade Sway",
+            "ko": "야자수 그늘 아래"
+          },
+          "bpm": 88,
+          "bars": 8,
+          "mood": "slow rocksteady sway: kick and rim on two and four, a round melodic bass, off-beat guitar and piano, a soft organ, a singing tenor sax, humming voices"
+        },
+        {
+          "id": "echo_cove_dub",
+          "name": {
+            "ru": "Бухта эха",
+            "en": "Echo Cove Dub",
+            "ko": "메아리 만의 덥"
+          },
+          "bpm": 84,
+          "bars": 8,
+          "mood": "steppers dub: the kick on every beat, a rim shot, guitar chops and an organ stab thrown into long echoes, a heavy bass with holes, a flute and a steel pan calling, drums drop out for a wave"
+        },
+        {
+          "id": "steelpan_parade",
+          "name": {
+            "ru": "Парад стальных барабанов",
+            "en": "Steel Pan Parade",
+            "ko": "스틸팬 퍼레이드"
+          },
+          "bpm": 116,
+          "bars": 10,
+          "mood": "festive calypso of a steel band: lead pans in thirds, strumming pans, a three-three-two bass, the iron, congas and shaker of the engine room, horn punches"
+        }
+      ],
       "chest": {
         "coins": 2400,
         "boosters": [
