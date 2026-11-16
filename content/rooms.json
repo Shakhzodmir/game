@@ -145,6 +145,17 @@
         { "kind": "motes", "style": "sparkle", "item": "fruit_stand", "rect": [50, 520, 160, 150], "count": 4, "layer": "over", "color": "#FFFFFF" },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "ranch": {
+      "mood": "barn-dance",
+      "details": [
+        { "kind": "shaft", "x": 360, "y": 180, "w": 220, "h": 860, "angle": 12, "layer": "mid", "view": "day", "color": "#FFF1B8", "alpha": [0.1, 0.2], "period": 5.8 },
+        { "kind": "motes", "style": "dust", "rect": [150, 240, 420, 420], "count": 10, "layer": "mid", "color": "#FFE9A8" },
+        { "kind": "blink", "item": "hay_stage", "points": [[78, 556], [200, 556]], "r": 30, "layer": "over", "colors": ["#FFE9A0", "#FFD84D"], "period": 2.4, "alpha": [0.3, 0.8] },
+        { "kind": "notes", "item": "fiddle", "x": 240, "y": 680, "count": 3, "layer": "over", "colors": ["#FFD84D", "#FF8FBE", "#7BE8C0"], "rise": 190, "period": 3.2 },
+        { "kind": "notes", "item": "banjo", "x": 642, "y": 500, "count": 2, "layer": "over", "colors": ["#FFB347", "#7CC8FF"], "rise": 170, "period": 4.0 },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }

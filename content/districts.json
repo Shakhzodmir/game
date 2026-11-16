@@ -1803,6 +1803,104 @@
           "stem_desc": "horn section answering the melody"
         }
       ]
+    },
+    {
+      "id": "ranch",
+      "first": 241,
+      "last": 260,
+      "map_tint": "#FBEBC8",
+      "name": {
+        "ru": "Кантри-ранчо",
+        "en": "Country Ranch",
+        "ko": "컨트리 랜치"
+      },
+      "genre": {
+        "ru": "Хоудаун",
+        "en": "Hoedown",
+        "ko": "호다운"
+      },
+      "bpm": 108,
+      "key": "G",
+      "semitones_from_c": 7,
+      "bars": 8,
+      "mood": "sunny barn-dance country: train beat, banjo rolls, fiddle, friendly and bouncy",
+      "songs": [],
+      "chest": {
+        "coins": 2600,
+        "boosters": [
+          "disco",
+          "riff",
+          "row_light"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "washboard_tub",
+          "name": {
+            "ru": "Стиральная доска и таз",
+            "en": "Washboard and tub bass",
+            "ko": "빨래판과 대야 베이스"
+          },
+          "cost": 1,
+          "stem": "drums",
+          "stem_desc": "train beat on washboard and brushes with a tub-bass thump on root and fifth"
+        },
+        {
+          "id": "banjo",
+          "name": {
+            "ru": "Банджо",
+            "en": "Banjo",
+            "ko": "밴조"
+          },
+          "cost": 4,
+          "stem": "banjo",
+          "stem_desc": "rolling banjo picking"
+        },
+        {
+          "id": "hay_stage",
+          "name": {
+            "ru": "Сцена из сена",
+            "en": "Hay stage",
+            "ko": "건초 무대"
+          },
+          "cost": 5,
+          "stem": "guitar",
+          "stem_desc": "acoustic guitar boom-chick strumming"
+        },
+        {
+          "id": "boots_rack",
+          "name": {
+            "ru": "Шляпа и сапоги",
+            "en": "Hat and boots",
+            "ko": "모자와 부츠"
+          },
+          "cost": 5,
+          "stem": "claps",
+          "stem_desc": "boot stomps, hand claps and a whoop"
+        },
+        {
+          "id": "fiddle",
+          "name": {
+            "ru": "Скрипка",
+            "en": "Fiddle",
+            "ko": "피들"
+          },
+          "cost": 5,
+          "stem": "fiddle",
+          "stem_desc": "lively fiddle melody with double stops"
+        },
+        {
+          "id": "bench",
+          "name": {
+            "ru": "Скамья с колёсами",
+            "en": "Wagon-wheel bench",
+            "ko": "마차 바퀴 벤치"
+          },
+          "cost": 6,
+          "stem": "harmonica",
+          "stem_desc": "harmonica answering the fiddle"
+        }
+      ]
     }
   ],
   "level_stems": {

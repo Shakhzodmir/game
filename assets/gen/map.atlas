@@ -385,6 +385,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_ranch_1"
+  images {
+    image: "/assets/images/map/deco_ranch_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_ranch_2"
+  images {
+    image: "/assets/images/map/deco_ranch_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_ranch_3"
+  images {
+    image: "/assets/images/map/deco_ranch_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_ranch_4"
+  images {
+    image: "/assets/images/map/deco_ranch_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_ranch_5"
+  images {
+    image: "/assets/images/map/deco_ranch_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_ranch_6"
+  images {
+    image: "/assets/images/map/deco_ranch_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_skyclub_1"
   images {
     image: "/assets/images/map/deco_skyclub_1.png"

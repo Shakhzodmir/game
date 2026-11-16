@@ -802,5 +802,66 @@
         "h": 275
       }
     }
+  },
+  "ranch": {
+    "bg": "assets/images/districts/ranch/bg.png",
+    "bg_concert": "assets/images/districts/ranch/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "washboard_tub": {
+        "image": "assets/images/districts/ranch/washboard_tub.png",
+        "ghost": "assets/images/districts/ranch/washboard_tub_ghost.png",
+        "x": 502,
+        "y": 760,
+        "scale": 0.7,
+        "w": 257,
+        "h": 267
+      },
+      "banjo": {
+        "image": "assets/images/districts/ranch/banjo.png",
+        "ghost": "assets/images/districts/ranch/banjo_ghost.png",
+        "x": 642,
+        "y": 588,
+        "scale": 0.7,
+        "w": 114,
+        "h": 234
+      },
+      "hay_stage": {
+        "image": "assets/images/districts/ranch/hay_stage.png",
+        "ghost": "assets/images/districts/ranch/hay_stage_ghost.png",
+        "x": 138,
+        "y": 606,
+        "scale": 0.7,
+        "w": 300,
+        "h": 240
+      },
+      "boots_rack": {
+        "image": "assets/images/districts/ranch/boots_rack.png",
+        "ghost": "assets/images/districts/ranch/boots_rack_ghost.png",
+        "x": 332,
+        "y": 596,
+        "scale": 0.7,
+        "w": 186,
+        "h": 237
+      },
+      "fiddle": {
+        "image": "assets/images/districts/ranch/fiddle.png",
+        "ghost": "assets/images/districts/ranch/fiddle_ghost.png",
+        "x": 240,
+        "y": 752,
+        "scale": 0.7,
+        "w": 160,
+        "h": 263
+      },
+      "bench": {
+        "image": "assets/images/districts/ranch/bench.png",
+        "ghost": "assets/images/districts/ranch/bench_ghost.png",
+        "x": 500,
+        "y": 616,
+        "scale": 0.7,
+        "w": 243,
+        "h": 182
+      }
+    }
   }
 }
