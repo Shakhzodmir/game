@@ -340,7 +340,7 @@ local S = {
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
 	["tutorial.curtain"] = {
 		en = "Curtain closed: wait. Curtain open: go!",
-		ru = "Занавес закрыт: подожди. Открылся: действуй!",
+		ru = "Занавес закрыт: жди. Открылся: действуй!",
 	},
 	["tutorial.chain"] = {
 		en = "A chain holds the piece. Make a match with it!",
@@ -408,6 +408,10 @@ local S = {
 	["tutorial.column_match"] = {
 		en = "Every match next to the speaker knocks off dust",
 		ru = "Каждый матч рядом с колонкой сбивает пыль",
+	},
+	["tutorial.curtain_moves"] = {
+		en = "It counts your moves. Play beside it!",
+		ru = "Он считает ходы. Играй рядом!",
 	},
 	["tutorial.tap_continue"] = { en = "Tap to continue", ru = "Нажми, чтобы продолжить" },
 

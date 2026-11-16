@@ -32,6 +32,7 @@ local PLAN_ELEMENTS = {
 	record_box = 10, dancefloor = 15, wires = 22, mic = 30, concrete = 40, noise = 50, balloon = 65, column = 90,
 	coconut = 101, -- district 6 (WP-17)
 	chain = 121, -- district 7 (WP-17)
+	curtain = 141, -- district 8 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -103,7 +104,8 @@ local function level_of(n)
 	if not raw then return nil end
 	local level, errs = core.load_level(text)
 	assert_true(level ~= nil, "level " .. n .. " does not load: " .. table.concat(errs or {}, "; "))
-	local info = { n = n, raw = raw, level = level, W = raw.size[1], H = raw.size[2], slot = {}, floor = {}, wires = {}, chain = {} }
+	local info = { n = n, raw = raw, level = level, W = raw.size[1], H = raw.size[2], slot = {}, floor = {}, wires = {}, chain = {},
+		curtain = {} }
 	for _, s in ipairs(raw.slots or {}) do
 		if s.type == "column" then -- 2x2 from the top-left cell
 			for dx = 0, 1 do
@@ -117,6 +119,7 @@ local function level_of(n)
 	for _, t in ipairs(raw.overlay or {}) do
 		if t.type == "chain" then info.chain[key(t.at[1], t.at[2])] = t.hp else info.wires[key(t.at[1], t.at[2])] = t.hp end
 	end
+	for _, c in ipairs(raw.curtain and raw.curtain.covers or {}) do info.curtain[key(c[1], c[2])] = true end -- (10.7)
 	for k, g in ipairs(raw.goals) do
 		if g.type == "deliver" then info.deliver_goal = k end
 		if g.type == "drop" then info.drop_goal = k end
@@ -155,7 +158,7 @@ local function elements_of(raw)
 		if o.type == "wires" then kinds.wires = true end
 		if o.type == "chain" then kinds.chain = true end -- (10.6: another element of the same layer)
 	end
-	if raw.curtain then kinds.curtain = true end -- (10.7; its PLAN_ELEMENTS entry comes with its first level, 141)
+	if raw.curtain then kinds.curtain = true end -- (10.7: a block of its own, not a slot)
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
@@ -364,6 +367,7 @@ local TIPS = {
 	["tutorial.column"] = function(info, st) return slot_of(info, st, "column") ~= false or "no speaker column there" end,
 	["tutorial.coconut"] = function(info, st) return slot_of(info, st, "coconut") ~= false or "no coconut there" end,
 	["tutorial.chain"] = function(info, st) return info.chain[key(st.at[1], st.at[2])] ~= nil or "no chained piece there" end,
+	["tutorial.curtain"] = function(info, st) return info.curtain[key(st.at[1], st.at[2])] == true or "no curtain over that cell" end,
 }
 
 -- playing the steps ---------------------------------------------------------------------------------------------
@@ -402,6 +406,7 @@ local function snap(game, info)
 	t.cells = cells
 	local st = game:status()
 	t.goals, t.moves, t.state = st.goals, st.moves_left, st.state
+	t.curtain = st.curtain -- {phase, left} on a level with curtains (10.7), else nil
 	return t
 end
 
@@ -421,6 +426,12 @@ local EFFECTS = {
 	["tutorial.chain_match"] = function(a, b, info)
 		local k = info.chains_goal
 		return (k and b.goals[k] < a.goals[k]) or "no chain was broken"
+	end,
+	-- the move is played beside the closed curtain and the curtain counts it (10.7): one move less till it opens
+	["tutorial.curtain_moves"] = function(a, b)
+		if not (a.curtain and b.curtain) then return "the level has no curtain" end
+		if a.curtain.phase ~= "closed" then return "the curtain was not closed before the move" end
+		return (b.curtain.phase == "closed" and b.curtain.left == a.curtain.left - 1) or "the closed curtain did not count the move"
 	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
@@ -693,12 +704,12 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].booster, "swap", "it lights the button of the bar")
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
-		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101 and the
-		-- chain of 121, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121 }) do
+		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, the
+		-- chain of 121 and the curtain of 141, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 21)
+		assert_eq(#ids_of(defs), 22)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()

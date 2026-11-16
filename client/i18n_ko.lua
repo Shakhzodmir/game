@@ -421,6 +421,7 @@ return {
 	["tutorial.coconut_drop"] = "코코넛 아래 조각을 맞추면 아래로 떨어져요",
 	["tutorial.column"] = "커다란 스피커의 먼지를 털어 내세요!",
 	["tutorial.column_match"] = "스피커 옆에서 매치할 때마다 먼지가 떨어져요",
+	["tutorial.curtain_moves"] = "커튼은 움직인 횟수를 세요. 옆에서 맞춰요!",
 	["tutorial.combo"] = "특수 조각 두 개를 맞바꾸면 콤보가 나와요!",
 	["tutorial.concrete"] = "콘크리트는 특수 조각만 깰 수 있어요!",
 	["tutorial.concrete_riff"] = "리프를 누르세요. 번개가 콘크리트를 갈라요",
