@@ -35,6 +35,7 @@ local PLAN_ELEMENTS = {
 	curtain = 141, -- district 8 (WP-17)
 	carpet = 161, -- district 9 (WP-17)
 	conveyor = 181, -- district 10 (WP-17)
+	boombox = 201, -- district 11 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -388,7 +389,7 @@ end
 
 -- What the effects of a step are measured on: layers of the blockers, tiles, wires, specials, goals, moves.
 local function snap(game, info)
-	local t = { box_hp = 0, concrete_hp = 0, noise = 0, balloon = 0, column_hp = 0, wires = 0, floor_hp = 0,
+	local t = { box_hp = 0, concrete_hp = 0, noise = 0, balloon = 0, column_hp = 0, boombox_hp = 0, wires = 0, floor_hp = 0,
 		specials = {}, goals = {} }
 	local list = game:pieces()
 	for i = 1, #list do
@@ -398,7 +399,8 @@ local function snap(game, info)
 			elseif p.item == "concrete" then t.concrete_hp = t.concrete_hp + p.hp
 			elseif p.item == "noise" then t.noise = t.noise + 1
 			elseif p.item == "balloon" then t.balloon = t.balloon + 1
-			elseif p.item == "column" then t.column_hp = t.column_hp + p.hp end
+			elseif p.item == "column" then t.column_hp = t.column_hp + p.hp
+			elseif p.item == "boombox" then t.boombox_hp = t.boombox_hp + p.hp end
 		elseif p.kind == "special" then
 			t.specials[p.special] = (t.specials[p.special] or 0) + 1
 		end
@@ -467,6 +469,16 @@ local EFFECTS = {
 		end
 		if riders == 0 then return "the level has no conveyor belt with pieces on it" end
 		return carried * 2 >= riders or ("the belt carried " .. carried .. " of its " .. riders .. " riders one cell forward (less than half)")
+	end,
+	-- the hinted match stands next to a boombox (10.10): the boombox loses a layer and plays the colour of the
+	-- match, so the `collect` goal of that colour gets the three pieces of the match and at least three more
+	["tutorial.boombox"] = function(a, b, info)
+		if not (b.boombox_hp < a.boombox_hp) then return "no boombox was hit" end
+		local best = 0
+		for k, g in ipairs(info.raw.goals) do
+			if g.type == "collect" then best = math.max(best, a.goals[k] - b.goals[k]) end
+		end
+		return best >= 6 or ("the collect goal got " .. best .. " pieces: the three of the match and no three more of the boombox")
 	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
@@ -740,11 +752,11 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
 		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, the
-		-- chain of 121, the curtain of 141, the carpet of 161 and the conveyor of 181, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181 }) do
+		-- chain of 121, the curtain of 141, the carpet of 161, the conveyor of 181 and the boombox of 201, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181, 201 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 24)
+		assert_eq(#ids_of(defs), 25)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()

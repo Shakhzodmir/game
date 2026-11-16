@@ -1,0 +1,37 @@
+{
+  "id": 217, "version": 1,
+  "size": [9, 11],
+  "moves": 21,
+  "difficulty": "super_hard",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "carpet"},
+    {"type": "break", "item": "boombox", "count": 6}
+  ],
+  "cells": [
+    "...###...",
+    "..#####..",
+    ".#######.",
+    ".#######.",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "overlay": [
+    {"at": [2, 6], "type": "wires", "hp": 1},
+    {"at": [6, 6], "type": "wires", "hp": 1}
+  ],
+  "slots": [
+    {"at": [2, 3], "type": "boombox", "hp": 3},
+    {"at": [6, 3], "type": "boombox", "hp": 3},
+    {"at": [4, 5], "type": "boombox", "hp": 3},
+    {"at": [1, 7], "type": "boombox", "hp": 3},
+    {"at": [7, 7], "type": "boombox", "hp": 3},
+    {"at": [4, 8], "type": "boombox", "hp": 3}
+  ],
+  "carpet": [[3, 9], [4, 9], [5, 9]]
+}

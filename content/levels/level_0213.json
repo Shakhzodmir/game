@@ -1,0 +1,36 @@
+{
+  "id": 213, "version": 1,
+  "size": [9, 11],
+  "moves": 26,
+  "difficulty": "hard",
+  "colors": ["red", "orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "boombox", "count": 4},
+    {"type": "break", "item": "record_box", "count": 5},
+    {"type": "collect", "color": "purple", "count": 40}
+  ],
+  "cells": [
+    "..#####..",
+    ".#######.",
+    ".#######.",
+    ".#######.",
+    ".#######.",
+    "..#####..",
+    "...###...",
+    "...###...",
+    "...###...",
+    "...###...",
+    "...###..."
+  ],
+  "slots": [
+    {"at": [2, 2], "type": "boombox", "hp": 3},
+    {"at": [6, 2], "type": "boombox", "hp": 3},
+    {"at": [3, 4], "type": "boombox", "hp": 3},
+    {"at": [5, 4], "type": "boombox", "hp": 3},
+    {"at": [3, 8], "type": "record_box", "hp": 2},
+    {"at": [5, 8], "type": "record_box", "hp": 2},
+    {"at": [3, 10], "type": "record_box", "hp": 2},
+    {"at": [4, 10], "type": "record_box", "hp": 2},
+    {"at": [5, 10], "type": "record_box", "hp": 2}
+  ]
+}

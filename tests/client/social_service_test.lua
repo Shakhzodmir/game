@@ -355,6 +355,7 @@ describe("the district badge follows the number of districts (WP-13)", function(
 		local town = require("meta.town")
 		local H = require("tests.meta.helper")
 		local d = require("meta.util").copy(H.districts())
+		for i = #d.districts, 11, -1 do d.districts[i] = nil end -- (the shipped town has more than ten districts now)
 		for i = 6, 10 do
 			d.districts[i] = { id = "x" .. i, first = 20 * (i - 1) + 1, last = 20 * i, name = { en = "X" },
 				chest = { coins = 1, boosters = {} }, tasks = { { id = "t" .. i, cost = 1, stem = "beat" } } }

@@ -1,0 +1,36 @@
+{
+  "id": 219, "version": 1,
+  "size": [9, 8],
+  "moves": 27,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "record_box", "count": 8},
+    {"type": "collect", "color": "blue", "count": 40}
+  ],
+  "cells": [
+    "###......",
+    "###......",
+    "######...",
+    "######...",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [0, 6], "type": "record_box", "hp": 2},
+    {"at": [8, 6], "type": "record_box", "hp": 2},
+    {"at": [0, 7], "type": "record_box", "hp": 2},
+    {"at": [1, 7], "type": "record_box", "hp": 2},
+    {"at": [2, 7], "type": "record_box", "hp": 3},
+    {"at": [6, 7], "type": "record_box", "hp": 3},
+    {"at": [7, 7], "type": "record_box", "hp": 2},
+    {"at": [8, 7], "type": "record_box", "hp": 2}
+  ],
+  "curtain": {
+    "covers": [[3, 3], [4, 3], [5, 3],
+      [3, 4], [4, 4], [5, 4]],
+    "closed_moves": 2, "open_moves": 3, "start": "closed"
+  }
+}

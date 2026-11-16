@@ -90,5 +90,8 @@
   ]},
   "181": {"steps": [
     {"kind": "swap", "from": [3, 0], "to": [3, 1], "text": "tutorial.conveyor"}
+  ]},
+  "201": {"steps": [
+    {"kind": "swap", "from": [3, 1], "to": [3, 2], "text": "tutorial.boombox"}
   ]}
 }

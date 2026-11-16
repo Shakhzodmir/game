@@ -1,0 +1,28 @@
+{
+  "id": 214, "version": 1,
+  "size": [9, 9],
+  "moves": 31,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "break", "item": "boombox", "count": 3}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####..",
+    "..#####..",
+    "...###...",
+    "...###..."
+  ],
+  "slots": [
+    {"at": [2, 2], "type": "boombox", "hp": 2},
+    {"at": [6, 2], "type": "boombox", "hp": 2},
+    {"at": [4, 5], "type": "boombox", "hp": 1}
+  ],
+  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 2}
+}
