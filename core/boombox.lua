@@ -59,6 +59,8 @@ function BX.play(s, src, busy)
 		end
 		local x, y = U.xy(W, cell)
 		local ev = { x = x, y = y, color = C.COLOR_NAME[src.color], cells = cells }
+		local box = B.get(s, cell) -- (a destroyed boombox is still in its slot, in `clear`)
+		if box then ev.id = box.id end
 		if last[k] == 1 then ev.last = true end
 		E.emit(s, "boombox", ev)
 		if #targets > 0 then

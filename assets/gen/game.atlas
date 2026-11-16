@@ -49,6 +49,27 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_boombox_1"
+  images {
+    image: "/assets/images/blockers/boombox_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "blockers_boombox_2"
+  images {
+    image: "/assets/images/blockers/boombox_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "blockers_boombox_3"
+  images {
+    image: "/assets/images/blockers/boombox_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_carpet"
   images {
     image: "/assets/images/blockers/carpet.png"

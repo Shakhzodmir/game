@@ -14,6 +14,7 @@
     "blockers/column_*.png": "2x2 cells",
     "blockers/wires_*.png": "overlay drawn above the piece; the centre stays transparent",
     "blockers/chain_*.png": "PLACEHOLDER (PIL). Overlay drawn above a chained piece and moving with it; the number is the hp left: chain_1 one golden chain with a padlock, chain_2 the stronger one (a steel chain behind it)",
+    "blockers/boombox_*.png": "PLACEHOLDER (PIL). The boombox of district 11 (core-rules 10.10), a blocker of one cell: a teal portable stereo seen from the front, a handle on top, two round speakers, a cassette deck between them. The number is the hp LEFT, as for the record box: boombox_3 new, boombox_2 cracked (a crack down the middle), boombox_1 broken (cracks all over, the right speaker torn, half of the handle gone, a chipped corner). 160x160 RGBA, drawn at cell size in the slot; boombox_3 is also the icon of the break goal.",
     "blockers/carpet.png": "PLACEHOLDER (PIL). The carpet of district 9 (core-rules 10.8): a square oriental carpet seen from above (red field, teal border), drawn over the cell tile and under the piece, slightly inset in the cell (client/level_carpet.lua INSET). The real picture may have tassels on two sides and transparent corners",
     "blockers/conveyor.png": "PLACEHOLDER (PIL). The conveyor belt of district 10 (core-rules 10.9): ONE tile seen from above, a dark rubber belt with two bright arrows pointing RIGHT and metal rollers on its left and right edges; drawn at cell size over the cell tile and under the piece, turned by the direction of travel of its cell (0/90/180/270 degrees, client/level_conveyor.lua), so the real picture must keep the same layout: arrows point right, the belt runs edge to edge from left to right",
     "blockers/curtain_*.png": "PLACEHOLDER (PIL). The timed curtain of district 8 (core-rules 10.7), drawn over the cell at cell size, above the piece: curtain_closed = the red velvet drawn shut with a gold fringe (opaque: it hides the piece), curtain_open = the same curtain tied to the sides (a frame: rail, pelmet and two side drapes, the middle stays transparent so the piece shows)",
@@ -417,6 +418,27 @@
       "h": 160,
       "alpha": true,
       "bytes": 34512
+    },
+    "blockers/boombox_1.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 16046,
+      "placeholder": true
+    },
+    "blockers/boombox_2.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 12355,
+      "placeholder": true
+    },
+    "blockers/boombox_3.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 11096,
+      "placeholder": true
     },
     "blockers/carpet.png": {
       "w": 160,

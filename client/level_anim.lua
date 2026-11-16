@@ -40,6 +40,7 @@
 -- tick (tick + fraction, session:display_tick()); client-only extras
 -- (touch, squash, appear, flashes) on real seconds.
 
+local level_boombox = require("client.level_boombox")
 local level_hint = require("client.level_hint")
 
 local M = {}
@@ -98,6 +99,8 @@ function M.image(p, max_hp)
 	local hp = p.hp or 1
 	if item == "record_box" then
 		return "blockers_record_box_" .. math.max(1, math.min(3, hp))
+	elseif item == "boombox" then
+		return level_boombox.anim(hp)
 	elseif item == "concrete" then
 		return "blockers_concrete_" .. math.max(1, math.min(2, hp))
 	elseif item == "balloon" then
@@ -308,6 +311,9 @@ function Anim:event(e, t)
 		elseif e.layer == "chain" and e.id then
 			rec(self, e.id).chain_hit = t -- the chain rattles
 		end
+	elseif ty == "boombox" then
+		-- the boombox plays the colour of the match (core-rules 10.10): it shakes
+		if e.id then rec(self, e.id).shake = t end
 	elseif ty == "unchained" then
 		rec(self, e.id).pop = t
 	elseif ty == "noise_spread" then

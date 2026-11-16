@@ -42,6 +42,8 @@
 -- finale charges gold for 0.4 s, flashes white, slows down, shakes and rains confetti.
 -- Reduced motion: no shakes, no slow motion, no screen flash, no charge; fewer particles.
 
+local level_boombox = require("client.level_boombox")
+
 local M = {}
 
 -- main colour of each piece (art-direction.md, palette)
@@ -58,6 +60,7 @@ M.GOLD = "#FFB020"
 M.LIGHT_BEAM = "#FFC21A"  -- row / column spotlight
 M.DEBRIS = {
 	record_box = { fx = "debris", color = "#FFB463" },
+	boombox = { fx = "debris", color = level_boombox.COLOR },
 	concrete = { fx = "dust", color = "#C9C2B4" },
 	noise = { fx = "dust", color = "#8A8FA3" },
 	balloon = { fx = "confetti" },
@@ -446,6 +449,29 @@ function H.destroy(self, e)
 	else
 		self:burst(d.fx, x, y, color, 12, t)
 		if e.item == "concrete" then self:shake(M.SHAKE.concrete, 0.2, t) end
+	end
+end
+
+-- A boombox plays the colour of the match that hit it (core-rules 10.10): a ring of that colour leaves it, and
+-- a "sound wave" (a ring and a flash) pops on every piece it blasts. With reduced motion only the flashes.
+function H.boombox(self, e)
+	local t = e.t or 0
+	local cell = self.geom.cell
+	local color = M.color_of(e.color)
+	local bx, by = self:center(e.x, e.y)
+	self:flash(bx, by, cell * 1.6, color, t, 0.25)
+	if not self.reduced then
+		self:push({ kind = "ring", x = bx, y = by, size = cell * (e.last and level_boombox.LAST_SIZE or level_boombox.PLAY_SIZE),
+			at = t, dur = level_boombox.PLAY_TIME, color = color, image = e.last and level_boombox.LAST_FX or level_boombox.WAVE_FX })
+	end
+	local cells = e.cells or {}
+	for k = 1, #cells do
+		local lx, ly = self:center(cells[k][1], cells[k][2])
+		self:flash(lx, ly, cell * 1.5, color, t, 0.22)
+		if not self.reduced then
+			self:push({ kind = "ring", x = lx, y = ly, size = cell * level_boombox.WAVE_SIZE, at = t,
+				dur = level_boombox.WAVE_TIME, color = color, image = level_boombox.WAVE_FX })
+		end
 	end
 end
 
