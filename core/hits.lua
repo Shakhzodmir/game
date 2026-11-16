@@ -8,6 +8,7 @@ local C = require("core.const")
 local U = require("core.util")
 local B = require("core.board")
 local E = require("core.events")
+local R = require("core.rng")
 local sched = require("core.sched")
 
 local H = {}
@@ -210,6 +211,13 @@ local function blocker_hit(s, o, cell, src, acc)
 	end
 	E.emit(s, "destroy", { id = o.id, x = x, y = y, item = item })
 	H.start_clear(s, o)
+	if o.gift ~= 0 then
+		-- a hay bale with a gift (10.12): a random gift is drawn now, from the `effects` stream; the bale
+		-- keeps the label of this hit for the special that takes its cell once every effect has ended
+		-- (step 4 of the tick, hay.lua). Until then the cell is an open slot: no hit can reach the gift.
+		if o.gift == C.GIFT_RANDOM then o.gift = R.int(s.rng[R.EFFECTS], C.GIFT_DRAW) end
+		o.mv, o.wv = src.mv, src.wv
+	end
 	local cells = B.cells_of(s, o)
 	for k = 1, #cells do B.set_vac(s, cells[k], src.mv, src.wv) end
 	H.goal(s, acc, C.GOAL_BREAK, o.blocker, 1)

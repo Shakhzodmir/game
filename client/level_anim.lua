@@ -43,6 +43,7 @@
 -- (touch, squash, appear, flashes) on real seconds.
 
 local level_boombox = require("client.level_boombox")
+local level_hay = require("client.level_hay")
 local level_ice = require("client.level_ice")
 local level_hint = require("client.level_hint")
 
@@ -106,6 +107,8 @@ function M.image(p, max_hp)
 		return "blockers_record_box_" .. math.max(1, math.min(3, hp))
 	elseif item == "boombox" then
 		return level_boombox.anim(hp)
+	elseif item == "hay" then
+		return level_hay.anim(hp)
 	elseif item == "concrete" then
 		return "blockers_concrete_" .. math.max(1, math.min(2, hp))
 	elseif item == "balloon" then
@@ -299,6 +302,11 @@ function Anim:event(e, t)
 			end
 			self.group = nil
 		end
+	elseif ty == "gift" then
+		-- the special hidden in a hay bale pops out (core-rules 10.12): it blooms like a special made by a
+		-- match, at once (no pieces fly in)
+		local v = rec(self, e.id)
+		v.appear, v.flash = t, t
 	elseif ty == "bonus" then
 		local v = rec(self, e.id)
 		v.appear, v.flash = t + M.BONUS_DELAY, t + M.BONUS_DELAY

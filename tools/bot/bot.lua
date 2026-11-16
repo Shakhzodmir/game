@@ -52,6 +52,18 @@
 -- with an `ice` goal, is Bot.W.melt for every hp unit a move takes off the ice
 -- (Bot.ice_hp): the first hit on ice of hp 2 moves no goal counter. Levels
 -- without that goal pay nothing.
+-- On a level with hay bales (core-rules 10.12) the clone of a move opens the
+-- bale itself: the special hidden inside takes the cell before the clone
+-- comes to rest (a "random" gift is drawn from the clone's own reseeded
+-- stream, so the bot does not learn what the real game will draw; a fixed
+-- gift is what the level says). The bot counts a revealed special exactly
+-- like a special created by the match (Bot.W.special, and the rank and
+-- near-goal terms of the strong bot), and from the next decision on it is a
+-- special on the board like any other: a tap and its swaps are candidates.
+-- What the bot adds, on a level with a `break hay` goal, is Bot.W.hay for
+-- every hp unit a move takes off a bale (Bot.hay_hp): the first hit on a bale
+-- of hp 2 moves no goal counter. Levels without hay see no `gift` event and
+-- levels without that goal pay nothing.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -76,7 +88,7 @@ local SPECIAL_RANK = { bird = 1, riff = 2, sub = 3, disco = 4 }
 -- adds best2 * second_ply_num / second_ply_den.
 Bot.SCALE = 1000
 Bot.W = {
-	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4, rug = 2, boom = 3, melt = 3,
+	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4, rug = 2, boom = 3, melt = 3, hay = 3,
 	combo_greedy = 5, combo_strong = 15, combo_disco_strong = 25,
 	win_strong = 1000, near_goal = 3, rank_strong = 1, second_ply_num = 1, second_ply_den = 2,
 }
@@ -104,6 +116,7 @@ function Bot.new(kind, opts)
 		rug = false,                -- the level has a `carpet` goal (10.8)
 		boom = false,               -- the level has a `break boombox` goal (10.10)
 		ice = false,                -- the level has an `ice` goal (10.11)
+		hay = false,                -- the level has a `break hay` goal (10.12)
 		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
@@ -114,6 +127,7 @@ function Bot.new(kind, opts)
 		if self.goals[k].type == "carpet" then self.rug = true end
 		if self.goals[k].type == "break" and self.goals[k].item == "boombox" then self.boom = true end
 		if self.goals[k].type == "ice" then self.ice = true end
+		if self.goals[k].type == "break" and self.goals[k].item == "hay" then self.hay = true end
 	end
 	return self
 end
@@ -179,7 +193,8 @@ function Bot.settle(game, acc, max_ticks)
 			local ty = e.type
 			if ty == "match" then
 				if e.wave > acc.waves then acc.waves = e.wave end
-			elseif ty == "special_new" then
+			elseif ty == "special_new" or ty == "gift" then
+				-- (`gift`: the special a destroyed hay bale reveals, core-rules 10.12; only on a level with hay)
 				acc.specials[#acc.specials + 1] = { x = e.x, y = e.y, special = e.special }
 			elseif ty == "activate" then
 				if e.partner or e.combo then acc.combos = acc.combos + 1 end
@@ -365,6 +380,19 @@ function Bot.boombox_hp(self, game)
 	for k = 1, #list do
 		local p = list[k]
 		if p.item == "boombox" and p.state == "idle" then n = n + (p.hp or 0) end
+	end
+	return n
+end
+
+-- Total hp of the intact hay bales (10.12), only on a level with a `break hay` goal; nil otherwise, so the
+-- other levels pay nothing and choose as before. The difference of two values is the hp a move took off.
+function Bot.hay_hp(self, game)
+	if not self.hay then return nil end
+	local n = 0
+	local list = game:pieces()
+	for k = 1, #list do
+		local p = list[k]
+		if p.item == "hay" and p.state == "idle" then n = n + (p.hp or 0) end
 	end
 	return n
 end
@@ -622,6 +650,7 @@ function Bot:choose(game)
 	local work = Bot.curtain_work(self, game)
 	local booms = Bot.boombox_hp(self, game)
 	local frost = Bot.ice_hp(self, game)
+	local straw = Bot.hay_hp(self, game)
 	local rug = self.rug
 	local W = Bot.W
 	local scored = {}
@@ -637,6 +666,7 @@ function Bot:choose(game)
 			if work then sc = sc + Bot.SCALE * W.drape * math.max(0, work - Bot.curtain_work(self, clone)) end
 			if booms then sc = sc + Bot.SCALE * W.boom * math.max(0, booms - Bot.boombox_hp(self, clone)) end
 			if frost then sc = sc + Bot.SCALE * W.melt * math.max(0, frost - Bot.ice_hp(self, clone)) end
+			if straw then sc = sc + Bot.SCALE * W.hay * math.max(0, straw - Bot.hay_hp(self, clone)) end
 			if rug and not acc.won then sc = sc + Bot.SCALE * W.rug * Bot.carpet_moves(self, clone) end
 			if strong then
 				local extra = acc.won and W.win_strong or 0
@@ -669,6 +699,7 @@ function Bot:choose(game)
 				local work2 = Bot.curtain_work(self, e.clone)
 				local booms2 = Bot.boombox_hp(self, e.clone)
 				local frost2 = Bot.ice_hp(self, e.clone)
+				local straw2 = Bot.hay_hp(self, e.clone)
 				for j = 1, math.min(3, #hits) do
 					local cl2, acc2 = Bot.simulate(self, e.clone, hits[j].cand)
 					if cl2 then
@@ -680,6 +711,7 @@ function Bot:choose(game)
 						if work2 then s2 = s2 + Bot.SCALE * W.drape * math.max(0, work2 - Bot.curtain_work(self, cl2)) end
 						if booms2 then s2 = s2 + Bot.SCALE * W.boom * math.max(0, booms2 - Bot.boombox_hp(self, cl2)) end
 						if frost2 then s2 = s2 + Bot.SCALE * W.melt * math.max(0, frost2 - Bot.ice_hp(self, cl2)) end
+						if straw2 then s2 = s2 + Bot.SCALE * W.hay * math.max(0, straw2 - Bot.hay_hp(self, cl2)) end
 						if acc2.won then s2 = s2 + Bot.SCALE * W.win_strong / 10 end
 						if s2 > best2 then best2 = s2 end
 					end

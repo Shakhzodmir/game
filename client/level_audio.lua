@@ -18,6 +18,7 @@
 -- concert (the mixer never plays them together).
 
 local level_boombox = require("client.level_boombox")
+local level_hay = require("client.level_hay")
 local level_ice = require("client.level_ice")
 
 local M = {}
@@ -45,10 +46,11 @@ M.COMBO_SFX = {
 	finale = { { "finale", 0 } },
 }
 M.BLOCKER_HIT = { record_box = "box_hit", concrete = "concrete_hit", column = "column_hit", noise = "noise_fizz",
-	boombox = level_boombox.HIT_SFX }
+	boombox = level_boombox.HIT_SFX, hay = level_hay.HIT_SFX }
 M.BLOCKER_BREAK = {
 	record_box = "box_break", concrete = "concrete_break", noise = "noise_break",
 	balloon = "balloon_pop", column = "column_on", boombox = level_boombox.BREAK_SFX,
+	hay = level_hay.BREAK_SFX,
 }
 M.PRAISE_INDEX = { juicy = 1, hit = 2, drive = 3, vibe = 4, legend = 5 }
 M.HAPTIC = { tap = 8, special = 22, combo = 40, finale = 70, praise = 14, goal = 18, destroy = 10, nope = 14 }
@@ -176,6 +178,9 @@ function LA:event(e)
 		self:sfx("clear", { gain = 0.45 }, 0.07)
 	elseif ty == "special_new" then
 		self:sfx("special_create", nil, 0.06)
+	elseif ty == "gift" then
+		-- the special hidden in a hay bale pops out (core-rules 10.12): the sound of a new special
+		self:sfx(level_hay.GIFT_SFX, nil, 0.06)
 	elseif ty == "activate" then
 		if e.special == "disco" or e.combo then
 			self.disco = { color = e.color, step = 0 }
@@ -206,7 +211,10 @@ function LA:event(e)
 	elseif ty == "transform" or ty == "concert_riff" or ty == "continue_riff" then
 		self:sfx("special_create", { gain = 0.7 }, 0.08)
 	elseif ty == "hit" then
-		if e.layer == "blocker" then
+		if e.layer == "blocker" and e.item == "hay" then
+			-- a thud in the straw (core-rules 10.12): the hit of the record box, soft and dull
+			self:sfx(level_hay.HIT_SFX, { gain = level_hay.HIT_GAIN, speed = level_hay.HIT_SPEED }, 0.06)
+		elseif e.layer == "blocker" then
 			self:sfx(M.BLOCKER_HIT[e.item] or "box_hit", nil, 0.06)
 		elseif e.layer == "wires" or e.layer == "chain" then
 			self:sfx("wires_snap", { gain = 0.5 }, 0.08)

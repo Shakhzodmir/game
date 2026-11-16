@@ -18,6 +18,7 @@ local function place_fixed(s)
 			color = p.color, special = p.special, axis = p.axis, blocker = p.blocker, hp = p.hp,
 			chain = p.kind == C.K_REGULAR and s.level.chain[p.cell] or 0,
 			ice = p.kind == C.K_REGULAR and s.level.ice[p.cell] or 0,
+			gift = p.gift,
 		})
 		B.place(s, o, p.cell)
 	end

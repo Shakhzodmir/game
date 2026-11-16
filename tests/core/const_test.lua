@@ -74,8 +74,14 @@ describe("core const: enumeration codes (17.2)", function()
 		assert_same({ C.AX_H, C.AX_V }, { 1, 2 })
 		assert_same(C.AXIS, { h = 1, v = 2 })
 		assert_same({ C.BK_BOX, C.BK_CONCRETE, C.BK_NOISE, C.BK_BALLOON, C.BK_COLUMN }, { 1, 2, 3, 4, 5 })
-		assert_same(C.BLOCKER, { record_box = 1, concrete = 2, noise = 3, balloon = 4, column = 5, boombox = 6 })
-		assert_same({ C.BK_BOOMBOX, C.NBLOCKERS, #C.BLOCKER_NAME, C.BLAST, C.BLAST_LAST }, { 6, 6, 6, 3, 5 })
+		assert_same(C.BLOCKER, { record_box = 1, concrete = 2, noise = 3, balloon = 4, column = 5, boombox = 6, hay = 7 })
+		assert_same({ C.BK_BOOMBOX, C.BK_HAY, C.NBLOCKERS, #C.BLOCKER_NAME, C.BLAST, C.BLAST_LAST }, { 6, 7, 7, 7, 3, 5 })
+		-- the gifts of a hay bale (10.12): the random one is drawn among the first four codes
+		assert_same({ C.GIFT_NONE, C.GIFT_RIFF_H, C.GIFT_RIFF_V, C.GIFT_SUB, C.GIFT_BIRD, C.GIFT_DISCO, C.GIFT_RANDOM, C.GIFT_DRAW },
+			{ 0, 1, 2, 3, 4, 5, 6, 4 })
+		assert_same(C.GIFT, { none = 0, riff = 1, sub = 3, bird = 4, disco = 5, random = 6 })
+		assert_same(C.GIFT_SPECIAL, { C.SP_RIFF, C.SP_RIFF, C.SP_SUB, C.SP_BIRD, C.SP_DISCO })
+		assert_same(C.GIFT_AXIS, { C.AX_H, C.AX_V, 0, 0, 0 })
 	end)
 
 	it("states, timers, source kinds", function()

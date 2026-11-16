@@ -148,6 +148,7 @@ local SLOT_FIELDS = {
 	balloon = { color = is_color },
 	column = { hp = hp_range(6, 12) },
 	boombox = { hp = hp_range(1, 3) },
+	hay = { hp = hp_range(1, 2) }, -- plus `gift` (and `axis` with a riff inside), checked below (10.12)
 	riff = { axis = is_axis },
 	sub = {}, bird = {}, disco = {},
 	piece = { color = is_color },
@@ -283,6 +284,24 @@ function LS.check(raw, errs)
 				allowed[f] = true
 				if not fields[f](item[f]) then e(path .. ": bad or missing " .. f) end
 			end
+		end
+		if item.type == "hay" then
+			-- the gift hidden in a hay bale (10.12): a special by its slot name, "random" or "none";
+			-- a riff names its axis, exactly like a preset riff
+			allowed.gift = true
+			if type(item.gift) ~= "string" or C.GIFT[item.gift] == nil then
+				e(path .. ": gift none|riff|sub|bird|disco|random required for a hay bale")
+			end
+			if item.gift == "riff" then
+				allowed.axis = true
+				if not is_axis(item.axis) then e(path .. ": axis h|v required with gift riff") end
+			elseif item.axis ~= nil then
+				allowed.axis = true
+				e(path .. ": axis goes only with gift riff")
+			end
+		elseif item.gift ~= nil then
+			allowed.gift = true
+			e(path .. ": gift is only for a hay bale (type hay)")
 		end
 		check_keys(item, allowed, path, errs)
 	end)

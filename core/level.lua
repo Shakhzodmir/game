@@ -13,7 +13,8 @@
 --   chain[i] (hp of the chain the starting piece of cell i wears, 10.6),
 --   ice[i] (hp of the ice the starting piece of cell i is frozen in, 10.11), has_ice,
 --   seg_top[i], seg_bot[i] (rows of the segment of cell i),
---   presets = {{cell, kind, color, special, axis, blocker, hp}} by cell,
+--   presets = {{cell, kind, color, special, axis, blocker, hp, gift}} by cell (gift: C.GIFT_* of a
+--   hay bale, 10.12), has_hay,
 --   mic = {total, on_board_max, gap_moves} or nil,
 --   coconut = {total, on_board_max, gap_moves, cols[x]} or nil (cols: may a
 --   coconut enter in column x), canonical, hash.
@@ -388,13 +389,18 @@ end
 
 local function preset_of(ctx, item, i)
 	local ty = item.type
-	local p = { cell = i, kind = 0, color = 0, special = 0, axis = 0, blocker = 0, hp = 0 }
+	local p = { cell = i, kind = 0, color = 0, special = 0, axis = 0, blocker = 0, hp = 0, gift = 0 }
 	if C.BLOCKER[ty] then
 		p.kind = C.K_BLOCKER
 		p.blocker = C.BLOCKER[ty]
 		p.hp = item.hp or 1
 		ctx.counts[p.blocker] = ctx.counts[p.blocker] + 1
 		if ty == "balloon" then p.color = C.COLOR[item.color] end
+		if ty == "hay" then
+			-- the special hidden in the bale (10.12); a riff names its axis like a preset riff
+			p.gift = C.GIFT[item.gift]
+			if item.gift == "riff" and item.axis == "v" then p.gift = C.GIFT_RIFF_V end
+		end
 	elseif C.SPECIAL[ty] then
 		p.kind = C.K_SPECIAL
 		p.special = C.SPECIAL[ty]
@@ -473,7 +479,7 @@ local function static_rules(ctx)
 			errs[#errs + 1] = "2.1.5 collect colour is not a level colour"
 		elseif g.type == C.GOAL_BREAK then
 			if g.param < 1 then
-				errs[#errs + 1] = "2.1.5 break item must be record_box, concrete, noise, balloon, column or boombox"
+				errs[#errs + 1] = "2.1.5 break item must be record_box, concrete, noise, balloon, column, boombox or hay"
 			elseif g.count > counts[g.param] then
 				errs[#errs + 1] = "2.1.5 break count exceeds the " .. C.BLOCKER_NAME[g.param] .. " objects on the board"
 			end
@@ -516,7 +522,7 @@ local function static_rules(ctx)
 		end
 	end
 	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet,
-	-- conveyor, boombox, ice
+	-- conveyor, boombox, ice, hay
 	local n_el = 0
 	for b = 1, C.NBLOCKERS do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -589,13 +595,13 @@ local function normalize(raw, errs)
 	local W, H = raw.size[1], raw.size[2]
 	local ctx = {
 		raw = raw, errs = errs, W = W, H = H, N = W * H,
-		deliver = false, exits = {}, n_exits = 0, slot_at = {}, counts = { 0, 0, 0, 0, 0, 0 },
+		deliver = false, exits = {}, n_exits = 0, slot_at = {}, counts = { 0, 0, 0, 0, 0, 0, 0 },
 		n_chains = 0, n_ice = 0, n_tiles = 0, n_mics = 0, n_coconuts = 0, drop = false, in_colors = {},
 		lvl = {
 			id = raw.id, version = raw.version, W = W, H = H, N = W * H, moves = raw.moves,
 			difficulty = C.DIFFICULTY[raw.difficulty],
 			colors = {}, weights = {}, goals = {},
-			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {}, ice = {}, has_ice = false,
+			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {}, ice = {}, has_ice = false, has_hay = false,
 			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil, carpet = nil,
 			conveyor = nil,
 		},
@@ -610,6 +616,7 @@ local function normalize(raw, errs)
 	read_conveyor(ctx)
 	static_rules(ctx)
 	ctx.lvl.has_ice = ctx.n_ice > 0
+	ctx.lvl.has_hay = ctx.counts[C.BK_HAY] > 0
 	return ctx.lvl, ctx.slot_at
 end
 

@@ -66,7 +66,7 @@ end
 
 -- Elements counted by rule 2.1.6, present in a raw level.
 Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain",
-	"curtain", "carpet", "conveyor", "boombox", "ice" }
+	"curtain", "carpet", "conveyor", "boombox", "ice", "hay" }
 
 -- Like the core's rule 2.1.6: a `mic` counts when there is a deliver goal, a
 -- mic block or a starting mic piece; a `coconut` likewise with a drop goal,
@@ -156,7 +156,9 @@ end
 -- Preview ---------------------------------------------------------------------
 
 local LETTER = { red = "r", orange = "o", yellow = "y", green = "g", blue = "b", purple = "p" }
-local ITEM = { record_box = "X", concrete = "K", noise = "N", balloon = "A", column = "C", boombox = "Q" }
+local ITEM = { record_box = "X", concrete = "K", noise = "N", balloon = "A", column = "C", boombox = "Q", hay = "H" }
+-- what a hay bale hides (core-rules 10.12), the 4th character of its cell in the static preview
+local GIFT = { riff = "-", sub = "S", bird = "B", disco = "D", random = "?" }
 local SPEC = { riff = "R", sub = "S", bird = "B", disco = "D" }
 
 -- One character for an hp: 1-9, then a b c for 10-12 (a column has up to 12).
@@ -200,7 +202,7 @@ local function draw_grid(g, W, H, marks)
 end
 
 Levels.LEGEND = "legend: r o y g b p piece colour, + random piece, R/S/B/D riff/sub/bird/disco (riff axis - or |),"
-	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), Q boombox (+hp), 3rd char floor (_ hp1, = hp2) or carpet (~),"
+	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), Q boombox (+hp), H hay bale (+hp; 4th char its gift in the static preview: - or | riff, S sub, B bird, D disco, ? random, none blank), 3rd char floor (_ hp1, = hp2) or carpet (~),"
 	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2), ice (i hp1, I hp2) or curtain (t), conveyor (> < ^ v: the way the belt moves, 3rd char, or 4th over a floor or carpet), v spawner, e exit (2nd char), . void"
 
 -- Static preview from the JSON.
@@ -275,6 +277,12 @@ function Levels.preview_raw(raw)
 			elseif ITEM[s.type] then
 				c[1] = ITEM[s.type]
 				c[2] = hp_char(s.hp)
+				if s.type == "hay" then
+					-- the gift: the author sees it, the player (and pieces()) never does
+					local gch = GIFT[s.gift]
+					if s.gift == "riff" and s.axis == "v" then gch = "|" end
+					if gch then c[4] = gch end
+				end
 				if s.type == "column" then
 					for dy = 0, 1 do
 						for dx = 0, 1 do

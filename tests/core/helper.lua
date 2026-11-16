@@ -6,6 +6,7 @@
 --   r o y g b p   a preset regular piece ("piece") of that colour
 --   R   riff h   V riff v   S sub   B bird   D disco   M mic   C coconut
 --   X   record_box hp 1     K concrete hp 1   N noise   Q boombox hp 1
+--   H   hay bale hp 1 with nothing inside (gift "none", 10.12)
 --   A..F  balloon red/orange/yellow/green/blue/purple
 -- `extra` overrides or adds top-level keys (goals, moves, floor, ...).
 -- H.load(...) validates it through core.load_level and fails the test on
@@ -21,6 +22,7 @@ local SPECIAL = { R = { type = "riff", axis = "h" }, V = { type = "riff", axis =
 	C = { type = "coconut" },
 	X = { type = "record_box", hp = 1 }, K = { type = "concrete", hp = 1 }, N = { type = "noise" },
 	Q = { type = "boombox", hp = 1 },
+	H = { type = "hay", hp = 1, gift = "none" },
 	A = { type = "balloon", color = "red" }, E = { type = "balloon", color = "blue" } }
 
 function H.level(rows, extra)
@@ -119,7 +121,7 @@ end
 local COLOR = { r = 1, o = 2, y = 3, g = 4, b = 5, p = 6 }
 local SPEC = { R = { 1, 1 }, V = { 1, 2 }, S = { 2, 0 }, B = { 3, 0 }, D = { 4, 0 } }
 local BLOCK = { X = { 1, 1, 0 }, K = { 2, 1, 0 }, N = { 3, 1, 0 }, A = { 4, 1, 1 }, E = { 4, 1, 5 },
-	Q = { 6, 1, 0 } }
+	Q = { 6, 1, 0 }, H = { 7, 1, 0 } }
 function H.board(g, rows)
 	local s = g.s
 	s.objs = {}
@@ -148,6 +150,7 @@ function H.board(g, rows)
 					id = id, kind = o.kind, color = o.color or 0, special = o.special or 0, axis = o.axis or 0,
 					blocker = o.blocker or 0, hp = o.hp or 0, state = 1, cell = i, mv = 0, wv = 0,
 					offx = 0, offy = 0, vy = 0, delay = 0, settle = 0, tk = 0, td = 0, pins = {}, chain = 0, ice = 0,
+					gift = 0,
 				}
 				s.objs[id] = full
 				s.slot[i] = id
