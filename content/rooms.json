@@ -156,6 +156,18 @@
         { "kind": "notes", "item": "banjo", "x": 642, "y": 500, "count": 2, "layer": "over", "colors": ["#FFB347", "#7CC8FF"], "rise": 170, "period": 4.0 },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "bluesclub": {
+      "mood": "evening",
+      "details": [
+        { "kind": "shaft", "x": 360, "y": 180, "w": 210, "h": 860, "angle": 12, "layer": "mid", "view": "day", "color": "#FFE9B8", "alpha": [0.1, 0.2], "period": 6.6 },
+        { "kind": "motes", "style": "dust", "rect": [150, 240, 420, 420], "count": 9, "layer": "mid", "color": "#FFE2A0" },
+        { "kind": "blink", "item": "neon_sign", "points": [[332, 590]], "r": 70, "layer": "over", "colors": ["#3CF2FF", "#B79CFF"], "period": 1.8, "alpha": [0.2, 0.6] },
+        { "kind": "blink", "item": "amp", "points": [[462, 574], [502, 574]], "r": 22, "layer": "over", "colors": ["#FFB347", "#FFD84D"], "period": 2.6, "alpha": [0.35, 0.9] },
+        { "kind": "notes", "item": "harmonica", "x": 240, "y": 690, "count": 3, "layer": "over", "colors": ["#7CC8FF", "#FFD84D", "#FF8FBE"], "rise": 190, "period": 3.8 },
+        { "kind": "notes", "item": "guitar", "x": 632, "y": 500, "count": 2, "layer": "over", "colors": ["#FFB347", "#7CC8FF"], "rise": 170, "period": 4.6 },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }

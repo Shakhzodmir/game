@@ -863,5 +863,66 @@
         "h": 182
       }
     }
+  },
+  "bluesclub": {
+    "bg": "assets/images/districts/bluesclub/bg.png",
+    "bg_concert": "assets/images/districts/bluesclub/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "piano": {
+        "image": "assets/images/districts/bluesclub/piano.png",
+        "ghost": "assets/images/districts/bluesclub/piano_ghost.png",
+        "x": 140,
+        "y": 606,
+        "scale": 0.7,
+        "w": 286,
+        "h": 274
+      },
+      "amp": {
+        "image": "assets/images/districts/bluesclub/amp.png",
+        "ghost": "assets/images/districts/bluesclub/amp_ghost.png",
+        "x": 482,
+        "y": 620,
+        "scale": 0.7,
+        "w": 186,
+        "h": 224
+      },
+      "mic": {
+        "image": "assets/images/districts/bluesclub/mic.png",
+        "ghost": "assets/images/districts/bluesclub/mic_ghost.png",
+        "x": 522,
+        "y": 746,
+        "scale": 0.7,
+        "w": 143,
+        "h": 261
+      },
+      "neon_sign": {
+        "image": "assets/images/districts/bluesclub/neon_sign.png",
+        "ghost": "assets/images/districts/bluesclub/neon_sign_ghost.png",
+        "x": 332,
+        "y": 600,
+        "scale": 0.7,
+        "w": 143,
+        "h": 257
+      },
+      "harmonica": {
+        "image": "assets/images/districts/bluesclub/harmonica.png",
+        "ghost": "assets/images/districts/bluesclub/harmonica_ghost.png",
+        "x": 240,
+        "y": 760,
+        "scale": 0.7,
+        "w": 214,
+        "h": 273
+      },
+      "guitar": {
+        "image": "assets/images/districts/bluesclub/guitar.png",
+        "ghost": "assets/images/districts/bluesclub/guitar_ghost.png",
+        "x": 632,
+        "y": 594,
+        "scale": 0.7,
+        "w": 129,
+        "h": 270
+      }
+    }
   }
 }

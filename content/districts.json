@@ -1946,6 +1946,104 @@
           "stem_desc": "harmonica answering the fiddle"
         }
       ]
+    },
+    {
+      "id": "bluesclub",
+      "first": 261,
+      "last": 280,
+      "map_tint": "#DCE6F4",
+      "name": {
+        "ru": "Блюз-клуб",
+        "en": "Blues Club",
+        "ko": "블루스 클럽"
+      },
+      "genre": {
+        "ru": "Вечерний блюз",
+        "en": "Evening Blues",
+        "ko": "이브닝 블루스"
+      },
+      "bpm": 96,
+      "key": "E",
+      "semitones_from_c": 4,
+      "bars": 8,
+      "mood": "cozy evening blues in an old music town by the river: shuffle feel, warm, a little cheeky, never sad",
+      "songs": [],
+      "chest": {
+        "coins": 2800,
+        "boosters": [
+          "disco",
+          "col_light",
+          "sub"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "piano",
+          "name": {
+            "ru": "Старое пианино",
+            "en": "Old upright piano",
+            "ko": "낡은 업라이트 피아노"
+          },
+          "cost": 1,
+          "stem": "piano",
+          "stem_desc": "boogie shuffle piano: rolling left hand and light right-hand chords"
+        },
+        {
+          "id": "amp",
+          "name": {
+            "ru": "Ламповый усилитель",
+            "en": "Tube amp",
+            "ko": "진공관 앰프"
+          },
+          "cost": 4,
+          "stem": "bass",
+          "stem_desc": "walking bass line"
+        },
+        {
+          "id": "mic",
+          "name": {
+            "ru": "Старинный микрофон",
+            "en": "Vintage microphone",
+            "ko": "빈티지 마이크"
+          },
+          "cost": 5,
+          "stem": "drums",
+          "stem_desc": "brushed shuffle drums with a lazy ride"
+        },
+        {
+          "id": "neon_sign",
+          "name": {
+            "ru": "Неоновая гитара",
+            "en": "Neon guitar sign",
+            "ko": "네온 기타 간판"
+          },
+          "cost": 5,
+          "stem": "organ",
+          "stem_desc": "soft organ pads and stabs"
+        },
+        {
+          "id": "harmonica",
+          "name": {
+            "ru": "Губная гармошка",
+            "en": "Harmonica",
+            "ko": "하모니카"
+          },
+          "cost": 5,
+          "stem": "harmonica",
+          "stem_desc": "harmonica melody with bends, singable"
+        },
+        {
+          "id": "guitar",
+          "name": {
+            "ru": "Электрогитара",
+            "en": "Electric guitar",
+            "ko": "일렉트릭 기타"
+          },
+          "cost": 6,
+          "stem": "lead",
+          "stem_desc": "clean electric guitar licks answering the harmonica"
+        }
+      ]
     }
   ],
   "level_stems": {
