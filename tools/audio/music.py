@@ -37,6 +37,7 @@ HI_RATE = {
     "beach": {"shaker", "party"},
     "carnival": {"shaker", "party"},
     "cinema": {"party"},
+    "bazaar": set(),  # every stem at 22.05 kHz: the zills ring at 2.3 and 6.4 kHz, nothing lives above 10 kHz
 }
 
 
@@ -421,6 +422,16 @@ def kit(name, sr):
             k["crash"] = [ins.crash(sr, key=41, t60=2.8)]
             k["hat"] = [unit(dsp.highpass(ins.snare(sr, 233.0, 0.025, 0.05, 1.0, 2500, 9000, key=320 + i), 1500, sr, 2))
                         for i in range(3)]
+        elif name == "bazaar":
+            unit = lambda x: x / dsp.peak(x)  # noqa: E731
+            # a goblet drum (dum on G2, the tonic; tek and ka ring on G5 and B5), a frame drum with a snare buzz
+            # on G3, finger cymbals and the jingles of a riq
+            for st in ("dum", "tek", "ka", "slap"):
+                k[st] = [darbuka(sr, st, key=i) for i in range(3)]
+            k["frame"] = [frame_drum(sr, key=i) for i in range(2)]
+            k["zill"] = [zill(sr, key=i) for i in range(2)]
+            k["riq"] = [unit(ins.tambourine(sr, key=40 + i, dur=0.14)) for i in range(3)]
+            k["hat"] = [unit(ins.tambourine(sr, key=50 + i, dur=0.07)) for i in range(3)]
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -562,6 +573,84 @@ def horn(midi, dur, sr, vel=0.8, key=0):
 def harp(midi, sr, key=0, dur=1.3):
     """A harp string: plucked near the middle (round), left to ring."""
     return ins.guitar(midi, dur, sr, bright=0.55, t60=2.4, pick=0.32, mute=0.35, key=key, damp=0.45, attack=0.0015)
+
+
+def darbuka(sr, stroke, key=0):
+    """One stroke on a goblet drum: 'dum' (the open bass tone in the middle of the skin: it settles on G2 and
+    carries its octaves, which is what a phone plays of it; no twelfth: a D under every dum would pull the key
+    to D), 'tek' (the right hand on the rim: a short ring on G5 and its octave under a bright crack), 'ka' (the
+    left hand: the same, lighter, on B5) and 'slap' (a dry muted crack)."""
+    r = dsp.rng("darbuka", stroke, key)
+    n = nsamp({"dum": 0.45, "tek": 0.16, "ka": 0.12, "slap": 0.09}[stroke], sr)
+    t = np.arange(n) / sr
+    nz = r.standard_normal(n)
+    if stroke == "dum":
+        ph = TAU * np.cumsum(float(midi_hz(43)) * (1.0 + 0.5 * np.exp(-t / 0.02))) / sr
+        x = np.sin(ph) * np.exp(-t / 0.11) + 0.5 * np.sin(2.0 * ph + 0.5) * np.exp(-t / 0.075)
+        x += 0.15 * np.sin(4.0 * ph + 0.2) * np.exp(-t / 0.045)
+        skin = dsp.bandpass(nz, 300, 2500, sr) * np.exp(-t / 0.006)
+        x = x + 0.3 * skin / dsp.peak(skin)
+    elif stroke in ("tek", "ka"):
+        f = float(midi_hz(79 if stroke == "tek" else 83)) * (1.0 + 0.004 * key)
+        ring = np.sin(TAU * f * t) * np.exp(-t / 0.03) + 0.5 * np.sin(TAU * 2.0 * f * t + 0.8) * np.exp(-t / 0.018)
+        crack = dsp.bandpass(nz, 2500, min(9000, 0.44 * sr), sr) * np.exp(-t / (0.008 if stroke == "tek" else 0.005))
+        x = 0.7 * ring + crack / dsp.peak(crack)
+    else:
+        crack = dsp.bandpass(nz, 900, 5000, sr) * np.exp(-t / 0.012)
+        x = crack / dsp.peak(crack) + 0.3 * np.sin(TAU * float(midi_hz(67)) * t) * np.exp(-t / 0.02)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.02)
+
+
+def frame_drum(sr, key=0, midi=55):
+    """A big frame drum with snare strings inside (bendir): a soft round tone on G3 and a short buzz."""
+    y = ins.tom(sr, float(midi_hz(midi)), 0.5, key=90 + key)
+    n = len(y)
+    t = np.arange(n) / sr
+    buzz = dsp.bandpass(dsp.rng("bendir", key).standard_normal(n), 1200, 5000, sr) * np.exp(-t / 0.05)
+    y = dsp.lowpass(y / dsp.peak(y), 1800, sr, 2) + 0.16 * buzz / dsp.peak(buzz)
+    return dsp.fade(y / dsp.peak(y), sr, 0.0008, 0.03)
+
+
+def zill(sr, key=0, t60=0.55, midi=98):
+    """Finger cymbals: two small brass discs a few Hz apart (they beat) ringing on D7, with the fifth and an
+    inharmonic partial that die quickly, and the click of the two rims."""
+    n = nsamp(t60 + 0.05, sr)
+    t = np.arange(n) / sr
+    f = float(midi_hz(midi))
+    x = np.sin(TAU * f * t) + 0.8 * np.sin(TAU * f * (1.005 + 0.001 * key) * t + 1.0)
+    x += 0.35 * np.sin(TAU * 1.5 * f * t + 0.3) * np.exp(-t / (t60 * 0.2))
+    x += 0.5 * np.sin(TAU * 2.71 * f * t) * np.exp(-t / (t60 * 0.1))
+    x *= dsp.env_perc(n, sr, t60, 0.0005)
+    x += 0.4 * dsp.highpass(dsp.rng("zill", key).standard_normal(n), 5000, sr, 2) * np.exp(-t / 0.003)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0003, 0.02)
+
+
+def oud(midi, dur, sr, key=0):
+    """One course of an oud: two gut strings a few cents apart, plucked with a long quill close to the bridge.
+    A dark, short, nasal tone without sustain over the body of the round back."""
+    def mk():
+        kw = dict(bright=0.42, t60=1.0, mute=0.12, damp=0.55, attack=0.001)
+        a = ins.guitar(midi, dur, sr, pick=0.09, key=key, **kw)
+        b = ins.guitar(midi + 0.07, dur, sr, pick=0.11, key=key + 7, **kw)
+        n = min(len(a), len(b))
+        y = a[:n] + 0.9 * b[:n]
+        y = dsp.filt(y, "peak", 220, sr, q=1.0, gain_db=3.0)
+        y = dsp.filt(y, "peak", 950, sr, q=1.2, gain_db=3.5)
+        y = dsp.lowpass(y, 4500, sr, 2)
+        return dsp.fade(y / dsp.peak(y), sr, 0.0005, 0.01)
+    return cached(("oud", midi, round(dur, 3), sr, key), mk)
+
+
+def qanun(midi, sr, key=0, dur=0.9):
+    """One course of a qanun: three metal strings (a few cents apart: the shimmer) plucked with finger picks.
+    Bright and glassy, left to ring."""
+    def mk():
+        kw = dict(bright=0.85, t60=1.5, pick=0.07, mute=0.3, damp=0.3, attack=0.0005)
+        parts = [ins.guitar(midi + dc, dur, sr, key=key * 3 + j, **kw) for j, dc in enumerate((-0.05, 0.0, 0.06))]
+        n = min(len(p) for p in parts)
+        y = dsp.highpass(sum(p[:n] for p in parts), 200, sr, 2)
+        return dsp.fade(y / dsp.peak(y), sr, 0.0003, 0.01)
+    return cached(("qanun", midi, sr, key, round(dur, 3)), mk)
 
 
 def hit(s, buf, samples, beat, vel, r, jitter=0.004, key=None):
@@ -2052,6 +2141,231 @@ def cinema_choir(s):
     return room(s, b, 0.4, 2.4, "choir", damp=5000, predelay=0.03)
 
 
+# ====================================================== BAZAAR (G major)
+
+def bazaar_song(d):
+    # a sunny bazaar tune in G on the maqsum rhythm. The scale is the plain major scale of G (the maqam Ajam):
+    # the eastern colour is in the rhythm, the instruments, the ornaments and the way the tune moves -- by step,
+    # in sequences, leaning on the two half steps (B-C and F#-G) that a pentatonic tune never touches -- not in
+    # notes outside the key, so the match notes (G major pentatonic) stay consonant. Two bars of G over the
+    # drone, IV - V, then the falling line vi - V - IV - iii (E, D, C, B in the bass, two chords a bar) and
+    # IV - V - I home. Triads only, all diatonic; the last bar is the tonic. (IV and not ii before the dominant:
+    # with A minor there the loop holds more A than C and reads as D major.)
+    G, B, C, D, E = 7, 11, 0, 2, 4
+    maj, mnr = [0, 4, 7], [0, 3, 7]
+    return Song(d, progression([
+        (4, G, maj, "G"), (4, G, maj, "G"), (4, C, maj, "C"), (4, D, maj, "D"),
+        (2, E, mnr, "Em"), (2, D, maj, "D"), (2, C, maj, "C"), (2, B, mnr, "Bm"),
+        (2, C, maj, "C"), (2, D, maj, "D"), (4, G, maj, "G"),
+    ]))
+
+
+BAZAAR_SCALE = (7, 9, 11, 0, 2, 4, 6)
+
+# Maqsum, the walking rhythm of the bazaar (dum tek - tek dum - tek -), in 16ths with the left hand filling:
+# D dum, T tek, k ka, S slap. Two bars alternate; bars 4 and 8 end in a roll.
+BAZAAR_MAQSUM = ("D.T.k.T.D.k.T.kk", "D.T.kkT.D.k.T.Tk")
+BAZAAR_FILLS = {3: "D.T.k.T.D.k.TkTS", 7: "D.T.kkT.D.S.TkTk"}
+
+
+def bazaar_darbuka(s):
+    """Darbuka (maqsum with ka fills, a roll into every fourth bar), a frame drum under the dums, finger cymbals
+    on beats 2 and 4 (a little gallop every second bar) and a quiet drone on the tonic (on the fifth under the
+    dominant), so that the first layer already says where home is."""
+    k = kit("bazaar", s.sr)
+    r = dsp.rng(s.id, "darbuka")
+    b = s.zeros()
+    strokes = {"D": ("dum", 1.0), "T": ("tek", 0.72), "k": ("ka", 0.38), "S": ("slap", 0.8)}
+    for bar in range(s.bars):
+        o = bar * 4
+        for i, ch in enumerate(BAZAAR_FILLS.get(bar, BAZAAR_MAQSUM[bar % 2])):
+            if ch in strokes:
+                name, v = strokes[ch]
+                hit(s, b, k[name], o + i * 0.25, v, r, 0.003)
+        for bt, v in ((0, 0.8), (2, 0.5), (3.5, 0.3)):
+            hit(s, b, k["frame"], o + bt, v, r, 0.003)
+        zills = ((1, 0.5), (3, 0.6)) if bar % 2 == 0 else ((1, 0.5), (3, 0.6), (3.25, 0.35), (3.5, 0.5))
+        for bt, v in zills:
+            hit(s, b, k["zill"], o + bt, 0.5 * v, r, 0.002)
+    b = dsp.drive(b / dsp.peak(b) * 1.3, 1.4)
+    b = room(s, b, 0.14, 0.8, "darbuka", damp=6000)
+    # the drone: G3 under every chord that holds a G (with a soft D3 under the tonic: the open fifth), D3 under
+    # D and B minor
+    dr = s.zeros()
+    for c in s.chords:
+        for m, g in {"G": ((55, 1.0), (50, 0.4)), "Em": ((55, 1.0),), "C": ((55, 1.0),)}.get(c.name, ((50, 0.9),)):
+            s.add(dr, pad_note(m, s.sec(c.dur) - 0.1, s.sr, cutoff=1100.0, attack=0.3, release=0.5, det=5.0, key=12),
+                  c.start, g)
+    dr = loop_filter(s, dr, "hp", 110)
+    rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+    return b + 0.3 * dr * rms(b) / rms(dr)
+
+
+def bazaar_below(m):
+    """The note of the scale of G under m."""
+    m -= 1
+    while m % 12 not in BAZAAR_SCALE:
+        m -= 1
+    return m
+
+
+def bazaar_oud(s):
+    """Oud riff on the accents of the drum: root on the dum, fifth and octave on the teks with a quick lower
+    neighbour (G F# G), root again on the second dum and the third on top before the bar turns. In the second
+    half of bars 4 and 8 the quill trembles on two notes of the chord instead (the tremolo fill)."""
+    r = dsp.rng(s.id, "oud")
+    b = s.zeros()
+    trem = {3: ((2.0, 57), (3.0, 54)), 7: ((2.0, 59), (3.0, 55))}  # bar -> (beat, the note that trembles)
+    for c in s.chords:
+        bar = int(c.start // 4)
+        R = nearest(c.root, 55, 50, 61)
+        F, O, T = R + 7, R + 12, R + 12 + c.tones[1]
+        fig = [(0.0, R, 0.95), (0.5, F, 0.6), (1.0, O, 0.8), (1.25, bazaar_below(O), 0.5), (1.5, O, 0.7),
+               (2.0, R, 0.85), (2.5, F, 0.6), (3.0, T, 0.75), (3.5, O, 0.6)]
+        for bt, m, v in fig:
+            if bt >= c.dur or (bar in trem and bt >= 2.0):
+                continue
+            s.add(b, oud(m, s.sec(0.45 if bt in (1.0, 1.25) else 0.7), s.sr, key=int(bt * 4) % 3), c.start + bt, v,
+                  dt=r.normal(0.003, 0.003))
+    for bar, notes in trem.items():
+        for bt, m in notes:
+            for i in range(8):  # eight strokes a beat, down and up, swelling
+                s.add(b, oud(m, s.sec(0.2), s.sr, key=i % 2), bar * 4 + bt + i / 8.0,
+                      (0.45 + 0.05 * i) * (1.0 if i % 2 == 0 else 0.8), dt=r.normal(0.002, 0.002))
+    b = loop_filter(s, b, "hp", 100)
+    return room(s, b, 0.14, 0.9, "oud", damp=5000)
+
+
+def bazaar_bass(s):
+    """A round bass that walks with the drum: the root on the first dum, the fifth on the second, a short root
+    on beat 4 (in the bars of two chords: one root on each dum)."""
+    r = dsp.rng(s.id, "bass")
+    b = s.zeros()
+    root = lambda c: nearest(c.root, 43, 38, 49)  # noqa: E731
+    for bar in range(s.bars):
+        o = bar * 4
+        c0, c2 = s.chord_at(o), s.chord_at(o + 2)
+        R = root(c0)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        if c2 is c0:
+            ev = [(0, 1.5, R, 0.9), (2, 0.9, F, 0.8), (3, 0.6, R, 0.65)]
+        else:
+            ev = [(0, 1.6, R, 0.9), (2, 1.6, root(c2), 0.85)]
+        if bar == s.bars - 1:
+            ev = [(0, 1.5, R, 0.9), (2, 0.9, R, 0.75), (3, 0.6, F, 0.7)]  # the fifth last: it falls into bar 1
+        for j, (bt, du, m, v) in enumerate(ev):
+            s.add(b, baby_bass(m, s.sec(du), s.sr, key=j % 3), o + bt, v, dt=r.normal(0.003, 0.002))
+    b = loop_filter(s, b, "lp", 1200)
+    return room(s, b, 0.06, 0.7, "bass", damp=2500)
+
+
+def bazaar_qanun(s):
+    """Qanun: 16ths that run up two octaves of the chord and down again (the first note of every beat doubled an
+    octave lower), and in the second half of bars 2 and 6 a tremolo on one high string that swells and fades."""
+    r = dsp.rng(s.id, "qanun")
+    b = s.zeros()
+    for beat in range(s.beats):
+        bar, ib = divmod(beat, 4)
+        c = s.chord_at(beat)
+        pcs = set(c.pcs())
+        tones = [m for m in range(67, 92) if m % 12 in pcs]
+        if bar in (1, 5) and ib >= 2:
+            m = min(tones, key=lambda x: abs(x - 84))
+            for i in range(8):
+                p = ((ib - 2) * 8 + i) / 16.0  # 0..1 through the two beats
+                v = 0.3 + 0.55 * np.sin(np.pi * p) ** 0.8
+                s.add(b, qanun(m, s.sr, key=i % 2, dur=0.3), beat + i / 8.0, v * (1.0 if i % 2 == 0 else 0.85),
+                      dt=r.normal(0.002, 0.002))
+            continue
+        for i in range(4):
+            q = ib * 4 + i
+            p = q if q < 8 else 15 - q
+            m = tones[min(p, len(tones) - 1)]
+            v = 0.85 if i == 0 else 0.5 + 0.04 * i
+            s.add(b, qanun(m, s.sr, key=q % 2), beat + i * 0.25, v, dt=r.normal(0.003, 0.003))
+            if i == 0:
+                s.add(b, qanun(m - 12, s.sr, key=2), beat, 0.45, dt=0.012)
+    b = loop_filter(s, b, "hp", 250)
+    b = loop_eq(s, b, "highshelf", 3500, 2.0)
+    return room(s, b, 0.22, 1.4, "qanun", damp=7000, predelay=0.02)
+
+
+# The tune of the ney, D5-D6, all in the scale of G. Two bars call (and leave room for the strings to answer),
+# bars 5-6 are the heart of it: a figure of three notes that steps down four times (B D C / A C B / G B A /
+# F# A G) over the falling bass, and 'A G E - F# A F# - G' brings it home. Ornaments: a slide into a long note
+# (bend, from the scale step below), mordents (note, upper neighbour, note) and short grace notes.
+# bar -> (beat, beats, midi[, vel, opts])
+BAZAAR_SLIDE = {"bend": 2.0, "bend_t": 0.14}
+BAZAAR_NEY = bars({
+    0: [(0.0, 0.5, 74), (0.5, 0.5, 79), (1.0, 0.5, 81), (1.5, 1.0, 83, 0.85, BAZAAR_SLIDE), (2.5, 0.5, 81),
+        (3.0, 1.0, 79)],
+    1: [(0.0, 0.125, 83), (0.125, 0.125, 84), (0.25, 1.75, 83, 0.85)],
+    2: [(0.0, 1.0, 84), (1.0, 0.5, 86), (1.5, 0.5, 84), (2.0, 1.0, 83), (3.0, 0.5, 81), (3.5, 0.5, 79)],
+    3: [(0.0, 2.0, 78, 0.85, BAZAAR_SLIDE), (3.875, 0.125, 84, 0.6)],
+    4: [(0.0, 1.0, 83), (1.0, 0.5, 86), (1.5, 0.375, 84), (1.875, 0.125, 83, 0.6), (2.0, 1.0, 81), (3.0, 0.5, 84),
+        (3.5, 0.5, 83)],
+    5: [(0.0, 1.0, 79), (1.0, 0.5, 83), (1.5, 0.375, 81), (1.875, 0.125, 79, 0.6), (2.0, 1.0, 78), (3.0, 0.5, 81),
+        (3.5, 0.5, 79)],
+    6: [(0.0, 1.0, 81), (1.0, 0.5, 79), (1.5, 0.5, 76), (2.0, 0.125, 78), (2.125, 0.125, 79), (2.25, 0.75, 78),
+        (3.0, 0.5, 81), (3.5, 0.5, 78)],
+    7: [(0.0, 2.5, 79, 0.85, {"bend": 1.0, "bend_t": 0.12})],
+})
+
+
+def ney_line(s, evs, key="ney"):
+    """Ney, the reed flute, on a tune [(beat, beats, midi[, vel, opts])]: a hollow tone (the third harmonic
+    stronger than the second), a lot of breath that follows the note, a puff on every attack and a small scoop
+    of pitch into it. Unlike the clean flute of the beach, this one is husky and bends. Returns the loop."""
+    src, env, onset = render_line(s, events(s, evs), osc="sine", glide=0.028, legato_gap=0.012, attack=0.05,
+                                  release=0.09, vib_rate=5.6, vib_depth=0.16, vib_delay=0.22, scoop=0.25, key=key)
+    tone = src + 0.1 * (2.0 * src ** 2 - 1.0) + 0.22 * (4.0 * src ** 3 - 3.0 * src)
+    air = ins.breath(len(src), s.sr, key, 1200, 5200)
+    air = air / float(np.sqrt(np.mean(air ** 2))) * 0.35
+    x = tone * env + 0.5 * air * env + 0.6 * air * onset * np.clip(env * 4.0, 0, 1)
+    x = dsp.highpass(x, 250, s.sr, 2)
+    return wrap(s, x / dsp.peak(x))
+
+
+def bazaar_flute(s):
+    """The ney plays the tune; its ornaments are written in BAZAAR_NEY."""
+    b = ney_line(s, BAZAAR_NEY)
+    b = echo(s, b, 0.75, 0.12, 0.3, 2, 3500)
+    return room(s, b, 0.26, 1.6, "ney", damp=5000, predelay=0.02)
+
+
+# The string section of the band, all in unison (in octaves): it answers the ney where it holds its breath (a
+# run up into bar 3, 'A C B A' into bar 5, 'B A G' at the very end) and plays the falling figure and the way
+# home together with it. bar -> (beat, beats, midi)
+BAZAAR_STRINGS = bars({
+    1: [(2.0, 0.5, 74), (2.5, 0.5, 76), (3.0, 0.5, 78), (3.5, 0.5, 79)],
+    3: [(2.0, 0.5, 81), (2.5, 0.5, 84), (3.0, 0.5, 83), (3.5, 0.5, 81)],
+    4: [(0.0, 1.0, 83), (1.0, 0.5, 86), (1.5, 0.5, 84), (2.0, 1.0, 81), (3.0, 0.5, 84), (3.5, 0.5, 83)],
+    5: [(0.0, 1.0, 79), (1.0, 0.5, 83), (1.5, 0.5, 81), (2.0, 1.0, 78), (3.0, 0.5, 81), (3.5, 0.5, 79)],
+    6: [(0.0, 1.0, 81), (1.0, 0.5, 79), (1.5, 0.5, 76), (2.0, 1.0, 78), (3.0, 0.5, 81), (3.5, 0.5, 78)],
+    7: [(0.0, 1.0, 79), (2.0, 0.5, 83), (2.5, 0.5, 81), (3.0, 1.0, 79)],
+})
+
+
+def unison_strings(s, evs, key="b"):
+    """Violins and, an octave lower, violas and cellos on one line [(beat, beats, midi[, vel])]: no chords, every
+    player on the tune, sliding from note to note (the sound of an eastern film orchestra). Returns the loop."""
+    b = s.zeros()
+    for shift, gain, name in ((0, 0.8, "vn"), (-12, 1.0, "vc")):
+        ev = [(e[0], e[1], e[2] + shift) + tuple(e[3:4]) for e in evs]
+        src, env, _ = render_line(s, events(s, ev), osc="saw", detune=9.0, glide=0.045, legato_gap=0.03, attack=0.06,
+                                  release=0.14, vib_rate=5.7, vib_depth=0.18, vib_delay=0.2, key=key + name)
+        x = dsp.sweep_filter(src * env, 1100.0 + 2300.0 * np.clip(env, 0, 1), s.sr, q=0.8)
+        b += gain * wrap(s, x / dsp.peak(x))
+    b = loop_eq(s, b, "peak", 500, 2.0, 1.0)
+    return loop_filter(s, loop_filter(s, b, "hp", 180), "lp", 4200)
+
+
+def bazaar_strings(s):
+    """The string section answers the ney and doubles it (BAZAAR_STRINGS)."""
+    b = unison_strings(s, BAZAAR_STRINGS)
+    return room(s, b, 0.3, 1.8, "strings", damp=4500, predelay=0.025)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -2069,7 +2383,7 @@ def tension_stem(s, style):
     r = dsp.rng(s.id, "tension")
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -2092,6 +2406,8 @@ def tension_stem(s, style):
             x = ins.piano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.8, release=0.06)
         elif style == "cinema":  # cellos and basses off the string (spiccato): the chase is on
             x = bowed(m, s.sec(0.2), s.sr, key=9, attack=0.012, release=0.07, vib=0.0, cutoff=1800.0)
+        elif style == "bazaar":  # the oud, short strokes on the chord roots
+            x = oud(m, s.sec(0.3), s.sr, key=9)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -2155,7 +2471,7 @@ def party_stem(s, style):
     """Final concert: crashes, claps, 16th percussion, stabs and a bright arp."""
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -2178,6 +2494,11 @@ def party_stem(s, style):
         if style == "carnival":  # the bongo bell of the mambo section: the beats, and the off-beats of 2 and 4
             for bt, v in ((0, 0.9), (1, 0.6), (1.5, 0.45), (2, 0.9), (3, 0.6), (3.5, 0.45)):
                 hit(s, b, k["bell"], o + bt, 0.4 * v, r, 0.002)
+        if style == "bazaar":  # finger cymbals on every beat with a gallop into the next bar, the riq on the 8ths
+            for bt, v in ((0, 0.5), (1, 0.7), (2, 0.5), (3, 0.7), (3.25, 0.4), (3.5, 0.55)):
+                hit(s, b, k["zill"], o + bt, 0.4 * v, r, 0.002)
+            for i in range(8):
+                hit(s, b, k["riq"], o + i * 0.5, 0.4 if i % 2 else 0.25, r, 0.003)
         if bar in (3, 7):
             for j in range(8):
                 hit(s, b, dk["snare"], o + 2 + j * 0.25, 0.3 + 0.06 * j, r, 0.002)
@@ -2186,9 +2507,10 @@ def party_stem(s, style):
     chords = party_chords(s, style)
     vo = [party_voicing(c) for c in chords]
     for bar in range(s.bars):
-        # off-beat stabs; swung in the jazz club; in the cinema a fanfare rhythm (long, short-long) on the beats
-        for bt in {"jazz": (T, 1 + T, 2 + T, 3 + T), "cinema": (0.0, 0.75, 1.0, 2.0, 2.75, 3.0)}.get(
-                style, (0.5, 1.5, 2.5, 3.5)):
+        # off-beat stabs; swung in the jazz club; in the cinema a fanfare rhythm (long, short-long) on the beats;
+        # in the bazaar the accents of the maqsum (dum tek - tek dum - tek)
+        for bt in {"jazz": (T, 1 + T, 2 + T, 3 + T), "cinema": (0.0, 0.75, 1.0, 2.0, 2.75, 3.0),
+                   "bazaar": (0.0, 0.5, 1.5, 2.0, 3.0)}.get(style, (0.5, 1.5, 2.5, 3.5)):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
             for j, m in enumerate(vo[ci]):
@@ -2213,6 +2535,8 @@ def party_stem(s, style):
                 x = ins.marimba(m, s.sr, vel=0.8, dur=0.8)
             elif style == "carnival":  # the top of the piano
                 x = ins.piano(m, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
+            elif style == "bazaar":  # the top strings of the qanun
+                x = qanun(m, s.sr, key=i % 2, dur=0.6)
             else:
                 x = ins.glock(m, s.sr, vel=0.7, dur=0.8, octave_up=False)
             s.add(arp, x, c.start + i * 0.5, 0.8 if i % 2 == 0 else 0.6)
@@ -2248,6 +2572,9 @@ DISTRICTS = {
     "cinema": dict(song=cinema_song, stems={
         "timpani": cinema_timpani, "cello": cinema_cello, "harp": cinema_harp, "drums": cinema_drums,
         "brass": cinema_brass, "choir": cinema_choir}),
+    "bazaar": dict(song=bazaar_song, stems={
+        "darbuka": bazaar_darbuka, "oud": bazaar_oud, "bass": bazaar_bass, "qanun": bazaar_qanun,
+        "flute": bazaar_flute, "strings": bazaar_strings}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -2272,6 +2599,8 @@ LOUDNESS = {
     "carnival": {"congas": -17, "shaker": -20, "bass": -19, "piano": -19, "guitar": -19, "trumpet": -18,
                  "tension": -18, "party": -16},
     "cinema": {"timpani": -17, "cello": -19, "harp": -20, "drums": -19, "brass": -19, "choir": -18,
+               "tension": -18, "party": -16},
+    "bazaar": {"darbuka": -17, "oud": -19, "bass": -19, "qanun": -20, "flute": -18, "strings": -19,
                "tension": -18, "party": -16},
 }
 
