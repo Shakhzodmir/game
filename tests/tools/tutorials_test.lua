@@ -38,6 +38,7 @@ local PLAN_ELEMENTS = {
 	boombox = 201, -- district 11 (WP-17)
 	ice = 221, -- district 12 (WP-17)
 	hay = 241, -- district 13 (WP-17)
+	fog = 261, -- district 14 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -134,6 +135,7 @@ local function level_of(n)
 		if g.type == "chains" then info.chains_goal = k end
 		if g.type == "ice" then info.ice_goal = k end
 		if g.type == "break" and g.item == "hay" then info.hay_goal = k end
+		if g.type == "fog" then info.fog_goal = k end
 	end
 	levels[n] = info
 	return info
@@ -172,6 +174,7 @@ local function elements_of(raw)
 	if raw.curtain then kinds.curtain = true end -- (10.7: a block of its own, not a slot)
 	if raw.carpet then kinds.carpet = true end -- (10.8: a list of cells of its own, not a slot)
 	if raw.conveyor then kinds.conveyor = true end -- (10.9: a list of belts of its own, not a slot)
+	if raw.fog then kinds.fog = true end -- (10.13: a list of cells of its own, not a slot)
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
@@ -179,6 +182,7 @@ local function elements_of(raw)
 		if g.type == "drop" then kinds.coconut = true end
 		if g.type == "chains" then kinds.chain = true end
 		if g.type == "ice" then kinds.ice = true end
+		if g.type == "fog" then kinds.fog = true end
 	end
 	return kinds
 end
@@ -398,7 +402,7 @@ end
 -- What the effects of a step are measured on: layers of the blockers, tiles, wires, specials, goals, moves.
 local function snap(game, info)
 	local t = { box_hp = 0, concrete_hp = 0, noise = 0, balloon = 0, column_hp = 0, boombox_hp = 0, ice_hp = 0, hay_hp = 0, wires = 0, floor_hp = 0,
-		specials = {}, special_count = 0, goals = {} }
+		fog = 0, specials = {}, special_count = 0, goals = {} }
 	local list = game:pieces()
 	for i = 1, #list do
 		local p = list[i]
@@ -420,6 +424,7 @@ local function snap(game, info)
 	for i = 1, #cells do
 		t.wires = t.wires + (cells[i].wires or 0)
 		t.floor_hp = t.floor_hp + (cells[i].floor or 0)
+		if cells[i].fog then t.fog = t.fog + 1 end -- (10.13: the cells still under the stage fog)
 	end
 	t.cells = cells
 	local st = game:status()
@@ -505,6 +510,13 @@ local EFFECTS = {
 		local k = info.hay_goal
 		if not (k and b.goals[k] < a.goals[k]) then return "no hay bale was taken apart" end
 		return b.special_count > a.special_count or "no hidden special came out of the bale"
+	end,
+	-- the hinted match of two visible pieces stands next to the bank of fog (10.13): the fog is gone from the cells
+	-- beside it, and the `fog` goal counts every one of them
+	["tutorial.fog"] = function(a, b, info)
+		if not (b.fog < a.fog) then return "no fog was cleared" end
+		local k = info.fog_goal
+		return (k and a.goals[k] - b.goals[k] == a.fog - b.fog) or "the fog goal did not count the cleared cells"
 	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
@@ -778,12 +790,12 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
 		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, the
-		-- chain of 121, the curtain of 141, the carpet of 161, the conveyor of 181, the boombox of 201, the ice of 221 and
-		-- the hay bale of 241, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181, 201, 221, 241 }) do
+		-- chain of 121, the curtain of 141, the carpet of 161, the conveyor of 181, the boombox of 201, the ice of 221,
+		-- the hay bale of 241 and the fog of 261, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181, 201, 221, 241, 261 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 27)
+		assert_eq(#ids_of(defs), 28)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()

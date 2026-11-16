@@ -4,8 +4,8 @@
 -- (or the level, if the plan is right).
 --   * every file loads through the core (rules 2.1) and keeps the plan of levels-plan.md: the difficulty saw,
 --     the colours of its stretch, 20-35 moves (the same as `luajit tools/levels.lua validate --strict`);
---   * the saw earns 126 stars in the first hundred, the files 338 in all; the town costs 337 (meta-economy.md,
---     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11, 12 and 13 cost what
+--   * the saw earns 126 stars in the first hundred, the files 364 in all; the town costs 363 (meta-economy.md,
+--     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11, 12, 13 and 14 cost what
 --     their saws earn, 26 each);
 --   * every level of the README table agrees with its file: difficulty, size and cells, colours, elements,
 --     goals, and the "(обучение)" mark with the lessons of content/tutorials.json. The moves column is only
@@ -34,6 +34,7 @@ local COLOR_GENITIVE_PLURAL = {
 -- a word that a goal of the table must contain, by the item of a `break` goal
 local ITEM_WORD = { record_box = "короб", concrete = "бетон", noise = "помех", balloon = "шарик", column = "колон",
 	boombox = "бумбокс", hay = "стог" }
+local FOG_GOAL = "рассеять туман" -- the goal `fog` of the table (10.13): no count, every fogged cell
 local LAST = Levels.content_count(DIR) -- the last level of the last district of content/districts.json
 local TIMES = "\195\151" -- the multiplication sign of the "9×9" of the field column
 
@@ -102,9 +103,9 @@ local function cell_count(raw)
 end
 
 describe("level content: the files", function()
-	it("has every level of the thirteen districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
+	it("has every level of the fourteen districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
 		local problems = {}
-		assert_eq(LAST, 260, "the last level of the last district")
+		assert_eq(LAST, 280, "the last level of the last district")
 		for n, f in ipairs(files()) do
 			for _, e in ipairs(f.res.errors) do problems[#problems + 1] = "level " .. n .. ": " .. e end
 			for _, w in ipairs(f.res.warnings) do problems[#problems + 1] = "level " .. n .. ": " .. w end
@@ -116,9 +117,9 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 338 stars on the saw (130 in the first hundred), more than the 337 of the town", function()
+	it("earns 364 stars on the saw (130 in the first hundred), more than the 363 of the town", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
-		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220, stars240, counts240
+		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220, stars240, counts240, stars260, counts260
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
@@ -155,6 +156,10 @@ describe("level content: the files", function()
 				stars240 = stars
 				counts240 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
 			end
+			if n == 260 then
+				stars260 = stars
+				counts260 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
+			end
 		end
 		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
 		assert_same(counts100, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
@@ -190,14 +195,18 @@ describe("level content: the files", function()
 		assert_eq(stars240, 312)
 		-- district 13 (WP-17, levels 241-260) has the same saw: 10 easy, 6 medium, hard 247 and 253, super hard 257
 		-- and the concert 260: 26 stars for a price of 26, the spare stays 1 star
-		assert_same(counts, { easy = 129, medium = 76, hard = 32, super_hard = 23 })
-		assert_eq(stars, 338)
+		assert_same(counts260, { easy = 129, medium = 76, hard = 32, super_hard = 23 })
+		assert_eq(stars260, 338)
+		-- district 14 (WP-17, levels 261-280) has the same saw: 10 easy, 6 medium, hard 267 and 273, super hard 277
+		-- and the concert 280: 26 stars for a price of 26, the spare stays 1 star
+		assert_same(counts, { easy = 139, medium = 82, hard = 34, super_hard = 25 })
+		assert_eq(stars, 364)
 		local town = json.decode(read("content/districts.json"))
 		local cost = 0
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 337, "the stars the town costs (content/districts.json)")
+		assert_eq(cost, 363, "the stars the town costs (content/districts.json)")
 		assert_eq(stars - cost, 1, "one spare star is left")
 		assert_true(stars >= cost, "the town cannot be finished: " .. stars .. " stars for " .. cost)
 	end)
@@ -294,6 +303,8 @@ local function row_problems(n, cells, raw)
 	expect("провода (%d+)", count_overlay(raw, "wires"), "провода")
 	expect("цепи (%d+)", count_overlay(raw, "chain"), "цепи")
 	expect("лёд (%d+)", count_overlay(raw, "ice"), "лёд") -- (10.11)
+	-- the fog (10.13): "туман N" exactly where the file has the list; N = the cells under the fog at the start
+	expect("туман (%d+)", #(raw.fog or {}), "туман")
 	local columns = count_slots(raw, "column")
 	if columns == 1 then
 		if not elements:find("колонка (", 1, true) then bad("элементы", "one column must be named 'колонка (hpN)'") end
@@ -350,7 +361,7 @@ local function row_problems(n, cells, raw)
 	for _ in elements:gmatch("готовый") do gift_words = gift_words + 1 end
 	if gift_words ~= gifts(raw) then bad("элементы", gift_words .. " ready specials named, the file has " .. gifts(raw)) end
 	local nothing = columns == 0 and #(raw.floor or {}) == 0 and #(raw.overlay or {}) == 0 and raw.mic == nil and gifts(raw) == 0
-		and raw.coconut == nil and raw.curtain == nil and raw.carpet == nil and raw.conveyor == nil
+		and raw.coconut == nil and raw.curtain == nil and raw.carpet == nil and raw.conveyor == nil and raw.fog == nil
 	for _, kind in ipairs({ "record_box", "concrete", "noise", "balloon", "boombox", "hay" }) do
 		if count_slots(raw, kind) > 0 then nothing = false end
 	end
@@ -379,6 +390,8 @@ local function row_problems(n, cells, raw)
 				ok = part:find("растопить " .. g.count .. " ", 1, true) ~= nil and part:find("льд", 1, true) ~= nil
 			elseif g.type == "carpet" then -- (10.8: no count, the whole board)
 				ok = part == "застелить всё поле"
+			elseif g.type == "fog" then -- (10.13: no count, every fogged cell)
+				ok = part == FOG_GOAL
 			else
 				ok = part:find(" " .. g.count .. " ", 1, true) ~= nil or part:find(" " .. g.count .. "$") ~= nil
 				ok = ok and part:find(ITEM_WORD[g.item], 1, true) ~= nil

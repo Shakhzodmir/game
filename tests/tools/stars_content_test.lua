@@ -21,7 +21,7 @@ end
 describe("star thresholds (content/levels/stars.json)", function()
 	it("pass the validator for every shipped level", function()
 		local data = load()
-		assert_eq(LAST, 260, "thirteen districts of 20 levels")
+		assert_eq(LAST, 280, "fourteen districts of 20 levels")
 		local errs = Stars.check(data, DIR)
 		assert_same(errs, {})
 	end)
@@ -35,12 +35,12 @@ describe("star thresholds (content/levels/stars.json)", function()
 		end
 	end)
 
-	it("name the last level of every district (20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 260) as a concert, and only them (WP-14)", function()
+	it("name the last level of every district (20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280) as a concert, and only them (WP-14)", function()
 		local data = load()
 		local ends = {}
 		for _, d in ipairs(DISTRICTS) do ends[d.last] = true end
 		assert_same({ ends[20], ends[40], ends[60], ends[80], ends[100], ends[120], ends[140], ends[160], ends[180],
-			ends[200], ends[220], ends[240], ends[260] }, { true, true, true, true, true, true, true, true, true, true, true, true, true })
+			ends[200], ends[220], ends[240], ends[260], ends[280] }, { true, true, true, true, true, true, true, true, true, true, true, true, true, true })
 		for id = 1, LAST do
 			local want = ends[id] and "concert" or "normal"
 			assert_eq(data.levels[tostring(id)].kind, want, "level " .. id)
@@ -112,7 +112,7 @@ describe("star thresholds (content/levels/stars.json)", function()
 		assert_eq(r.score, only.levels["3"].best)
 	end)
 
-	it("keep the economy facts of the handoff true: 260 to 780 stars in the game, 337 for the town", function()
+	it("keep the economy facts of the handoff true: 280 to 840 stars in the game, 363 for the town", function()
 		local json = require("tools.lib.json")
 		local f = assert(io.open("content/districts.json", "r"))
 		local town = json.decode(f:read("*a"))
@@ -122,8 +122,8 @@ describe("star thresholds (content/levels/stars.json)", function()
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
 		-- 124 for the first five districts, 31 for the sixth (the price rule of docs/handoff/WP-15.md) and 26 for the seventh (softened: the
-		-- saw of district 6 earns 26) and 26 each for the eighth, the ninth, the tenth, the eleventh, the twelfth and the thirteenth (the same saw)
-		assert_eq(cost, 337)
+		-- saw of district 6 earns 26) and 26 each for the eighth, the ninth, the tenth, the eleventh, the twelfth, the thirteenth and the fourteenth (the same saw)
+		assert_eq(cost, 363)
 		-- 1 star per win is not enough for the whole town (the last districts need better scores or replays),
 		-- 3 stars per level is far more than enough: if the prices change, docs/handoff/WP-4.md must change with them
 		assert_true(LAST < cost and cost < 3 * LAST)

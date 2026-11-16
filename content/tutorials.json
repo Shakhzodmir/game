@@ -99,5 +99,8 @@
   ]},
   "241": {"steps": [
     {"kind": "swap", "from": [2, 1], "to": [2, 2], "text": "tutorial.hay"}
+  ]},
+  "261": {"steps": [
+    {"kind": "swap", "from": [4, 0], "to": [4, 1], "text": "tutorial.fog"}
   ]}
 }
