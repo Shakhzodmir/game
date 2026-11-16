@@ -107,7 +107,7 @@ local function level_of(n)
 	if not raw then return nil end
 	local level, errs = core.load_level(text)
 	assert_true(level ~= nil, "level " .. n .. " does not load: " .. table.concat(errs or {}, "; "))
-	local info = { n = n, raw = raw, level = level, W = raw.size[1], H = raw.size[2], slot = {}, floor = {}, wires = {}, chain = {},
+	local info = { n = n, raw = raw, level = level, W = raw.size[1], H = raw.size[2], slot = {}, floor = {}, wires = {}, chain = {}, ice = {},
 		curtain = {} }
 	for _, s in ipairs(raw.slots or {}) do
 		if s.type == "column" then -- 2x2 from the top-left cell
@@ -120,7 +120,9 @@ local function level_of(n)
 	end
 	for _, t in ipairs(raw.floor or {}) do info.floor[key(t.at[1], t.at[2])] = t.hp end
 	for _, t in ipairs(raw.overlay or {}) do
-		if t.type == "chain" then info.chain[key(t.at[1], t.at[2])] = t.hp else info.wires[key(t.at[1], t.at[2])] = t.hp end
+		if t.type == "chain" then info.chain[key(t.at[1], t.at[2])] = t.hp
+		elseif t.type == "ice" then info.ice[key(t.at[1], t.at[2])] = t.hp -- (10.11: frozen, not wired)
+		else info.wires[key(t.at[1], t.at[2])] = t.hp end
 	end
 	for _, c in ipairs(raw.curtain and raw.curtain.covers or {}) do info.curtain[key(c[1], c[2])] = true end -- (10.7)
 	for k, g in ipairs(raw.goals) do
