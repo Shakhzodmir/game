@@ -2110,7 +2110,52 @@
       "semitones_from_c": 0,
       "bars": 8,
       "mood": "bright retro game-console music: square and triangle waves, fast arpeggios, heroic and playful",
-      "songs": [],
+      "songs": [
+        {
+          "id": "hero_overworld_march",
+          "name": {
+            "ru": "Марш пиксельного героя",
+            "en": "Pixel Hero March",
+            "ko": "픽셀 용사의 행진"
+          },
+          "bpm": 120,
+          "bars": 12,
+          "mood": "heroic overworld march in two: an oom-pah triangle bass, a marching noise snare with rolls, chords broken into fast 32nd rolls, a square-wave fanfare tune joined by a second pulse a third below"
+        },
+        {
+          "id": "bubble_level_waltz",
+          "name": {
+            "ru": "Вальс подводного уровня",
+            "en": "Bubble Level Waltz",
+            "ko": "물속 스테이지 왈츠"
+          },
+          "bpm": 108,
+          "bars": 12,
+          "mood": "underwater waltz in three, all soft: a triangle-wave tune with slow vibrato, low triangle notes on one and two soft notes on two and three, a rounded square-wave harp with a long echo, a music-box pulse, rising bubbles, no drums"
+        },
+        {
+          "id": "boss_rush_blitz",
+          "name": {
+            "ru": "Гонка с боссами",
+            "en": "Boss Rush",
+            "ko": "보스 러시"
+          },
+          "bpm": 176,
+          "bars": 16,
+          "mood": "fast boss rush in major: a kick on every beat, noise snare, galloping hats and tom fills, a galloping triangle bass, a pulse tune hammering 16ths against a pedal note, then long vibrato notes over 16th arpeggios"
+        },
+        {
+          "id": "try_again_lullaby",
+          "name": {
+            "ru": "Колыбельная для новой попытки",
+            "en": "Try Again Lullaby",
+            "ko": "다시 한 번 자장가"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "gentle game-over lullaby, no drums: soft triangle broken chords in 8ths, one long triangle bass note a chord, a rounded square-wave tune with a little vibrato, a thin music-box pulse answering at the end of every bar"
+        }
+      ],
       "chest": {
         "coins": 3000,
         "boosters": [
