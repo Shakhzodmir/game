@@ -533,15 +533,13 @@
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 21664,
-      "placeholder": true
+      "bytes": 20104
     },
     "blockers/hay_2.png": {
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 21654,
-      "placeholder": true
+      "bytes": 40681
     },
     "blockers/ice_1.png": {
       "w": 160,
