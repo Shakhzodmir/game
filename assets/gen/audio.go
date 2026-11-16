@@ -4,6 +4,46 @@ components {
   component: "/main/audio.script"
 }
 embedded_components {
+  id: "music_bazaar_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bazaar_darbuka"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/darbuka.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bazaar_flute"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/flute.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bazaar_oud"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/oud.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bazaar_party"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bazaar_qanun"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/qanun.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bazaar_strings"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/strings.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bazaar_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/bazaar/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_beach_bass"
   type: "sound"
   data: "sound: \"/assets/music/beach/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -969,6 +1009,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/candy_rush.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_caravan_bells"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/caravan_bells.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_carnival_samba"
   type: "sound"
   data: "sound: \"/assets/music/songs/carnival_samba.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1012,6 +1057,11 @@ embedded_components {
   id: "song_deep_sea_lights"
   type: "sound"
   data: "sound: \"/assets/music/songs/deep_sea_lights.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_desert_starlight"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/desert_starlight.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_dub_lagoon"
@@ -1244,6 +1294,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/sparrow_rondo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_spice_market_dance"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/spice_market_dance.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_stardust_drift"
   type: "sound"
   data: "sound: \"/assets/music/songs/stardust_drift.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1297,4 +1352,9 @@ embedded_components {
   id: "song_velvet_evening"
   type: "sound"
   data: "sound: \"/assets/music/songs/velvet_evening.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_wedding_drums"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/wedding_drums.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }

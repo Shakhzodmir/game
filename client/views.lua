@@ -47,8 +47,11 @@ M.BOOSTER_ICON = {
 
 -- Accent colours of the districts (the pastel walls of the art direction); the sixth is the turquoise of
 -- the beach, the seventh the warm orange-red of the carnival, the eighth the velvet red of the cinema
--- curtain. A district past the list starts it again.
-M.DISTRICT_COLORS = { "#FF9EC7", "#C9A7FF", "#FFD36E", "#7FC8FF", "#8BE39A", "#4FD1C5", "#FF8A5C", "#E0566F" }
+-- curtain, the ninth the peacock teal of the bazaar tiles (darker and bluer than the beach, far from the
+-- orange of the "traditional" genres next to it). A district past the list starts it again.
+M.DISTRICT_COLORS = {
+	"#FF9EC7", "#C9A7FF", "#FFD36E", "#7FC8FF", "#8BE39A", "#4FD1C5", "#FF8A5C", "#E0566F", "#2F9FB0",
+}
 
 -- Store products shown in the shop's coins tab, in display order, with
 -- their i18n name keys and card colours.

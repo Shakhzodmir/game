@@ -2098,6 +2098,260 @@ def closing_credits(s):
             "arp": hp}
 
 
+# ================================================================== BAZAAR (G)
+# The band of the district theme in music.py (goblet drum, frame drum, finger cymbals, oud, qanun, ney, strings in
+# unison) and a shawm for the loud dances. Everything stays on the major scale of G; each song leans on another
+# note of it: G (spice_market_dance), E (caravan_bells), A (desert_starlight), D (wedding_drums). The genre
+# "eastern" of songs_latin.py is another thing: pentatonic tunes in D on plain plucks over a pad.
+
+def v_boud(s, m, d, v=0.8):
+    return M.oud(m, min(s.sec(d), 0.9), s.sr, key=m % 3) * v
+
+
+def v_oud_trem(s, m, d, v=0.8):
+    """The oud as it plays a tune: one stroke for a short note, the quill trembling (eight strokes a beat) on a
+    note of a beat or more."""
+    if d < 1.0:
+        return v_boud(s, m, d, v)
+    n = int(round(d * 8))
+    out = np.zeros(nsamp(s.sec(d) + 1.0, s.sr))
+    for i in range(n):
+        x = M.oud(m, s.sec(0.2), s.sr, key=i % 2)
+        p = nsamp(s.sec(i / 8.0), s.sr)
+        out[p: p + len(x)] += x * ((1.0 if i == 0 else 0.6 + 0.2 * i / n) * (1.0 if i % 2 == 0 else 0.82))
+    return out * v
+
+
+def v_qanun(s, m, d=1.0, v=0.7):
+    return M.qanun(m, s.sr, key=m % 2) * v
+
+
+def slides(s, evs, least=1.5):
+    """Ornaments for the ney: every note of `least` beats or more is reached with a slide from the note of the
+    scale below it."""
+    out = []
+    for b, d, m, v in evs:
+        o = {"bend": float(m - scale_step(s.tonic, m, False)), "bend_t": 0.14} if d >= least else {}
+        out.append((b, d, m, v, o))
+    return out
+
+
+def shawm(s, evs, key="shawm"):
+    """A shawm (mizmar, zurna): a loud double reed. A narrow pulse through two nasal peaks, a hard start from a
+    little under the note, hardly any vibrato. Returns the loop."""
+    src, env, onset = render_line(s, events(s, evs), osc="pulse", pw=0.22, glide=0.012, legato_gap=0.008,
+                                  attack=0.012, release=0.04, vib_rate=6.2, vib_depth=0.07, vib_delay=0.25, scoop=0.4,
+                                  key=key)
+    x = src * env
+    x = dsp.highpass(x, 400, s.sr, 2)
+    x = dsp.filt(x, "peak", 1250, s.sr, q=1.6, gain_db=8.0)
+    x = dsp.filt(x, "peak", 2700, s.sr, q=2.0, gain_db=5.0)
+    x = dsp.lowpass(x, 5200, s.sr, 2)
+    x = x * (0.85 + 0.15 * np.clip(onset, 0, 1))
+    return wrap(s, x / (dsp.peak(x) + 1e-9))
+
+
+def bell(s, m, v=0.7, t60=0.7):
+    """A small brass bell on the harness of a camel: the note, its octave and a twelfth that die quickly."""
+    def mk():
+        n = nsamp(t60 + 0.05, s.sr)
+        t = np.arange(n) / s.sr
+        f = float(midi_hz(m))
+        x = np.sin(TAU * f * t) + 0.45 * np.sin(TAU * 3.0 * f * t + 0.5) * np.exp(-t / (t60 * 0.25))
+        x += 0.3 * np.sin(TAU * 2.0 * f * t + 1.0) * np.exp(-t / (t60 * 0.4))
+        x *= dsp.env_perc(n, s.sr, t60, 0.0008)
+        return dsp.fade(x / dsp.peak(x), s.sr, 0.0005, 0.02)
+    return M.cached(("camelbell", m, s.sr, t60), mk) * v
+
+
+def hand_drums(s, d, k, r, dum, tek, ka=None, gain=1.0):
+    """Darbuka patterns (bar strings like hits): dums, teks and the soft ka fills of the left hand."""
+    hits(s, d, k["dum"], dum, r, gain=gain)
+    hits(s, d, k["tek"], tek, r, gain=0.7 * gain)
+    if ka:
+        hits(s, d, k["ka"], ka, r, gain=0.45 * gain)
+
+
+def spice_market_dance(s):
+    """126 BPM market dance in G: the darbuka plays a quick three-three-two (dum - - tek - - tek -) with a riq and
+    claps, the oud plays the tune (trembling on the long notes), the qanun answers in its rests and doubles it an
+    octave up the second time; in bars 9-10 the strings join for the falling figure of the district theme (B D C
+    B / A C B A / G B A G / F# A G F#) and the last bar is a drum break."""
+    r = dsp.rng(s.id, "spice")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "bazaar")
+    d = s.zeros()
+    hand_drums(s, d, k, r, {"*": "X.....x.X.......", 11: "X..X..X.X.X.X..."},
+               {"*": "...x..x....x..x.", 11: "..........x.xxxx"}, {"*": ".o..o...oo..o..o", 11: ".o..o..........."})
+    hits(s, d, k["frame"], "X.......x.......", r, gain=0.6)
+    d = room(s, d, 0.12, 0.7, "drums", damp=6000)
+    tb = s.zeros()
+    hits(s, tb, k["riq"], "x.o.x.o.x.o.x.oo", r, gain=0.6)
+    hits(s, tb, kit("dance", s.sr)["clap"], "....x.......x...", r, gain=0.7, mask=bs("5-11"))
+    hits(s, tb, k["zill"], {3: "............x.x.", 7: "............x.x.", 11: "x...x...x.x.x..."}, r, gain=0.5)
+    tb = room(s, tb, 0.14, 0.8, "tamb", damp=7000)
+    tn = tune("1:.5 2:.5 3:.5 4:.5 5:1 3:.5 5:.5 | 4:.5 3:.5 2:.5 3:.5 1:1 r:1 |"
+              " 4:.5 5:.5 6:.5 5:.5 4:1 6:.5 4:.5 | 5:.5 4:.5 3:.5 2:.5 2:1 r:1 |"
+              " 1:.5 2:.5 3:.5 4:.5 5:1 6:.5 5:.5 | 1+:1 7:.5 1+:.5 5:1 r:1 |"
+              " 6:.5 5:.5 4:.5 5:.5 6:1 1+:.5 6:.5 | 7:.5 6:.5 5:.5 6:.5 7:1 2+:1 |"
+              " 3+:.5 5+:.5 4+:.5 3+:.5 2+:.5 4+:.5 3+:.5 2+:.5 | 1+:.5 3+:.5 2+:.5 1+:.5 7:.5 2+:.5 1+:.5 7:.5 |"
+              " 6:.5 1+:.5 6:.5 5:.5 7:.5 6:.5 7:.5 2+:.5 | 1+:2 r:2", t, 4)
+    od = room(s, loop_filter(s, lay(s, v_oud_trem, tn, r=r, jit=0.004), "hp", 120), 0.14, 0.9, "oud", damp=5000)
+    # the qanun: a run down the chord where the oud rests, the tune an octave higher in bars 5-8, a rolled chord
+    # on the first beat of the other bars
+    qn = s.zeros()
+    for bar in (1, 3, 5):
+        ns = chord_notes(chord_at(s, bar * 4 + 3), 74, 91)[-4:]
+        for i, m in enumerate(reversed(ns)):
+            s.add(qn, v_qanun(s, m, 1.0, 0.7), bar * 4 + 3 + i * 0.25, dt=float(r.normal(0.003, 0.002)))
+    for b, du, m, v in tn:
+        if 16 <= b < 32:
+            s.add(qn, v_qanun(s, m + 12, du, v * 0.8), b, dt=0.008 + float(r.normal(0.003, 0.002)))
+    for c in ch:
+        if int(c.start // 4) not in (4, 5, 6, 7):
+            for j, m in enumerate(chord_notes(c, 67, 84)[:5]):
+                s.add(qn, v_qanun(s, m, 1.0, 0.45 + 0.05 * j), c.start, dt=0.022 * j)
+    qn = room(s, loop_filter(s, qn, "hp", 250), 0.2, 1.3, "qanun", damp=7000)
+    st = M.unison_strings(s, [e for e in tn if 32 <= e[0] < 46], key="spice")
+    st = room(s, st, 0.26, 1.6, "strings", damp=4500)
+
+    def bass(c, n, i):
+        R = root_of(c, 43, 38, 49)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        if c.dur < 4:
+            return [(0, 0.7, R, 0.9), (1.5, 0.45, R, 0.75)]
+        return [(0, 0.7, R, 0.9), (1.5, 0.45, R, 0.7), (2, 0.7, F, 0.85), (3.5, 0.45, F, 0.65)]
+    b = room(s, loop_filter(s, line(s, ch, bass, v_baby, r=r), "lp", 1200), 0.06, 0.7, "bass", damp=2500)
+    return {"drums": d, "tamb": tb, "lead": od, "arp": qn, "strings": st, "bass": b}
+
+
+def caravan_bells(s):
+    """92 BPM caravan march that leans on E (the sixth of the key: a minor colour, with the step C - B at every
+    cadence): a heavy slow walk on the hand drums (dum dum - tek dum - tek -), two camel bells that swing on E
+    and B, the oud walking in the bass register, a shawm with the tune and the low strings answering it in
+    unison over a drone."""
+    r = dsp.rng(s.id, "caravan")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "bazaar")
+    d = s.zeros()
+    hand_drums(s, d, k, r, ["X.x.....X.......", "X.x.....X.....x."], ["......x.....x...", "......x.....x.x."],
+               "....o.....o....o", gain=0.9)
+    hits(s, d, k["frame"], "X...o...x...o...", r, gain=0.7)
+    d = room(s, d, 0.16, 1.0, "drums", damp=5500)
+    bl = s.zeros()
+    for beat in range(s.beats):  # ding - dong, the second a little late: nobody rings them, they hang
+        m, v = ((88, 0.7), (83, 0.55))[beat % 2]
+        s.add(bl, bell(s, m, v), beat, dt=0.012 * (beat % 2) + float(r.normal(0.004, 0.004)))
+    bl = room(s, bl, 0.25, 1.4, "bells", damp=7000)
+    tn = tune("6:1.5 7:.5 1+:1 7:.5 6:.5 | 3+:1.5 1+:.5 2+:1 1+:.5 7:.5 | 1+:1 6:.5 1+:.5 3+:1 2+:.5 1+:.5 | 7:2 r:2 |"
+              " 6:1.5 7:.5 1+:1 2+:.5 3+:.5 | 5+:1.5 3+:.5 4+:1 3+:1 | 2+:1 4+:.5 2+:.5 7:1 2+:1 | 3+:2 r:2 |"
+              " 4+:.5 3+:.5 1+:1 3+:.5 2+:.5 7:1 | 6:3 r:1", t, 4)
+    ld = room(s, shawm(s, tn, key="caravan"), 0.2, 1.3, "shawm", damp=4500)
+    ans = tune("r:4 | r:4 | r:4 | r:2 3:.5 2:.5 1:.5 7-:.5 | r:4 | r:4 | r:4 | r:2 3:.5 5:.5 4:.5 3:.5 | r:4 |"
+               " r:3 3:.5 5:.5", t, 4)
+    st = room(s, M.unison_strings(s, ans, key="caravan"), 0.28, 1.7, "strings", damp=4500)
+
+    def walk_oud(c, n, i):
+        R = root_of(c, 52, 47, 58)
+        if c.dur < 4:
+            return [(0, 0.7, R, 0.9), (1, 0.45, R + 7, 0.65), (1.5, 0.45, R + 12, 0.6)]
+        return [(0, 0.9, R, 0.9), (1, 0.45, R + 7, 0.65), (1.5, 0.45, R + 12, 0.6), (2, 0.9, R + 7, 0.8),
+                (3, 0.45, R + 12, 0.65), (3.5, 0.45, R + 7, 0.55)]
+    od = room(s, loop_filter(s, line(s, ch, walk_oud, v_boud, r=r), "hp", 100), 0.14, 0.9, "oud", damp=5000)
+
+    def bass(c, n, i):
+        R = root_of(c, 40, 36, 47)
+        return [(0, 1.4, R, 0.9)] + ([(2, 1.4, R, 0.75)] if c.dur >= 4 else [])
+    b = room(s, loop_filter(s, line(s, ch, bass, v_baby, r=r), "lp", 1100), 0.06, 0.7, "bass", damp=2500)
+    dr = s.zeros()
+    for m, g in ((52, 1.0), (59, 0.6)):  # E3 and B3 all the way round
+        at(s, dr, v_pad(s, m, s.beats - 1.0, g, 1000.0, 1.2, 1.2, k=m), 0.0)
+    return {"drums": d, "celesta": bl, "lead": ld, "strings": st, "guitar": od, "bass": b,
+            "pad": loop_filter(s, dr, "hp", 120)}
+
+
+def desert_starlight(s):
+    """72 BPM night in the desert that leans on A (the second of the key, with the F# above it: a soft, open
+    minor): the ney alone with the tune, slow, sliding into its long notes; the qanun rolls one chord a bar and
+    lets it ring, a drone on A and E, a quiet heartbeat on the frame drum and a few high notes like stars."""
+    r = dsp.rng(s.id, "starlight")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "bazaar")
+    d = s.zeros()
+    hits(s, d, k["frame"], ["X.........o.....", "X.........o...o."], r, gain=0.8)
+    d = room(s, loop_filter(s, d, "lp", 2500), 0.3, 1.8, "drums", damp=4000)
+    tn = tune("2:2 3:.5 4:.5 5:1 | 6:2.5 5:.5 4:.5 5:.5 | 5:1.5 7:.5 6:1 5:1 | 4:.5 3:.5 2:2 r:1 |"
+              " 4:1 6:.5 1+:.5 6:2 | 3+:1.5 2+:.5 1+:1 6:1 | 7:1 6:.5 5:.5 4:1 3:1 | 2:3 r:1", t, 4)
+    ny = M.ney_line(s, slides(s, tn), key="starlight")
+    ny = room(s, echo(s, ny, 1.5, 0.14, 0.3, 2, 3000), 0.34, 2.2, "ney", damp=4500, predelay=0.03)
+    qn = s.zeros()
+    for c in ch:
+        ns = chord_notes(c, 57, 81)
+        for j, m in enumerate(ns[:7]):  # one slow roll up the chord
+            s.add(qn, v_qanun(s, m, 1.0, 0.5 + 0.04 * j), c.start, dt=0.05 * j + float(r.normal(0.004, 0.003)))
+        for bt, m in ((2.5, ns[-1]), (3.0, ns[-2])):  # and two strings touched again
+            s.add(qn, v_qanun(s, m, 1.0, 0.4), c.start + bt, dt=float(r.normal(0.004, 0.003)))
+    qn = room(s, loop_filter(s, qn, "hp", 150), 0.3, 2.0, "qanun", damp=6000, predelay=0.02)
+    pad = comp(s, ch, voicing(ch, 55, 72, 64), lambda c, i: [(0, c.dur * 0.97, 0.5)], v_strings, r=r)
+    pad = loop_filter(s, pad, "lp", 2400)
+    for m, g in ((57, 0.9), (64, 0.5)):  # A3 and E4 all the way round
+        at(s, pad, v_pad(s, m, s.beats - 1.0, g, 1000.0, 1.5, 1.5, k=m), 0.0)
+    pad = room(s, pad, 0.3, 2.2, "pad", damp=3500)
+    stars = s.zeros()
+    for i, c in enumerate(ch):
+        ns = chord_notes(c, 86, 98)
+        for bt, j in (((1.5, 0), (3.5, 1)) if i % 2 == 0 else ((2.0, 2),)):
+            s.add(stars, v_celesta(s, ns[j % len(ns)], 1.0, 0.45), c.start + bt, dt=float(r.normal(0.006, 0.004)))
+    stars = room(s, echo(s, stars, 0.75, 0.25, 0.35, 3, 6000), 0.35, 2.2, "stars", damp=7000)
+    b = line(s, ch, lambda c, n, i: [(0, c.dur * 0.9, root_of(c, 45, 40, 51), 0.8)], v_sub, r=r)
+    return {"drums": d, "lead": ny, "arp": qn, "pad": pad, "celesta": stars, "bass": loop_filter(s, b, "lp", 700)}
+
+
+def wedding_drums(s):
+    """138 BPM wedding dance that leans on D (the fifth of the key: D - C - D, a bright dance mode with a low
+    seventh): the big drum and the darbuka play dum tek - dum dum - tek -, claps on two and four, finger cymbals
+    on the 8ths, a shawm calls the tune and the strings answer in its rests and join it for the last four bars,
+    the oud strums the chords on the accents of the drum, the guests shout at the end of every phrase."""
+    r = dsp.rng(s.id, "wedding")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "bazaar")
+    d = s.zeros()
+    dums = {"*": "X.....x.X.......", 15: "X.....x.X.x.x.x."}
+    hits(s, d, kits(s, "march")["bass"], dums, r, gain=0.9)  # the big two-headed drum of the procession
+    hand_drums(s, d, k, r, dums, {"*": "..x.........x...", 3: "..x.........xxxx", 7: "..x.........xxxx",
+                                  11: "..x.........xxxx", 15: "..x........x.x.x"}, "....o.....o...oo", gain=0.8)
+    d = room(s, d, 0.12, 0.8, "drums", damp=6000)
+    tb = s.zeros()
+    hits(s, tb, kit("dance", s.sr)["clap"], "....x.......x...", r, gain=0.8)
+    hits(s, tb, k["zill"], "x.o.x.o.x.o.x.o.", r, gain=0.45)
+    hits(s, tb, k["riq"], "..o...o...o...o.", r, gain=0.5, mask=bs("9-16"))
+    tb = room(s, tb, 0.14, 0.8, "tamb", damp=7000)
+    tn = tune("5:.5 5:.5 7:.5 2+:.5 2+:1 7:.5 2+:.5 | 1+:.5 7:.5 6:.5 7:.5 5:1 r:1 |"
+              " 4+:.5 4+:.5 3+:.5 2+:.5 1+:1 6:.5 1+:.5 | 2+:.5 1+:.5 7:.5 6:.5 5:1 r:1 |"
+              " 2+:.5 2+:.5 4+:.5 5+:.5 5+:1 4+:.5 5+:.5 | 4+:.5 3+:.5 2+:.5 3+:.5 2+:1 r:1 |"
+              " 1+:.5 1+:.5 3+:.5 4+:.5 3+:1 1+:.5 6:.5 | 7:.5 6:.5 7:.5 2+:.5 5:1 r:1 |"
+              " 3+:1 3+:.5 2+:.5 1+:1 3+:1 | 5+:1 5+:.5 4+:.5 3+:1 r:1 | 2+:1 2+:.5 1+:.5 7:1 2+:1 |"
+              " 4+:1 3+:.5 2+:.5 2+:1 r:1 | 4+:.5 3+:.5 4+:.5 5+:.5 4+:.5 3+:.5 1+:1 |"
+              " 3+:.5 1+:.5 3+:.5 4+:.5 3+:.5 1+:.5 6:1 | 7:.5 6:.5 7:.5 2+:.5 4+:.5 2+:.5 7:.5 2+:.5 | 5+:2 r:2", t, 4)
+    ld = room(s, shawm(s, tn, key="wedding"), 0.16, 1.1, "shawm", damp=4500)
+    ans = tune("r:4 | r:3 5:.5 7:.5 | r:4 | r:3 5:.5 7:.5 | r:4 | r:3 2+:.5 4+:.5 | r:4 | r:3 5:.5 7:.5 |"
+               " r:4 | r:3 1+:.5 3+:.5 | r:4 | r:3 2+:.5 4+:.5", t, 4)
+    st = room(s, M.unison_strings(s, ans + [e for e in tn if e[0] >= 48], key="wedding"), 0.22, 1.4, "strings",
+              damp=4500)
+    od = comp(s, ch, voicing(ch, 55, 71, 63), [(0.0, 0.4, 0.9), (0.5, 0.3, 0.6), (1.5, 0.4, 0.8), (2.0, 0.4, 0.85),
+                                               (3.0, 0.4, 0.7)], v_boud, spread=0.008, r=r)
+    od = room(s, loop_filter(s, od, "hp", 140), 0.12, 0.8, "oud", damp=5000)
+
+    def bass(c, n, i):
+        R = root_of(c, 43, 38, 49)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        return [(0, 0.7, R, 0.9), (1.5, 0.45, R, 0.75), (2, 0.7, R, 0.85), (3, 0.7, F, 0.75)]
+    b = room(s, loop_filter(s, line(s, ch, bass, v_baby, r=r), "lp", 1200), 0.06, 0.7, "bass", damp=2500)
+    hey = gang(s, [(3, 3.0), (7, 3.0), (11, 3.0), (15, 2.0), (15, 3.0)], voices=6, lo=180, hi=330, key="wedding")
+    return {"drums": d, "tamb": tb, "lead": ld, "strings": st, "guitar": od, "bass": b,
+            "gang": room(s, hey, 0.2, 1.0, "hey", damp=5000)}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -2164,6 +2418,17 @@ SONGS = {
     "closing_credits": ("I:4 iii:4 IV:4 V:4 vi:4 IV:4 ii7:2 V7:2 I:4 IV:4 I:4", closing_credits,
                         {"drums": -23, "timp": -22, "lead": -18, "brass": -21, "choir": -25, "strings": -24,
                          "bass": -21, "arp": -23}),
+    # bazaar (G major)
+    "spice_market_dance": ("I:4 I:4 IV:4 V:4 I:4 I:4 IV:4 V:4 vi:2 V:2 IV:2 iii:2 IV:2 V:2 I:4", spice_market_dance,
+                           {"drums": -19, "tamb": -25, "lead": -18, "arp": -22, "strings": -21, "bass": -20}),
+    "caravan_bells": ("vi:4 vi:4 IV:4 iii:4 vi:4 vi:4 V:4 vi:4 IV:2 iii:2 vi:4", caravan_bells,
+                      {"drums": -19, "celesta": -25, "lead": -18, "strings": -21, "guitar": -21, "bass": -20,
+                       "pad": -27}),
+    "desert_starlight": ("ii:4 ii:4 V:4 ii:4 IV:4 vi:4 V:4 ii:4", desert_starlight,
+                         {"drums": -27, "lead": -18, "arp": -21, "pad": -24, "celesta": -27, "bass": -24}),
+    "wedding_drums": ("V:4 V:4 IV:4 V:4 V:4 V:4 IV:4 V:4 I:4 I:4 V:4 V:4 IV:4 IV:4 V:4 V:4", wedding_drums,
+                      {"drums": -18, "tamb": -24, "lead": -18, "strings": -21, "guitar": -22, "bass": -20,
+                       "gang": -22}),
 }
 
 

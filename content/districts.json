@@ -1251,7 +1251,53 @@
       "semitones_from_c": 7,
       "bars": 8,
       "mood": "sunny eastern bazaar, playful and warm, hand drums, oud and flute",
-      "songs": [],
+      "songs": [
+        {
+          "id": "spice_market_dance",
+          "name": {
+            "ru": "Танец на рынке пряностей",
+            "en": "Spice Market Dance",
+            "ko": "향신료 시장의 춤"
+          },
+          "bpm": 126,
+          "bars": 12,
+          "mood": "lively market dance: oud tune with tremolo, qanun answers, quick three-three-two darbuka, riq, claps, strings join"
+        },
+        {
+          "id": "caravan_bells",
+          "name": {
+            "ru": "Колокольчики каравана",
+            "en": "Caravan Bells",
+            "ko": "카라반의 방울 소리"
+          },
+          "bpm": 92,
+          "bars": 10,
+          "mood": "caravan march leaning on E: heavy slow hand drums, two camel bells, walking oud, a shawm tune, low strings answer",
+          "ceiling_trim": -1.0
+        },
+        {
+          "id": "desert_starlight",
+          "name": {
+            "ru": "Звёзды над пустыней",
+            "en": "Desert Starlight",
+            "ko": "사막의 별빛"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "calm night in the desert: solo ney sliding into long notes, slow qanun rolls, drone, soft frame drum, high stars"
+        },
+        {
+          "id": "wedding_drums",
+          "name": {
+            "ru": "Свадебные барабаны",
+            "en": "Wedding Drums",
+            "ko": "결혼식 북소리"
+          },
+          "bpm": 138,
+          "bars": 16,
+          "mood": "festive wedding dance leaning on D: big drum and darbuka, claps, finger cymbals, shawm calls, strings answer, shouts"
+        }
+      ],
       "chest": {
         "coins": 1800,
         "boosters": [
