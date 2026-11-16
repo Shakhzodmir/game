@@ -301,6 +301,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_island_1"
+  images {
+    image: "/assets/images/map/deco_island_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_island_2"
+  images {
+    image: "/assets/images/map/deco_island_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_island_3"
+  images {
+    image: "/assets/images/map/deco_island_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_island_4"
+  images {
+    image: "/assets/images/map/deco_island_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_island_5"
+  images {
+    image: "/assets/images/map/deco_island_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_island_6"
+  images {
+    image: "/assets/images/map/deco_island_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_jazz_1"
   images {
     image: "/assets/images/map/deco_jazz_1.png"

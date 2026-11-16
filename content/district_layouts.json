@@ -741,5 +741,66 @@
         "h": 244
       }
     }
+  },
+  "island": {
+    "bg": "assets/images/districts/island/bg.png",
+    "bg_concert": "assets/images/districts/island/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "bongos": {
+        "image": "assets/images/districts/island/bongos.png",
+        "ghost": "assets/images/districts/island/bongos_ghost.png",
+        "x": 232,
+        "y": 762,
+        "scale": 0.7,
+        "w": 257,
+        "h": 177
+      },
+      "bass_guitar": {
+        "image": "assets/images/districts/island/bass_guitar.png",
+        "ghost": "assets/images/districts/island/bass_guitar_ghost.png",
+        "x": 632,
+        "y": 584,
+        "scale": 0.7,
+        "w": 114,
+        "h": 238
+      },
+      "speaker_box": {
+        "image": "assets/images/districts/island/speaker_box.png",
+        "ghost": "assets/images/districts/island/speaker_box_ghost.png",
+        "x": 322,
+        "y": 610,
+        "scale": 0.7,
+        "w": 186,
+        "h": 218
+      },
+      "organ": {
+        "image": "assets/images/districts/island/organ.png",
+        "ghost": "assets/images/districts/island/organ_ghost.png",
+        "x": 482,
+        "y": 614,
+        "scale": 0.7,
+        "w": 214,
+        "h": 191
+      },
+      "steel_drum": {
+        "image": "assets/images/districts/island/steel_drum.png",
+        "ghost": "assets/images/districts/island/steel_drum_ghost.png",
+        "x": 502,
+        "y": 752,
+        "scale": 0.7,
+        "w": 243,
+        "h": 246
+      },
+      "fruit_stand": {
+        "image": "assets/images/districts/island/fruit_stand.png",
+        "ghost": "assets/images/districts/island/fruit_stand_ghost.png",
+        "x": 128,
+        "y": 590,
+        "scale": 0.7,
+        "w": 271,
+        "h": 275
+      }
+    }
   }
 }

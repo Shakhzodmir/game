@@ -1660,6 +1660,104 @@
           "stem_desc": "whistle-like synth lead answering the hook, with scratches"
         }
       ]
+    },
+    {
+      "id": "island",
+      "first": 221,
+      "last": 240,
+      "map_tint": "#E9F3D8",
+      "name": {
+        "ru": "Регги-остров",
+        "en": "Reggae Island",
+        "ko": "레게 아일랜드"
+      },
+      "genre": {
+        "ru": "Ритмы острова",
+        "en": "Island Riddim",
+        "ko": "아일랜드 리듬"
+      },
+      "bpm": 80,
+      "key": "A",
+      "semitones_from_c": 9,
+      "bars": 8,
+      "mood": "sunny laid-back island reggae at golden hour, one-drop drums, off-beat skank, warm and happy",
+      "songs": [],
+      "chest": {
+        "coins": 2400,
+        "boosters": [
+          "disco",
+          "sub",
+          "remix"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "bongos",
+          "name": {
+            "ru": "Бонго",
+            "en": "Bongos",
+            "ko": "봉고"
+          },
+          "cost": 1,
+          "stem": "drums",
+          "stem_desc": "one-drop drums with bongos and rim clicks, plus a soft tuned note so the key is heard"
+        },
+        {
+          "id": "bass_guitar",
+          "name": {
+            "ru": "Бас-гитара",
+            "en": "Bass guitar",
+            "ko": "베이스 기타"
+          },
+          "cost": 4,
+          "stem": "bass",
+          "stem_desc": "deep melodic reggae bass line"
+        },
+        {
+          "id": "speaker_box",
+          "name": {
+            "ru": "Плетёная колонка",
+            "en": "Woven speaker",
+            "ko": "라탄 스피커"
+          },
+          "cost": 5,
+          "stem": "rhythm",
+          "stem_desc": "off-beat guitar skank"
+        },
+        {
+          "id": "organ",
+          "name": {
+            "ru": "Орган",
+            "en": "Organ",
+            "ko": "오르간"
+          },
+          "cost": 5,
+          "stem": "organ",
+          "stem_desc": "bubbling organ shuffle"
+        },
+        {
+          "id": "steel_drum",
+          "name": {
+            "ru": "Стальной барабан",
+            "en": "Steel pan",
+            "ko": "스틸팬"
+          },
+          "cost": 5,
+          "stem": "steelpan",
+          "stem_desc": "steel pan melody, bright and singable"
+        },
+        {
+          "id": "fruit_stand",
+          "name": {
+            "ru": "Фруктовая лавка",
+            "en": "Fruit stand",
+            "ko": "과일 가판대"
+          },
+          "cost": 6,
+          "stem": "brass",
+          "stem_desc": "horn section answering the melody"
+        }
+      ]
     }
   ],
   "level_stems": {

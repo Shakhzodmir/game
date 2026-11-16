@@ -365,6 +365,7 @@ return {
 	["stem.darbuka"] = "다르부카",
 	["stem.oud"] = "우드",
 	["stem.qanun"] = "카눈",
+	["stem.steelpan"] = "스틸팬",
 	["stem.flute"] = "플루트",
 	["stem.drums"] = "드럼",
 	["stem.fx"] = "효과음",
