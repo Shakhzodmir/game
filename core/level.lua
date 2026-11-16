@@ -28,6 +28,10 @@
 --   conveyor = {belts = {{cells (indices in the order of travel), dirs (C.DIR_* of every cell), ring}},
 --   at[i] (number of the belt of cell i, 0 = none), pos[i] (place of cell i in its belt, 0 = none)}
 --   or nil (10.9).
+--   portal = {pairs = {{inn, out}} (cell indices of the entrance and the exit, in the order of the level),
+--   role[i] (0 none, 1 entrance, 2 exit), pair[i] (number of the pair of cell i, 0 = none),
+--   exit_of[i] (the exit cell of the entrance i, else 0), entry_of[i] (the entrance cell of the exit i,
+--   else 0)} or nil (10.14).
 
 local C = require("core.const")
 local U = require("core.util")
@@ -152,17 +156,75 @@ local function read_colors_and_goals(ctx)
 	end
 end
 
+-- The portals (10.14): the pairs of an entrance and an exit cell (geometry by 2.1.2, the places by
+-- 2.1.16). Read before the spawners and the exits: a portal cell is never one of them.
+local function read_portals(ctx)
+	local po = ctx.raw.portals
+	if po == nil then return end
+	local lvl, W, N = ctx.lvl, ctx.W, ctx.N
+	local role, pair, exit_of, entry_of, pairs_ = {}, {}, {}, {}, {}
+	for i = 1, N do role[i], pair[i], exit_of[i], entry_of[i] = 0, 0, 0, 0 end
+	local ok = true
+	for k = 1, #po do
+		local a, b = po[k]["in"], po[k].out
+		local i, j = cell_of(ctx, a), cell_of(ctx, b)
+		if not i then err_at(ctx, "2.1.2", "portal is not on an existing cell", a) end
+		if not j then err_at(ctx, "2.1.2", "portal is not on an existing cell", b) end
+		if i and role[i] ~= 0 then
+			err_at(ctx, "2.1.2", "two portals in one cell", a)
+			i = nil
+		end
+		if i and j and (i == j or role[j] ~= 0) then
+			err_at(ctx, "2.1.2", "two portals in one cell", b)
+			j = nil
+		end
+		if i and j then
+			role[i], pair[i], exit_of[i] = 1, k, j
+			role[j], pair[j], entry_of[j] = 2, k, i
+			pairs_[k] = { inn = i, out = j }
+			-- the entrance ends its column segment, the exit starts its own: gravity has one way on
+			if lvl.seg_bot[i] ~= row_of(W, i) then
+				err(ctx, "2.1.16", "the cell under a portal entrance is not a void or the edge", i)
+			end
+			if lvl.seg_top[j] ~= row_of(W, j) then
+				err(ctx, "2.1.16", "the cell above a portal exit is not a void or the edge", j)
+			end
+		else
+			ok = false
+		end
+	end
+	if not ok then return end -- (the errors above are enough; the rest needs whole pairs)
+	lvl.portal = { pairs = pairs_, role = role, pair = pair, exit_of = exit_of, entry_of = entry_of }
+	-- no cycles: from the exit of a pair down its run, through the entrance at its bottom (if any), and so
+	-- on, the way ends in a run with a real bottom
+	for k = 1, #pairs_ do
+		local at, steps = pairs_[k].out, 0
+		while at ~= 0 and steps <= #pairs_ do
+			local x = (at - 1) % W + 1
+			local bottom = (lvl.seg_bot[at] - 1) * W + x
+			at = exit_of[bottom]
+			steps = steps + 1
+		end
+		if at ~= 0 then
+			ctx.portal_cycle = true
+			err(ctx, "2.1.16", "portals form a cycle", pairs_[k].inn)
+		end
+	end
+end
+
 -- Spawners ("top" = topmost existing cell of each column) and exits
 -- ("bottom" = bottom of every segment; kept only with a deliver or a drop
--- goal).
+-- goal). A portal cell (10.14) is neither: "top" skips a column whose top
+-- cell is a portal exit, "bottom" skips the portal entrances.
 local function read_spawners_and_exits(ctx)
 	local raw, lvl, W, N = ctx.raw, ctx.lvl, ctx.W, ctx.N
+	local prole = lvl.portal and lvl.portal.role or nil
 	if raw.spawners == nil or raw.spawners == "top" then
 		for x = 1, W do
 			for y = 1, ctx.H do
 				local i = (y - 1) * W + x
 				if lvl.exists[i] then
-					lvl.spawner[i] = true
+					if not (prole and prole[i] ~= 0) then lvl.spawner[i] = true end
 					break
 				end
 			end
@@ -184,7 +246,7 @@ local function read_spawners_and_exits(ctx)
 	local exits = ctx.exits
 	if raw.exits == nil or raw.exits == "bottom" then
 		for i = 1, N do
-			if lvl.exists[i] and lvl.seg_bot[i] == row_of(W, i) then exits[i] = true end
+			if lvl.exists[i] and lvl.seg_bot[i] == row_of(W, i) and not (prole and prole[i] ~= 0) then exits[i] = true end
 		end
 	else
 		for k = 1, #raw.exits do
@@ -559,8 +621,39 @@ local function static_rules(ctx)
 			end
 		end
 	end
+	-- 2.1.16: a portal cell (10.14) is an ordinary playable cell that pieces pass through: nothing that
+	-- stands still on it at the start, never a spawner or a cell where mics or coconuts leave the field,
+	-- never a curtain, fog or belt cell; and every entrance column has a source of pieces above it
+	local po = lvl.portal
+	if po then
+		for i = 1, N do
+			if po.role[i] ~= 0 then
+				if slot_at[i] and slot_at[i].kind == C.K_BLOCKER then err(ctx, "2.1.16", "blocker on a portal", i) end
+				if lvl.wires[i] > 0 then err(ctx, "2.1.16", "wires on a portal", i) end
+				if lvl.ice[i] > 0 then err(ctx, "2.1.16", "ice on a portal", i) end
+				if lvl.spawner[i] then err(ctx, "2.1.16", "portal on a spawner", i) end
+				if ctx.exits[i] then err(ctx, "2.1.16", "portal on an exit", i) end
+				if lvl.curtain and lvl.curtain.at[i] then err(ctx, "2.1.16", "curtain over a portal", i) end
+				if lvl.fog and lvl.fog.at[i] then err(ctx, "2.1.16", "fog over a portal", i) end
+				if lvl.conveyor and lvl.conveyor.at[i] ~= 0 then err(ctx, "2.1.16", "portal on a conveyor", i) end
+			end
+		end
+		if not ctx.portal_cycle then
+			for k = 1, #po.pairs do
+				-- up the entrance column: a spawner, or the exit of a pair that has a source itself
+				local at, fed = po.pairs[k].inn, false
+				while at ~= 0 do
+					local x = (at - 1) % ctx.W + 1
+					local top = (lvl.seg_top[at] - 1) * ctx.W + x
+					if lvl.spawner[top] then fed = true end
+					at = po.entry_of[top]
+				end
+				if not fed then err(ctx, "2.1.16", "no spawner feeds the portal entrance", po.pairs[k].inn) end
+			end
+		end
+	end
 	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet,
-	-- conveyor, boombox, ice, hay, fog
+	-- conveyor, boombox, ice, hay, fog, portal
 	local n_el = 0
 	for b = 1, C.NBLOCKERS do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -578,6 +671,7 @@ local function static_rules(ctx)
 	if lvl.carpet or ctx.carpet_goal then n_el = n_el + 1 end
 	if lvl.conveyor then n_el = n_el + 1 end
 	if lvl.fog or ctx.fog_goal then n_el = n_el + 1 end
+	if lvl.portal or ctx.raw.portals ~= nil then n_el = n_el + 1 end
 	if ctx.deliver or ctx.raw.mic ~= nil or ctx.n_mics > 0 then n_el = n_el + 1 end
 	if ctx.drop or ctx.raw.coconut ~= nil or ctx.n_coconuts > 0 then n_el = n_el + 1 end
 	if n_el > 3 then errs[#errs + 1] = "2.1.6 more than three different elements" end
@@ -642,11 +736,12 @@ local function normalize(raw, errs)
 			colors = {}, weights = {}, goals = {},
 			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {}, ice = {}, has_ice = false, has_hay = false,
 			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil, carpet = nil,
-			conveyor = nil, fog = nil,
+			conveyor = nil, fog = nil, portal = nil,
 		},
 	}
 	read_cells(ctx)
 	read_colors_and_goals(ctx)
+	read_portals(ctx)
 	read_spawners_and_exits(ctx)
 	read_layers(ctx)
 	read_slots(ctx)
@@ -726,6 +821,8 @@ local function fill_checks(lvl, slot_at, errs)
 		if lvl.exists[i] then
 			if b1.slot[i] == 0 then
 				errs[#errs + 1] = "2.1.7 cell stays empty on board B1" .. where(W, i)
+			elseif lvl.portal and lvl.portal.role[i] == 1 then
+				-- (a portal entrance is the bottom of its segment and never an exit: mics and coconuts travel on, 10.14)
 			elseif deliver and not lvl.exit[i] and lvl.seg_bot[i] == row_of(W, i) then
 				errs[#errs + 1] = "2.1.8 segment bottom is not an exit" .. where(W, i)
 			elseif drop and not lvl.exit[i] and lvl.seg_bot[i] == row_of(W, i) then
