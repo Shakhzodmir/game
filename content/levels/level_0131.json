@@ -1,13 +1,13 @@
 {
   "id": 131, "version": 1,
   "size": [9, 11],
-  "moves": 30,
-  "difficulty": "super_hard",
+  "moves": 33,
+  "difficulty": "medium",
   "colors": ["red", "yellow", "green", "blue", "purple"],
   "goals": [
     {"type": "drop", "count": 4},
     {"type": "chains", "count": 8},
-    {"type": "break", "item": "concrete", "count": 6}
+    {"type": "break", "item": "concrete", "count": 4}
   ],
   "cells": [
     "....#....",
@@ -25,8 +25,8 @@
   "overlay": [
     {"at": [0, 4], "type": "chain", "hp": 1},
     {"at": [8, 4], "type": "chain", "hp": 1},
-    {"at": [2, 6], "type": "chain", "hp": 2},
-    {"at": [6, 6], "type": "chain", "hp": 2},
+    {"at": [2, 6], "type": "chain", "hp": 1},
+    {"at": [6, 6], "type": "chain", "hp": 1},
     {"at": [3, 9], "type": "chain", "hp": 1},
     {"at": [5, 9], "type": "chain", "hp": 1},
     {"at": [2, 10], "type": "chain", "hp": 1},
@@ -39,11 +39,9 @@
     {"at": [2, 6], "type": "piece", "color": "yellow"},
     {"at": [6, 6], "type": "piece", "color": "green"},
     {"at": [1, 7], "type": "concrete", "hp": 1},
-    {"at": [4, 7], "type": "concrete", "hp": 1},
     {"at": [7, 7], "type": "concrete", "hp": 1},
     {"at": [1, 9], "type": "concrete", "hp": 1},
     {"at": [3, 9], "type": "piece", "color": "purple"},
-    {"at": [4, 9], "type": "concrete", "hp": 1},
     {"at": [5, 9], "type": "piece", "color": "green"},
     {"at": [7, 9], "type": "concrete", "hp": 1},
     {"at": [2, 10], "type": "piece", "color": "red"},

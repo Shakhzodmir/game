@@ -112,7 +112,7 @@ describe("star thresholds (content/levels/stars.json)", function()
 		assert_eq(r.score, only.levels["3"].best)
 	end)
 
-	it("keep the economy facts of the handoff true: 140 to 420 stars in the game, 186 for the town", function()
+	it("keep the economy facts of the handoff true: 140 to 420 stars in the game, 181 for the town", function()
 		local json = require("tools.lib.json")
 		local f = assert(io.open("content/districts.json", "r"))
 		local town = json.decode(f:read("*a"))
@@ -121,8 +121,9 @@ describe("star thresholds (content/levels/stars.json)", function()
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		-- 124 for the first five districts, 31 for the sixth and 31 for the seventh (the price rule of docs/handoff/WP-15.md)
-		assert_eq(cost, 186)
+		-- 124 for the first five districts, 31 for the sixth (the price rule of docs/handoff/WP-15.md) and 26 for the seventh (softened: the
+		-- saw of district 6 earns 26)
+		assert_eq(cost, 181)
 		-- 1 star per win is not enough for the whole town (the last districts need better scores or replays),
 		-- 3 stars per level is far more than enough: if the prices change, docs/handoff/WP-4.md must change with them
 		assert_true(LAST < cost and cost < 3 * LAST)
