@@ -680,5 +680,66 @@
         "h": 199
       }
     }
+  },
+  "block": {
+    "bg": "assets/images/districts/block/bg.png",
+    "bg_concert": "assets/images/districts/block/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "turntables": {
+        "image": "assets/images/districts/block/turntables.png",
+        "ghost": "assets/images/districts/block/turntables_ghost.png",
+        "x": 232,
+        "y": 742,
+        "scale": 0.7,
+        "w": 286,
+        "h": 221
+      },
+      "boombox": {
+        "image": "assets/images/districts/block/boombox.png",
+        "ghost": "assets/images/districts/block/boombox_ghost.png",
+        "x": 512,
+        "y": 752,
+        "scale": 0.7,
+        "w": 271,
+        "h": 197
+      },
+      "speakers": {
+        "image": "assets/images/districts/block/speakers.png",
+        "ghost": "assets/images/districts/block/speakers_ghost.png",
+        "x": 322,
+        "y": 584,
+        "scale": 0.7,
+        "w": 157,
+        "h": 258
+      },
+      "hoop": {
+        "image": "assets/images/districts/block/hoop.png",
+        "ghost": "assets/images/districts/block/hoop_ghost.png",
+        "x": 472,
+        "y": 580,
+        "scale": 0.7,
+        "w": 160,
+        "h": 257
+      },
+      "mic": {
+        "image": "assets/images/districts/block/mic.png",
+        "ghost": "assets/images/districts/block/mic_ghost.png",
+        "x": 622,
+        "y": 586,
+        "scale": 0.7,
+        "w": 131,
+        "h": 239
+      },
+      "graffiti": {
+        "image": "assets/images/districts/block/graffiti.png",
+        "ghost": "assets/images/districts/block/graffiti_ghost.png",
+        "x": 128,
+        "y": 596,
+        "scale": 0.7,
+        "w": 271,
+        "h": 244
+      }
+    }
   }
 }

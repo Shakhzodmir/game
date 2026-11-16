@@ -91,6 +91,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_block_1"
+  images {
+    image: "/assets/images/map/deco_block_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_block_2"
+  images {
+    image: "/assets/images/map/deco_block_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_block_3"
+  images {
+    image: "/assets/images/map/deco_block_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_block_4"
+  images {
+    image: "/assets/images/map/deco_block_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_block_5"
+  images {
+    image: "/assets/images/map/deco_block_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_block_6"
+  images {
+    image: "/assets/images/map/deco_block_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_cafe_1"
   images {
     image: "/assets/images/map/deco_cafe_1.png"

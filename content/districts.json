@@ -1517,6 +1517,104 @@
           "stem_desc": "risers, sweeps and vocal chops"
         }
       ]
+    },
+    {
+      "id": "block",
+      "first": 201,
+      "last": 220,
+      "map_tint": "#FBEBD8",
+      "name": {
+        "ru": "Хип-хоп квартал",
+        "en": "Hip-Hop Block",
+        "ko": "힙합 블록"
+      },
+      "genre": {
+        "ru": "Бум-бэп",
+        "en": "Boom Bap",
+        "ko": "붐뱁"
+      },
+      "bpm": 90,
+      "key": "Bb",
+      "semitones_from_c": 10,
+      "bars": 8,
+      "mood": "sunny friendly boom-bap on a city block, head-nodding drums, warm keys, playful scratches",
+      "songs": [],
+      "chest": {
+        "coins": 2200,
+        "boosters": [
+          "disco",
+          "row_light",
+          "col_light"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "turntables",
+          "name": {
+            "ru": "Вертушки",
+            "en": "Turntables",
+            "ko": "턴테이블"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "boom-bap drums: kick, snare on 2 and 4, swung hats, with a soft sub note so the key is heard"
+        },
+        {
+          "id": "boombox",
+          "name": {
+            "ru": "Бумбокс",
+            "en": "Boombox",
+            "ko": "붐박스"
+          },
+          "cost": 4,
+          "stem": "bass",
+          "stem_desc": "round sub bass line with slides"
+        },
+        {
+          "id": "speakers",
+          "name": {
+            "ru": "Колонки",
+            "en": "Speaker stack",
+            "ko": "스피커 스택"
+          },
+          "cost": 5,
+          "stem": "keys",
+          "stem_desc": "warm electric piano chords, lazy and jazzy"
+        },
+        {
+          "id": "hoop",
+          "name": {
+            "ru": "Баскетбольное кольцо",
+            "en": "Basketball hoop",
+            "ko": "농구 골대"
+          },
+          "cost": 5,
+          "stem": "claps",
+          "stem_desc": "hand claps, finger snaps and percussion fills"
+        },
+        {
+          "id": "mic",
+          "name": {
+            "ru": "Микрофон",
+            "en": "Microphone",
+            "ko": "마이크"
+          },
+          "cost": 5,
+          "stem": "hook",
+          "stem_desc": "catchy vocal-chop hook"
+        },
+        {
+          "id": "graffiti",
+          "name": {
+            "ru": "Граффити",
+            "en": "Graffiti wall",
+            "ko": "그라피티 벽"
+          },
+          "cost": 6,
+          "stem": "lead",
+          "stem_desc": "whistle-like synth lead answering the hook, with scratches"
+        }
+      ]
     }
   ],
   "level_stems": {
