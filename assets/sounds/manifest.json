@@ -7168,6 +7168,343 @@
      }
     }
    ]
+  },
+  "island": {
+   "id": "island",
+   "bpm": 80,
+   "key": "A",
+   "bars": 8,
+   "sample_rate": 22050,
+   "loop_samples": 529200,
+   "loop_samples_44100": 1058400,
+   "loop_seconds": 24.0,
+   "exact_seconds": 24.0,
+   "chords": [
+    "A",
+    "Bm7",
+    "E",
+    "A",
+    "F#m7",
+    "D",
+    "Bm7",
+    "E",
+    "A"
+   ],
+   "chord_beats": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    2,
+    2,
+    4
+   ],
+   "stem_gain_db": {
+    "drums": -6.55,
+    "bass": -22.43,
+    "rhythm": -12.11,
+    "organ": -16.66,
+    "steelpan": -13.33,
+    "brass": -16.11,
+    "tension": -12.23,
+    "party": -8.5
+   },
+   "combos": {
+    "tasks": {
+     "peak_dbfs": -2.39,
+     "true_peak_dbtp": -2.37,
+     "lufs": -20.5
+    },
+    "tasks+tension": {
+     "peak_dbfs": -1.77,
+     "true_peak_dbtp": -1.77,
+     "lufs": -19.6
+    },
+    "tasks+party": {
+     "peak_dbfs": -1.06,
+     "true_peak_dbtp": -1.05,
+     "lufs": -18.9
+    },
+    "all stems (never played together)": {
+     "peak_dbfs": 0.46,
+     "true_peak_dbtp": 0.47,
+     "lufs": -18.3
+    }
+   },
+   "tension_delta_lu": 0.9,
+   "party_delta_lu": 1.6,
+   "unlock": [
+    {
+     "stem": "drums",
+     "task": "bongos",
+     "cost": 1,
+     "stem_lufs": -26.5,
+     "mix_before_lufs": null,
+     "stem_vs_mix_lu": null,
+     "delta_lu": null
+    },
+    {
+     "stem": "bass",
+     "task": "bass_guitar",
+     "cost": 4,
+     "stem_lufs": -27.0,
+     "mix_before_lufs": -26.5,
+     "stem_vs_mix_lu": -0.5,
+     "delta_lu": 2.52
+    },
+    {
+     "stem": "rhythm",
+     "task": "speaker_box",
+     "cost": 5,
+     "stem_lufs": -28.9,
+     "mix_before_lufs": -23.9,
+     "stem_vs_mix_lu": -5.0,
+     "delta_lu": 0.91
+    },
+    {
+     "stem": "organ",
+     "task": "organ",
+     "cost": 5,
+     "stem_lufs": -28.7,
+     "mix_before_lufs": -23.0,
+     "stem_vs_mix_lu": -5.7,
+     "delta_lu": 1.02
+    },
+    {
+     "stem": "steelpan",
+     "task": "steel_drum",
+     "cost": 5,
+     "stem_lufs": -26.7,
+     "mix_before_lufs": -22.0,
+     "stem_vs_mix_lu": -4.7,
+     "delta_lu": 1.0
+    },
+    {
+     "stem": "brass",
+     "task": "fruit_stand",
+     "cost": 6,
+     "stem_lufs": -26.3,
+     "mix_before_lufs": -21.0,
+     "stem_vs_mix_lu": -5.3,
+     "delta_lu": 0.46
+    }
+   ],
+   "brightness": {
+    "centroid_hz": 591,
+    "hf_2k_8k_vs_mid_db": -10.8,
+    "air_8k_16k_vs_mid_db": -18.6,
+    "share_below_150hz_pct": 38.8
+   },
+   "key_reading": {
+    "tasks": {
+     "major": 0.97,
+     "relative_minor": 0.72,
+     "best": "A maj",
+     "best_r": 0.97
+    },
+    "tasks+party": {
+     "major": 0.97,
+     "relative_minor": 0.69,
+     "best": "A maj",
+     "best_r": 0.97
+    },
+    "party alone": {
+     "major": 0.93,
+     "relative_minor": 0.6,
+     "best": "A maj",
+     "best_r": 0.93
+    },
+    "tension alone": {
+     "major": 0.77,
+     "relative_minor": 0.28,
+     "best": "A maj",
+     "best_r": 0.77
+    }
+   },
+   "mix_seam": {
+    "step_vs_beats": 0.021,
+    "click_vs_beats": 0.098
+   },
+   "stems": [
+    {
+     "path": "assets/music/island/drums.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -4.89,
+     "true_peak_dbtp": -4.16,
+     "rms_dbfs": -25.31,
+     "bytes": 122212,
+     "stem": "drums",
+     "task": "bongos",
+     "cost": 1,
+     "loudness_db": -25.2,
+     "lufs": -26.5,
+     "centroid_hz": 545,
+     "harmony_in_scale_pct": 83.6,
+     "seam": {
+      "step_vs_beats": 0.0,
+      "click_vs_beats": 0.003,
+      "codec_edge": 0.93
+     }
+    },
+    {
+     "path": "assets/music/island/bass.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -18.46,
+     "true_peak_dbtp": -18.46,
+     "rms_dbfs": -25.64,
+     "bytes": 60099,
+     "stem": "bass",
+     "task": "bass_guitar",
+     "cost": 4,
+     "loudness_db": -27.2,
+     "lufs": -27.0,
+     "centroid_hz": 142,
+     "harmony_in_scale_pct": 97.7,
+     "seam": {
+      "step_vs_beats": 0.314,
+      "click_vs_beats": 0.129,
+      "codec_edge": 0.46
+     }
+    },
+    {
+     "path": "assets/music/island/rhythm.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -10.87,
+     "true_peak_dbtp": -9.11,
+     "rms_dbfs": -32.03,
+     "bytes": 107443,
+     "stem": "rhythm",
+     "task": "speaker_box",
+     "cost": 5,
+     "loudness_db": -26.1,
+     "lufs": -28.9,
+     "centroid_hz": 2437,
+     "harmony_in_scale_pct": 93.1,
+     "seam": {
+      "step_vs_beats": 0.129,
+      "click_vs_beats": 0.443,
+      "codec_edge": 0.07
+     }
+    },
+    {
+     "path": "assets/music/island/organ.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -13.52,
+     "true_peak_dbtp": -13.5,
+     "rms_dbfs": -27.69,
+     "bytes": 89985,
+     "stem": "organ",
+     "task": "organ",
+     "cost": 5,
+     "loudness_db": -28.2,
+     "lufs": -28.7,
+     "centroid_hz": 304,
+     "harmony_in_scale_pct": 96.3,
+     "seam": {
+      "step_vs_beats": 0.178,
+      "click_vs_beats": 0.742,
+      "codec_edge": 0.07
+     }
+    },
+    {
+     "path": "assets/music/island/steelpan.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -9.93,
+     "true_peak_dbtp": -9.92,
+     "rms_dbfs": -27.69,
+     "bytes": 75483,
+     "stem": "steelpan",
+     "task": "steel_drum",
+     "cost": 5,
+     "loudness_db": -26.1,
+     "lufs": -26.7,
+     "centroid_hz": 900,
+     "harmony_in_scale_pct": 99.7,
+     "seam": {
+      "step_vs_beats": 0.044,
+      "click_vs_beats": 0.062,
+      "codec_edge": 0.59
+     }
+    },
+    {
+     "path": "assets/music/island/brass.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -11.17,
+     "true_peak_dbtp": -11.14,
+     "rms_dbfs": -30.18,
+     "bytes": 58010,
+     "stem": "brass",
+     "task": "fruit_stand",
+     "cost": 6,
+     "loudness_db": -26.1,
+     "lufs": -26.3,
+     "centroid_hz": 744,
+     "harmony_in_scale_pct": 100.0,
+     "seam": {
+      "step_vs_beats": 0.119,
+      "click_vs_beats": 0.109,
+      "codec_edge": 0.14
+     }
+    },
+    {
+     "path": "assets/music/island/tension.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -9.63,
+     "true_peak_dbtp": -9.52,
+     "rms_dbfs": -24.64,
+     "bytes": 128980,
+     "stem": "tension",
+     "task": null,
+     "cost": null,
+     "loudness_db": -26.2,
+     "lufs": -26.0,
+     "centroid_hz": 386,
+     "harmony_in_scale_pct": 99.6,
+     "seam": {
+      "step_vs_beats": 0.029,
+      "click_vs_beats": 0.392,
+      "codec_edge": 0.91
+     }
+    },
+    {
+     "path": "assets/music/island/party.ogg",
+     "duration": 24.0,
+     "samples": 529200,
+     "sample_rate": 22050,
+     "peak_dbfs": -6.98,
+     "true_peak_dbtp": -6.77,
+     "rms_dbfs": -24.21,
+     "bytes": 141586,
+     "stem": "party",
+     "task": null,
+     "cost": null,
+     "loudness_db": -24.1,
+     "lufs": -24.6,
+     "centroid_hz": 796,
+     "harmony_in_scale_pct": 98.0,
+     "seam": {
+      "step_vs_beats": 0.0,
+      "click_vs_beats": 0.552,
+      "codec_edge": 0.55
+     }
+    }
+   ]
   }
  },
  "songs": {
@@ -14247,11 +14584,11 @@
    "with_music_beat": 0
   }
  },
- "total_bytes": 22370887,
+ "total_bytes": 23154685,
  "counts": {
   "notes": 66,
   "sfx": 40,
-  "music": 96,
+  "music": 104,
   "songs": 93
  },
  "checks": [
@@ -14269,6 +14606,7 @@
   "Music `bazaar`: 8 stems, identical duration (423360 samples at 22.05 kHz): PASS; worst realistic mix -1.04 dBTP / -1.13 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.78): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `skyclub`: 8 stems, identical duration (336000 samples at 22.05 kHz): PASS; worst realistic mix -1.33 dBTP / -1.34 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.39): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `block`: 8 stems, identical duration (470400 samples at 22.05 kHz): PASS; worst realistic mix -2.29 dBTP / -2.36 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.31): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
+  "Music `island`: 8 stems, identical duration (529200 samples at 22.05 kHz): PASS; worst realistic mix -1.05 dBTP / -1.06 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -4.16): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Songs `cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.6 … 28.2 s within 16–32: PASS; worst mix -1.17 dBTP / -1.31 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.6) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 89.7): PASS; seams clean: PASS.",
   "Songs `jazz`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.1 … 29.1 s within 16–32: PASS; worst mix -1.23 dBTP / -1.23 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.5 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.19): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
   "Songs `square`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.8 … 25.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.27 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.4) and ≤ 1 dB of the energy (max 0.04): PASS; in the key of the genre ≥ 85 % (min 94.5): PASS; seams clean: PASS.",
@@ -14295,7 +14633,7 @@
   "Songs `ambient`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.7 … 30.0 s within 16–32: PASS; worst mix -4.46 dBTP / -4.46 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 91.8): PASS; seams clean: PASS.",
   "Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.",
   "Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
-  "Notes, SFX and district music 10.24 MB ≤ 14 MB: PASS.",
+  "Notes, SFX and district music 10.99 MB ≤ 14 MB: PASS.",
   "Songs 93 files, 11.10 MB ≤ 14 MB: PASS."
  ]
 }

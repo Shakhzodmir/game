@@ -40,6 +40,7 @@ HI_RATE = {
     "bazaar": set(),  # every stem at 22.05 kHz: the zills ring at 2.3 and 6.4 kHz, nothing lives above 10 kHz
     "skyclub": set(),  # every stem at 22.05 kHz: hats, sweeps and the arpeggio are shaped to end below 10 kHz
     "block": set(),  # every stem at 22.05 kHz: boom-bap is warm, its hats and scratches end below 10 kHz
+    "island": set(),  # every stem at 22.05 kHz: reggae is round and warm, its hats end below 10 kHz
 }
 
 
@@ -466,6 +467,30 @@ def kit(name, sr):
             k["bongo_hi"] = [conga(sr, float(midi_hz(58)), "open", key=550 + i) for i in range(2)]
             k["bongo_lo"] = [conga(sr, float(midi_hz(53)), "open", key=560 + i) for i in range(2)]
             k["crash"] = [dsp.lowpass(ins.crash(sr, key=53, t60=1.8), 9500, sr, 2)]
+        elif name == "island":
+            unit = lambda x: x / dsp.peak(x)  # noqa: E731
+            # a one-drop kit made for 22.05 kHz: a soft deep kick that settles on A1 (with its octave A2), a
+            # cross-stick (an A6 click over an E5 block), tight hats that end below 10 kHz, two bongos on A4
+            # and E4 (the root and the fifth of the key), a timbale for the pick-ups (on A3) and a splash
+            k["kick"] = [drop_kick(sr, key=i) for i in range(2)]
+            k["rim"] = [unit(dsp.mix(ins.rim(sr, key=600 + i, f=float(midi_hz(93))),
+                                     0.5 * ins.woodblock(sr, f=float(midi_hz(76)), key=600 + i, t=0.06)))
+                        for i in range(2)]
+            k["hat"] = [unit(dsp.lowpass(ins.hat(sr, 0.04, key=610 + i, lo=5500, tone=0.4), 9500, sr, 2))
+                        for i in range(4)]
+            no = nsamp(0.22, sr)
+            oh = dsp.lowpass(ins.hat(sr, open_=True, key=619, lo=5200, tone=0.4), 9500, sr, 2)[:no]
+            k["ohat"] = [unit(dsp.fade(oh * np.exp(-np.arange(no) / (0.08 * sr)), sr, 0.0003, 0.03))]
+            nh, nl = nsamp(0.22, sr), nsamp(0.28, sr)
+            k["bongo_hi"] = [unit(dsp.fade(conga(sr, float(midi_hz(69)), "open", key=620 + i)[:nh]
+                                           * np.exp(-np.arange(nh) / (0.07 * sr)), sr, 0.0005, 0.02)) for i in range(2)]
+            k["bongo_lo"] = [unit(dsp.fade(conga(sr, float(midi_hz(64)), "open", key=630 + i)[:nl]
+                                           * np.exp(-np.arange(nl) / (0.09 * sr)), sr, 0.0005, 0.02)) for i in range(2)]
+            k["bongo_tip"] = [conga(sr, float(midi_hz(69)), "toe", key=640 + i) for i in range(3)]
+            k["timbale"] = [unit(dsp.lowpass(ins.snare(sr, float(midi_hz(57)), 0.16, 0.05, 0.25, 1500, 6000,
+                                                       key=650 + i), 7000, sr)) for i in range(2)]
+            k["shaker"] = [unit(ins.shaker(sr, key=660 + i, dur=0.06)) for i in range(3)]
+            k["crash"] = [dsp.lowpass(ins.crash(sr, key=63, t60=1.4), 9500, sr, 2)]
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -2918,6 +2943,281 @@ def block_lead(s):
     return room(s, b / dsp.peak(b) + 0.55 * sc / dsp.peak(sc), 0.2, 1.3, "lead", damp=6000)
 
 
+# ================================================ REGGAE ISLAND (A major)
+
+def island_song(d):
+    # sunny roots reggae in A, 80 BPM: I - ii - V - I, then vi - IV - ii V - I (the 'rocksteady turn': the
+    # dominant comes round twice and both halves end at home). Plain triads and two soft minor sevenths, every tone
+    # in the scale. The beach (bossa, D) floats over major sevenths and never plays a plain V - I; the carnival
+    # (salsa, C) runs on a montuno; the songs of the genre "reggae" (Bb) go I - IV - I - V or start on vi.
+    A, B, E, Fs, D = 9, 11, 4, 6, 2
+    maj, m7 = [0, 4, 7], [0, 3, 7, 10]
+    return Song(d, progression([
+        (4, A, maj, "A"), (4, B, m7, "Bm7"), (4, E, maj, "E"), (4, A, maj, "A"),
+        (4, Fs, m7, "F#m7"), (4, D, maj, "D"), (2, B, m7, "Bm7"), (2, E, maj, "E"), (4, A, maj, "A"),
+    ]))
+
+
+ISL_SW = 0.22  # how late the off-beat 16ths are (of a 16th): the lazy shuffle of the island
+
+
+def isl(beat):
+    return sw16(beat, ISL_SW)
+
+
+def isl_home(s, c):
+    """The root or the fifth of the key that chord c holds: A, else E (Bm7 holds the A, E the E)."""
+    return s.tonic if s.tonic in c.pcs() else (s.tonic + 7) % 12
+
+
+def drop_kick(sr, midi=33, key=0):
+    """The kick of the one drop: a soft, deep thump whose tail settles on `midi` (A1) with its octave (A2: what a
+    phone plays of it) -- the drum says the key every time it falls on beat three."""
+    n = nsamp(0.36, sr)
+    t = np.arange(n) / sr
+    ph = TAU * np.cumsum(float(midi_hz(midi)) * (1.0 + 1.6 * np.exp(-t / 0.02))) / sr
+    x = np.sin(ph) * np.exp(-t / 0.1) + 0.5 * np.sin(2.0 * ph + 0.3) * np.exp(-t / 0.09)
+    felt = dsp.lowpass(dsp.rng("dropkick", key).standard_normal(n), 1800, sr, 2) * np.exp(-t / 0.005)
+    x = dsp.drive(x / dsp.peak(x) + 0.22 * felt / dsp.peak(felt), 1.5)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.05)
+
+
+def steel_pan(midi, sr, vel=0.8, dur=0.8, key=0):
+    """A steel pan note: the fundamental, a strong octave that blooms a moment after the stroke, the twelfth and
+    the double octave ringing shorter (the partials a pan is tuned to), all slightly detuned against each other
+    so the note shimmers, and the soft knock of the rubber mallet."""
+    def mk():
+        f = float(midi_hz(midi))
+        n = nsamp(dur + 0.08, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("steelpan", midi, key)
+        t60 = float(np.clip(0.9 * (440.0 / f) ** 0.4, 0.5, 1.2))
+        tau = t60 / 6.9
+        x = np.sin(TAU * f * t) * np.exp(-t / tau)
+        x += (0.75 * vel) * np.sin(TAU * 2.0 * f * 1.0015 * t + r.uniform(0, TAU)) * (
+            1.0 - np.exp(-t / 0.014)) * np.exp(-t / (tau * 0.75))
+        if 3.0 * f < 0.42 * sr:
+            x += (0.3 * vel) * np.sin(TAU * 3.0 * f * 0.9985 * t + r.uniform(0, TAU)) * np.exp(-t / (tau * 0.4))
+        if 4.0 * f < 0.42 * sr:
+            x += (0.16 * vel) * np.sin(TAU * 4.0 * f * 1.002 * t + r.uniform(0, TAU)) * np.exp(-t / (tau * 0.3))
+        m = nsamp(0.008, sr)
+        knock = dsp.lowpass(r.standard_normal(m), 2000 + 2500 * vel, sr) * np.exp(-np.arange(m) / (0.002 * sr))
+        x[:m] += 0.2 * vel * knock
+        x *= np.exp(-6.9 * np.maximum(t - dur, 0.0) / 0.08)
+        return dsp.fade(x * vel, sr, 0.001, 0.02)
+    return cached(("steelpan", midi, sr, round(vel, 2), round(dur, 3), key), mk)
+
+
+ISL_BONGOS = {  # bar -> (beat, drum h/l/t (tip), vel): little answers after the drop, a longer roll into bars 5 and 1
+    0: [(3.0, "h", 0.7), (3.5, "l", 0.8)],
+    1: [(2.75, "t", 0.4), (3.0, "h", 0.7), (3.25, "h", 0.5), (3.5, "l", 0.8)],
+    2: [(3.0, "l", 0.7), (3.5, "h", 0.8)],
+    3: [(2.5, "h", 0.6), (2.75, "h", 0.45), (3.0, "l", 0.75), (3.25, "h", 0.55), (3.5, "l", 0.85), (3.75, "l", 0.6)],
+    4: [(3.0, "h", 0.7), (3.5, "l", 0.8)],
+    5: [(2.75, "t", 0.4), (3.0, "h", 0.7), (3.25, "h", 0.5), (3.5, "l", 0.8)],
+    6: [(1.0, "h", 0.6), (1.5, "l", 0.7), (3.0, "l", 0.7), (3.5, "h", 0.8)],
+    7: [(2.5, "l", 0.6), (2.75, "h", 0.5), (3.0, "h", 0.8), (3.25, "l", 0.55), (3.5, "h", 0.7), (3.75, "l", 0.85)],
+}
+
+
+def island_drums(s):
+    """One drop: nothing on beat one -- the kick and the cross-stick fall together on beat three. Hats on the
+    8ths with a lazy swung 16th before the drop, an open hat into every fourth bar, bongos (tuned to A and E)
+    that answer after the drop, and a timbale pick-up into the two halves. Where a rock beat has its kick, on
+    beat one, a soft round note sounds on the root of the chord (and, with the drop, on the A or E that the chord
+    holds), so the first layer alone already says the key."""
+    k = kit("island", s.sr)
+    r = dsp.rng(s.id, "drums")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        hit(s, b, k["kick"], o + 2.0, 1.0, r, 0.002)
+        hit(s, b, k["rim"], o + 2.0, 0.8, r, 0.002)
+        if bar % 2 == 1:
+            hit(s, b, k["rim"], o + isl(3.75), 0.35, r, 0.003)
+        for i in range(8):
+            if i == 7 and bar % 4 == 3:
+                hit(s, b, k["ohat"], o + 3.5, 0.5, r, 0.0)
+                continue
+            hit(s, b, k["hat"], o + i * 0.5, (0.6, 0.38)[i % 2], r, 0.004)
+        hit(s, b, k["hat"], o + isl(1.75), 0.25, r, 0.004)
+        for bt, drum, v in ISL_BONGOS.get(bar, ()):
+            hit(s, b, k[{"h": "bongo_hi", "l": "bongo_lo", "t": "bongo_tip"}[drum]], o + isl(bt), 0.6 * v, r, 0.004)
+        if bar in (3, 7):
+            for bt, v in ((3.5, 0.45), (3.75, 0.6)):
+                hit(s, b, k["timbale"], o + isl(bt), v, r, 0.002)
+    b = dsp.drive(b / dsp.peak(b) * 1.2, 1.3)
+    b = room(s, b, 0.14, 0.8, "drums", damp=5500)
+    tone = s.zeros()
+    n = nsamp(0.6, s.sr)
+    t = np.arange(n) / s.sr
+    for bar in range(s.bars):
+        for bt, home, v in ((0.0, False, 1.0), (2.0, True, 0.7)):
+            c = s.chord_at(bar * 4 + bt)
+            f = float(midi_hz(nearest(isl_home(s, c) if home else c.root, 57, 52, 63)))  # an octave above the bass
+            x = (np.sin(TAU * f * t) + 0.3 * np.sin(2 * TAU * f * t + 0.5) * np.exp(-t / 0.1)
+                 + 0.12 * np.sin(3 * TAU * f * t) * np.exp(-t / 0.05)) * np.exp(-t / 0.14)
+            s.add(tone, dsp.fade(x * (1.0 - np.exp(-t / 0.005)), s.sr, 0.001, 0.05), bar * 4 + bt, v)
+    rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+    return b + 0.42 * tone * rms(b) / rms(tone)
+
+
+# The bass, E2-F#3: it sings. Every bar starts on the root and leaves room after it (the drop belongs to the
+# drum), walks through the chord in the second half and steps into the next root. bar -> (beat, beats, midi)
+ISL_BASS = bars({
+    0: [(0.0, 1.0, 45), (1.5, 0.5, 49), (2.0, 0.75, 52), (3.0, 0.5, 49), (3.5, 0.5, 45)],
+    1: [(0.0, 1.0, 47), (1.5, 0.5, 50), (2.0, 0.75, 54), (3.0, 0.5, 50), (3.5, 0.5, 47)],
+    2: [(0.0, 0.75, 52), (1.0, 0.5, 52), (1.5, 0.5, 47), (2.0, 1.0, 40), (3.0, 0.5, 44), (3.5, 0.5, 47)],
+    3: [(0.0, 1.25, 45), (1.5, 0.5, 45), (2.0, 0.5, 49), (2.5, 0.5, 52), (3.0, 0.5, 54), (3.5, 0.5, 52)],
+    4: [(0.0, 1.0, 42), (1.5, 0.5, 45), (2.0, 0.75, 49), (3.0, 0.5, 45), (3.5, 0.5, 42)],
+    5: [(0.0, 1.0, 50), (1.5, 0.5, 50), (2.0, 0.5, 54), (2.5, 0.5, 45), (3.0, 0.5, 50), (3.5, 0.5, 49)],
+    6: [(0.0, 0.75, 47), (1.0, 0.5, 50), (1.5, 0.5, 54), (2.0, 0.75, 52), (3.0, 0.5, 47), (3.5, 0.5, 44)],
+    7: [(0.0, 1.25, 45), (1.5, 0.5, 52), (2.0, 0.5, 49), (2.5, 0.75, 45), (3.5, 0.5, 40)],
+})
+
+
+def island_bass(s):
+    """A deep, melodic reggae bass: round and warm (a sine with a soft triangle an octave up so that a phone
+    still plays it), every note played short of the next (the rests are part of the line)."""
+    ev = [(bt, du * 0.9, m, 0.9 if bt % 4 == 0 else 0.78) for bt, du, m in ISL_BASS]
+    kw = dict(glide=0.02, legato_gap=0.005, attack=0.01, release=0.06, vib_depth=0.0, key="islbass")
+    src, env, _ = render_line(s, events(s, ev), osc="sine", **kw)
+    top, _, _ = render_line(s, events(s, [(e[0], e[1], e[2] + 12, e[3]) for e in ev]), osc="tri", **kw)
+    x = dsp.tube((src + 0.32 * top) * env * 1.2, 1.6, s.sr, bias=0.12)
+    b = wrap(s, dsp.highpass(x, 30, s.sr, 2))
+    return loop_filter(s, b, "lp", 1000)
+
+
+def island_rhythm(s):
+    """The skank: a clean electric guitar chops the chord on every 'and', a short bright up-stroke that is damped
+    at once; on the 'and' of two and of four a second, softer stroke follows on the swung 16th ('chk-a')."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "skank")
+    vo = voice_lead([c.pcs(c.tones[:3] if len(c.tones) == 3 else c.tones[1:]) for c in s.chords], 61, 78, 69,
+                    span=12)
+    for bar in range(s.bars):
+        o = bar * 4
+        for q in range(4):
+            bt = q + 0.5
+            notes = vo[s.chords.index(s.chord_at(o + bt))]
+            x = ins.strum(notes, s.sec(0.2), s.sr, spread=0.005, up=True, bright=0.7, t60=0.5, pick=0.12,
+                          mute=0.02, key=bar % 2, damp=0.35)
+            s.add(b, x, o + bt, 0.9 if q % 2 else 0.8, dt=r.normal(0, 0.003))
+            if q % 2 == 1:
+                y = ins.strum(notes, s.sec(0.1), s.sr, spread=0.004, up=False, bright=0.65, t60=0.3, pick=0.12,
+                              mute=0.015, key=2, damp=0.35)
+                s.add(b, y, o + isl(bt + 0.25), 0.45, dt=r.normal(0, 0.003))
+    b = loop_filter(s, b, "hp", 260)
+    b = loop_eq(s, b, "peak", 2200, 3.0, 0.9)
+    b = dsp.drive(b / dsp.peak(b) * 1.3, 1.3)
+    return room(s, b, 0.12, 0.7, "skank", damp=5500)
+
+
+def island_organ(s):
+    """The bubble: the left hand of the organ plays two low notes of the chord on the swung 16ths around every
+    off-beat ('a-ka'), the right hand a short chord on the off-beat itself, through a slow rotary speaker; at the
+    end of each half the right hand holds its chord a little longer."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "organ")
+    lo = voice_lead([c.pcs([c.tones[0], c.tones[2]]) for c in s.chords], 45, 59, 52)
+    hi = voice_lead([c.pcs(c.tones[:3]) for c in s.chords], 57, 72, 64, span=12)
+    for bar in range(s.bars):
+        o = bar * 4
+        for q in range(4):
+            ci = s.chords.index(s.chord_at(o + q + 0.5))
+            hold = bar in (3, 7) and q == 3
+            for bt, v in ((q + 0.25, 0.55), (q + 0.75, 0.7)):
+                if hold and bt > q + 0.5:
+                    continue
+                for m in lo[ci]:
+                    x = ins.organ(m, round(s.sec(0.14), 4), s.sr, bars=(8, 0, 8, 4, 0, 0, 0, 0, 0), perc=0.0,
+                                  click=0.3, attack=0.004, release=0.03)
+                    s.add(b, x, o + isl(bt), v, dt=r.normal(0, 0.003))
+            for m in hi[ci]:
+                x = ins.organ(m, round(s.sec(0.32 if hold else 0.2), 4), s.sr, bars=(6, 4, 8, 6, 0, 3, 0, 0, 0),
+                              perc=0.25, click=0.25, attack=0.005, release=0.04)
+                s.add(b, x, o + q + 0.5, 0.6, dt=r.normal(0, 0.003))
+    b = dsp.loop_apply(b / dsp.peak(b) * 1.8, lambda z: dsp.tube(z, 1.3, s.sr, 0.12))
+    b = leslie(s, b, 5.8, 0.22)
+    b = loop_filter(s, loop_filter(s, b, "hp", 110), "lp", 3800)
+    return room(s, b, 0.14, 0.9, "organ", damp=4500)
+
+
+# The steel pan, A4-D6, singable: 'up the chord and rest' (C# E A), answered a step higher, the same over the
+# dominant, home to the low A; then down from the top over F#m, up to the high D over IV, a run through ii - V
+# and the long rolled A everything was heading for. The last note (B) leads back into the C# of bar 1.
+# bar -> (beat, beats, midi)
+ISL_PAN = bars({
+    0: [(0.0, 0.5, 73), (0.5, 0.5, 76), (1.0, 1.0, 81), (2.0, 0.5, 78), (2.5, 1.0, 76)],
+    1: [(0.0, 0.5, 74), (0.5, 0.5, 78), (1.0, 1.0, 81), (2.0, 1.0, 78)],
+    2: [(0.0, 0.5, 76), (0.5, 0.5, 80), (1.0, 1.0, 83), (2.0, 0.5, 80), (2.5, 1.0, 76)],
+    3: [(0.0, 0.5, 73), (0.5, 0.5, 76), (1.0, 0.5, 73), (1.5, 1.5, 69)],
+    4: [(0.0, 1.0, 81), (1.0, 0.5, 78), (1.5, 0.5, 73), (2.0, 0.5, 76), (2.5, 1.0, 78)],
+    5: [(0.0, 0.5, 78), (0.5, 0.5, 81), (1.0, 1.0, 86), (2.0, 1.0, 81)],
+    6: [(0.0, 0.5, 83), (0.5, 0.5, 81), (1.0, 0.5, 78), (1.5, 0.5, 74), (2.0, 0.5, 76), (2.5, 0.5, 80),
+        (3.0, 0.5, 83), (3.5, 0.5, 80)],
+    7: [(0.0, 2.0, 81), (2.5, 0.5, 76), (3.0, 0.5, 73), (3.5, 0.5, 71)],
+})
+
+
+def island_steelpan(s):
+    """The steel pan sings the tune: single strokes on the short notes, a roll (soft 32nds) on the long ones, the
+    notes on the beat doubled a third to a sixth below by a second, quieter pan; a short echo."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "pan")
+    scale = [(s.tonic + i) % 12 for i in (0, 2, 4, 5, 7, 9, 11)]
+    for bt, du, m in ISL_PAN:
+        c = s.chord_at(bt)
+        v = 0.9 if bt % 1 == 0 else 0.75
+        if du >= 1.5:  # a roll
+            n = int(round(du * 8))
+            for i in range(n):
+                g = v * (1.0 if i == 0 else 0.42 + 0.2 * np.sin(np.pi * i / n))
+                s.add(b, steel_pan(m, s.sr, 0.8, 0.5, key=i % 2), bt + i * 0.125, g, dt=r.normal(0, 0.002))
+        else:
+            s.add(b, steel_pan(m, s.sr, round(v, 2), max(0.35, s.sec(du)), key=0), bt, v, dt=r.normal(0, 0.003))
+        if bt % 1 == 0 and du >= 0.5:  # the second pan: the chord tone a third to a sixth under the tune
+            under = [x for x in range(m - 9, m - 2) if x % 12 in c.pcs() and x % 12 in scale]
+            if under:
+                s.add(b, steel_pan(under[-1], s.sr, 0.7, max(0.35, s.sec(min(du, 1.0))), key=1), bt, 0.45 * v,
+                      dt=0.006 + r.normal(0, 0.003))
+    b = loop_filter(s, loop_filter(s, b, "hp", 250), "lp", 7000)
+    b = echo(s, b, 0.75, 0.14, 0.3, 2, 4000)
+    return room(s, b, 0.2, 1.2, "pan", damp=6000)
+
+
+# The horns (a trumpet on top, a sax a third to a sixth below, a trombone an octave under the trumpet) answer the
+# pan where it breathes, with off-beat 'pah's in between, and land on the last A. bar -> (beat, beats, top midi)
+ISL_HORNS = bars({
+    0: [(3.5, 0.4, 73)],
+    1: [(2.5, 0.5, 69), (3.0, 0.5, 71), (3.5, 0.5, 74)],
+    2: [(0.0, 0.3, 76), (3.5, 0.4, 76)],
+    3: [(2.5, 0.5, 69), (3.0, 0.5, 73), (3.5, 0.5, 76)],
+    4: [(0.0, 0.3, 78), (3.5, 0.4, 73)],
+    5: [(2.5, 0.5, 69), (3.0, 0.5, 74), (3.5, 0.5, 78)],
+    6: [(0.0, 0.3, 78)],
+    7: [(1.5, 0.5, 73), (2.0, 0.5, 76), (2.5, 0.25, 73), (3.0, 0.9, 69)],
+})
+
+
+def island_brass(s):
+    """A small horn section, soft and round: three voices move together in short answers and off-beat 'pah's."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "horns")
+    scale = [(s.tonic + i) % 12 for i in (0, 2, 4, 5, 7, 9, 11)]
+    for bt, du, m in ISL_HORNS:
+        c = s.chord_at(bt)
+        under = [x for x in range(m - 9, m - 2) if x % 12 in c.pcs() and x % 12 in scale]
+        if not under:
+            under = [x for x in range(m - 4, m - 2) if x % 12 in scale]
+        for j, (mm, g) in enumerate(((m, 1.0), (under[-1], 0.75), (m - 12, 0.7))):
+            x = ins.brass(mm, round(s.sec(du) * 0.9, 4), s.sr, vel=0.8, bright=0.75, key=j)
+            s.add(b, x, bt, g, dt=0.004 * j + r.normal(0, 0.003))
+    b = loop_filter(s, loop_filter(s, b, "hp", 180), "lp", 5000)
+    b = echo(s, b, 0.75, 0.1, 0.3, 2, 3000)
+    return room(s, b, 0.2, 1.2, "horns", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -2936,7 +3236,7 @@ def tension_stem(s, style):
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
             "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block"}
+            "block": "block", "island": "island"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -2966,6 +3266,9 @@ def tension_stem(s, style):
             x = sky_pluck(m, s.sr, dur=0.22, key=3, cutoff=2500.0)
         elif style == "block":  # the electric piano, staccato, on the chord roots
             x = ins.epiano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.9, release=0.08)
+        elif style == "island":  # the left hand of the organ, staccato, on the chord roots
+            x = ins.organ(m, round(s.sec(0.2), 4), s.sr, bars=(8, 0, 8, 5, 0, 2, 0, 0, 0), perc=0.3, click=0.3,
+                          attack=0.004, release=0.03)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -3034,7 +3337,7 @@ def party_stem(s, style):
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
             "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block"}
+            "block": "block", "island": "island"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -3060,6 +3363,14 @@ def party_stem(s, style):
                 hit(s, b, k["kick"], o + bt, v, r, 0.0)
             for bt, v in ((0.0, 0.5), (1.0, 0.3), (1.5, 0.4), (2.5, 0.5), (3.0, 0.3)):
                 hit(s, b, [BLOCK_BELL(s.sr)], o + bt, 0.3 * v, r, 0.002)
+        elif style == "island":  # the beach party: the kick on every beat now ('steppers'), bongos on the 16ths
+            for i in range(16):
+                drum = "bongo_lo" if i in (6, 7, 14) else ("bongo_hi" if i % 4 in (0, 3) else "bongo_tip")
+                hit(s, b, k[drum], o + isl(i * 0.25), 0.3 if i % 2 == 0 else 0.2, r, 0.003)
+                hit(s, b, k["shaker"], o + isl(i * 0.25), 0.3 if i % 2 else 0.18, r, 0.003)
+            for bt in range(4):
+                hit(s, b, k["kick"], o + bt, 0.5, r, 0.0)
+                hit(s, b, k["ohat"], o + bt + 0.5, 0.22, r, 0.0)
         else:
             for i in range(16):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
@@ -3119,6 +3430,8 @@ def party_stem(s, style):
                 x = ins.piano(m, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
             elif style == "bazaar":  # the top strings of the qanun
                 x = qanun(m, s.sr, key=i % 2, dur=0.6)
+            elif style == "island":  # a second steel pan runs up the chord, an octave under the glockenspiel's place
+                x = steel_pan(m - 12, s.sr, 0.8, 0.5, key=i % 2)
             else:
                 x = ins.glock(m, s.sr, vel=0.7, dur=0.8, octave_up=False)
             s.add(arp, x, c.start + i * 0.5, 0.8 if i % 2 == 0 else 0.6)
@@ -3163,6 +3476,9 @@ DISTRICTS = {
     "block": dict(song=block_song, stems={
         "beat": block_beat, "bass": block_bass, "keys": block_keys, "claps": block_claps, "hook": block_hook,
         "lead": block_lead}),
+    "island": dict(song=island_song, stems={
+        "drums": island_drums, "bass": island_bass, "rhythm": island_rhythm, "organ": island_organ,
+        "steelpan": island_steelpan, "brass": island_brass}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -3194,6 +3510,8 @@ LOUDNESS = {
                 "tension": -18, "party": -16},
     "block": {"beat": -16, "bass": -19, "keys": -19, "claps": -19, "hook": -18, "lead": -18,
               "tension": -18, "party": -16},
+    "island": {"drums": -17, "bass": -19, "rhythm": -18, "organ": -20, "steelpan": -18, "brass": -18,
+               "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on
