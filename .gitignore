@@ -14,3 +14,6 @@ __pycache__/
 luac.out
 *.orig
 *.rej
+
+# raw drawings from the producer (ChatGPT): kept on the producer PC only, the game uses assets/images and assets/art_ready
+assets/art_incoming/
