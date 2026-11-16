@@ -375,3 +375,22 @@ carpet), which it removes at once. An `effect` hit on a boombox plays nothing.
 No state, no hash field; nothing runs and nothing is drawn on a level without
 boomboxes. Goal: the ordinary `break` with item `boombox`. Tests:
 `tests/core/boombox_test.lua`.
+
+## Ice (§10.11)
+
+The ice of district 12 is the object field `ice` (hp 1-2) of a regular piece,
+set from `overlay` items of type `ice` (`level.ice[i]`, `level.has_ice`). A
+frozen piece is fixed (`B.is_movable` is false: gravity treats it as `blocked`,
+no swap, no pin) and has no colour (`M.color_map`, `MV.expected_colors`), so it
+is never in a group. `hits.lua` (`ice_hit`): an `adjacent` or an `effect` hit
+takes one hp off (score 50, event `hit` with layer `ice`); at 0 it emits
+`thawed`, raises the label (1.3.7), counts goal `C.GOAL_ICE` and makes the
+board dirty -- inside a group resolution through `s.chain_hit`, so
+`M.search` leaves the dirty flag set and the next search (the next wave) finds
+a ready-made line through the freed piece. Every chooser that takes "free
+regular pieces" skips frozen ones (`o.ice == 0` next to `o.chain == 0`:
+mf(), Disco lists, Colour X, boombox blast, noise growth, shuffle, pre-level
+boosters, continue Riff, bonus gift, concert). Deadlock: item 4b of 12.2
+(`SH.thaw_riff`) thaws one frozen piece into a Riff when nothing else is left.
+Hash: the ice hp of every cell is appended only when `level.has_ice`. Tests:
+`tests/core/ice_test.lua`.
