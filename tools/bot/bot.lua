@@ -39,6 +39,13 @@
 -- either: the clone of a move runs to rest, and rest comes only after the
 -- belts made their step and its cascade ended, so every move is scored one
 -- belt step ahead.
+-- On a level with boomboxes (core-rules 10.10) the clone of a move plays the
+-- blast itself (with its own reseeded stream: the number of pieces a boombox
+-- clears does not depend on the draw, only which ones), so the bonus pieces
+-- of a `collect` goal are ordinary goal progress. What the bot adds, on a
+-- level with a `break boombox` goal, is Bot.W.boom for every hp unit a move
+-- takes off a boombox (Bot.boombox_hp): the first hits on a boombox of hp 2-3
+-- move no goal counter. Levels without that goal pay nothing.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -63,7 +70,7 @@ local SPECIAL_RANK = { bird = 1, riff = 2, sub = 3, disco = 4 }
 -- adds best2 * second_ply_num / second_ply_den.
 Bot.SCALE = 1000
 Bot.W = {
-	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4, rug = 2,
+	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4, rug = 2, boom = 3,
 	combo_greedy = 5, combo_strong = 15, combo_disco_strong = 25,
 	win_strong = 1000, near_goal = 3, rank_strong = 1, second_ply_num = 1, second_ply_den = 2,
 }
@@ -89,6 +96,7 @@ function Bot.new(kind, opts)
 		drop = false,               -- the level has a `drop` goal (coconuts)
 		chains = false,             -- the level has a `chains` goal (10.6)
 		rug = false,                -- the level has a `carpet` goal (10.8)
+		boom = false,               -- the level has a `break boombox` goal (10.10)
 		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
@@ -97,6 +105,7 @@ function Bot.new(kind, opts)
 		if self.goals[k].type == "drop" then self.drop = true end
 		if self.goals[k].type == "chains" then self.chains = true end
 		if self.goals[k].type == "carpet" then self.rug = true end
+		if self.goals[k].type == "break" and self.goals[k].item == "boombox" then self.boom = true end
 	end
 	return self
 end
@@ -334,6 +343,19 @@ function Bot.chain_hp(self, game)
 	local n = 0
 	local list = game:pieces()
 	for k = 1, #list do n = n + (list[k].chain or 0) end
+	return n
+end
+
+-- Total hp of the intact boomboxes (10.10), only on a level with a `break boombox` goal; nil otherwise, so
+-- the other levels pay nothing and choose as before. The difference of two values is the hp a move took off.
+function Bot.boombox_hp(self, game)
+	if not self.boom then return nil end
+	local n = 0
+	local list = game:pieces()
+	for k = 1, #list do
+		local p = list[k]
+		if p.item == "boombox" and p.state == "idle" then n = n + (p.hp or 0) end
+	end
 	return n
 end
 
@@ -577,6 +599,7 @@ function Bot:choose(game)
 	local links = Bot.chain_hp(self, game)
 	local ready = Bot.chain_ready(self, game)
 	local work = Bot.curtain_work(self, game)
+	local booms = Bot.boombox_hp(self, game)
 	local rug = self.rug
 	local W = Bot.W
 	local scored = {}
@@ -590,6 +613,7 @@ function Bot:choose(game)
 			if coconuts then sc = sc + Bot.SCALE * W.lower * Bot.lowered(self, coconuts, clone) end
 			if links then sc = sc + chain_score(self, links, ready, clone) end
 			if work then sc = sc + Bot.SCALE * W.drape * math.max(0, work - Bot.curtain_work(self, clone)) end
+			if booms then sc = sc + Bot.SCALE * W.boom * math.max(0, booms - Bot.boombox_hp(self, clone)) end
 			if rug and not acc.won then sc = sc + Bot.SCALE * W.rug * Bot.carpet_moves(self, clone) end
 			if strong then
 				local extra = acc.won and W.win_strong or 0
@@ -620,6 +644,7 @@ function Bot:choose(game)
 				local links2 = Bot.chain_hp(self, e.clone)
 				local ready2 = Bot.chain_ready(self, e.clone)
 				local work2 = Bot.curtain_work(self, e.clone)
+				local booms2 = Bot.boombox_hp(self, e.clone)
 				for j = 1, math.min(3, #hits) do
 					local cl2, acc2 = Bot.simulate(self, e.clone, hits[j].cand)
 					if cl2 then
@@ -629,6 +654,7 @@ function Bot:choose(game)
 						end
 						if links2 then s2 = s2 + chain_score(self, links2, ready2, cl2) end
 						if work2 then s2 = s2 + Bot.SCALE * W.drape * math.max(0, work2 - Bot.curtain_work(self, cl2)) end
+						if booms2 then s2 = s2 + Bot.SCALE * W.boom * math.max(0, booms2 - Bot.boombox_hp(self, cl2)) end
 						if acc2.won then s2 = s2 + Bot.SCALE * W.win_strong / 10 end
 						if s2 > best2 then best2 = s2 end
 					end

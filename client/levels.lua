@@ -56,6 +56,7 @@ M.ITEM_IMAGE = {
 	noise = "blockers/noise",
 	balloon = "blockers/balloon_red",
 	column = "blockers/column_1",
+	boombox = "blockers/boombox_3", -- the new one (core-rules 10.10); the number is the hp left
 }
 
 local function count_floor(data)

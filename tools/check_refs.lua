@@ -106,6 +106,7 @@ M.ANIM_FAMILIES = {
 	["specials_"] = "specials",
 	["blockers_balloon_"] = "colors",
 	["blockers_record_box_"] = { 1, 2, 3 },
+	["blockers_boombox_"] = { 1, 2, 3 },
 	["blockers_concrete_"] = { 1, 2 },
 	["blockers_column_"] = { 1, 2, 3 },
 	["blockers_wires_"] = { 1, 2 },

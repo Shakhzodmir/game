@@ -6,6 +6,7 @@ local U = require("core.util")
 local B = require("core.board")
 local E = require("core.events")
 local H = require("core.hits")
+local BX = require("core.boombox")
 
 local M = {}
 
@@ -287,7 +288,7 @@ local function praise(s, M_, W_)
 end
 
 -- Resolves one group (6.3).
-function M.resolve(s, g, swaps)
+function M.resolve(s, g, swaps, busy)
 	local special, axis = M.classify(g)
 	local scell = 0
 	if special ~= 0 then scell = M.special_cell(s, g, special, swaps) end
@@ -347,6 +348,10 @@ function M.resolve(s, g, swaps)
 	table.sort(adj) -- numbers
 	for k = 1, #adj do H.hit(s, adj[k], src_a) end
 	s.in_group = false
+	-- 4a. the boomboxes this group has damaged play its colour (10.10)
+	if src_a.boom then
+		BX.play(s, src_a, busy or in_group)
+	end
 	praise(s, Mv, Wv)
 	s.sources[src_m.id] = nil
 	s.sources[src_a.id] = nil
@@ -362,10 +367,16 @@ function M.search(s, swaps)
 	local col = M.color_map(s)
 	local groups = M.find_groups(col, s.W, s.H)
 	local resolved = {}
+	-- the cells of every group of this search: a boombox never blasts a piece of a match being resolved
+	local busy = {}
+	for k = 1, #groups do
+		local g = groups[k]
+		for j = 1, #g.cells do busy[g.cells[j]] = true end
+	end
 	for k = 1, #groups do
 		local g = groups[k]
 		for j = 1, #g.cells do resolved[g.cells[j]] = true end
-		M.resolve(s, g, swaps)
+		M.resolve(s, g, swaps, busy)
 	end
 	s.dirty = s.chain_hit
 	s.chain_hit = false

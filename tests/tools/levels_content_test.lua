@@ -32,7 +32,8 @@ local COLOR_GENITIVE_PLURAL = {
 	red = "красных", orange = "оранжевых", yellow = "жёлтых", green = "зелёных", blue = "синих", purple = "фиолетовых",
 }
 -- a word that a goal of the table must contain, by the item of a `break` goal
-local ITEM_WORD = { record_box = "короб", concrete = "бетон", noise = "помех", balloon = "шарик", column = "колон" }
+local ITEM_WORD = { record_box = "короб", concrete = "бетон", noise = "помех", balloon = "шарик", column = "колон",
+	boombox = "бумбокс" }
 local LAST = Levels.content_count(DIR) -- the last level of the last district of content/districts.json
 local TIMES = "\195\151" -- the multiplication sign of the "9×9" of the field column
 
@@ -263,6 +264,7 @@ local function row_problems(n, cells, raw)
 	expect("бетон (%d+)", count_slots(raw, "concrete"), "бетон")
 	expect("помехи (%d+)", count_slots(raw, "noise"), "помехи")
 	expect("шарики (%d+)", count_slots(raw, "balloon"), "шарики")
+	expect("бумбоксы (%d+)", count_slots(raw, "boombox"), "бумбоксы") -- (10.10)
 	expect("танцпол (%d+)", #(raw.floor or {}), "танцпол")
 	expect("провода (%d+)", count_overlay(raw, "wires"), "провода")
 	expect("цепи (%d+)", count_overlay(raw, "chain"), "цепи")
@@ -323,7 +325,7 @@ local function row_problems(n, cells, raw)
 	if gift_words ~= gifts(raw) then bad("элементы", gift_words .. " ready specials named, the file has " .. gifts(raw)) end
 	local nothing = columns == 0 and #(raw.floor or {}) == 0 and #(raw.overlay or {}) == 0 and raw.mic == nil and gifts(raw) == 0
 		and raw.coconut == nil and raw.curtain == nil and raw.carpet == nil and raw.conveyor == nil
-	for _, kind in ipairs({ "record_box", "concrete", "noise", "balloon" }) do
+	for _, kind in ipairs({ "record_box", "concrete", "noise", "balloon", "boombox" }) do
 		if count_slots(raw, kind) > 0 then nothing = false end
 	end
 	if nothing ~= (elements == "—") then bad("элементы", "'—' exactly where the level has no element") end

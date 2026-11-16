@@ -356,3 +356,22 @@ When a belt carried something, step 8 skips `out_of_moves` and the deadlock
 check until the next rest. Event `conveyor`; `cells()[i].conveyor`. Rule
 2.1.14 in `level.lua`. Tests: `tests/core/conveyor_test.lua` (with a random
 play that checks the board invariants in every tick).
+
+## Boombox (§10.10)
+
+The boombox of district 11 is blocker `C.BK_BOOMBOX` (code 6, hp 1-3) with the
+hit rules of a record box (`hits.lua`, table 7.3). What is new: when an
+`adjacent` hit takes an hp unit off it, `blocker_hit` notes the play on the
+adjacent source (`src.boom` cells, `src.boom_last` 0/1), and `match.lua` calls
+`BX.play` (`boombox.lua`) at step 4a of 6.3, after the last adjacent hit of the
+group and before the praise. A play builds its candidates (`BX.candidates`:
+regular idle pieces of the group colour, no wires, no chain, not pinned, not
+under a closed curtain, outside every group of the running search -- the `busy`
+set `M.search` builds before it resolves anything), draws `C.BLAST` of them
+(`C.BLAST_LAST` when the hit destroyed the boombox) one by one from the
+`effects` stream, emits `boombox` and hits the targets in cell order with a
+source of its own (kind `effect`, the label and colour of the group, never the
+carpet), which it removes at once. An `effect` hit on a boombox plays nothing.
+No state, no hash field; nothing runs and nothing is drawn on a level without
+boomboxes. Goal: the ordinary `break` with item `boombox`. Tests:
+`tests/core/boombox_test.lua`.

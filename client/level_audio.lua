@@ -17,6 +17,8 @@
 -- Layers: "tension" while playing with 1..5 moves left, "party" in the final
 -- concert (the mixer never plays them together).
 
+local level_boombox = require("client.level_boombox")
+
 local M = {}
 
 M.LOW_MOVES = 5
@@ -41,10 +43,11 @@ M.COMBO_SFX = {
 	color_bird = { { "disco", 0 }, { "bird", 0.2, 0.8 } },
 	finale = { { "finale", 0 } },
 }
-M.BLOCKER_HIT = { record_box = "box_hit", concrete = "concrete_hit", column = "column_hit", noise = "noise_fizz" }
+M.BLOCKER_HIT = { record_box = "box_hit", concrete = "concrete_hit", column = "column_hit", noise = "noise_fizz",
+	boombox = level_boombox.HIT_SFX }
 M.BLOCKER_BREAK = {
 	record_box = "box_break", concrete = "concrete_break", noise = "noise_break",
-	balloon = "balloon_pop", column = "column_on",
+	balloon = "balloon_pop", column = "column_on", boombox = level_boombox.BREAK_SFX,
 }
 M.PRAISE_INDEX = { juicy = 1, hit = 2, drive = 3, vibe = 4, legend = 5 }
 M.HAPTIC = { tap = 8, special = 22, combo = 40, finale = 70, praise = 14, goal = 18, destroy = 10, nope = 14 }
@@ -249,6 +252,9 @@ function LA:event(e)
 	elseif ty == "curtain" then
 		-- the curtain is drawn or pulled apart: the whoosh of a swap, low and soft
 		self:sfx("swap", { gain = M.CURTAIN_GAIN, speed = e.phase == "closed" and M.CURTAIN_CLOSE or M.CURTAIN_OPEN }, 0.1, "curtain")
+	elseif ty == "boombox" then
+		-- a boombox plays the colour of the match (core-rules 10.10): one low thump for all the plays of a tick
+		self:sfx(level_boombox.PLAY_SFX, { gain = level_boombox.PLAY_GAIN, speed = level_boombox.PLAY_SPEED }, 0.1, "boombox")
 	elseif ty == "conveyor" then
 		-- a belt made its step (core-rules 10.9), or could not (jam): one soft tick for all the belts of a tick
 		if e.jam then

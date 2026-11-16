@@ -331,9 +331,9 @@ end
 
 -- The board as rows of letters for the QA bridge (one char per cell, y from the top): r o y g b p = the pieces by
 -- colour, R V = a Riff h / v, S B D = Sabwoofer / Bird / Disco ball, M = microphone, X K N A L = record box / concrete /
--- noise / balloon / column (all four cells), `.` = nothing (a gap or an empty slot).
+-- noise / balloon / column (all four cells), Q = boombox, `.` = nothing (a gap or an empty slot).
 local PICTURE = { red = "r", orange = "o", yellow = "y", green = "g", blue = "b", purple = "p" }
-local BLOCKER_LETTER = { record_box = "X", concrete = "K", noise = "N", balloon = "A", column = "L" }
+local BLOCKER_LETTER = { record_box = "X", concrete = "K", noise = "N", balloon = "A", column = "L", boombox = "Q" }
 function Session:picture()
 	local rows = {}
 	for y = 1, self.H do rows[y] = {} end

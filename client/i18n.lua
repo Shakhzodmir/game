@@ -171,6 +171,7 @@ local S = {
 	["blocker.curtain"] = { en = "Curtain", ru = "Занавес" },
 	["blocker.carpet"] = { en = "Carpet", ru = "Ковёр" },
 	["blocker.conveyor"] = { en = "Conveyor", ru = "Конвейер" },
+	["blocker.boombox"] = { en = "Boombox", ru = "Бумбокс" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -206,6 +207,10 @@ local S = {
 	["blocker.coconut_desc"] = {
 		en = "A coconut never pops. Clear the pieces under it and bring it down to the bottom row.",
 		ru = "Кокос не лопается. Убирай фишки под ним и доведи его до нижнего ряда.",
+	},
+	["blocker.boombox_desc"] = {
+		en = "Match next to the boombox: it pops three more pieces of that colour.",
+		ru = "Собери ряд рядом с бумбоксом: он лопнет ещё три фишки такого же цвета.",
 	},
 	["blocker.conveyor_desc"] = {
 		en = "After every move the belt carries the pieces one cell along.",
@@ -348,6 +353,10 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	["tutorial.boombox"] = {
+		en = "A match by the boombox pops three more!",
+		ru = "Ряд рядом с бумбоксом лопает ещё три таких же!",
+	},
 	["tutorial.conveyor"] = {
 		en = "The belt moves after each move. Think ahead!",
 		ru = "Лента едет после хода. Думай на шаг вперёд!",

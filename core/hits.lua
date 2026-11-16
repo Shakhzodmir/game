@@ -174,6 +174,17 @@ local function blocker_hit(s, o, cell, src, acc)
 		local e = B.eom_entry(s, src.mv)
 		if e then e.noise_hit = true end
 	end
+	if o.blocker == C.BK_BOOMBOX and src.kind == SRC_ADJ then
+		-- the boombox plays the colour of the group once per hp lost to an adjacent hit (10.10); the
+		-- blast itself runs after the last adjacent hit of the group (step 4a of 6.3, boombox.lua)
+		local boom = src.boom
+		if not boom then
+			boom = {}
+			src.boom, src.boom_last = boom, {}
+		end
+		boom[#boom + 1] = o.cell
+		src.boom_last[#boom] = o.hp == 0 and 1 or 0
+	end
 	local x, y = U.xy(s.W, o.cell)
 	local item = C.BLOCKER_NAME[o.blocker]
 	if o.hp > 0 then

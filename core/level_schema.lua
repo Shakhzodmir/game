@@ -146,6 +146,7 @@ local SLOT_FIELDS = {
 	noise = {},
 	balloon = { color = is_color },
 	column = { hp = hp_range(6, 12) },
+	boombox = { hp = hp_range(1, 3) },
 	riff = { axis = is_axis },
 	sub = {}, bird = {}, disco = {},
 	piece = { color = is_color },
