@@ -1,0 +1,57 @@
+FAIL tests/client/floor_art_test.lua :: dance-floor art > fails on a floor that is pale again (the check is only worth something if it can fail)
+FAIL tests/client/genres_test.lua :: genres open with their district (the default) or all at once (config) > the jukebox view lists the district genres first, then the others by group, with their state
+FAIL tests/client/map_model_test.lua :: client.map_model > finds the district stretch of a height and its background tiles
+FAIL tests/client/meta_town_gui_test.lua :: screens/town/town.gui_script > says the whole town shines when every district is built
+FAIL tests/client/meta_views_test.lua :: client.views (meta screens) > lists the jukebox by genre: a tab per district, its theme first, then its songs
+FAIL tests/client/notebook_gui_test.lua :: songbook window > pages through the districts with the arrows and wraps round
+FAIL tests/client/refs_test.lua :: tools/check_refs.lua on the repository > finds no dangling reference
+FAIL tests/client/save_code_replay_test.lua :: replay after the last level > opens the last page first, pages back and starts a level without touching the save
+FAIL tests/client/songs_assets_test.lua :: the audio manifest of the jukebox songs > measures the layered theme of every district: its stems in task order, then tension and party
+FAIL tests/client/songs_assets_test.lua :: the audio manifest of the jukebox songs > passes every check the generator ran
+FAIL tests/meta/config_test.lua :: meta config > accepts content/districts.json: 13 districts, 337 stars
+FAIL tests/meta/content_binding_test.lua :: level count and district stretches from the data > the shipped districts.json gives 260 levels in thirteen stretches of 20
+FAIL tests/meta/end_content_test.lua :: the end of the content > has stars for the whole town in the shipped levels
+FAIL tests/meta/end_content_test.lua :: the end of the content > lets the player finish the whole town with the stars of the levels, concerts included
+FAIL tests/meta/end_content_test.lua :: the end of the content > level N - 1 leads to N, level N ends in all_done with its rewards paid
+FAIL tests/meta/end_content_test.lua :: the end of the content > refuses every start after the last level and stays healthy
+FAIL tests/meta/songbook_test.lua :: songbook texts > has every line and title in the three languages, as many as the pool says
+FAIL tests/meta/songs_test.lua :: jukebox catalogue (content/districts.json) > gives every district a genre name and at least three songs of its own
+FAIL tests/tools/check_content_test.lua :: tools/check_content > accepts the shipped content
+FAIL tests/tools/check_content_test.lua :: tools/levels.lua knows the number of levels from the data > reads the last level of the last district, 100 when there is no districts.json
+FAIL tests/tools/cli_test.lua :: tools CLI: where the repository is > finds core/ and content/levels from the script path, whatever the working directory
+FAIL tests/tools/cli_test.lua :: tools levels CLI > preview draws the level or the seeded start board and never shows a traceback
+FAIL tests/tools/cli_test.lua :: tools levels CLI > stats counts the levels and prints JSON that decodes
+FAIL tests/tools/cli_test.lua :: tools levels CLI > validate: damaged files fail cleanly, bad arguments are exit code 2
+FAIL tests/tools/cli_test.lua :: tools levels CLI > validate: exit codes, plan warnings, --strict and the missing files of a whole directory
+FAIL tests/tools/cli_test.lua :: tools run CLI > plays several games and prints them as a JSON array
+FAIL tests/tools/cli_test.lua :: tools run CLI > rejects bad options with exit code 2 and a missing level with 1
+FAIL tests/tools/cli_test.lua :: tools tune CLI: a copy of the levels directory > --levels with --write changes only the moves digits of the chosen files
+FAIL tests/tools/cli_test.lua :: tools tune CLI: a copy of the levels directory > refuses --write with a small N unless --force, and writes nothing
+FAIL tests/tools/cli_test.lua :: tools tune CLI: a copy of the levels directory > rejects typos and bad numbers with exit code 2 before playing anything
+FAIL tests/tools/cli_test.lua :: tools tune CLI: a copy of the levels directory > reports levels that do not exist or do not load
+FAIL tests/tools/cli_test.lua :: tools tune CLI: a copy of the levels directory > without --write no level file changes, and the table lists every level
+FAIL tests/tools/cli_test.lua :: tools tune CLI: a copy of the levels directory > writes the reports where --md and --json say and skips them for a copy by default
+FAIL tests/tools/cli_test.lua :: tools tune CLI: worker processes and the work directory > --jobs gives the same limits as one process; the work directory is a cache that can grow
+FAIL tests/tools/cli_test.lua :: tools tune CLI: worker processes and the work directory > a worker that dies loses only its own level and the exit code says so
+FAIL tests/tools/cli_test.lua :: tools tune CLI: worker processes and the work directory > an unknown interpreter for the workers is an error row, not a crash
+FAIL tests/tools/common_test.lua :: tools common: checksums and signatures > checksums files by name and content
+FAIL tests/tools/common_test.lua :: tools common: files > lists level files of a directory whose name needs quoting
+FAIL tests/tools/common_test.lua :: tools common: files > writes atomically and leaves no temporary file
+FAIL tests/tools/levels_content_test.lua :: level content: the README table > has one row for each level, in order
+FAIL tests/tools/levels_content_test.lua :: level content: the files > earns 338 stars on the saw (130 in the first hundred), more than the 337 of the town
+FAIL tests/tools/levels_content_test.lua :: level content: the files > has every level of the thirteen districts, each valid for the core and for the plan (saw, colours, 20-35 moves)
+FAIL tests/tools/levels_test.lua :: tools levels > validates a good level and reports core errors of a bad one
+FAIL tests/tools/levels_test.lua :: tools levels > warns about plan rules: difficulty saw, colours, moves band
+FAIL tests/tools/readme_test.lua :: tools README > every command line shown in a code block parses with its own tool
+FAIL tests/tools/stars_content_test.lua :: star thresholds (content/levels/stars.json) > have three growing thresholds for every level
+FAIL tests/tools/stars_content_test.lua :: star thresholds (content/levels/stars.json) > keep the economy facts of the handoff true: 260 to 780 stars in the game, 337 for the town
+FAIL tests/tools/stars_content_test.lua :: star thresholds (content/levels/stars.json) > make 3 stars reachable but not easy: a bot got there, at most 30% of its wins do
+FAIL tests/tools/stars_content_test.lua :: star thresholds (content/levels/stars.json) > name the last level of every district (20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 260) as a concert, and only them (WP-14)
+FAIL tests/tools/stars_content_test.lua :: star thresholds (content/levels/stars.json) > pass the validator for every shipped level
+FAIL tests/tools/tune_test.lua :: tools tune --write: stale files > never writes a limit the schema refuses or into a file without one moves key
+FAIL tests/tools/tune_test.lua :: tools tune --write: stale files > skips a file edited after the games were played, but not a changed move limit
+FAIL tests/tools/tune_test.lua :: tools tune: rows, flags and reports > splits a mixed set so that no heavy level shares a part with another heavy one
+FAIL tests/tools/tune_test.lua :: tools tune: the result cache > collect keeps the order, reports unreadable and invalid files and counts the cache
+FAIL tests/tools/tune_test.lua :: tools tune: the result cache > run_files reuses, extends and cuts the work directory's results
+FAIL tests/tools/tune_test.lua :: tools tune: the result cache > saves and loads a result, and ignores other keys and damaged files
+FAIL tests/tools/write_test.lua :: tools tune --write > writes level files through Tune.write_moves and leaves the rest identical
