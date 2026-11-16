@@ -394,3 +394,24 @@ boosters, continue Riff, bonus gift, concert). Deadlock: item 4b of 12.2
 (`SH.thaw_riff`) thaws one frozen piece into a Riff when nothing else is left.
 Hash: the ice hp of every cell is appended only when `level.has_ice`. Tests:
 `tests/core/ice_test.lua`.
+
+## Hay bale (§10.12)
+
+The hay bale of district 13 is blocker `C.BK_HAY` (code 7, hp 1-2) with the hit
+rules of a record box (`hits.lua`, table 7.3) and one field of its own, the
+object field `gift` (`C.GIFT_*`: none, riff h, riff v, sub, bird, disco,
+random), set from the slot (`"gift"`, plus `"axis"` for a riff; `level.lua`
+`preset_of`, schema in `level_schema.lua`). `blocker_hit` treats the destroying
+hit as for any blocker (`destroy`, score, goal `break`, `clear` for T.clear);
+for a bale with a gift it also draws a random gift (`R.int(effects,
+C.GIFT_DRAW)`: riff h, riff v, sub, bird) and stores the label of the hit on
+the bale. Step 4 of the tick (`tick.lua`) removes an expired `clear` object as
+before, except such a bale: it stays in `clear` (an open slot: no hit reaches
+it, gravity waits) until its timer has expired AND `s.queue` is empty, then
+`HY.reveal` (`hay.lua`) replaces it by a new special (new id, idle, the stored
+label, `settle = now`, dirty flag, event `gift`). So no hit of the wave that
+opened the bale -- the effect itself or a chain it started -- can launch the
+gift. An empty bale (`gift` none) is exactly a record box. `pieces()` never
+tells the gift. Hash: the gift code of every cell is appended only when
+`level.has_hay`; nothing is drawn and nothing changes on a level without hay.
+Goal: the ordinary `break` with item `hay`. Tests: `tests/core/hay_test.lua`.
