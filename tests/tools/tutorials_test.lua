@@ -36,6 +36,7 @@ local PLAN_ELEMENTS = {
 	carpet = 161, -- district 9 (WP-17)
 	conveyor = 181, -- district 10 (WP-17)
 	boombox = 201, -- district 11 (WP-17)
+	ice = 221, -- district 12 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -130,6 +131,7 @@ local function level_of(n)
 		if g.type == "drop" then info.drop_goal = k end
 		if g.type == "carpet" then info.carpet_goal = k end
 		if g.type == "chains" then info.chains_goal = k end
+		if g.type == "ice" then info.ice_goal = k end
 	end
 	levels[n] = info
 	return info
@@ -163,6 +165,7 @@ local function elements_of(raw)
 	for _, o in ipairs(raw.overlay or {}) do
 		if o.type == "wires" then kinds.wires = true end
 		if o.type == "chain" then kinds.chain = true end -- (10.6: another element of the same layer)
+		if o.type == "ice" then kinds.ice = true end -- (10.11: the third element of the layer)
 	end
 	if raw.curtain then kinds.curtain = true end -- (10.7: a block of its own, not a slot)
 	if raw.carpet then kinds.carpet = true end -- (10.8: a list of cells of its own, not a slot)
@@ -173,6 +176,7 @@ local function elements_of(raw)
 		if g.type == "deliver" then kinds.mic = true end
 		if g.type == "drop" then kinds.coconut = true end
 		if g.type == "chains" then kinds.chain = true end
+		if g.type == "ice" then kinds.ice = true end
 	end
 	return kinds
 end
@@ -391,7 +395,7 @@ end
 
 -- What the effects of a step are measured on: layers of the blockers, tiles, wires, specials, goals, moves.
 local function snap(game, info)
-	local t = { box_hp = 0, concrete_hp = 0, noise = 0, balloon = 0, column_hp = 0, boombox_hp = 0, wires = 0, floor_hp = 0,
+	local t = { box_hp = 0, concrete_hp = 0, noise = 0, balloon = 0, column_hp = 0, boombox_hp = 0, ice_hp = 0, wires = 0, floor_hp = 0,
 		specials = {}, goals = {} }
 	local list = game:pieces()
 	for i = 1, #list do
@@ -406,6 +410,7 @@ local function snap(game, info)
 		elseif p.kind == "special" then
 			t.specials[p.special] = (t.specials[p.special] or 0) + 1
 		end
+		t.ice_hp = t.ice_hp + (p.ice or 0) -- (10.11: the layers of ice of a frozen piece)
 	end
 	local cells = game:cells()
 	for i = 1, #cells do
@@ -481,6 +486,13 @@ local EFFECTS = {
 			if g.type == "collect" then best = math.max(best, a.goals[k] - b.goals[k]) end
 		end
 		return best >= 6 or ("the collect goal got " .. best .. " pieces: the three of the match and no three more of the boombox")
+	end,
+	-- the hinted match stands right next to a frozen piece (10.11): the ice loses a layer, and on the thin ice of the
+	-- lesson a piece is free again, so the `ice` goal counts it
+	["tutorial.ice"] = function(a, b, info)
+		if not (b.ice_hp < a.ice_hp) then return "no ice lost a layer" end
+		local k = info.ice_goal
+		return (k and b.goals[k] < a.goals[k]) or "no frozen piece was thawed"
 	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
@@ -754,11 +766,11 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].at, nil, "and no cell of the board")
 		assert_eq(steps[1].text, "tutorial.swap_booster")
 		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, the
-		-- chain of 121, the curtain of 141, the carpet of 161, the conveyor of 181 and the boombox of 201, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181, 201 }) do
+		-- chain of 121, the curtain of 141, the carpet of 161, the conveyor of 181, the boombox of 201 and the ice of 221, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181, 201, 221 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 25)
+		assert_eq(#ids_of(defs), 26)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()

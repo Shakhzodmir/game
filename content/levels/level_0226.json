@@ -1,0 +1,34 @@
+{
+  "id": 226, "version": 1,
+  "size": [7, 10],
+  "moves": 31,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "drop", "count": 5},
+    {"type": "ice", "count": 8}
+  ],
+  "cells": [
+    ".##.##.",
+    "#######",
+    "#######",
+    "#.###.#",
+    "..###..",
+    "..###..",
+    "..###..",
+    ".#####.",
+    "#######",
+    "#######"
+  ],
+  "overlay": [
+    {"at": [1, 2], "type": "ice", "hp": 2},
+    {"at": [5, 2], "type": "ice", "hp": 2},
+    {"at": [1, 7], "type": "ice", "hp": 1},
+    {"at": [5, 7], "type": "ice", "hp": 1},
+    {"at": [0, 8], "type": "ice", "hp": 1},
+    {"at": [6, 8], "type": "ice", "hp": 1},
+    {"at": [1, 9], "type": "ice", "hp": 1},
+    {"at": [5, 9], "type": "ice", "hp": 1}
+  ],
+  "coconut": {"total": 5, "on_board_max": 2, "gap_moves": 3, "columns": [2, 3, 4]}
+}

@@ -93,5 +93,8 @@
   ]},
   "201": {"steps": [
     {"kind": "swap", "from": [3, 1], "to": [3, 2], "text": "tutorial.boombox"}
+  ]},
+  "221": {"steps": [
+    {"kind": "swap", "from": [4, 2], "to": [4, 3], "text": "tutorial.ice"}
   ]}
 }

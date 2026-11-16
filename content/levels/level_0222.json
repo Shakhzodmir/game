@@ -1,0 +1,44 @@
+{
+  "id": 222, "version": 1,
+  "size": [8, 8],
+  "moves": 25,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "ice", "count": 15},
+    {"type": "break", "item": "record_box", "count": 4}
+  ],
+  "cells": [
+    "..#..#..",
+    ".######.",
+    "..####..",
+    ".######.",
+    "########",
+    "########",
+    ".######.",
+    "..####.."
+  ],
+  "overlay": [
+    {"at": [2, 3], "type": "ice", "hp": 1},
+    {"at": [4, 3], "type": "ice", "hp": 1},
+    {"at": [6, 3], "type": "ice", "hp": 1},
+    {"at": [1, 4], "type": "ice", "hp": 1},
+    {"at": [3, 4], "type": "ice", "hp": 1},
+    {"at": [5, 4], "type": "ice", "hp": 1},
+    {"at": [7, 4], "type": "ice", "hp": 1},
+    {"at": [0, 5], "type": "ice", "hp": 1},
+    {"at": [2, 5], "type": "ice", "hp": 1},
+    {"at": [4, 5], "type": "ice", "hp": 1},
+    {"at": [6, 5], "type": "ice", "hp": 1},
+    {"at": [2, 6], "type": "ice", "hp": 1},
+    {"at": [4, 6], "type": "ice", "hp": 1},
+    {"at": [3, 7], "type": "ice", "hp": 1},
+    {"at": [4, 7], "type": "ice", "hp": 1}
+  ],
+  "slots": [
+    {"at": [3, 2], "type": "record_box", "hp": 3},
+    {"at": [4, 2], "type": "record_box", "hp": 3},
+    {"at": [1, 6], "type": "record_box", "hp": 3},
+    {"at": [6, 6], "type": "record_box", "hp": 3}
+  ]
+}
