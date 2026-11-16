@@ -1,0 +1,27 @@
+{
+  "id": 163, "version": 1,
+  "size": [9, 7],
+  "moves": 30,
+  "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "carpet"},
+    {"type": "break", "item": "balloon", "count": 4}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    ".#######.",
+    "..#####..",
+    "...###..."
+  ],
+  "slots": [
+    {"at": [1, 1], "type": "balloon", "color": "red"},
+    {"at": [7, 1], "type": "balloon", "color": "blue"},
+    {"at": [3, 5], "type": "balloon", "color": "blue"},
+    {"at": [5, 5], "type": "balloon", "color": "red"}
+  ],
+  "carpet": [[3, 3], [4, 3], [5, 3]]
+}
