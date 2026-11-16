@@ -116,7 +116,7 @@ describe("the portal in the client", function()
 		end
 		i18n.set_language("ru")
 		assert_eq(i18n.t("blocker.portal"), "Портал")
-		assert_eq(i18n.t("blocker.portal_desc"), "Фишки падают в один портал и выпадают из другого такого же цвета.")
+		assert_eq(i18n.t("blocker.portal_desc"), "Фишки падают в синий портал и выпадают из оранжевого с такой же меткой.")
 		assert_eq(i18n.t("tutorial.portal"), "Фишки ныряют в портал и выпадают из второго!")
 		i18n.set_language("en")
 		assert_eq(i18n.t("blocker.portal"), "Portal")
