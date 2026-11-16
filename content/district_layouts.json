@@ -619,5 +619,66 @@
         "h": 203
       }
     }
+  },
+  "skyclub": {
+    "bg": "assets/images/districts/skyclub/bg.png",
+    "bg_concert": "assets/images/districts/skyclub/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "dj_deck": {
+        "image": "assets/images/districts/skyclub/dj_deck.png",
+        "ghost": "assets/images/districts/skyclub/dj_deck_ghost.png",
+        "x": 240,
+        "y": 822,
+        "scale": 0.7,
+        "w": 286,
+        "h": 171
+      },
+      "speaker": {
+        "image": "assets/images/districts/skyclub/speaker.png",
+        "ghost": "assets/images/districts/skyclub/speaker_ghost.png",
+        "x": 322,
+        "y": 692,
+        "scale": 0.7,
+        "w": 143,
+        "h": 226
+      },
+      "synth": {
+        "image": "assets/images/districts/skyclub/synth.png",
+        "ghost": "assets/images/districts/skyclub/synth_ghost.png",
+        "x": 484,
+        "y": 724,
+        "scale": 0.7,
+        "w": 214,
+        "h": 160
+      },
+      "light_truss": {
+        "image": "assets/images/districts/skyclub/light_truss.png",
+        "ghost": "assets/images/districts/skyclub/light_truss_ghost.png",
+        "x": 128,
+        "y": 704,
+        "scale": 0.7,
+        "w": 257,
+        "h": 200
+      },
+      "disco_ball": {
+        "image": "assets/images/districts/skyclub/disco_ball.png",
+        "ghost": "assets/images/districts/skyclub/disco_ball_ghost.png",
+        "x": 632,
+        "y": 692,
+        "scale": 0.7,
+        "w": 143,
+        "h": 257
+      },
+      "led_cubes": {
+        "image": "assets/images/districts/skyclub/led_cubes.png",
+        "ghost": "assets/images/districts/skyclub/led_cubes_ghost.png",
+        "x": 524,
+        "y": 818,
+        "scale": 0.7,
+        "w": 214,
+        "h": 199
+      }
+    }
   }
 }

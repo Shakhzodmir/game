@@ -109,6 +109,18 @@
         { "kind": "notes", "item": "oud", "x": 628, "y": 580, "count": 3, "layer": "over", "colors": ["#FFD84D", "#7BE8C0", "#FF8FBE"], "rise": 190, "period": 3.6 },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "skyclub": {
+      "mood": "euphoric",
+      "details": [
+        { "kind": "shaft", "x": 360, "y": 200, "w": 220, "h": 860, "angle": 10, "layer": "mid", "view": "day", "color": "#F1ECFF", "alpha": [0.1, 0.2], "period": 5.2 },
+        { "kind": "motes", "style": "sparkle", "rect": [150, 260, 420, 480], "count": 8, "layer": "mid", "color": "#FFFFFF" },
+        { "kind": "blink", "item": "light_truss", "points": [[86, 690], [128, 690], [170, 690]], "r": 30, "layer": "over", "colors": ["#FF8FBE", "#3CF2FF", "#FFD84D"], "period": 0.9, "alpha": [0.3, 0.9] },
+        { "kind": "blink", "item": "led_cubes", "points": [[490, 840], [556, 840], [524, 776]], "r": 34, "layer": "over", "colors": ["#B79CFF", "#FF8FBE", "#3CF2FF"], "period": 1.2, "alpha": [0.25, 0.8] },
+        { "kind": "motes", "style": "sparkle", "item": "disco_ball", "rect": [580, 620, 110, 120], "count": 5, "layer": "over", "color": "#FFFFFF" },
+        { "kind": "notes", "item": "dj_deck", "x": 240, "y": 760, "count": 3, "layer": "over", "colors": ["#3CF2FF", "#FF8FBE", "#B79CFF"], "rise": 190, "period": 3.0 },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }

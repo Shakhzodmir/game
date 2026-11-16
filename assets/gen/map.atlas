@@ -301,6 +301,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_skyclub_1"
+  images {
+    image: "/assets/images/map/deco_skyclub_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_skyclub_2"
+  images {
+    image: "/assets/images/map/deco_skyclub_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_skyclub_3"
+  images {
+    image: "/assets/images/map/deco_skyclub_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_skyclub_4"
+  images {
+    image: "/assets/images/map/deco_skyclub_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_skyclub_5"
+  images {
+    image: "/assets/images/map/deco_skyclub_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_skyclub_6"
+  images {
+    image: "/assets/images/map/deco_skyclub_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_square_1"
   images {
     image: "/assets/images/map/deco_square_1.png"

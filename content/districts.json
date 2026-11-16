@@ -1374,6 +1374,104 @@
           "stem_desc": "unison string section doubling and answering the melody"
         }
       ]
+    },
+    {
+      "id": "skyclub",
+      "first": 181,
+      "last": 200,
+      "map_tint": "#E8E0FA",
+      "name": {
+        "ru": "Небесный клуб",
+        "en": "Sky Club",
+        "ko": "스카이 클럽"
+      },
+      "genre": {
+        "ru": "Клубная ночь",
+        "en": "Club Night",
+        "ko": "클럽 나이트"
+      },
+      "bpm": 126,
+      "key": "Ab",
+      "semitones_from_c": 8,
+      "bars": 8,
+      "mood": "bright uplifting dance music on a rooftop above the clouds, pastel neon, euphoric",
+      "songs": [],
+      "chest": {
+        "coins": 2000,
+        "boosters": [
+          "disco",
+          "sub",
+          "riff"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "dj_deck",
+          "name": {
+            "ru": "Диджейский пульт",
+            "en": "DJ deck",
+            "ko": "디제이 덱"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "four-on-the-floor kick, off-beat hats and clap"
+        },
+        {
+          "id": "speaker",
+          "name": {
+            "ru": "Колонка",
+            "en": "Speaker tower",
+            "ko": "스피커 타워"
+          },
+          "cost": 4,
+          "stem": "bass",
+          "stem_desc": "side-chained off-beat bass"
+        },
+        {
+          "id": "synth",
+          "name": {
+            "ru": "Синтезатор",
+            "en": "Synthesizer",
+            "ko": "신시사이저"
+          },
+          "cost": 5,
+          "stem": "arp",
+          "stem_desc": "bright plucked arpeggio"
+        },
+        {
+          "id": "light_truss",
+          "name": {
+            "ru": "Ферма с прожекторами",
+            "en": "Light truss",
+            "ko": "조명 트러스"
+          },
+          "cost": 5,
+          "stem": "pad",
+          "stem_desc": "wide supersaw pad pumping with the kick"
+        },
+        {
+          "id": "disco_ball",
+          "name": {
+            "ru": "Зеркальный шар",
+            "en": "Mirror ball",
+            "ko": "미러볼"
+          },
+          "cost": 5,
+          "stem": "lead",
+          "stem_desc": "euphoric lead melody"
+        },
+        {
+          "id": "led_cubes",
+          "name": {
+            "ru": "Световые кубы",
+            "en": "LED cubes",
+            "ko": "LED 큐브"
+          },
+          "cost": 6,
+          "stem": "fx",
+          "stem_desc": "risers, sweeps and vocal chops"
+        }
+      ]
     }
   ],
   "level_stems": {
