@@ -260,6 +260,23 @@ candidate list that turns a regular piece into something else skips chained
 pieces. The hash folds `hp + chain` in the place of `hp`, so levels without
 chains hash as before. Tests: `tests/core/chain_test.lua`.
 
+## Curtains (§10.7)
+
+The timed curtain of district 8 is neither a kind nor a layer: it is a
+level block (`curtain` -> `level.curtain = {at, cells, closed_moves,
+open_moves, start_closed}`) and two state fields, `cur_closed` and
+`cur_left` (`curtain.lua`). The phase changes only in step 8, at rest, by
+the count of the end-of-move queue (`flow.lua`). `B.veiled(s, i)` says
+whether cell i is under a closed curtain; every module asks it where a
+closed cell must be left alone: `hits.lua` (no hit at all), `gravity.lua`
+(blocked, never filled, no donor), `match.lua` and `moves.lua` (no colour,
+no swap, no tap), `boosters.lua`, `effects.lua` (no pin), `bird.lua`,
+`specials.lua`, `combos.lua`, `shuffle.lua`, `flow.lua` (noise), `input.lua`,
+`start.lua`, `hint.lua`. No move while closed opens the curtains at once
+(no soft lock); the concert opens them for good. The hash appends the two
+fields only on a level with the block, so every other level hashes as
+before. Tests: `tests/core/curtain_test.lua`.
+
 ## Status
 
 Implemented: all of §0-§17, including every special and combo (§8), Bird

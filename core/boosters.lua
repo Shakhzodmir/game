@@ -15,6 +15,7 @@ local BO = {}
 -- "Cell with an effect" of 5.3.
 function BO.has_effect(s, i)
 	if not s.exists[i] then return false end
+	if B.veiled(s, i) then return false end -- nothing reaches a cell under a closed curtain (10.7)
 	if s.wires[i] > 0 then return true end
 	local o = B.get(s, i)
 	if o then

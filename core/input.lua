@@ -39,13 +39,13 @@ function I.swap_target(s, fx, fy, tx, ty)
 	if not B.exists_xy(s, fx, fy) or (dx * dx + dy * dy) ~= 1 then return nil, "bad_cell" end
 	local from = (fy - 1) * W + fx
 	local of = B.get(s, from)
-	if of and of.kind == K_SPECIAL and B.is_free(s, of) then
+	if of and of.kind == K_SPECIAL and B.is_free(s, of) and not B.veiled(s, from) then
 		local swipe = false
 		if not in_field(s, tx, ty) or not s.exists[(ty - 1) * W + tx] then
 			swipe = true
 		else
 			local ot = B.get(s, (ty - 1) * W + tx)
-			if ot == nil or (ot.kind == K_BLOCKER and ot.state == S_IDLE)
+			if ot == nil or (ot.kind == K_BLOCKER and ot.state == S_IDLE) or B.veiled(s, (ty - 1) * W + tx)
 				or (ot.kind == K_REGULAR and (s.wires[ot.cell] > 0 or ot.chain > 0)) then
 				swipe = true
 			end
@@ -142,7 +142,7 @@ local function do_tap(s, cmd)
 	if not B.exists_xy(s, x, y) then return false, "bad_cell" end
 	local cell = (y - 1) * s.W + x
 	local o = B.get(s, cell)
-	if not (o and o.kind == K_SPECIAL and o.state == S_IDLE and o.pins[1] == nil) then
+	if not (o and o.kind == K_SPECIAL and o.state == S_IDLE and o.pins[1] == nil) or B.veiled(s, cell) then
 		return false, "not_movable"
 	end
 	accept_tap(s, cell)
@@ -217,7 +217,9 @@ local function do_continue(s, cmd)
 		local cands = {}
 		for i = 1, s.N do
 			local o = B.get(s, i)
-			if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 then cands[#cands + 1] = o end
+			if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 and not B.veiled(s, i) then
+				cands[#cands + 1] = o
+			end
 		end
 		if #cands == 0 then
 			s.unplaced[#s.unplaced + 1] = C.IT_CONT_RIFF
@@ -246,7 +248,9 @@ local function do_bonus(s, cmd)
 	local cands = {}
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 then cands[#cands + 1] = o end
+		if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 and not B.veiled(s, i) then
+			cands[#cands + 1] = o
+		end
 	end
 	if #cands == 0 then return false, "no_candidates" end
 	local o = cands[R.int(s.rng[R.INIT], #cands)]

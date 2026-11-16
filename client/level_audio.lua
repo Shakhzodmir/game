@@ -11,6 +11,7 @@
 --   la:events(events)      -- every tick's events, in order
 --   la:touch()             -- a finger touched a piece: the click sounds at once
 --   la:nope()              -- the player tried to move something that cannot move: a soft thud
+--   la:blocked()           -- ... something under a closed curtain (core-rules 10.7): the bounce of a failed swap
 --   la:finish()            -- the screen is leaving: layers off
 --
 -- Layers: "tension" while playing with 1..5 moves left, "party" in the final
@@ -50,6 +51,8 @@ M.HAPTIC = { tap = 8, special = 22, combo = 40, finale = 70, praise = 14, goal =
 -- A refused move (a blocker or a wired piece does not give): the soft thump of a landing piece, but plainly
 -- heard, under a name of its own so a landing in the same moment does not swallow it.
 M.NOPE_SFX, M.NOPE_GAIN, M.NOPE_GAP = "land", 0.9, 0.08
+-- The curtain (core-rules 10.7) closes and opens with the swap's whoosh, slowed down: lower when it closes.
+M.CURTAIN_GAIN, M.CURTAIN_CLOSE, M.CURTAIN_OPEN = 0.6, 0.6, 0.75
 
 local LA = {}
 LA.__index = LA
@@ -118,6 +121,11 @@ end
 
 function LA:nope()
 	if self:sfx(M.NOPE_SFX, { gain = M.NOPE_GAIN }, M.NOPE_GAP, "nope") then self:buzz("nope") end
+end
+
+-- A swipe into a closed curtain: the piece under it cannot answer, so the board answers like a failed swap.
+function LA:blocked()
+	if self:sfx("swap_fail", nil, M.NOPE_GAP, "nope") then self:buzz("nope") end
 end
 
 -- The tension layer follows the moves left while playing.
@@ -228,6 +236,9 @@ function LA:event(e)
 		self:sfx("swap", { gain = 0.8 }, 0.04)
 	elseif ty == "swap_fail" then
 		self:sfx("swap_fail", nil, 0.04)
+	elseif ty == "curtain" then
+		-- the curtain is drawn or pulled apart: the whoosh of a swap, low and soft
+		self:sfx("swap", { gain = M.CURTAIN_GAIN, speed = e.phase == "closed" and M.CURTAIN_CLOSE or M.CURTAIN_OPEN }, 0.1, "curtain")
 	elseif ty == "exchange" then
 		-- the Crossfader scratches: the whoosh of the swap forth, high and fast, and back, low and slow, then a
 		-- click where the pieces land

@@ -98,6 +98,10 @@ local S = {
 		en = "Wired pieces can't move — match them where they stand",
 		ru = "Фишка в проводах не двигается — собери её на месте",
 	},
+	["level.fixed_veiled"] = {
+		en = "The curtain is closed — wait until it opens",
+		ru = "Занавес закрыт — подожди, пока он откроется",
+	},
 	["level.fixed_chained"] = {
 		en = "A chained piece can't be moved — make a match with it",
 		ru = "Фишку на цепи не сдвинуть — собери с ней ряд",
@@ -164,6 +168,7 @@ local S = {
 	["blocker.mic"] = { en = "Microphone", ru = "Микрофон" },
 	["blocker.coconut"] = { en = "Coconut", ru = "Кокос" },
 	["blocker.chain"] = { en = "Chain", ru = "Цепь" },
+	["blocker.curtain"] = { en = "Curtain", ru = "Занавес" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -199,6 +204,10 @@ local S = {
 	["blocker.coconut_desc"] = {
 		en = "A coconut never pops. Clear the pieces under it and bring it down to the bottom row.",
 		ru = "Кокос не лопается. Убирай фишки под ним и доведи его до нижнего ряда.",
+	},
+	["blocker.curtain_desc"] = {
+		en = "While the curtain is closed, the pieces under it can't be touched. Wait for it to open.",
+		ru = "Пока занавес закрыт, фишки под ним не трогаются. Дождись, когда он откроется.",
 	},
 	["blocker.chain_desc"] = {
 		en = "A chained piece won't move by itself. Make a match with it and the chain snaps.",
@@ -329,6 +338,10 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	["tutorial.curtain"] = {
+		en = "Curtain closed: wait. Curtain open: go!",
+		ru = "Занавес закрыт: подожди. Открылся: действуй!",
+	},
 	["tutorial.chain"] = {
 		en = "A chain holds the piece. Make a match with it!",
 		ru = "Цепь держит фишку. Собери с ней ряд!",

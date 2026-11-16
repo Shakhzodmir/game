@@ -9,6 +9,7 @@ local H = require("core.hits")
 local MV = require("core.moves")
 local SH = require("core.shuffle")
 local sched = require("core.sched")
+local CU = require("core.curtain")
 
 local F = {}
 
@@ -41,12 +42,12 @@ local function noise_growth(s)
 			local pairs_ = {}
 			for i = 1, s.N do
 				local o = B.get(s, i)
-				if o and o.kind == C.K_BLOCKER and o.blocker == C.BK_NOISE and o.state == S_IDLE then
+				if o and o.kind == C.K_BLOCKER and o.blocker == C.BK_NOISE and o.state == S_IDLE and not B.veiled(s, i) then
 					local x, y = U.xy(W, i)
 					local nb = { y > 1 and i - W or 0, x > 1 and i - 1 or 0, x < W and i + 1 or 0, y < Hh and i + W or 0 }
 					for j = 1, 4 do
 						local n = nb[j]
-						if n ~= 0 and not s.spawner[n] and s.wires[n] == 0 then
+						if n ~= 0 and not s.spawner[n] and s.wires[n] == 0 and not B.veiled(s, n) then
 							local p = B.get(s, n)
 							if p and p.kind == C.K_REGULAR and p.state == S_IDLE and p.chain == 0 then
 								pairs_[#pairs_ + 1] = { i, n }
@@ -82,6 +83,8 @@ local function start_concert(s)
 	s.rounds = 0
 	s.eom = {}
 	s.tc = now
+	-- the curtains open for the concert and stay open (10.7)
+	if s.cur_closed then CU.set(s, false, "concert") end
 	E.set_state(s, C.G_CONCERT)
 	for k = 1, n do
 		sched.push(s, now + T.concert_step * k, C.R_CONCERT_A, { k })
@@ -141,11 +144,21 @@ function F.step8(s)
 	local st = s.state
 	if st == C.G_PLAYING then
 		noise_growth(s)
+		-- the curtains count the moves spent (10.7); one that opens makes the board dirty, and the rest
+		-- of this step waits for the next rest (what was under it resolves first)
+		local opened = s.level.curtain ~= nil and CU.advance(s, #s.eom)
 		s.eom = {}
-		if s.moves_left == 0 then
+		if opened then
+			-- (nothing: step 7 of the next tick searches the board)
+		elseif s.moves_left == 0 then
 			E.set_state(s, C.G_OUT)
 		elseif not MV.has_move(s) then
-			SH.in_game(s)
+			if s.cur_closed then
+				-- no move only because the curtains are closed: they open at once (no soft lock, 10.7)
+				CU.set(s, false, "deadlock")
+			else
+				SH.in_game(s)
+			end
 		end
 	elseif st == C.G_WON_WAIT then
 		start_concert(s)

@@ -22,6 +22,12 @@
 -- its colour next to it or one swap away, Bot.chain_ready) adds Bot.W.ready:
 -- a chain of a fixed colour is not broken by luck, the bot has to build the
 -- match the way a player does.
+-- On a level with curtains (core-rules 10.7) the bot needs no rule to keep
+-- away from a closed cell: the core's moves() has no such pair, a special
+-- under a closed curtain is no tap candidate, and the clone of a move carries
+-- the phase with it. What it adds is Bot.W.drape for every unit of goal work
+-- done under a curtain (Bot.curtain_work): that work can only be done while
+-- the curtain is open, so it goes first.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -46,7 +52,7 @@ local SPECIAL_RANK = { bird = 1, riff = 2, sub = 3, disco = 4 }
 -- adds best2 * second_ply_num / second_ply_den.
 Bot.SCALE = 1000
 Bot.W = {
-	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2,
+	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4,
 	combo_greedy = 5, combo_strong = 15, combo_disco_strong = 25,
 	win_strong = 1000, near_goal = 3, rank_strong = 1, second_ply_num = 1, second_ply_den = 2,
 }
@@ -68,6 +74,7 @@ function Bot.new(kind, opts)
 		totals = nil,               -- initial goal counts (first decision)
 		drop = false,               -- the level has a `drop` goal (coconuts)
 		chains = false,             -- the level has a `chains` goal (10.6)
+		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
 	}, Bot)
@@ -111,7 +118,7 @@ function Bot.candidates(game)
 	end
 	for k = 1, #list do
 		local p = list[k]
-		if p.kind == "special" and p.state == "idle" and not p.pinned then
+		if p.kind == "special" and p.state == "idle" and not p.pinned and not p.veiled then
 			out[#out + 1] = { cmd = { type = "tap", at = { p.x, p.y } }, combo = false, disco = false }
 		end
 	end
@@ -322,6 +329,47 @@ local function chain_score(self, links, ready, clone)
 	return Bot.SCALE * (Bot.W.link * hit + Bot.W.ready * step)
 end
 
+-- Goal work left under the curtains (10.7), in hp units: the unlit tiles (with a `light` goal), the blockers
+-- of a `break` goal and the chains (with a `chains` goal) that stand in a curtain cell. nil on a level without
+-- curtains, so the other levels pay nothing and choose as before. The difference of two values is the work a
+-- move did there; it is never negative for tiles and chains (they do not come back).
+function Bot.curtain_work(self, game)
+	if self.drape == nil then
+		local cl = game:cells()
+		local list = {}
+		for i = 1, #cl do
+			if cl[i].curtain then list[#list + 1] = i end
+		end
+		self.drape = #list > 0 and list or false
+	end
+	local drape = self.drape
+	if not drape then return nil end
+	local light, chains, items = false, false, {}
+	for k = 1, #self.goals do
+		local g = self.goals[k]
+		if g.type == "light" then light = true
+		elseif g.type == "chains" then chains = true
+		elseif g.type == "break" then items[g.item] = true end
+	end
+	local n = 0
+	local W = self.width
+	if light then
+		local cl = game:cells()
+		for k = 1, #drape do n = n + (cl[drape[k]].floor or 0) end
+	end
+	local under = {}
+	for k = 1, #drape do under[drape[k]] = true end
+	local list = game:pieces()
+	for k = 1, #list do
+		local p = list[k]
+		if under[(p.y - 1) * W + p.x] then
+			if p.item and items[p.item] then n = n + (p.hp or 1) end
+			if chains then n = n + (p.chain or 0) end
+		end
+	end
+	return n
+end
+
 -- Weighted goal progress between two goal-left arrays, x SCALE. Every goal
 -- counts in its own units scaled so that the average unit weighs 1 (a level
 -- with one goal scores the raw progress).
@@ -352,7 +400,7 @@ end
 function Bot.static_specials(game, map, cands)
 	local color = {}
 	for k, p in pairs(map) do -- order-independent (a map copy)
-		if p.kind == "regular" and (p.state == "idle") then color[k] = p.color end
+		if p.kind == "regular" and (p.state == "idle") and not p.veiled then color[k] = p.color end
 	end
 	local function c(x, y) return color[key(x, y)] end
 	local function classify(x, y, col)
@@ -441,6 +489,7 @@ function Bot:choose(game)
 	local coconuts = Bot.coconuts(self, game)
 	local links = Bot.chain_hp(self, game)
 	local ready = Bot.chain_ready(self, game)
+	local work = Bot.curtain_work(self, game)
 	local W = Bot.W
 	local scored = {}
 	for k = 1, #cands do
@@ -452,6 +501,7 @@ function Bot:choose(game)
 			sc = Bot.base_score(self, cd, acc, before, after)
 			if coconuts then sc = sc + Bot.SCALE * W.lower * Bot.lowered(self, coconuts, clone) end
 			if links then sc = sc + chain_score(self, links, ready, clone) end
+			if work then sc = sc + Bot.SCALE * W.drape * math.max(0, work - Bot.curtain_work(self, clone)) end
 			if strong then
 				local extra = acc.won and W.win_strong or 0
 				for j = 1, #acc.specials do
@@ -480,6 +530,7 @@ function Bot:choose(game)
 				local before2 = e.clone:status().goals
 				local links2 = Bot.chain_hp(self, e.clone)
 				local ready2 = Bot.chain_ready(self, e.clone)
+				local work2 = Bot.curtain_work(self, e.clone)
 				for j = 1, math.min(3, #hits) do
 					local cl2, acc2 = Bot.simulate(self, e.clone, hits[j].cand)
 					if cl2 then
@@ -488,6 +539,7 @@ function Bot:choose(game)
 							s2 = s2 + Bot.SCALE * W.lower * Bot.lowered(self, Bot.coconuts(self, e.clone), cl2)
 						end
 						if links2 then s2 = s2 + chain_score(self, links2, ready2, cl2) end
+						if work2 then s2 = s2 + Bot.SCALE * W.drape * math.max(0, work2 - Bot.curtain_work(self, cl2)) end
 						if acc2.won then s2 = s2 + Bot.SCALE * W.win_strong / 10 end
 						if s2 > best2 then best2 = s2 end
 					end

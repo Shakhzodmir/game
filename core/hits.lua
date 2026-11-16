@@ -209,6 +209,8 @@ end
 function H.hit(s, cell, src, opt_instant)
 	local o = B.get(s, cell)
 	if o and o.pins[1] then B.unpin(o, src.id) end
+	-- a closed curtain (10.7) protects the whole cell from every hit: wires, slot and floor
+	if s.cur_closed and s.level.curtain.at[cell] then return end
 	-- 0. own specials
 	if src.centre == cell and src.own[1] then
 		remove_own(s, src)

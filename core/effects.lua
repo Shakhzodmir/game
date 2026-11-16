@@ -66,7 +66,7 @@ function EF.run(s, src, acts, pin_path)
 			local a = list[k]
 			if a[2] == R_HIT and a[1] > t0 then
 				local o = B.get(s, a[3][2])
-				if o and o.state == S_IDLE and B.is_movable(s, o) then B.pin(o, src.id) end
+				if o and o.state == S_IDLE and B.is_movable(s, o) and not B.veiled(s, a[3][2]) then B.pin(o, src.id) end
 			end
 		end
 	end

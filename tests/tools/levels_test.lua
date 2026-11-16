@@ -106,6 +106,24 @@ describe("tools levels", function()
 		assert_eq(specials, 1)
 	end)
 
+	it("counts a curtain (core-rules 10.7) as an element and draws its cells with a `t`", function()
+		local raw = F.level_table({
+			floor = { { at = { 2, 3 }, hp = 1 } },
+			curtain = { covers = { { 2, 3 }, { 3, 3 } }, closed_moves = 2, open_moves = 3, start = "closed" },
+		})
+		assert_same(Levels.elements(raw), { "dancefloor", "curtain" })
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "curtain")
+		local lines = {}
+		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
+		assert_true(lines[6]:find("+ _t +  t", 1, true) ~= nil, lines[6])
+		assert_true(Levels.LEGEND:find("curtain (t)", 1, true) ~= nil)
+		local e = common.entry_from_text(common.encode(raw))
+		local board = Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7)
+		local n = 0
+		for _ in board:gmatch("t") do n = n + 1 end
+		assert_eq(n, 2)
+	end)
+
 	it("lists the level numbers without a file as ranges", function()
 		assert_same(Levels.missing_ranges({ 1, 2, 3 }, 5), { "4-5" })
 		assert_same(Levels.missing_ranges({ 2, 4 }, 5), { "1", "3", "5" })

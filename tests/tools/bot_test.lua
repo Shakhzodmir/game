@@ -358,6 +358,86 @@ describe("tools bot: the documented behaviour", function()
 		assert_eq(Bot.chain_hp(plain, clone), nil)
 	end)
 
+	-- a drape of 2x2 in the middle with a tile under each of its cells (core-rules 10.7)
+	local function curtain_level(extra)
+		local t = {
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "light" } },
+			floor = { { at = { 2, 3 }, hp = 1 }, { at = { 3, 3 }, hp = 1 }, { at = { 2, 4 }, hp = 1 }, { at = { 3, 4 }, hp = 1 } },
+			curtain = { covers = { { 2, 3 }, { 3, 3 }, { 2, 4 }, { 3, 4 } }, closed_moves = 2, open_moves = 3, start = "closed" },
+		}
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small curtain level: the tiles under the drape are lit while it is open", function()
+		local e = curtain_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+	end)
+
+	it("never plans a swap or a tap into a closed cell, and plays the same game twice", function()
+		local e = curtain_level({ moves = 40, goals = { { type = "collect", color = "red", count = 300 } } })
+		local function run(seed)
+			local g = core.new(e.level, { seed = seed, timing = "turbo" })
+			local bot = Bot.new("greedy", { seed = seed, goals = e.goals, width = 7 })
+			local log, closed_turns = {}, 0
+			for _ = 1, 40 do
+				g:run_to_rest()
+				g:drain_events()
+				if g:status().state ~= "playing" then break end
+				local closed = g:status().curtain.phase == "closed"
+				local cells = g:cells()
+				for _, cd in ipairs(Bot.candidates(g)) do
+					local list = cd.cmd.type == "swap" and { cd.cmd.from, cd.cmd.to } or { cd.cmd.at }
+					for _, c in ipairs(list) do
+						assert_false(closed and cells[(c[2] - 1) * 7 + c[1]].curtain == true, "a candidate in a closed cell")
+					end
+				end
+				if closed then closed_turns = closed_turns + 1 end
+				local cmd = bot:choose(g)
+				if not cmd then break end
+				assert_true(g:input(cmd))
+				log[#log + 1] = cmd.type .. (cmd.from and (cmd.from[1] .. cmd.from[2] .. cmd.to[1] .. cmd.to[2]) or (cmd.at[1] .. cmd.at[2]))
+			end
+			return log, closed_turns, g:hash()
+		end
+		local la, closed, ha = run(4)
+		local lb, _, hb = run(4)
+		assert_true(#la >= 20 and closed >= 5)
+		assert_same(la, lb)
+		assert_eq(ha, hb)
+	end)
+
+	it("counts the goal work left under the curtains, only on a level that has them, and pays Bot.W.drape for it", function()
+		local e = curtain_level()
+		local g = core.new(e.level, { seed = 2 })
+		local bot = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+		assert_eq(Bot.curtain_work(bot, g), 4)
+		local c = g:clone()
+		c.s.floor[3 * 7 + 3] = 0 -- white box: the tile under the curtain cell (3, 4) is lit
+		assert_eq(Bot.curtain_work(bot, c), 3)
+		c.s.floor[1] = 0
+		assert_eq(Bot.curtain_work(bot, c), 3, "a tile in the open is not curtain work")
+		-- a level without curtains: nil, and the bot's choice does not look at it
+		local plain = F.entry({ goals = { { type = "light" } }, floor = { { at = { 2, 3 }, hp = 1 } } })
+		local pg = core.new(plain.level, { seed = 2 })
+		local pbot = Bot.new("strong", { seed = 1, goals = plain.goals, width = 7 })
+		assert_eq(Bot.curtain_work(pbot, pg), nil)
+		assert_eq(pbot.drape, false)
+		-- blockers of a break goal and chains under a curtain would count too; a collect goal has nothing there
+		local col = curtain_level({ goals = { { type = "collect", color = "red", count = 9 } } })
+		local cbot = Bot.new("greedy", { seed = 1, goals = col.goals, width = 7 })
+		assert_eq(Bot.curtain_work(cbot, core.new(col.level, { seed = 2 })), 0)
+		assert_true(Bot.W.drape > 0)
+	end)
+
 	it("refuses an unknown bot kind and a budget below the schema's minimum", function()
 		assert_error(function() Bot.new("clever", {}) end, "unknown kind")
 		local e = F.entry()

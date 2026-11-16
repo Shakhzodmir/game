@@ -17,12 +17,13 @@ local SH = {}
 local K_REGULAR, S_IDLE = C.K_REGULAR, C.S_IDLE
 
 -- Candidates: regular idle pieces without wires and without a chain, not pinned, by index.
+-- Pieces under a closed curtain are left alone (10.7).
 function SH.candidates(s)
 	local cells = {}
 	for i = 1, s.N do
 		local o = B.get(s, i)
 		if o and o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and s.wires[i] == 0
-			and o.chain == 0 then
+			and o.chain == 0 and not B.veiled(s, i) then
 			cells[#cells + 1] = i
 		end
 	end

@@ -1409,3 +1409,175 @@ describe("screens/level/board.script with chains (core-rules 10.6)", function()
 		end)
 	end)
 end)
+
+-- a drape (4,5) (5,5) (4,6) (core-rules 10.7) that starts closed, two moves closed and two open; the swipe
+-- (6,8) -> (6,9) makes the green line (4..6, 9), far from it
+local function curtain_level(start)
+	return core_helper.level({
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyrgbpyr",
+		"pyrgbypyr",
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyggbpyr",
+	}, { moves = 10, goals = { { type = "collect", color = "green", count = 99 } },
+		curtain = { covers = { { 3, 4 }, { 4, 4 }, { 3, 5 } }, closed_moves = 2, open_moves = 2, start = start or "closed" } })
+end
+
+describe("screens/level/board.script with curtains (core-rules 10.7)", function()
+	local level_plates = require("client.level_plates")
+	local level_curtain = require("client.level_curtain")
+	before_each(function() level_plates.reset() end)
+
+	local function count_anim(E, anim, factory)
+		local n = 0
+		for _, o in ipairs(E.by_factory(factory or "piece_factory")) do
+			if E.visible(o) and E.sprite_of(o).anim == anim then n = n + 1 end
+		end
+		return n
+	end
+
+	local function toast_keys(E)
+		local list = {}
+		for _, m in ipairs(E.msgs) do
+			if m.id == "toast" then
+				local t = app.claim(m.message.ticket)
+				list[#list + 1] = t and t.key or "?"
+			end
+		end
+		return list
+	end
+
+	local function sounds(E, name)
+		local n = 0
+		for _, m in ipairs(E.msgs) do
+			if m.id == "sfx" and m.message.name == name then n = n + 1 end
+		end
+		return n
+	end
+
+	it("draws a closed curtain over each of its cells, above the piece, and the count as pips; no plate", function()
+		with_board({ level = 1, level_text = curtain_level() }, function(E, script, self, d)
+			d.frame(90)
+			assert_true(self.curtain:active())
+			assert_eq(count_anim(E, "blockers_curtain_closed"), 3)
+			assert_eq(count_anim(E, "blockers_curtain_open"), 0)
+			assert_eq(count_anim(E, "fx_glow_dot", "glow_factory"), 2, "two moves until it opens")
+			assert_eq(count_anim(E, "board_plate"), 0)
+			local g = self.geom
+			for _, at in ipairs({ { 4, 5 }, { 5, 5 }, { 4, 6 } }) do
+				local p = self.cellmap[(at[2] - 1) * self.W + at[1]]
+				assert_true(p.veiled == true)
+				local piece = self.view.by_id[p.id]
+				local lx, ly = g:center(at[1], at[2])
+				local over
+				for _, o in ipairs(self.view.mark_objs.piece) do
+					if not o.hidden and o.image == "blockers_curtain_closed" and math.abs(o.x - lx) < 0.5 and math.abs(o.y - ly) < 0.5 then
+						over = o
+					end
+				end
+				assert_true(over ~= nil, "a curtain where the cell is")
+				assert_true(over.z > piece.z, "the curtain lies over its piece")
+			end
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("a drag into a closed cell, or out of it, is refused: the curtain shakes, a failed swap sounds, a toast says why once", function()
+		with_board({ level = 1, level_text = curtain_level() }, function(E, script, self, d)
+			d.frame(90)
+			d.swipe(3, 5, 4, 5)
+			d.frame(5)
+			assert_eq(self.session.game:status().moves_left, 10)
+			assert_eq(sounds(E, "swap_fail"), 1)
+			assert_same(toast_keys(E), { "level.fixed_veiled" })
+			assert_true(self.curtain.nope_cell ~= nil and self.curtain.nope_cell.x == 4, "the curtain of (4, 5) shakes")
+			d.frame(30)
+			d.swipe(4, 5, 3, 5)
+			d.frame(5)
+			assert_eq(self.session.game:status().moves_left, 10)
+			assert_eq(sounds(E, "swap_fail"), 2)
+			assert_eq(#toast_keys(E), 1, "the hint of a kind comes once: no second toast")
+			-- a tap does not pick what is under it
+			d.frame(30)
+			d.tap(4, 6)
+			assert_eq(self.input.selected, nil)
+			assert_true(d.settle())
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("two moves later it opens: the frame is drawn, the pieces show, the pips count to the closing", function()
+		with_board({ level = 1, level_text = curtain_level() }, function(E, script, self, d)
+			d.frame(90)
+			d.swipe(6, 8, 6, 9)
+			d.frame(1)
+			assert_eq(self.session.game:status().moves_left, 9)
+			assert_true(d.settle())
+			d.frame(40)
+			assert_same(self.session.game:status().curtain, { phase = "closed", left = 1 })
+			assert_eq(count_anim(E, "fx_glow_dot", "glow_factory"), 1, "a pip went with the move")
+			local whoosh = sounds(E, "swap")
+			-- any second move
+			local cmd = self.session:hint_command()
+			assert_true(cmd ~= nil and cmd.type == "swap")
+			d.swipe(cmd.from[1], cmd.from[2], cmd.to[1], cmd.to[2])
+			d.frame(1)
+			assert_true(d.settle())
+			d.frame(60)
+			local st = self.session.game:status()
+			assert_eq(st.curtain.phase, "open")
+			assert_eq(count_anim(E, "blockers_curtain_closed"), 0)
+			assert_eq(count_anim(E, "blockers_curtain_open"), 3)
+			assert_eq(count_anim(E, "fx_glow_dot", "glow_factory"), st.curtain.left)
+			assert_true(sounds(E, "swap") > whoosh, "it opened with a whoosh")
+			for _, p in ipairs(self.session.game:pieces()) do assert_eq(p.veiled, nil) end
+			-- open: the cell is an ordinary cell again: a tap picks its piece
+			d.tap(4, 5)
+			assert_true(self.input.selected ~= nil and self.input.selected.x == 4)
+			d.tap(4, 5)
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("the janitor finds nothing to put right on a board with curtains at rest, closed or open", function()
+		for _, start in ipairs({ "closed", "open" }) do
+			with_board({ level = 1, level_text = curtain_level(start) }, function(E, script, self, d)
+				d.frame(900)
+				assert_true((self.janitor_passes or 0) >= 1, "the janitor looked")
+				assert_eq(self.janitor_repairs or 0, 0)
+				assert_eq(self.view:stats().repaired, 0)
+				assert_eq(count_anim(E, "blockers_curtain_" .. start), 3)
+				-- a curtain that lost its place with the core is put right by the janitor's look
+				self.curtain.phase = start == "closed" and "open" or "closed"
+				assert_eq(self.curtain:sync(self.session.game:status().curtain), 1)
+				assert_eq(self.curtain.phase, start)
+			end)
+		end
+	end)
+
+	it("plays a curtain level to its final concert without an engine error; the curtains are open at the end", function()
+		local level = curtain_level()
+		level.goals = { { type = "collect", color = "green", count = 12 } }
+		level.moves = 30
+		with_board({ level = 1, level_text = level }, function(E, script, self, d)
+			self.session:autoplay(nil, { free_moves = true })
+			local state
+			for _ = 1, 9000 do
+				d.frame(1)
+				state = self.session.game:status().state
+				if state == "complete" or state == "lost" then break end
+			end
+			assert_eq(state, "complete")
+			d.frame(60)
+			assert_eq(self.errors or 0, 0)
+			assert_eq(d.topics.level_result, 1)
+			assert_eq(self.session.game:status().curtain.phase, "open")
+			assert_eq(self.curtain.phase, "open")
+			assert_true(level_curtain.MOVE_TIME > 0)
+		end)
+	end)
+end)

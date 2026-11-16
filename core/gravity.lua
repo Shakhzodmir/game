@@ -21,8 +21,11 @@ local function scan(s, c)
 	local y = (c - x) / W + 1
 	local top = s.seg_top[c]
 	local k = y
+	local veil = s.cur_closed and s.level.curtain.at or nil
 	while k > top do
 		k = k - 1
+		-- a cell under a closed curtain is frozen, full or empty: nothing comes through it (10.7)
+		if veil and veil[(k - 1) * W + x] then return BLOCKED end
 		local e = B.get(s, (k - 1) * W + x)
 		if e then
 			local st = e.state
@@ -210,9 +213,9 @@ local function diagonal(s, c, pass)
 		if dxx >= 1 and dxx <= W then
 			local D = c - W + dx
 			local o = B.get(s, D)
-			if o and o.state == S_IDLE and o.pins[1] == nil and B.is_movable(s, o) then
+			if o and o.state == S_IDLE and o.pins[1] == nil and B.is_movable(s, o) and not B.veiled(s, D) then
 				local below = c + dx -- (x+dx, y)
-				if not s.exists[below] or s.slot[below] ~= 0 then
+				if not s.exists[below] or s.slot[below] ~= 0 or B.veiled(s, below) then
 					o.offx = -dx * UNIT
 					o.offy = UNIT
 					B.raise_label(s, o, s.vac_mv[c], s.vac_wv[c])
@@ -238,10 +241,11 @@ function G.assign(s)
 	for x = 1, W do pass.counter[x] = 0 end
 	local n = 0
 	local exists, slot = s.exists, s.slot
+	local veil = s.cur_closed and s.level.curtain.at or nil
 	for y = H, 1, -1 do
 		for x = 1, W do
 			local c = (y - 1) * W + x
-			if exists[c] and slot[c] == 0 then
+			if exists[c] and slot[c] == 0 and not (veil and veil[c]) then
 				local r, q = scan(s, c)
 				if r == PIECE then
 					transfer(s, q, c, pass)

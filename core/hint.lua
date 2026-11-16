@@ -56,6 +56,7 @@ local function progress(s, g)
 		for j = 1, 4 do
 			local o = nb[j] ~= 0 and B.get(s, nb[j]) or nil
 			if o and o.kind == C.K_BLOCKER and o.state == C.S_IDLE and o.blocker ~= C.BK_CONCRETE
+				and not B.veiled(s, nb[j])
 				and B.goal_open(s, C.GOAL_BREAK, o.blocker)
 				and (o.blocker ~= C.BK_BALLOON or o.color == g.color) then
 				return true
@@ -128,7 +129,7 @@ function HI.hint(s)
 	end
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_SPECIAL and o.state == C.S_IDLE and o.pins[1] == nil then
+		if o and o.kind == K_SPECIAL and o.state == C.S_IDLE and o.pins[1] == nil and not B.veiled(s, i) then
 			local key = { 2, 0, 0, RANK2[o.special], 0, -i }
 			if not bkey or better(key, bkey) then
 				local x, y = U.xy(W, i)

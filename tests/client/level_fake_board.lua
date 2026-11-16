@@ -65,7 +65,7 @@ function M.new(opts)
 			if p.x == x and p.y == y then
 				local c = s.game:cells()[(y - 1) * s.W + x]
 				return { id = p.id, kind = p.kind, state = p.state, pinned = p.pinned and true or false,
-					wired = c ~= nil and (c.wires or 0) > 0, chained = p.chain ~= nil }
+					wired = c ~= nil and (c.wires or 0) > 0, chained = p.chain ~= nil, veiled = p.veiled == true }
 			end
 		end
 		return nil

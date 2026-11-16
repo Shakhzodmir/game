@@ -17,10 +17,11 @@ local S_IDLE, S_FALL, S_SWAP = C.S_IDLE, C.S_FALL, C.S_SWAP
 function MV.expected_colors(s)
 	local col = {}
 	local slot, objs = s.slot, s.objs
+	local veil = s.cur_closed and s.level.curtain.at or nil -- no colour under a closed curtain (10.7)
 	for i = 1, s.N do
 		local c = 0
 		local id = slot[i]
-		if id ~= 0 then
+		if id ~= 0 and not (veil and veil[i]) then
 			local o = objs[id]
 			if o.kind == K_REGULAR then
 				local st = o.state
@@ -97,7 +98,7 @@ end
 function MV.has_free_special(s)
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_SPECIAL and o.state == S_IDLE and o.pins[1] == nil then return true end
+		if o and o.kind == K_SPECIAL and o.state == S_IDLE and o.pins[1] == nil and not B.veiled(s, i) then return true end
 	end
 	return false
 end

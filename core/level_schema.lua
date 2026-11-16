@@ -59,7 +59,7 @@ local SHAPE = {
 	size = "arr", colors = "arr", cells = "arr", at = "arr",
 	goals = "arr_obj", floor = "arr_obj", overlay = "arr_obj", slots = "arr_obj",
 	spawners = "arr_arr", exits = "arr_arr", mic = "obj", spawn_weights = "obj",
-	coconut = "obj", columns = "arr",
+	coconut = "obj", columns = "arr", curtain = "obj", covers = "arr_arr",
 }
 
 local function ser_scalar(v, out)
@@ -118,7 +118,7 @@ end
 local ROOT = {
 	id = true, version = true, size = true, moves = true, difficulty = true, colors = true,
 	goals = true, cells = true, spawners = true, exits = true, floor = true, overlay = true,
-	slots = true, mic = true, spawn_weights = true, coconut = true,
+	slots = true, mic = true, spawn_weights = true, coconut = true, curtain = true,
 }
 
 local GOAL_KEYS = {
@@ -319,6 +319,25 @@ function LS.check(raw, errs)
 		end
 	elseif drop then
 		e("coconut: block required with a drop goal")
+	end
+	if raw.curtain ~= nil then
+		-- the timed curtain (10.7): the covered cells and the rhythm all of them share
+		local m = raw.curtain
+		if not is_object(m) then
+			e("curtain: object required")
+		else
+			check_keys(m, { covers = true, closed_moves = true, open_moves = true, start = true }, "curtain", errs)
+			if not is_array(m.covers) or #m.covers < 1 then
+				e("curtain: covers must be a non-empty list of [x, y]")
+			else
+				for j = 1, #m.covers do
+					if not is_at(m.covers[j]) then e("curtain: covers[" .. j .. "]: [x, y] required") end
+				end
+			end
+			if not hp_range(1, 9)(m.closed_moves) then e("curtain: closed_moves 1..9 required") end
+			if not hp_range(1, 9)(m.open_moves) then e("curtain: open_moves 1..9 required") end
+			if m.start ~= "closed" and m.start ~= "open" then e("curtain: start 'closed' or 'open' required") end
+		end
 	end
 	if raw.mic ~= nil then
 		local m = raw.mic
