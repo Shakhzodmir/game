@@ -1038,7 +1038,7 @@
             "en": "Maracas",
             "ko": "마라카스"
           },
-          "cost": 5,
+          "cost": 4,
           "stem": "shaker",
           "stem_desc": "maracas and guiro 8ths"
         },
@@ -1060,7 +1060,7 @@
             "en": "Papel picado banner",
             "ko": "파펠 피카도 깃발"
           },
-          "cost": 6,
+          "cost": 5,
           "stem": "piano",
           "stem_desc": "piano montuno, syncopated octaves"
         },
@@ -1071,7 +1071,7 @@
             "en": "Piñata",
             "ko": "피냐타"
           },
-          "cost": 7,
+          "cost": 5,
           "stem": "guitar",
           "stem_desc": "bright nylon guitar strums and fills"
         },
@@ -1082,7 +1082,7 @@
             "en": "Trumpet",
             "ko": "트럼펫"
           },
-          "cost": 7,
+          "cost": 6,
           "stem": "trumpet",
           "stem_desc": "trumpet melody with shakes and falls"
         }
