@@ -66,7 +66,7 @@ end
 
 -- Elements counted by rule 2.1.6, present in a raw level.
 Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain",
-	"curtain", "carpet", "conveyor", "boombox" }
+	"curtain", "carpet", "conveyor", "boombox", "ice" }
 
 -- Like the core's rule 2.1.6: a `mic` counts when there is a deliver goal, a
 -- mic block or a starting mic piece; a `coconut` likewise with a drop goal,
@@ -76,6 +76,8 @@ function Levels.elements(raw)
 	for _, f in ipairs(raw.floor or {}) do if f then has.dancefloor = true end end
 	for _, o in ipairs(raw.overlay or {}) do if o.type == "wires" then has.wires = true end end
 	for _, o in ipairs(raw.overlay or {}) do if o.type == "chain" then has.chain = true end end
+	for _, o in ipairs(raw.overlay or {}) do if o.type == "ice" then has.ice = true end end -- the ice (core-rules 10.11) ...
+	for _, g in ipairs(raw.goals or {}) do if g.type == "ice" then has.ice = true end end -- ... or its goal
 	for _, g in ipairs(raw.goals or {}) do if g.type == "deliver" then has.mic = true end end
 	if raw.mic ~= nil then has.mic = true end
 	for _, g in ipairs(raw.goals or {}) do if g.type == "drop" then has.coconut = true end end
@@ -105,6 +107,7 @@ function Levels.goals_text(raw)
 		elseif g.type == "deliver" then parts[#parts + 1] = string.format("deliver %d", g.count)
 		elseif g.type == "drop" then parts[#parts + 1] = string.format("drop %d", g.count)
 		elseif g.type == "chains" then parts[#parts + 1] = string.format("chains %d", g.count)
+		elseif g.type == "ice" then parts[#parts + 1] = string.format("ice %d", g.count)
 		else parts[#parts + 1] = tostring(g.type) end
 	end
 	return table.concat(parts, ", ")
@@ -198,7 +201,7 @@ end
 
 Levels.LEGEND = "legend: r o y g b p piece colour, + random piece, R/S/B/D riff/sub/bird/disco (riff axis - or |),"
 	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), Q boombox (+hp), 3rd char floor (_ hp1, = hp2) or carpet (~),"
-	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2) or curtain (t), conveyor (> < ^ v: the way the belt moves, 3rd char, or 4th over a floor or carpet), v spawner, e exit (2nd char), . void"
+	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2), ice (i hp1, I hp2) or curtain (t), conveyor (> < ^ v: the way the belt moves, 3rd char, or 4th over a floor or carpet), v spawner, e exit (2nd char), . void"
 
 -- Static preview from the JSON.
 function Levels.preview_raw(raw)
@@ -222,6 +225,7 @@ function Levels.preview_raw(raw)
 	for _, o in ipairs(raw.overlay or {}) do
 		local c = cell(o.at)
 		if c and o.type == "chain" then c[4] = o.hp == 2 and "C" or "c"
+		elseif c and o.type == "ice" then c[4] = o.hp == 2 and "I" or "i"
 		elseif c then c[4] = o.hp == 2 and "W" or "w" end
 	end
 	if type(raw.carpet) == "table" then
@@ -336,6 +340,7 @@ function Levels.preview_game(game, W, H)
 			if p.kind == "regular" then
 				c[1] = LETTER[p.color] or "?"
 				if p.chain then c[4] = p.chain == 2 and "C" or "c" end
+				if p.ice then c[4] = p.ice == 2 and "I" or "i" end
 			elseif p.kind == "special" then
 				c[1] = SPEC[p.special] or "?"
 				if p.special == "riff" then c[2] = p.axis == "v" and "|" or "-" end

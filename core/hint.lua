@@ -39,6 +39,7 @@ local function progress(s, g)
 	local deliver = B.goal_open(s, C.GOAL_DELIVER, 0)
 	local drop = B.goal_open(s, C.GOAL_DROP, 0)
 	local chains = B.goal_open(s, C.GOAL_CHAINS, 0)
+	local ice = B.goal_open(s, C.GOAL_ICE, 0)
 	-- the carpet (10.8): a group that stands on the carpet and reaches beyond it rolls the carpet out
 	if s.carpet and B.goal_open(s, C.GOAL_CARPET, 0) then
 		local on, off = false, false
@@ -63,6 +64,8 @@ local function progress(s, g)
 		local nb = { y > 1 and i - W or 0, x > 1 and i - 1 or 0, x < W and i + 1 or 0, y < H and i + W or 0 }
 		for j = 1, 4 do
 			local o = nb[j] ~= 0 and B.get(s, nb[j]) or nil
+			-- a frozen piece next to the group thaws by one layer (10.11)
+			if ice and o and o.ice > 0 and o.state == C.S_IDLE and not B.veiled(s, nb[j]) then return true end
 			if o and o.kind == C.K_BLOCKER and o.state == C.S_IDLE and o.blocker ~= C.BK_CONCRETE
 				and not B.veiled(s, nb[j])
 				and B.goal_open(s, C.GOAL_BREAK, o.blocker)
@@ -78,7 +81,7 @@ local function count_color(s, color)
 	local n = 0
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_REGULAR and o.state == C.S_IDLE and o.color == color then n = n + 1 end
+		if o and o.kind == K_REGULAR and o.state == C.S_IDLE and o.color == color and o.ice == 0 then n = n + 1 end
 	end
 	return n
 end

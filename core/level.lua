@@ -11,6 +11,7 @@
 --   code of collect, blocker code of break, else 0), exists[i], spawner[i],
 --   exit[i] (only with a deliver goal), floor[i], wires[i] (hp),
 --   chain[i] (hp of the chain the starting piece of cell i wears, 10.6),
+--   ice[i] (hp of the ice the starting piece of cell i is frozen in, 10.11), has_ice,
 --   seg_top[i], seg_bot[i] (rows of the segment of cell i),
 --   presets = {{cell, kind, color, special, axis, blocker, hp}} by cell,
 --   mic = {total, on_board_max, gap_moves} or nil,
@@ -103,7 +104,7 @@ local function read_cells(ctx)
 			local i = (y - 1) * W + x
 			lvl.exists[i] = string.sub(row, x, x) == "#"
 			lvl.spawner[i], lvl.exit[i] = false, false
-			lvl.floor[i], lvl.wires[i], lvl.chain[i] = 0, 0, 0
+			lvl.floor[i], lvl.wires[i], lvl.chain[i], lvl.ice[i] = 0, 0, 0, 0
 		end
 	end
 	segments(lvl)
@@ -130,6 +131,7 @@ local function read_colors_and_goals(ctx)
 		if t == C.GOAL_DELIVER then ctx.deliver = true end
 		if t == C.GOAL_DROP then ctx.drop = true end
 		if t == C.GOAL_CARPET then ctx.carpet_goal = true end
+		if t == C.GOAL_ICE then ctx.ice_goal = true end
 		lvl.goals[k] = { type = t, param = param, count = g.count or 1 }
 	end
 	if raw.mic then
@@ -202,14 +204,20 @@ local function read_layers(ctx)
 		for k = 1, #list do
 			local at = list[k].at
 			local i = cell_of(ctx, at)
-			local dst = layer == "floor" and lvl.floor or (list[k].type == "chain" and lvl.chain or lvl.wires)
+			local dst = lvl.floor
+			if layer == "overlay" then
+				local t = list[k].type
+				dst = t == "chain" and lvl.chain or (t == "ice" and lvl.ice or lvl.wires)
+			end
 			if not i then err_at(ctx, "2.1.2", layer .. " is not on an existing cell", at)
-			elseif (layer == "floor" and dst[i] > 0) or (layer == "overlay" and (lvl.wires[i] > 0 or lvl.chain[i] > 0)) then
+			elseif (layer == "floor" and dst[i] > 0)
+				or (layer == "overlay" and (lvl.wires[i] > 0 or lvl.chain[i] > 0 or lvl.ice[i] > 0)) then
 				err_at(ctx, "2.1.2", "two " .. layer .. " elements in one cell", at)
 			else
 				dst[i] = list[k].hp
 				if layer == "floor" then ctx.n_tiles = ctx.n_tiles + 1 end
 				if dst == lvl.chain then ctx.n_chains = ctx.n_chains + 1 end
+				if dst == lvl.ice then ctx.n_ice = ctx.n_ice + 1 end
 			end
 		end
 	end
@@ -455,6 +463,9 @@ local function static_rules(ctx)
 		if lvl.chain[i] > 0 and slot_at[i] and slot_at[i].kind ~= C.K_REGULAR then
 			err(ctx, "2.1.3", "chain over a cell without a regular piece", i)
 		end
+		if lvl.ice[i] > 0 and slot_at[i] and slot_at[i].kind ~= C.K_REGULAR then
+			err(ctx, "2.1.3", "ice over a cell without a regular piece", i)
+		end
 	end
 	for k = 1, #lvl.goals do
 		local g = lvl.goals[k]
@@ -472,6 +483,8 @@ local function static_rules(ctx)
 			errs[#errs + 1] = "2.1.5 deliver goal needs a mic block and an exit"
 		elseif g.type == C.GOAL_CHAINS and g.count > ctx.n_chains then
 			errs[#errs + 1] = "2.1.5 chains count exceeds the chains on the board"
+		elseif g.type == C.GOAL_ICE and g.count > ctx.n_ice then
+			errs[#errs + 1] = "2.1.5 ice count exceeds the frozen pieces on the board"
 		elseif g.type == C.GOAL_DROP and (not lvl.coconut or ctx.n_exits == 0) then
 			errs[#errs + 1] = "2.1.5 drop goal needs a coconut block and an exit"
 		end
@@ -485,6 +498,7 @@ local function static_rules(ctx)
 					err(ctx, "2.1.12", "only a regular piece may stand under a curtain", i)
 				end
 				if lvl.wires[i] > 0 or lvl.chain[i] > 0 then err(ctx, "2.1.12", "wires or a chain under a curtain", i) end
+				if lvl.ice[i] > 0 then err(ctx, "2.1.12", "ice under a curtain", i) end
 				if lvl.spawner[i] then err(ctx, "2.1.12", "curtain over a spawner", i) end
 				if lvl.exit[i] then err(ctx, "2.1.12", "curtain over an exit", i) end
 			end
@@ -497,11 +511,12 @@ local function static_rules(ctx)
 			if lvl.conveyor.at[i] ~= 0 then
 				if slot_at[i] and slot_at[i].kind == C.K_BLOCKER then err(ctx, "2.1.14", "blocker on a conveyor", i) end
 				if lvl.wires[i] > 0 then err(ctx, "2.1.14", "wires on a conveyor", i) end
+				if lvl.ice[i] > 0 then err(ctx, "2.1.14", "ice on a conveyor", i) end
 			end
 		end
 	end
 	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet,
-	-- conveyor, boombox
+	-- conveyor, boombox, ice
 	local n_el = 0
 	for b = 1, C.NBLOCKERS do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -514,6 +529,7 @@ local function static_rules(ctx)
 		end
 	end
 	if ctx.n_chains > 0 then n_el = n_el + 1 end
+	if ctx.n_ice > 0 or ctx.ice_goal then n_el = n_el + 1 end
 	if lvl.curtain then n_el = n_el + 1 end
 	if lvl.carpet or ctx.carpet_goal then n_el = n_el + 1 end
 	if lvl.conveyor then n_el = n_el + 1 end
@@ -574,12 +590,12 @@ local function normalize(raw, errs)
 	local ctx = {
 		raw = raw, errs = errs, W = W, H = H, N = W * H,
 		deliver = false, exits = {}, n_exits = 0, slot_at = {}, counts = { 0, 0, 0, 0, 0, 0 },
-		n_chains = 0, n_tiles = 0, n_mics = 0, n_coconuts = 0, drop = false, in_colors = {},
+		n_chains = 0, n_ice = 0, n_tiles = 0, n_mics = 0, n_coconuts = 0, drop = false, in_colors = {},
 		lvl = {
 			id = raw.id, version = raw.version, W = W, H = H, N = W * H, moves = raw.moves,
 			difficulty = C.DIFFICULTY[raw.difficulty],
 			colors = {}, weights = {}, goals = {},
-			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {},
+			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {}, ice = {}, has_ice = false,
 			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil, carpet = nil,
 			conveyor = nil,
 		},
@@ -593,6 +609,7 @@ local function normalize(raw, errs)
 	read_carpet(ctx)
 	read_conveyor(ctx)
 	static_rules(ctx)
+	ctx.lvl.has_ice = ctx.n_ice > 0
 	return ctx.lvl, ctx.slot_at
 end
 
@@ -620,8 +637,9 @@ local function settle(lvl, slot_at, keep_fixed)
 			if p and p.cell == i and p.kind == C.K_BLOCKER then
 				local o = B.new_obj(s, C.K_BLOCKER, { blocker = p.blocker, hp = p.hp, color = p.color })
 				B.place(s, o, i)
-			elseif lvl.exists[i] and lvl.wires[i] > 0 and s.slot[i] == 0 then
-				local o = B.new_obj(s, C.K_REGULAR, {})
+			elseif lvl.exists[i] and (lvl.wires[i] > 0 or lvl.ice[i] > 0) and s.slot[i] == 0 then
+				-- (a wired or a frozen piece stays where it is, 10.11)
+				local o = B.new_obj(s, C.K_REGULAR, { ice = lvl.ice[i] })
 				B.place(s, o, i)
 			end
 		end

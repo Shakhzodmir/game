@@ -23,7 +23,7 @@ function MV.expected_colors(s)
 		local id = slot[i]
 		if id ~= 0 and not (veil and veil[i]) then
 			local o = objs[id]
-			if o.kind == K_REGULAR then
+			if o.kind == K_REGULAR and o.ice == 0 then -- (a frozen piece has no colour, 10.11)
 				local st = o.state
 				if st == S_IDLE or st == S_FALL
 					or (st == S_SWAP and (o.tk == C.TM_FAIL or o.tk == C.TM_LOCK)) then

@@ -19,14 +19,14 @@ local H = require("core.hits")
 local BX = {}
 
 -- Candidates of a play, ascending cell index: regular idle pieces of `color` that are free (no wires, no
--- chain, not pinned, not under a closed curtain) and stand outside every group of the running search.
+-- chain, no ice, not pinned, not under a closed curtain) and stand outside every group of the running search.
 function BX.candidates(s, color, busy)
 	local out = {}
 	for i = 1, s.N do
 		if not busy[i] and s.wires[i] == 0 and not B.veiled(s, i) then
 			local o = B.get(s, i)
 			if o and o.kind == C.K_REGULAR and o.state == C.S_IDLE and o.color == color
-				and o.chain == 0 and not o.pins[1] then
+				and o.chain == 0 and o.ice == 0 and not o.pins[1] then
 				out[#out + 1] = i
 			end
 		end

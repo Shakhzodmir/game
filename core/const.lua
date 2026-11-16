@@ -80,8 +80,9 @@ C.RECORD_FIELDS = { 6, 2, 3, 3, 4, 1, 0, 4 }
 -- Goals.
 C.GOAL_COLLECT, C.GOAL_BREAK, C.GOAL_LIGHT, C.GOAL_DELIVER, C.GOAL_DROP, C.GOAL_CHAINS = 1, 2, 3, 4, 5, 6
 C.GOAL_CARPET = 7 -- cover every cell of the board with the carpet (10.8)
-C.GOAL = { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5, chains = 6, carpet = 7 }
-C.GOAL_NAME = { "collect", "break", "light", "deliver", "drop", "chains", "carpet" }
+C.GOAL_ICE = 8 -- thaw N frozen pieces (10.11)
+C.GOAL = { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5, chains = 6, carpet = 7, ice = 8 }
+C.GOAL_NAME = { "collect", "break", "light", "deliver", "drop", "chains", "carpet", "ice" }
 
 C.DIFFICULTY = { easy = 1, medium = 2, hard = 3, super_hard = 4 }
 C.DIFFICULTY_NAME = { "easy", "medium", "hard", "super_hard" }
@@ -118,7 +119,7 @@ end
 C.SCORE_WAVE = 20        -- per group cell whose piece is destroyed, times W
 C.SCORE_EFFECT = 30      -- regular piece destroyed by an `effect` hit
 C.SCORE_TRANSFORM = 30   -- piece transformed by "Colour X"
-C.SCORE_HP = 50          -- every hp unit of a blocker, wires, chain or floor tile
+C.SCORE_HP = 50          -- every hp unit of a blocker, wires, chain, ice or floor tile
 C.SCORE_CONCERT = 300    -- Riff of the final concert
 C.SCORE_COCONUT = 50     -- coconut collected (10.5)
 C.SCORE_BONUS = { 60, 90, 60, 150 } -- by special code: riff, sub, bird, disco
