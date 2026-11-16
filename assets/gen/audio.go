@@ -124,6 +124,46 @@ embedded_components {
   data: "sound: \"/assets/music/block/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_bluesclub_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bluesclub_drums"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/drums.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bluesclub_harmonica"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/harmonica.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bluesclub_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bluesclub_organ"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/organ.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bluesclub_party"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bluesclub_piano"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/piano.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_bluesclub_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/bluesclub/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_cafe_bass"
   type: "sound"
   data: "sound: \"/assets/music/cafe/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1324,6 +1364,16 @@ embedded_components {
   data: "sound: \"/assets/music/songs/kalimba_sunrise.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_lamplight_piano"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/lamplight_piano.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_lantern_stroll"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/lantern_stroll.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_laser_trance"
   type: "sound"
   data: "sound: \"/assets/music/songs/laser_trance.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1399,6 +1449,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/oompah_polka.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_paddle_wheel_shuffle"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/paddle_wheel_shuffle.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_palm_shade_sway"
   type: "sound"
   data: "sound: \"/assets/music/songs/palm_shade_sway.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1442,6 +1497,11 @@ embedded_components {
   id: "song_rainy_window"
   type: "sound"
   data: "sound: \"/assets/music/songs/rainy_window.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_riverside_jump"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/riverside_jump.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_rooftop_sunrise"

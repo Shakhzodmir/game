@@ -1967,7 +1967,52 @@
       "semitones_from_c": 4,
       "bars": 8,
       "mood": "cozy evening blues in an old music town by the river: shuffle feel, warm, a little cheeky, never sad",
-      "songs": [],
+      "songs": [
+        {
+          "id": "riverside_jump",
+          "name": {
+            "ru": "Джамп у реки",
+            "en": "Riverside Jump",
+            "ko": "강변 점프"
+          },
+          "bpm": 152,
+          "bars": 12,
+          "mood": "fast jump blues for dancing: a ride and a fat backbeat shuffle, a walking upright bass, the old piano hammering short chords, a horn section riffing and shouting, a honking tenor sax tune"
+        },
+        {
+          "id": "lamplight_piano",
+          "name": {
+            "ru": "Пианино под лампой",
+            "en": "Lamplight Piano",
+            "ko": "등불 아래 피아노"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "slow late-night piano blues in triplets: soft right-hand chords, low octaves in the left, the tune in octaves with crushed notes, brushes, an upright bass in two, a muted trumpet answering from far away"
+        },
+        {
+          "id": "paddle_wheel_shuffle",
+          "name": {
+            "ru": "Шаффл на пароходе",
+            "en": "Paddle Wheel Shuffle",
+            "ko": "외륜선 셔플"
+          },
+          "bpm": 120,
+          "bars": 12,
+          "mood": "riverboat shuffle: a washboard with a thimble backbeat, banjo plucks, a tuba on root and fifth, a clarinet tune answered by a cornet, the whistle of the steamer"
+        },
+        {
+          "id": "lantern_stroll",
+          "name": {
+            "ru": "Прогулка под фонарями",
+            "en": "Lantern Stroll",
+            "ko": "가로등 아래 스트롤"
+          },
+          "bpm": 108,
+          "bars": 12,
+          "mood": "rhythm-and-blues stroll in 12/8: hi-hat triplets and a clapped backbeat, the stroll bass figure doubled by a baritone sax, a tremolo guitar picking triplets, horn swells and shouts, a lazy tenor sax tune"
+        }
+      ],
       "chest": {
         "coins": 2800,
         "boosters": [

@@ -8,7 +8,7 @@ Meters (`tools/audio/analysis.py`): **LUFS** = ITU-R BS.1770-4 loudness; **M-max
 **dBTP** = 4x oversampled true peak (what a resampling mixer can reach). SFX loudness targets use the
 generator's gated K-weighted meter with 50 ms windows (`dsp.loudness`).
 
-**Total size:** 24.45 MB: 12.35 MB of 14 MB budget (66 notes, 40 SFX, 120 music stems) + 12.10 MB of 14 MB for the 101 jukebox songs.
+**Total size:** 24.97 MB: 12.35 MB of 14 MB budget (66 notes, 40 SFX, 120 music stems) + 12.62 MB of 14 MB for the 105 jukebox songs.
 
 ## 1. Piece notes (synesthesia core)
 
@@ -49,7 +49,7 @@ each district's in-level bed (task stems + tension, i.e. on the kick and snare t
 |---|---|---|---|
 | 1 | -3.66 dBTP | -4.04 dBTP | -0.01 dBTP (`porch_pickin` beat 23, step 8, orange) |
 | 2 | -0.06 dBTP | -3.23 dBTP | -0.10 dBTP (`cinema` beat 29, step 1, green+orange) |
-| 3 | +1.81 dBTP | -2.52 dBTP | -0.12 dBTP (`rainy_window` beat 1, step 1, green+orange+blue) |
+| 3 | +1.81 dBTP | -2.52 dBTP | -0.07 dBTP (`lamplight_piano` beat 21, step 1, green+orange+blue) |
 
 ## 2. Sound effects
 
@@ -676,6 +676,10 @@ the engine's layer calls are silent for it.
 | ranch | `campfire_waltz` | 96 | 12 | 30.0 | G | -20.0 | -1.13 | -1.1 | 96.0 | 1297 | 164 | G C Em D7 |
 | ranch | `tumbleweed_swing` | 126 | 12 | 22.9 | G | -19.8 | -1.26 | -1.1 | 92.6 | 1253 | 128 | G6 C6 Am7 D7 |
 | ranch | `barn_piano_romp` | 138 | 12 | 20.9 | G | -19.8 | -3.44 | 0.0 | 99.5 | 1101 | 112 | G C Em Am7 D7 |
+| bluesclub | `riverside_jump` | 152 | 12 | 18.9 | E | -19.9 | -1.32 | 0.0 | 97.1 | 896 | 107 | E6 A6 B7 |
+| bluesclub | `lamplight_piano` | 72 | 8 | 26.7 | E | -19.9 | -1.60 | 0.0 | 99.0 | 993 | 139 | E6 A6 B7 F#m7 |
+| bluesclub | `paddle_wheel_shuffle` | 120 | 12 | 24.0 | E | -19.9 | -2.59 | 0.0 | 97.7 | 760 | 132 | E A B7 |
+| bluesclub | `lantern_stroll` | 108 | 12 | 26.7 | E | -19.9 | -1.09 | -0.2 | 94.9 | 782 | 152 | E6 Dbm7 A6 B7 |
 | classical | `salon_morning` | 80 | 8 | 24.0 | D | -20.0 | -1.77 | 0.0 | 99.7 | 460 | 83 | D F#m G A Bm Em7 A7 |
 | classical | `harpsichord_garden` | 112 | 12 | 25.7 | D | -20.0 | -1.32 | -1.9 | 99.8 | 1041 | 124 | D A Bm G Em A7 |
 | classical | `dawn_quartet` | 76 | 8 | 25.3 | D | -20.0 | -7.47 | 0.0 | 100.0 | 951 | 109 | D A Bm F#m G Em A7 |
@@ -780,6 +784,10 @@ the engine's layer calls are silent for it.
 | `campfire_waltz` | guitar, lead, fiddle, bass, fx | 0.90 / 0.53 (G maj) | 0.045 | 0.053 | 0.71 |
 | `tumbleweed_swing` | drums, bass, guitar, lead, fiddle | 0.91 / 0.61 (G maj) | 0.13 | 0.337 | 0.44 |
 | `barn_piano_romp` | drums, keys, lead, guitar, bass | 0.95 / 0.58 (G maj) | 0.005 | 0.03 | 0.25 |
+| `riverside_jump` | drums, bass, keys, brass, sax | 0.84 / 0.52 (E maj) | 0.075 | 0.097 | 0.4 |
+| `lamplight_piano` | drums, keys, lead, bass, trumpet | 0.94 / 0.54 (E maj) | 0.023 | 0.005 | 0.57 |
+| `paddle_wheel_shuffle` | drums, guitar, bass, lead, trumpet, fx | 0.86 / 0.36 (E maj) | 0.014 | 0.005 | 0.22 |
+| `lantern_stroll` | drums, bass, sax, guitar, brass, lead | 0.76 / 0.49 (E maj) | 0.742 | 0.572 | 0.62 |
 | `salon_morning` | arp, keys | 0.83 / 0.48 (D maj) | 0.102 | 0.322 | 1.2 |
 | `harpsichord_garden` | keys, bass, arp, strings | 0.91 / 0.64 (D maj) | 0.02 | 0.235 | 0.94 |
 | `dawn_quartet` | lead, strings | 0.82 / 0.51 (D maj) | 0.004 | 0.003 | 0.1 |
@@ -862,6 +870,7 @@ the engine's layer calls are silent for it.
 - Songs `block`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.16 dBTP / -1.17 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.8) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 96.0): PASS; seams clean: PASS.
 - Songs `island`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 18.2 … 22.9 s within 16–32: PASS; worst mix -1.07 dBTP / -1.19 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.8) and ≤ 1 dB of the energy (max 0.02): PASS; in the key of the genre ≥ 85 % (min 94.4): PASS; seams clean: PASS.
 - Songs `ranch`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 30.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.50 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.1) and ≤ 1 dB of the energy (max 0.03): PASS; in the key of the genre ≥ 85 % (min 92.6): PASS; seams clean: PASS.
+- Songs `bluesclub`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 18.9 … 26.7 s within 16–32: PASS; worst mix -1.09 dBTP / -1.10 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.2) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 94.9): PASS; seams clean: PASS.
 - Songs `classical`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 29.1 s within 16–32: PASS; worst mix -1.10 dBTP / -1.34 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.9) and ≤ 1 dB of the energy (max 0.23): PASS; in the key of the genre ≥ 85 % (min 98.4): PASS; seams clean: PASS.
 - Songs `folk`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.22 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.7) and ≤ 1 dB of the energy (max 0.08): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Songs `latin`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 24.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.15 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.6 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.4) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 91.2): PASS; seams clean: PASS.
@@ -878,7 +887,7 @@ the engine's layer calls are silent for it.
 - Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.
 - Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Notes, SFX and district music 12.35 MB ≤ 14 MB: PASS.
-- Songs 101 files, 12.10 MB ≤ 14 MB: PASS.
+- Songs 105 files, 12.62 MB ≤ 14 MB: PASS.
 
 ## 5. Engine requirements and known limitations
 
