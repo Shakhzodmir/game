@@ -585,6 +585,132 @@ describe("tools bot: the documented behaviour", function()
 		assert_true(seen > 0, "no red match next to a boombox in eight boards")
 	end)
 
+	-- the hay bale (core-rules 10.12): six bales on a 7x7 board, five of them with a special inside
+	local function hay_level(extra)
+		local t = {
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "break", item = "hay", count = 6 } },
+			slots = { { at = { 1, 4 }, type = "hay", hp = 2, gift = "random" }, { at = { 3, 2 }, type = "hay", hp = 2, gift = "sub" },
+				{ at = { 5, 4 }, type = "hay", hp = 2, gift = "riff", axis = "h" }, { at = { 3, 5 }, type = "hay", hp = 1, gift = "none" },
+				{ at = { 1, 1 }, type = "hay", hp = 1, gift = "random" }, { at = { 5, 1 }, type = "hay", hp = 2, gift = "bird" } },
+		}
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small hay level and plays the same game twice", function()
+		local e = hay_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+		local a = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		local b = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		assert_same({ a.won, a.moves_used, a.score }, { b.won, b.moves_used, b.score })
+	end)
+
+	it("pays Bot.W.hay for every hp a move takes off a bale, only with a break goal for it", function()
+		local e = hay_level()
+		local g = core.new(e.level, { seed = 2 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		assert_eq(Bot.hay_hp(bot, g), 10)
+		assert_true(Bot.W.hay > 0)
+		-- the same board with a collect goal: the bot has no hay term
+		local col = hay_level({ goals = { { type = "collect", color = "red", count = 40 } } })
+		local cbot = Bot.new("greedy", { seed = 1, goals = col.goals, width = 7 })
+		assert_eq(Bot.hay_hp(cbot, core.new(col.level, { seed = 2 })), nil)
+		-- a level without hay: nothing either
+		local plain = F.entry()
+		assert_eq(Bot.hay_hp(Bot.new("greedy", { seed = 1, goals = plain.goals, width = 7 }), core.new(plain.level, { seed = 2 })), nil)
+		-- the bot does choose a move that hits a bale when one is on offer
+		local hit = 0
+		for seed = 1, 4 do
+			local gg = core.new(e.level, { seed = seed, timing = "turbo" })
+			local bb = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+			for _ = 1, 4 do
+				local cmd = bb:choose(gg)
+				if not cmd or gg:status().state ~= "playing" then break end
+				gg:input(cmd)
+				gg:run_to_rest()
+			end
+			if Bot.hay_hp(bb, gg) < 10 then hit = hit + 1 end
+		end
+		assert_true(hit >= 3, "bales were hit in " .. hit .. " of 4 games within four moves")
+	end)
+
+	it("counts a revealed gift like a special made by the move, and then plays it", function()
+		local e = hay_level()
+		-- the look-ahead: a move whose clone reveals a gift carries it in acc.specials
+		local counted = 0
+		-- the game: the bot's own commands that tap or swap a revealed special while the level is still on
+		local used = 0
+		for seed = 1, 6 do
+			local g = core.new(e.level, { seed = seed, timing = "turbo" })
+			local bot = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+			local gift_ids = {}
+			for _ = 1, 30 do
+				if g:status().state ~= "playing" then break end
+				local cmd = bot:choose(g)
+				if not cmd then break end
+				local at = {}
+				for _, p in ipairs(g:pieces()) do at[p.y * 64 + p.x] = p.id end
+				local cells = cmd.type == "tap" and { cmd.at } or { cmd.from, cmd.to }
+				for _, c in ipairs(cells) do
+					if gift_ids[at[c[2] * 64 + c[1]] or 0] then used = used + 1 end
+				end
+				-- the same move in the bot's clone
+				local cands = Bot.candidates(g)
+				for k = 1, #cands do
+					if common.encode(cands[k].cmd) == common.encode(cmd) then
+						local clone, acc = Bot.simulate(bot, g, cands[k])
+						local made, revealed = 0, 0
+						local c2 = g:clone({ reseed = bot.reseed })
+						c2:set_timing("turbo")
+						c2:input(cmd)
+						local over = false -- (the look-ahead stops in the tick the level is won, Bot.settle)
+						for _ = 1, 5000 do
+							if over or c2:is_stable() then break end
+							c2:step()
+							for _, ev in ipairs(c2:drain_events()) do
+								if ev.type == "special_new" then made = made + 1 end
+								if ev.type == "gift" then revealed = revealed + 1 end
+								if ev.type == "state" and ev.state ~= "playing" then over = true end
+							end
+						end
+						assert_eq(clone:hash(), c2:hash())
+						assert_eq(#acc.specials, made + revealed)
+						counted = counted + revealed
+					end
+				end
+				g:input(cmd)
+				g:run_to_rest()
+				for _, ev in ipairs(g:drain_events()) do
+					if ev.type == "gift" then gift_ids[ev.id] = true end
+				end
+			end
+		end
+		assert_true(counted > 0, "no look-ahead revealed a gift in six games")
+		assert_true(used > 0, "the bot never played a revealed special in six games")
+	end)
+
+	it("a level without hay sees no gift event", function()
+		local e = F.entry({ goals = { { type = "collect", color = "red", count = 30 } } })
+		local g = core.new(e.level, { seed = 3, timing = "turbo" })
+		local bot = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+		assert_false(bot.hay)
+		for _ = 1, 6 do
+			local cmd = bot:choose(g)
+			if not cmd then break end
+			g:input(cmd)
+			g:run_to_rest()
+			for _, ev in ipairs(g:drain_events()) do assert_true(ev.type ~= "gift") end
+		end
+	end)
+
 	-- the carpet (core-rules 10.8): three covered cells in the middle of a 7x7 board, two boxes as walls
 	local function carpet_level(extra)
 		local t = {
