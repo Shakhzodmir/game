@@ -1824,7 +1824,52 @@
       "semitones_from_c": 7,
       "bars": 8,
       "mood": "sunny barn-dance country: train beat, banjo rolls, fiddle, friendly and bouncy",
-      "songs": [],
+      "songs": [
+        {
+          "id": "haystack_breakdown",
+          "name": {
+            "ru": "Брейкдаун у стога",
+            "en": "Haystack Breakdown",
+            "ko": "건초더미 브레이크다운"
+          },
+          "bpm": 152,
+          "bars": 16,
+          "mood": "fast bluegrass breakdown without drums: the banjo carries the tune inside its rolls and hands it to the fiddle, a mandolin chops the off-beats, a guitar plays bass runs, an upright bass on one and three"
+        },
+        {
+          "id": "campfire_waltz",
+          "name": {
+            "ru": "Вальс у костра",
+            "en": "Campfire Waltz",
+            "ko": "모닥불 왈츠"
+          },
+          "bpm": 96,
+          "bars": 12,
+          "mood": "gentle waltz by the fire (sixteen bars of three): a finger-picked guitar, a harmonica sings, a fiddle takes the tune with the harmonica under it, a soft upright bass, the fire crackles"
+        },
+        {
+          "id": "tumbleweed_swing",
+          "name": {
+            "ru": "Свинг перекати-поля",
+            "en": "Tumbleweed Swing",
+            "ko": "회전초 스윙"
+          },
+          "bpm": 126,
+          "bars": 12,
+          "mood": "western swing shuffle: brushes and a ride, a walking upright bass, a sock-rhythm guitar on every beat, a sliding lap steel guitar tune, twin fiddles in thirds answering"
+        },
+        {
+          "id": "barn_piano_romp",
+          "name": {
+            "ru": "Старое пианино в амбаре",
+            "en": "Barn Piano Romp",
+            "ko": "헛간 피아노 소동"
+          },
+          "bpm": 138,
+          "bars": 12,
+          "mood": "honky-tonk piano romp: an out-of-tune upright piano with a stride left hand and a rattling tune in octaves, washboard and spoons, a tub bass, a banjo strumming the off-beats"
+        }
+      ],
       "chest": {
         "coins": 2600,
         "boosters": [

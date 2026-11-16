@@ -2948,6 +2948,278 @@ def steelpan_parade(s):
     return {"drums": d, "lead": lead, "vibes": row, "bass": bass, "brass": horns}
 
 
+# ============================================================ COUNTRY RANCH (G)
+# The ranch beyond its train-beat theme (music.py: the jug-band kit, the banjo, the fiddle, the harmonica, the tub
+# bass). Four other kinds of country music, none of them the hoedown of the theme or a song of the genre "country"
+# of songs_rnb.py (in D: a porch strum with a banjo-like pluck at 112, a twangy electric guitar with slide fills, a
+# barn-dance two-step at 128): haystack_breakdown is a fast bluegrass breakdown without drums (the banjo carries
+# the tune inside its rolls, then hands it to the fiddle, a mandolin chops the off-beats), campfire_waltz a slow
+# waltz for a harmonica and a fiddle over a finger-picked guitar and a crackling fire, tumbleweed_swing a western
+# swing shuffle (a lap steel guitar, twin fiddles, a walking bass, brushes), barn_piano_romp a honky-tonk piano
+# with a stride left hand over washboard, spoons and tub bass.
+
+def v_banjo(s, m, d, v=0.8):
+    return M.banjo_note(m, round(min(0.34, max(0.12, s.sec(d))), 3), s.sr, round(v, 2), key=m % 2)
+
+
+def v_fid(s, m, d, v=0.8, slide=0.0, vib=None, k=0):
+    """The fiddle of the ranch: one bow stroke per note, vibrato only on the notes that are held."""
+    vib = (1.0 if d >= 1.0 else 0.3) if vib is None else vib
+    return M.fiddle_note(m, round(s.sec(d) * 0.94, 3), s.sr, round(v, 2), key=k, slide=slide, vib=vib)
+
+
+def v_mouth_harp(s, m, d, v=0.8, k=0, bend=None):
+    bend = (0.7 if d >= 0.5 else 0.3) if bend is None else bend
+    return M.harmonica_note(m, round(s.sec(d) * 0.95, 3), s.sr, round(v, 2), key=k, bend=bend)
+
+
+def v_tub(s, m, d, v=0.8):
+    return M.tub_bass(m, s.sr, round(v, 2), key=m % 2)
+
+
+def v_tonk(s, m, d, v=0.8, rel=0.1):
+    """A honky-tonk piano: every note is two strings a sixth of a semitone apart (the piano nobody has tuned since
+    the barn was built), bright and short."""
+    du = round(s.sec(d), 3)
+    a = ins.piano(m - 0.07, du, s.sr, vel=round(v, 2), bright=1.0, release=rel, key=0)
+    b = ins.piano(m + 0.09, du, s.sr, vel=round(v, 2), bright=1.0, release=rel, key=1)
+    return a + 0.8 * b
+
+
+def banjo_roll(s, chords, tn, r, lead=True, mask=None):
+    """Three-finger picking on a 16th grid: where the tune `tn` has a note the thumb plays it (louder); every
+    other 16th is a fill, the top strings of the chord and the short high G string in turn. With lead=False
+    only the fills are played (a 'back-up' roll)."""
+    buf = s.zeros()
+    at_ = {int(round(b * 4)): (m, v) for b, d, m, v in tn}
+    fill = (1, 5, 2, 1, 5, 2, 1, 5)
+    for q in range(int(s.beats * 4)):
+        if mask is not None and (q // 16) % s.bars not in mask:
+            continue
+        beat = q * 0.25
+        c = chord_at(s, beat)
+        top = chord_notes(c, 55, 66, triad(c))[:2]  # the two strings the fingers rest on
+        if lead and q in at_:
+            m, v = at_[q]
+            x = v_banjo(s, m, 0.3, min(1.0, v + 0.12))
+        else:
+            if lead and (q - 1) in at_ and q % 2 == 1:
+                continue  # a breath after a note of the tune: the roll does not cover it
+            st = fill[q % 8]
+            m = 67 if st == 5 else top[st % len(top)]
+            x = v_banjo(s, m, 0.25, 0.5 if st == 5 else 0.6)
+        s.add(buf, x, beat, 1.0, dt=float(r.normal(0, 0.003)))
+    return buf
+
+
+def haystack_breakdown(s):
+    """152 BPM bluegrass breakdown, no drums: the banjo plays the tune inside its rolls for eight bars, then the
+    fiddle takes it (short bows, double stops on the long notes) while the banjo rolls behind; a mandolin chops
+    the off-beats like a snare, a guitar plays bass notes and brushes and a run into each half, an upright bass
+    sits on one and three."""
+    r = dsp.rng(s.id, "breakdown")
+    t, ch = s.tonic, s.chords
+    tn = tune("3:.5 5:.5 1+:1 1+:.5 6:.5 5:1 | 3:.5 5:.5 6:.5 5:.5 3:1 1:1 | 4:.5 6:.5 1+:1 1+:.5 6:.5 4:1 |"
+              " 5:.5 6:.5 5:.5 3:.5 1:2 | 3:.5 5:.5 1+:1 2+:.5 1+:.5 6:1 | 6:.5 1+:.5 4+:.5 1+:.5 6:1 4:1 |"
+              " 2+:1 7:.5 5:.5 7:1 2+:1 | 2+:.5 7:.5 2+:.5 4+:.5 2+:2 |"
+              " 3+:1 1+:.5 5:.5 3+:1 1+:1 | 3+:.5 2+:.5 1+:.5 6:.5 5:1 3:1 | 4:.5 6:.5 1+:.5 6:.5 4+:1 1+:1 |"
+              " 3+:.5 2+:.5 1+:.5 6:.5 1+:2 | 3:.5 5:.5 1+:.5 5:.5 3+:1 1+:1 | 2+:.5 7:.5 5:.5 7:.5 2+:.5 4+:.5 2+:1 |"
+              " 1+:.5 6:.5 5:.5 3:.5 2:.5 3:.5 1:1 | 1:2 r:2", t, 4)
+    first, second = bs("1-8"), bs("9-16")
+    bj = banjo_roll(s, ch, [e for e in tn if e[0] < 32], r, lead=True, mask=first)
+    bj += 0.7 * banjo_roll(s, ch, [], r, lead=False, mask=second)
+    bj = room(s, bj, 0.1, 0.7, "banjo", damp=6500)
+    fd = s.zeros()
+    for b, d, m, v in tn:
+        if b < 32:
+            continue
+        s.add(fd, v_fid(s, m, d, v, slide=0.7 if (b % 1 == 0 and d >= 1.0) else 0.0), b, dt=float(r.normal(0, 0.003)))
+        if d >= 1.0:  # a double stop: the chord tone under the note, on the next string
+            pcs = set(chord_at(s, b).pcs())
+            under = [x for x in range(m - 9, m - 2) if x % 12 in pcs]
+            if under:
+                s.add(fd, v_fid(s, under[-1], d, v * 0.55, vib=0.0, k=1), b, dt=0.004)
+    fd = room(s, loop_filter(s, fd, "hp", 200), 0.14, 0.9, "fiddle", damp=6000)
+    mando = strum_comp(s, ch, voicing(ch, 67, 83, 74, triad, span=12), lambda c, i: [(q + 1.0, 0.1, 0.85) for q in range(0, int(c.dur), 2)],
+                       r=r, bright=0.85, t60=0.25, mute=0.012, spread=0.004, alt=False)
+    mando = room(s, loop_filter(s, mando, "hp", 400), 0.08, 0.6, "mando", damp=6500)
+
+    def boom(c, n, i):
+        R = root_of(c, 43, 38, 49)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        if i == 7:  # the run into the second half: D E F# and home
+            return [(0, 0.9, R, 0.9), (2, 0.5, 50, 0.8), (2.5, 0.5, 52, 0.8), (3, 0.5, 54, 0.85), (3.5, 0.5, 50, 0.7)]
+        if i == 15:  # the 'G run' that ends a breakdown
+            return [(0, 0.9, R, 0.9), (1.5, 0.5, 43, 0.8), (2, 0.5, 45, 0.8), (2.5, 0.5, 47, 0.85), (3, 0.25, 50, 0.8),
+                    (3.25, 0.25, 52, 0.8), (3.5, 0.5, 55, 0.9)]
+        return [(0, 0.9, R, 0.9), (2, 0.9, R if i % 2 == 0 else F, 0.8)]
+    gb = line(s, ch, boom, lambda ss, m, du, v: ins.guitar(m, ss.sec(du), ss.sr, bright=0.55, t60=1.2, pick=0.16, mute=0.05,
+                                                            key=m % 2, damp=0.4) * v, r=r, jit=0.003)
+    gs = strum_comp(s, ch, voicing(ch, 55, 69, 62, triad, span=12), lambda c, i: [(q + 1.0, 0.3, 0.7) for q in range(0, int(c.dur), 2)],
+                    r=r, bright=0.6, t60=0.8, mute=0.03, spread=0.008, alt=False)
+    gtr = room(s, loop_filter(s, gb + 0.8 * gs, "hp", 75), 0.1, 0.7, "gtr", damp=6000)
+
+    def two(c, n, i):
+        R = root_of(c, 40, 36, 47)
+        F = R + 7 if R + 7 <= 47 else R - 5
+        return [(0, 0.9, R, 0.95), (2, 0.9, F if i % 2 == 0 else R, 0.85)]
+    bass = loop_filter(s, line(s, ch, two, v_upright, r=r, jit=0.003), "lp", 1600)
+    return {"lead": bj, "fiddle": fd, "chops": mando, "guitar": gtr, "bass": bass}
+
+
+def embers(s, seed="embers", per_beat=1.6):
+    """A camp fire: sparks that crack (tiny bursts of noise at random moments, a few of them loud) over the soft
+    breath of the flames. The moments are drawn on the loop itself, so the fire loops with the song."""
+    r = dsp.rng(s.id, seed)
+    buf = s.zeros()
+    for _ in range(int(s.beats * per_beat)):
+        n = nsamp(float(r.uniform(0.004, 0.02)), s.sr)
+        x = dsp.highpass(r.standard_normal(n), float(r.uniform(900, 3000)), s.sr, 2) * np.exp(-np.arange(n) / (0.25 * n))
+        s.add(buf, x, float(r.uniform(0, s.beats)), float(r.uniform(0.1, 1.0)) ** 2.5)
+    hiss = dsp.loop_apply(r.standard_normal(s.n), lambda z: dsp.bandpass(z, 300, 2500, s.sr))
+    flame = 0.6 + 0.4 * s.lfo(1.0 / (s.n / s.sr) * 5, 0.1) * s.lfo(1.0 / (s.n / s.sr) * 13, 0.4)
+    return buf / dsp.peak(buf) + 0.05 * hiss / dsp.peak(hiss) * flame
+
+
+def campfire_waltz(s):
+    """96 BPM waltz (three beats a bar, sixteen bars) by the fire: a guitar picks the bass on one and two soft
+    strings on two and three, a harmonica sings the tune, in the second half a fiddle takes it and the
+    harmonica moves a third or a fourth under it, an upright bass marks the bars, the fire crackles."""
+    r = dsp.rng(s.id, "campfire")
+    t, ch = s.tonic, s.chords
+    gt = s.zeros()
+    for c, v in zip(ch, voicing(ch, 55, 69, 62, no_root, span=12)):
+        for w in range(int(c.dur // 3)):
+            o = c.start + w * 3
+            R = root_of(c, 43, 38, 49)
+            s.add(gt, v_nylon(s, R if w % 2 == 0 else (R + 7 if R + 7 <= 50 else R - 5), 2.6, 0.9), o,
+                  dt=float(r.normal(0.003, 0.003)))
+            for bt, vel in ((1, 0.55), (2, 0.5)):
+                for j, m in enumerate(v[-2:]):
+                    s.add(gt, v_nylon(s, m, 1.2, vel), o + bt, dt=j * 0.014 + float(r.normal(0.003, 0.003)))
+    gt = room(s, loop_filter(s, gt, "hp", 70), 0.18, 1.3, "guitar", damp=5000)
+    tn = tune("3:1 5:1 1+:1 | 3+:2 2+:1 | 1+:2 6:1 | 5:3 | 3:1 5:1 1+:1 | 3+:2 1+:1 | 2+:2 7:1 | 2+:2 r:1 |"
+              " 3+:1 2+:1 1+:1 | 5:2 3:1 | 4:1 6:1 1+:1 | 3+:2 1+:1 | 6:1 1+:1 4+:1 | 2+:1 7:1 2+:1 | 1+:3 | r:3",
+              t, 4, bar=3.0)
+    a, b2 = [e for e in tn if e[0] < 24], [e for e in tn if e[0] >= 24]
+    hp = lay(s, v_mouth_harp, a, r=r, jit=0.005)
+    hp += lay(s, lambda ss, m, du, v: v_mouth_harp(ss, m, du, v, k=1, bend=0.3), second_voice(s, b2, 0.6), r=r, jit=0.005)
+    hp = room(s, echo(s, loop_filter(s, hp, "hp", 300), 0.75, 0.1, 0.3, 2, 3000), 0.24, 1.5, "harp", damp=4500,
+              predelay=0.02)
+    fd = lay(s, lambda ss, m, du, v: v_fid(ss, m, du, v * 0.9, slide=0.5 if du >= 2.0 else 0.0, vib=1.0), b2, r=r,
+             jit=0.005)
+    fd = room(s, loop_filter(s, loop_filter(s, fd, "hp", 200), "lp", 3600), 0.26, 1.6, "fiddle", damp=4500, predelay=0.02)
+
+    def ones(c, n, i):
+        R = root_of(c, 40, 36, 47)
+        return [(w * 3, 2.4, R, 0.85) for w in range(int(c.dur // 3))]
+    bass = loop_filter(s, line(s, ch, ones, v_upright, r=r, jit=0.004), "lp", 1200)
+    fire = loop_filter(s, embers(s), "lp", 6000)
+    return {"guitar": gt, "lead": hp, "fiddle": fd, "bass": bass, "fx": fire}
+
+
+def lap_steel(s, evs, swing=0.0, key="steel"):
+    """A lap steel guitar: the bar slides from note to note (a long glide), every note swells in and sings with a
+    slow, wide vibrato; clean, round, no pick."""
+    ev = [(sw(b, swing, 0.5) if swing else b, d, m, v) for b, d, m, v in evs]
+    src, env, onset = render_line(s, events(s, ev), osc="saw", glide=0.07, legato_gap=0.004, attack=0.045, release=0.12,
+                                  vib_rate=4.6, vib_depth=0.2, vib_delay=0.22, key=key)
+    x = src * env
+    x = dsp.lowpass(dsp.highpass(x, 200, s.sr, 2), 2600, s.sr, 2)
+    x = dsp.filt(x, "peak", 900, s.sr, q=1.0, gain_db=3.0)
+    x = dsp.tube(x / (dsp.peak(x) + 1e-9) * 1.2, 1.2, s.sr, 0.08)
+    return wrap(s, x / (dsp.peak(x) + 1e-9))
+
+
+def tumbleweed_swing(s):
+    """126 BPM western swing shuffle: brushes and a ride swing the 8ths, an upright bass walks four to the bar,
+    an arch-top guitar 'socks' a chord on every beat (louder on two and four), a lap steel guitar slides through
+    the tune and twin fiddles in thirds answer at the ends of its phrases."""
+    r = dsp.rng(s.id, "swing")
+    t, ch = s.tonic, s.chords
+    SW = 0.33
+    k = kits(s, "jazz")
+    d = s.zeros()
+    hits(s, d, k["ride"], "x..x.xx..x.x", r, gain=0.3, jit=0.004)
+    hits(s, d, k["tap"], "o.gx.go.gx.g", r, gain=0.55, jit=0.004)
+    hits(s, d, k["chick"], "...x.....x..", r, gain=0.4, jit=0.003)
+    hits(s, d, k["feather"], "x..x..x..x..", r, gain=0.5, jit=0.003)
+    hits(s, d, k["snare"], {3: ".........x.x", 7: "......x..x.x", 11: "...x.....x.."}, r, gain=0.35, jit=0.003)
+    d = room(s, loop_filter(s, d, "lp", 8000), 0.12, 0.8, "drums", damp=5500)
+    bass = s.zeros()
+    for beat, m, v in walk(s, lo=38, hi=55, seed="tumble"):
+        s.add(bass, v_upright(s, m, 0.9, v), beat, dt=float(r.normal(0, 0.004)))
+    bass = loop_filter(s, bass, "lp", 1800)
+    gtr = strum_comp(s, ch, voicing(ch, 55, 71, 63, lambda c: c.tones[:4], span=12),
+                     lambda c, i: [(q, 0.3, 0.85 if q % 2 else 0.6) for q in range(int(c.dur))], r=r, bright=0.45,
+                     t60=0.5, mute=0.03, spread=0.006, alt=False)
+    gtr = room(s, loop_filter(s, gtr, "hp", 150), 0.1, 0.7, "gtr", damp=5000)
+    tn = tune("r:.5 5:.5 6:.5 1+:.5 3+:1.5 1+:.5 | 2+:.5 1+:.5 6:.5 5:.5 6:2 | r:.5 4:.5 6:.5 1+:.5 2+:1.5 1+:.5 |"
+              " 6:.5 5:.5 3:.5 5:.5 1+:2 | r:.5 6:.5 1+:.5 2+:.5 4+:1.5 2+:.5 | 7:.5 2+:.5 4+:.5 2+:.5 7:1 5:1 |"
+              " 3:.5 5:.5 6:.5 1+:.5 3+:1 2+:.5 1+:.5 | 2+:1.5 7:.5 5:1 r:1 | r:.5 5:.5 6:.5 1+:.5 3+:1.5 5+:.5 |"
+              " 4+:1 3+:.5 1+:.5 6:2 | 1+:.5 6:.5 4:.5 6:.5 7:.5 5:.5 4:.5 2:.5 | 3:.5 5:.5 1+:2 r:1", t, 4)
+    steel = lap_steel(s, tn, SW, key="tumble")
+    steel = room(s, echo(s, steel, 0.75, 0.14, 0.3, 2, 2800), 0.2, 1.2, "steel", damp=4500, predelay=0.015)
+    fl = tune("r:4 | r:2 3+:.5 2+:.5 1+:1 | r:4 | r:2 3+:.5 5+:.5 3+:1 | r:4 | r:4 | r:4 | r:3 5:.5 7:.5 |"
+              " r:4 | r:2 1+:.5 2+:.5 3+:1 | r:4 | r:2.5 3+:.5 5+:.5 3+:.5", t, 4)
+    fd = lay(s, lambda ss, m, du, v: v_fid(ss, m, du, v), fl, swing=SW, grid=0.5, r=r, jit=0.004)
+    fd += lay(s, lambda ss, m, du, v: v_fid(ss, m, du, v, k=1), thirds_below(fl, t, 0.8), swing=SW, grid=0.5, r=r,
+              jit=0.005, dt=0.005)
+    fd = room(s, loop_filter(s, fd, "hp", 220), 0.18, 1.1, "fiddles", damp=5500)
+    return {"drums": d, "bass": bass, "guitar": gtr, "lead": steel, "fiddle": fd}
+
+
+def barn_piano_romp(s):
+    """138 BPM honky-tonk romp: an out-of-tune upright piano, the left hand striding (a low note on one and
+    three, a chord on two and four), the right hand rattling the tune in octaves with a crushed note before the
+    long ones; a washboard and spoons keep time, a tub bass thumps along and a banjo strums the off-beats."""
+    r = dsp.rng(s.id, "romp")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "ranch")
+    d = s.zeros()
+    hits(s, d, k["wash"], "x.o.x.o.x.o.x.o.", r, gain=0.45, jit=0.003)
+    hits(s, d, k["wash_acc"], "..x...x...x...x.", r, gain=0.6, jit=0.003)
+    hits(s, d, k["spoon_lo"], {"*": "....x.......x...", 3: "....x.......x.x.", 7: "....x.....x.x...", 11: "....x...x.x.x..."},
+         r, gain=0.35, jit=0.003)
+    hits(s, d, k["spoon_hi"], {"*": "......x.......x.", 11: "......x........."}, r, gain=0.25, jit=0.003)
+    d = room(s, d, 0.1, 0.7, "perc", damp=6000)
+
+    def stride(c, n, i):
+        R = root_of(c, 43, 38, 49)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        return [(0, 0.8, R, 0.9), (2, 0.8, F, 0.8)] if c.dur >= 4 else [(0, 0.8, R, 0.9)]
+    lh = line(s, ch, stride, lambda ss, m, du, v: v_tonk(ss, m, du, v) + 0.6 * v_tonk(ss, m - 12, du, v), r=r, jit=0.003)
+    lh += comp(s, ch, voicing(ch, 55, 71, 63, lambda c: c.tones[:4], span=12),
+               lambda c, i: [(q, 0.3, 0.7) for q in range(1, int(c.dur), 2)], lambda ss, m, du, v: v_tonk(ss, m, du, v, 0.06),
+               r=r, jit=0.003, spread=0.004)
+    lh = room(s, loop_filter(s, lh, "hp", 60), 0.12, 0.8, "lh", damp=5500)
+    tn = tune("3:.5 5:.5 1+:.5 5:.5 3+:1 1+:1 | 2+:.5 1+:.5 6:.5 5:.5 6:.5 1+:.5 5:1 | 4:.5 6:.5 1+:.5 6:.5 4+:1 1+:1 |"
+              " 3+:.5 2+:.5 1+:.5 6:.5 5:2 | 3:.5 5:.5 1+:.5 5:.5 3+:1 5+:1 | 3+:.5 5+:.5 3+:.5 1+:.5 6:1 3:1 |"
+              " 6:.5 1+:.5 2+:.5 1+:.5 4+:1 2+:1 | 7:.5 2+:.5 4+:.5 2+:.5 7:.5 5:.5 2:1 |"
+              " 3:.5 5:.5 1+:.5 5:.5 3+:1 1+:1 | 4+:.5 3+:.5 1+:.5 6:.5 4:1 6:1 |"
+              " 5:.5 1+:.5 3+:.5 1+:.5 2+:.5 7:.5 5:.5 7:.5 | 1+:1 5:.5 3:.5 1:1 r:1", t, 4)
+    rh = s.zeros()
+    for b, du, m, v in tn:
+        j = float(r.normal(0, 0.003))
+        s.add(rh, v_tonk(s, m, du, v, 0.12), b, dt=j)
+        s.add(rh, v_tonk(s, m + 12, du, v * 0.75, 0.12), b, dt=j + 0.004)
+        if du >= 1.0 and b % 1 == 0:  # the crushed note: the scale step below, a 32nd early
+            s.add(rh, v_tonk(s, scale_step(t, m + 12, False), 0.12, v * 0.5, 0.04), b - 0.125, dt=j)
+    rh = room(s, loop_filter(s, rh, "hp", 200), 0.14, 0.9, "rh", damp=6500)
+    bj = comp(s, ch, voicing(ch, 59, 74, 66, triad, span=12), offbeat(0.15, 0.75), v_banjo, r=r, jit=0.003, spread=0.007)
+    bj = room(s, bj, 0.1, 0.7, "banjo", damp=6500)
+
+    def thump(c, n, i):
+        R = root_of(c, 43, 38, 49)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        ap = scale_step(t, root_of(n, 43, 38, 49), False)
+        if c.dur < 4:
+            return [(0, 0.5, R, 0.9), (1, 0.5, F, 0.75)]
+        return [(0, 0.5, R, 0.95), (1, 0.5, F, 0.75), (2, 0.5, R, 0.9), (3, 0.5, F, 0.75), (3.5, 0.4, ap, 0.65)]
+    bass = loop_filter(s, line(s, ch, thump, v_tub, r=r, jit=0.003), "lp", 1600)
+    return {"drums": d, "keys": lh, "lead": rh, "guitar": bj, "bass": bass}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -3056,6 +3328,15 @@ SONGS = {
                       {"drums": -18, "bass": -18, "guitar": -23, "organ": -24, "lead": -20, "vibes": -23, "fx": -27}),
     "steelpan_parade": ("I:4 IV:4 V7:4 I:4 I:4 IV:4 V7:4 I:4 IV:2 V7:2 I:4", steelpan_parade,
                         {"drums": -19, "lead": -17.5, "vibes": -22, "bass": -20, "brass": -20}),
+    # ranch (G major)
+    "haystack_breakdown": ("I:4 I:4 IV:4 I:4 I:4 IV:4 V7:4 V7:4 I:4 I:4 IV:4 I:4 I:4 V7:4 I:4 I:4", haystack_breakdown,
+                           {"lead": -18.5, "fiddle": -18, "chops": -23, "guitar": -20, "bass": -18.5}),
+    "campfire_waltz": ("I:3 I:3 IV:3 I:3 I:3 vi:3 V7:3 V7:3 I:3 I:3 IV:3 I:3 IV:3 V7:3 I:6", campfire_waltz,
+                       {"guitar": -20, "lead": -18.5, "fiddle": -19, "bass": -23, "fx": -33}),
+    "tumbleweed_swing": ("I6:4 I6:4 IV6:4 I6:4 ii7:4 V7:4 I6:4 V7:4 I6:4 IV6:4 ii7:2 V7:2 I6:4", tumbleweed_swing,
+                         {"drums": -20, "bass": -19, "guitar": -22, "lead": -18, "fiddle": -20}),
+    "barn_piano_romp": ("I:4 I:4 IV:4 I:4 I:4 vi:4 ii7:4 V7:4 I:4 IV:4 I:2 V7:2 I:4", barn_piano_romp,
+                        {"drums": -20, "keys": -20, "lead": -18, "guitar": -24, "bass": -21.5}),
 }
 
 

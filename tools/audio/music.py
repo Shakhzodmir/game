@@ -3532,18 +3532,18 @@ def ranch_claps(s):
     for bar in range(s.bars):
         for bt, what, v in RANCH_STOMPS.get(bar, RANCH_STOMPS["*"]):
             if what == "s":
-                hit(s, b, k["stomp"], bar * 4 + bt, v, r, 0.004)
-                hit(s, b, k["stomp"], bar * 4 + bt, 0.5 * v, r, 0.012)
+                hit(s, b, k["stomp"], bar * 4 + bt, 0.7 * v, r, 0.004)
+                hit(s, b, k["stomp"], bar * 4 + bt, 0.35 * v, r, 0.012)
             else:
                 for j in range(4):
-                    hit(s, b, k["clap"], bar * 4 + bt, 0.55 * v, r, 0.009)
+                    hit(s, b, k["clap"], bar * 4 + bt, 0.7 * v, r, 0.009)
     b = b / dsp.peak(b)
     w = s.zeros()
     for j, (beat, lo, hi) in enumerate(((0.5, 62, 79), (16.5, 62, 79))):
         s.add(w, whoop(s.sr, key=j, lo=lo, hi=hi), beat, 1.0)
         s.add(w, whoop(s.sr, key=5 + j, lo=lo - 12, hi=hi - 12, dur=0.4), beat, 0.5, dt=0.03)
     w = loop_filter(s, loop_filter(s, w, "hp", 250), "lp", 5000)
-    return room(s, b + 0.5 * w / dsp.peak(w), 0.16, 0.9, "claps", damp=5500)
+    return room(s, b + 0.6 * w / dsp.peak(w), 0.16, 0.9, "claps", damp=5500)
 
 
 # The fiddle tune, G4-B5, singable: 'da, da-da DAA' on G, the same a step higher on C, a run over the top on G
@@ -3832,7 +3832,7 @@ def party_stem(s, style):
                     x = ins.epiano(m, s.sec(0.3), s.sr, vel=0.8, bright=1.0, release=0.1)
                 elif style == "skyclub":  # house piano
                     x = ins.piano(m, round(s.sec(0.4), 4), s.sr, vel=0.85, bright=0.9, release=0.12)
-                elif style == "ranch":  # the upright piano of the saloon, short bright chords
+                elif style == "ranch":  # the upright piano of the barn dance, short bright chords
                     x = ins.piano(m, round(s.sec(0.3), 4), s.sr, vel=0.9, bright=1.0, release=0.08, key=j % 2)
                 else:
                     x = ins.brass(m, s.sec(0.3), s.sr, vel=0.9, key=j)
