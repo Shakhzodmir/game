@@ -128,7 +128,7 @@ describe("tools levels", function()
 		local raw = F.level_table({ goals = { { type = "carpet" } }, carpet = { { 2, 3 }, { 3, 3 } } })
 		assert_same(Levels.elements(raw), { "carpet" })
 		assert_same(Levels.elements(F.level_table({ goals = { { type = "carpet" } } })), { "carpet" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "carpet")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 2], "carpet")
 		assert_eq(Levels.goals_text(raw), "carpet")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
@@ -147,7 +147,7 @@ describe("tools levels", function()
 			curtain = { covers = { { 2, 3 }, { 3, 3 } }, closed_moves = 2, open_moves = 3, start = "closed" },
 		})
 		assert_same(Levels.elements(raw), { "dancefloor", "curtain" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 2], "curtain")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 3], "curtain")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		assert_true(lines[6]:find("+ _t +  t", 1, true) ~= nil, lines[6])
