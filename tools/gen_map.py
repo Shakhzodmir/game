@@ -30,6 +30,15 @@ TILE_FEATHER = 110  # px at the bottom of a background tile that fade out (tools
 TILE_STEP = 740     # a tile starts this far above the one below: it covers the sky (the top 230 px) of that one
 
 
+def load_gate_signs():
+    """{district: {dx, dy, w, h}}: where the name goes on the gate picture (tools/art/gate_signs.py); {} without it."""
+    try:
+        with open(os.path.join(ROOT, "content", "map_gates.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except OSError:
+        return {}
+
+
 def load_content():
     """(districts = [{id, first, last, tint}], concerts = set of concert levels) from the content files."""
     with open(os.path.join(ROOT, "content", "districts.json"), encoding="utf-8") as f:
@@ -49,6 +58,7 @@ def load_content():
 
 
 DISTRICTS, CONCERTS = load_content()
+SIGNS = load_gate_signs()
 LEVELS = DISTRICTS[-1]["last"]
 FIRSTS = {d["first"] for d in DISTRICTS}
 LASTS = {d["last"] for d in DISTRICTS}
@@ -93,12 +103,15 @@ def build():
                 "y": y,
                 "scale": round(0.8 + ((j * 37) % 5) * 0.06, 2),
             })
-        segments.append({
+        seg = {
             "id": did, "district": did, "first": first, "last": last, "y0": y0, "y1": y1,
             "bg": "mapbg/bg_" + did, "gate": "mapbg/gate_" + did, "gate_y": gate_y,
             "tint": dist["tint"],
             "deco": deco,
-        })
+        }
+        if did in SIGNS:   # the blank signboard of this gate picture: the name is written in its middle
+            seg["sign"] = SIGNS[did]
+        segments.append(seg)
     return {
         "version": 1,
         "width": 720,
