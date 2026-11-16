@@ -14,6 +14,7 @@ local K_REGULAR, S_IDLE = C.K_REGULAR, C.S_IDLE
 
 -- Colour of every regular idle piece (wired and pinned too), else 0.
 -- A piece under a closed curtain has no colour: it takes no part in matches (10.7).
+-- Neither has a frozen piece (10.11): a line through it is not a match.
 function M.color_map(s)
 	local col = {}
 	local slot, objs = s.slot, s.objs
@@ -23,7 +24,7 @@ function M.color_map(s)
 		local c = 0
 		if id ~= 0 and not (veil and veil[i]) then
 			local o = objs[id]
-			if o.kind == K_REGULAR and o.state == S_IDLE then c = o.color end
+			if o.kind == K_REGULAR and o.state == S_IDLE and o.ice == 0 then c = o.color end
 		end
 		col[i] = c
 	end
@@ -362,6 +363,8 @@ end
 -- the resolved groups. Clears the dirty flag, unless a chained piece
 -- survived a match hit (10.6): it is still idle on the board, so the next
 -- search looks again (the survivors of one group may line up by themselves).
+-- The same flag is raised when an adjacent hit of a group thaws a frozen piece
+-- (10.11): the freed piece may stand in a ready-made line, the next search finds it.
 function M.search(s, swaps)
 	s.chain_hit = false
 	local col = M.color_map(s)

@@ -664,6 +664,76 @@ describe("tools bot: the documented behaviour", function()
 		assert_eq(ha, hb)
 	end)
 
+	-- the ice (core-rules 10.11): eight frozen pieces on a 7x7 board, some with two layers
+	local function ice_level(extra)
+		local t = {
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "ice", count = 8 } },
+			overlay = {
+				{ at = { 1, 3 }, type = "ice", hp = 2 }, { at = { 2, 3 }, type = "ice", hp = 1 },
+				{ at = { 4, 3 }, type = "ice", hp = 1 }, { at = { 5, 3 }, type = "ice", hp = 2 },
+				{ at = { 0, 6 }, type = "ice", hp = 1 }, { at = { 6, 6 }, type = "ice", hp = 1 },
+				{ at = { 3, 5 }, type = "ice", hp = 2 }, { at = { 3, 1 }, type = "ice", hp = 1 },
+			},
+		}
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small ice level and plays the same game twice", function()
+		local e = ice_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+		local a = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		local b = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		assert_same({ a.won, a.moves_used, a.score }, { b.won, b.moves_used, b.score })
+	end)
+
+	it("pays Bot.W.melt for every hp a move melts, only with an `ice` goal; never proposes a frozen piece", function()
+		local e = ice_level()
+		local g = core.new(e.level, { seed = 2 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		assert_eq(Bot.ice_hp(bot, g), 11)
+		assert_true(Bot.W.melt > 0)
+		-- the same board with a collect goal: no ice term
+		local col = ice_level({ goals = { { type = "collect", color = "red", count = 40 } } })
+		local cbot = Bot.new("greedy", { seed = 1, goals = col.goals, width = 7 })
+		assert_eq(Bot.ice_hp(cbot, core.new(col.level, { seed = 2 })), nil)
+		-- a level without ice: nothing either
+		local plain = F.entry()
+		assert_eq(Bot.ice_hp(Bot.new("greedy", { seed = 1, goals = plain.goals, width = 7 }), core.new(plain.level, { seed = 2 })), nil)
+		-- no candidate moves a frozen piece
+		local frozen = {}
+		for _, p in ipairs(g:pieces()) do
+			if p.ice then frozen[p.y * 64 + p.x] = true end
+		end
+		for _, cd in ipairs(Bot.candidates(g)) do
+			if cd.cmd.type == "swap" then
+				assert_true(not frozen[cd.cmd.from[2] * 64 + cd.cmd.from[1]] and not frozen[cd.cmd.to[2] * 64 + cd.cmd.to[1]])
+			end
+		end
+		-- the bot does choose a move that melts ice when one is on offer
+		local hit = 0
+		for seed = 1, 4 do
+			local gg = core.new(e.level, { seed = seed, timing = "turbo" })
+			local bb = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+			for _ = 1, 4 do
+				local cmd = bb:choose(gg)
+				if not cmd or gg:status().state ~= "playing" then break end
+				gg:input(cmd)
+				gg:run_to_rest()
+			end
+			if Bot.ice_hp(bb, gg) < 11 then hit = hit + 1 end
+		end
+		assert_true(hit >= 3, "ice was melted in " .. hit .. " of 4 games within four moves")
+	end)
+
 	it("refuses an unknown bot kind and a budget below the schema's minimum", function()
 		assert_error(function() Bot.new("clever", {}) end, "unknown kind")
 		local e = F.entry()

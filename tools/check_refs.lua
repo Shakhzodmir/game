@@ -110,6 +110,7 @@ M.ANIM_FAMILIES = {
 	["blockers_concrete_"] = { 1, 2 },
 	["blockers_column_"] = { 1, 2, 3 },
 	["blockers_wires_"] = { 1, 2 },
+	["blockers_ice_"] = { 1, 2 },
 }
 
 -- Lua that runs inside the town GUI scene (ui + meta atlases, no "game" atlas): an atlas image it draws must
@@ -972,6 +973,7 @@ local function key_families(data)
 	blockers[#blockers + 1] = "curtain"
 	blockers[#blockers + 1] = "carpet"
 	blockers[#blockers + 1] = "conveyor"
+	blockers[#blockers + 1] = "ice"
 	fam["blocker."] = blockers
 	fam["praise."] = { "1", "2", "3", "4", "5" }
 	local stems = {}

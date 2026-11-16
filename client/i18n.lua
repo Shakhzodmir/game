@@ -106,6 +106,10 @@ local S = {
 		en = "A chained piece can't be moved — make a match with it",
 		ru = "Фишку на цепи не сдвинуть — собери с ней ряд",
 	},
+	["level.fixed_frozen"] = {
+		en = "A frozen piece can't be moved — make a match next to it",
+		ru = "Фишку во льду не сдвинуть — собери ряд рядом",
+	},
 
 	-- level effects: combo titles over the board, the final concert (screens/level/level_fx.gui_script) --
 	["combo.cross"] = { en = "Cross!", ru = "Крест!" },
@@ -172,6 +176,7 @@ local S = {
 	["blocker.carpet"] = { en = "Carpet", ru = "Ковёр" },
 	["blocker.conveyor"] = { en = "Conveyor", ru = "Конвейер" },
 	["blocker.boombox"] = { en = "Boombox", ru = "Бумбокс" },
+	["blocker.ice"] = { en = "Ice", ru = "Лёд" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -207,6 +212,10 @@ local S = {
 	["blocker.coconut_desc"] = {
 		en = "A coconut never pops. Clear the pieces under it and bring it down to the bottom row.",
 		ru = "Кокос не лопается. Убирай фишки под ним и доведи его до нижнего ряда.",
+	},
+	["blocker.ice_desc"] = {
+		en = "A frozen piece doesn't move and doesn't match. Make a match next to it and the ice melts.",
+		ru = "Фишка во льду не двигается и не собирается в ряд. Собери ряд рядом, и лёд растает.",
 	},
 	["blocker.boombox_desc"] = {
 		en = "Match next to the boombox: it pops three more pieces of that colour.",
@@ -353,6 +362,10 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	["tutorial.ice"] = {
+		en = "Ice melts from matches right next to it!",
+		ru = "Лёд тает от рядов по соседству!",
+	},
 	["tutorial.boombox"] = {
 		en = "A match by the boombox pops three more!",
 		ru = "Ряд рядом с бумбоксом лопает ещё три таких же!",

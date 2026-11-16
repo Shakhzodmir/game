@@ -46,6 +46,12 @@
 -- level with a `break boombox` goal, is Bot.W.boom for every hp unit a move
 -- takes off a boombox (Bot.boombox_hp): the first hits on a boombox of hp 2-3
 -- move no goal counter. Levels without that goal pay nothing.
+-- On a level with ice (core-rules 10.11) the core already keeps frozen pieces
+-- out of moves() and out of every match, so the bot never tries to move or
+-- match one; its own colour maps skip them too. What the bot adds, on a level
+-- with an `ice` goal, is Bot.W.melt for every hp unit a move takes off the ice
+-- (Bot.ice_hp): the first hit on ice of hp 2 moves no goal counter. Levels
+-- without that goal pay nothing.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -70,7 +76,7 @@ local SPECIAL_RANK = { bird = 1, riff = 2, sub = 3, disco = 4 }
 -- adds best2 * second_ply_num / second_ply_den.
 Bot.SCALE = 1000
 Bot.W = {
-	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4, rug = 2, boom = 3,
+	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4, rug = 2, boom = 3, melt = 3,
 	combo_greedy = 5, combo_strong = 15, combo_disco_strong = 25,
 	win_strong = 1000, near_goal = 3, rank_strong = 1, second_ply_num = 1, second_ply_den = 2,
 }
@@ -97,6 +103,7 @@ function Bot.new(kind, opts)
 		chains = false,             -- the level has a `chains` goal (10.6)
 		rug = false,                -- the level has a `carpet` goal (10.8)
 		boom = false,               -- the level has a `break boombox` goal (10.10)
+		ice = false,                -- the level has an `ice` goal (10.11)
 		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
@@ -106,6 +113,7 @@ function Bot.new(kind, opts)
 		if self.goals[k].type == "chains" then self.chains = true end
 		if self.goals[k].type == "carpet" then self.rug = true end
 		if self.goals[k].type == "break" and self.goals[k].item == "boombox" then self.boom = true end
+		if self.goals[k].type == "ice" then self.ice = true end
 	end
 	return self
 end
@@ -193,19 +201,21 @@ end
 -- of open `break` goals, mics, coconuts). Collect goals have no cells.
 local function goal_targets(self, game, map, left)
 	local want_item, want_mic, want_floor, want_coconut = {}, false, false, false
+	local want_ice = false
 	for k = 1, #self.goals do
 		local g = self.goals[k]
 		if (left[k] or 0) > 0 then
 			if g.type == "break" then want_item[g.item] = true
 			elseif g.type == "deliver" then want_mic = true
 			elseif g.type == "drop" then want_coconut = true
-			elseif g.type == "light" then want_floor = true end
+			elseif g.type == "light" then want_floor = true
+			elseif g.type == "ice" then want_ice = true end
 		end
 	end
 	local cells = {}
 	for _, p in pairs(map) do -- order-independent (a set of cells)
 		if (p.item and want_item[p.item]) or (want_mic and p.kind == "mic")
-			or (want_coconut and p.kind == "coconut") then
+			or (want_coconut and p.kind == "coconut") or (want_ice and p.ice) then
 			cells[#cells + 1] = { p.x, p.y }
 		end
 	end
@@ -278,7 +288,7 @@ function Bot.carpet_moves(self, game)
 	local list = game:pieces()
 	for k = 1, #list do
 		local p = list[k]
-		if p.kind == "regular" and p.state == "idle" and not p.veiled then color[(p.y - 1) * W + p.x] = p.color end
+		if p.kind == "regular" and p.state == "idle" and not p.veiled and not p.ice then color[(p.y - 1) * W + p.x] = p.color end
 	end
 	local function col(x, y)
 		if x < 1 or x > W or y < 1 or y > Hh then return nil end
@@ -356,6 +366,17 @@ function Bot.boombox_hp(self, game)
 		local p = list[k]
 		if p.item == "boombox" and p.state == "idle" then n = n + (p.hp or 0) end
 	end
+	return n
+end
+
+-- Total hp of the ice on the board (10.11), only on a level with an `ice` goal; nil otherwise, so the other
+-- levels pay nothing and choose as before. Ice never appears during a game: the difference of two values
+-- is the hp a move melted.
+function Bot.ice_hp(self, game)
+	if not self.ice then return nil end
+	local n = 0
+	local list = game:pieces()
+	for k = 1, #list do n = n + (list[k].ice or 0) end
 	return n
 end
 
@@ -509,7 +530,7 @@ end
 function Bot.static_specials(game, map, cands)
 	local color = {}
 	for k, p in pairs(map) do -- order-independent (a map copy)
-		if p.kind == "regular" and (p.state == "idle") and not p.veiled then color[k] = p.color end
+		if p.kind == "regular" and (p.state == "idle") and not p.veiled and not p.ice then color[k] = p.color end
 	end
 	local function c(x, y) return color[key(x, y)] end
 	local function classify(x, y, col)
@@ -600,6 +621,7 @@ function Bot:choose(game)
 	local ready = Bot.chain_ready(self, game)
 	local work = Bot.curtain_work(self, game)
 	local booms = Bot.boombox_hp(self, game)
+	local frost = Bot.ice_hp(self, game)
 	local rug = self.rug
 	local W = Bot.W
 	local scored = {}
@@ -614,6 +636,7 @@ function Bot:choose(game)
 			if links then sc = sc + chain_score(self, links, ready, clone) end
 			if work then sc = sc + Bot.SCALE * W.drape * math.max(0, work - Bot.curtain_work(self, clone)) end
 			if booms then sc = sc + Bot.SCALE * W.boom * math.max(0, booms - Bot.boombox_hp(self, clone)) end
+			if frost then sc = sc + Bot.SCALE * W.melt * math.max(0, frost - Bot.ice_hp(self, clone)) end
 			if rug and not acc.won then sc = sc + Bot.SCALE * W.rug * Bot.carpet_moves(self, clone) end
 			if strong then
 				local extra = acc.won and W.win_strong or 0
@@ -645,6 +668,7 @@ function Bot:choose(game)
 				local ready2 = Bot.chain_ready(self, e.clone)
 				local work2 = Bot.curtain_work(self, e.clone)
 				local booms2 = Bot.boombox_hp(self, e.clone)
+				local frost2 = Bot.ice_hp(self, e.clone)
 				for j = 1, math.min(3, #hits) do
 					local cl2, acc2 = Bot.simulate(self, e.clone, hits[j].cand)
 					if cl2 then
@@ -655,6 +679,7 @@ function Bot:choose(game)
 						if links2 then s2 = s2 + chain_score(self, links2, ready2, cl2) end
 						if work2 then s2 = s2 + Bot.SCALE * W.drape * math.max(0, work2 - Bot.curtain_work(self, cl2)) end
 						if booms2 then s2 = s2 + Bot.SCALE * W.boom * math.max(0, booms2 - Bot.boombox_hp(self, cl2)) end
+						if frost2 then s2 = s2 + Bot.SCALE * W.melt * math.max(0, frost2 - Bot.ice_hp(self, cl2)) end
 						if acc2.won then s2 = s2 + Bot.SCALE * W.win_strong / 10 end
 						if s2 > best2 then best2 = s2 end
 					end

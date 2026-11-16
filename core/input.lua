@@ -46,7 +46,7 @@ function I.swap_target(s, fx, fy, tx, ty)
 		else
 			local ot = B.get(s, (ty - 1) * W + tx)
 			if ot == nil or (ot.kind == K_BLOCKER and ot.state == S_IDLE) or B.veiled(s, (ty - 1) * W + tx)
-				or (ot.kind == K_REGULAR and (s.wires[ot.cell] > 0 or ot.chain > 0)) then
+				or (ot.kind == K_REGULAR and (s.wires[ot.cell] > 0 or ot.chain > 0 or ot.ice > 0)) then
 				swipe = true
 			end
 		end
@@ -217,7 +217,7 @@ local function do_continue(s, cmd)
 		local cands = {}
 		for i = 1, s.N do
 			local o = B.get(s, i)
-			if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 and not B.veiled(s, i) then
+			if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 and o.ice == 0 and not B.veiled(s, i) then
 				cands[#cands + 1] = o
 			end
 		end
@@ -248,7 +248,7 @@ local function do_bonus(s, cmd)
 	local cands = {}
 	for i = 1, s.N do
 		local o = B.get(s, i)
-		if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 and not B.veiled(s, i) then
+		if o and o.kind == K_REGULAR and o.state == S_IDLE and s.wires[i] == 0 and o.chain == 0 and o.ice == 0 and not B.veiled(s, i) then
 			cands[#cands + 1] = o
 		end
 	end

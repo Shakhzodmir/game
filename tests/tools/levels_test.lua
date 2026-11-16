@@ -110,7 +110,7 @@ describe("tools levels", function()
 		local raw = F.level_table({ conveyor = { { path = { { 1, 3 }, { 2, 3 }, { 3, 3 }, { 3, 4 } } } },
 			floor = { { at = { 2, 3 }, hp = 1 } }, goals = { { type = "light" } } })
 		assert_same(Levels.elements(raw), { "dancefloor", "conveyor" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "conveyor")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 2], "conveyor")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		-- row 3 (0-based): right, right over a floor tile (4th char), down; row 4: the last cell keeps the way it came
@@ -128,7 +128,7 @@ describe("tools levels", function()
 		local raw = F.level_table({ goals = { { type = "carpet" } }, carpet = { { 2, 3 }, { 3, 3 } } })
 		assert_same(Levels.elements(raw), { "carpet" })
 		assert_same(Levels.elements(F.level_table({ goals = { { type = "carpet" } } })), { "carpet" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 2], "carpet")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 3], "carpet")
 		assert_eq(Levels.goals_text(raw), "carpet")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
@@ -147,7 +147,7 @@ describe("tools levels", function()
 			curtain = { covers = { { 2, 3 }, { 3, 3 } }, closed_moves = 2, open_moves = 3, start = "closed" },
 		})
 		assert_same(Levels.elements(raw), { "dancefloor", "curtain" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 3], "curtain")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 4], "curtain")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		assert_true(lines[6]:find("+ _t +  t", 1, true) ~= nil, lines[6])
@@ -171,13 +171,31 @@ describe("tools levels", function()
 		local raw = F.level_table({ slots = { { at = { 2, 2 }, type = "boombox", hp = 3 }, { at = { 4, 4 }, type = "record_box", hp = 1 } },
 			goals = { { type = "break", item = "boombox", count = 1 } } })
 		assert_same(Levels.elements(raw), { "record_box", "boombox" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "boombox")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "boombox")
 		assert_eq(Levels.goals_text(raw), "break boombox 1")
 		assert_true(Levels.preview_raw(raw):find("Q3", 1, true) ~= nil)
 		assert_true(Levels.LEGEND:find("Q boombox (+hp)", 1, true) ~= nil)
 		local e = common.entry_from_text(common.encode(raw))
 		assert_true(Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7):find("Q3", 1, true) ~= nil)
 	end)
+	it("counts the ice (core-rules 10.11) as an element, by its overlay or by its goal, and draws it as i / I", function()
+		local raw = F.level_table({ overlay = { { at = { 2, 2 }, type = "ice", hp = 2 }, { at = { 4, 4 }, type = "ice", hp = 1 } },
+			slots = { { at = { 1, 5 }, type = "record_box", hp = 1 } }, goals = { { type = "ice", count = 2 } } })
+		assert_same(Levels.elements(raw), { "record_box", "ice" })
+		assert_same(Levels.elements(F.level_table({ goals = { { type = "ice", count = 1 } } })), { "ice" })
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "ice")
+		assert_eq(#Levels.ELEMENTS, 15)
+		assert_eq(Levels.goals_text(raw), "ice 2")
+		local out = Levels.preview_raw(raw)
+		assert_true(out:find("I", 1, true) ~= nil and out:find("i", 1, true) ~= nil, out)
+		assert_true(Levels.LEGEND:find("ice (i hp1, I hp2)", 1, true) ~= nil)
+		local e = common.entry_from_text(common.encode(raw))
+		local drawn = Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7)
+		local _, solid = drawn:gsub("I", "")
+		local _, cracked = drawn:gsub("i", "")
+		assert_same({ solid, cracked }, { 1, 1 })
+	end)
+
 	it("keeps a column's hp to one character, up to the 12 the schema allows", function()
 		assert_eq(Levels.hp_char(1), "1")
 		assert_eq(Levels.hp_char(9), "9")

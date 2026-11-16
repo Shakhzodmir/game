@@ -164,6 +164,7 @@ function Game:pieces()
 		if o.special ~= 0 then p.special = C.SPECIAL_NAME[o.special] end
 		if o.axis ~= 0 then p.axis = C.AXIS_NAME[o.axis] end
 		if o.chain > 0 then p.chain = o.chain end
+		if o.ice > 0 then p.ice = o.ice end
 		if B.veiled(s, o.cell) then p.veiled = true end -- under a closed curtain (10.7)
 		if o.blocker ~= 0 then
 			p.item = C.BLOCKER_NAME[o.blocker]

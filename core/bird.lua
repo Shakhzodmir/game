@@ -28,7 +28,7 @@ local CARGO_SPECIAL = { C.SP_RIFF, C.SP_SUB }
 
 -- Open goals that matter for the level table.
 local function goal_ctx(s)
-	local ctx = { brk = {}, col = {}, light = false, deliver = false, drop = false }
+	local ctx = { brk = {}, col = {}, light = false, deliver = false, drop = false, ice = false }
 	local goals, left = s.level.goals, s.goal_left
 	for k = 1, #goals do
 		if left[k] > 0 then
@@ -37,7 +37,8 @@ local function goal_ctx(s)
 			elseif g.type == C.GOAL_COLLECT then ctx.col[g.param] = true
 			elseif g.type == C.GOAL_LIGHT then ctx.light = true
 			elseif g.type == C.GOAL_DELIVER then ctx.deliver = true
-			elseif g.type == C.GOAL_DROP then ctx.drop = true end
+			elseif g.type == C.GOAL_DROP then ctx.drop = true
+			elseif g.type == C.GOAL_ICE then ctx.ice = true end
 		end
 	end
 	return ctx
@@ -77,6 +78,7 @@ function BD.levels(s, src)
 						else l = 2 end
 					elseif k == K_REGULAR then
 						if o.chain > 0 then l = -1 -- a chained piece is never a target (10.6)
+						elseif o.ice > 0 then l = ctx.ice and 4 or 2 -- a frozen piece: the hit melts a layer (10.11)
 						elseif s.wires[i] > 0 then l = 2
 						elseif ctx.col[o.color] then l = 4
 						else l = 1 end
@@ -88,7 +90,7 @@ function BD.levels(s, src)
 				-- an unlit tile the hit will damage
 				if l < 0 then
 					l = 0 -- no effect reaches the tile under a chained piece either
-				elseif l < 4 and ctx.light and s.floor[i] > 0 and s.wires[i] == 0
+				elseif l < 4 and ctx.light and s.floor[i] > 0 and s.wires[i] == 0 and not (idle and o.ice > 0)
 					and (not idle or o.kind == K_REGULAR or weak_blocker(o)) then
 					l = 4
 				end
@@ -102,7 +104,7 @@ function BD.levels(s, src)
 					local m = B.get(s, i - W)
 					if m and ((ctx.deliver and m.kind == K_MIC) or (ctx.drop and m.kind == C.K_COCONUT))
 						and m.state == S_IDLE
-						and ((o.kind == K_REGULAR and s.wires[i] == 0 and o.chain == 0) or weak_blocker(o)) then
+						and ((o.kind == K_REGULAR and s.wires[i] == 0 and o.chain == 0 and o.ice == 0) or weak_blocker(o)) then
 						l = 3
 					end
 				end

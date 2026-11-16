@@ -23,6 +23,8 @@ return {
 	["blocker.carpet"] = "카펫",
 	["blocker.conveyor"] = "컨베이어",
 	["blocker.boombox"] = "붐박스",
+	["blocker.ice"] = "얼음",
+	["blocker.ice_desc"] = "얼음 속 조각은 움직이지도, 줄에 맞춰지지도 않아요. 옆에서 줄을 맞추면 얼음이 녹아요.",
 	["blocker.boombox_desc"] = "붐박스 옆에서 줄을 맞추면 같은 색 조각 세 개가 더 터져요.",
 	["blocker.conveyor_desc"] = "한 번 움직일 때마다 벨트가 조각을 한 칸씩 옮겨요.",
 	["blocker.carpet_desc"] = "카펫 위에서 줄을 맞추면 그 줄 아래로 카펫이 펼쳐져요.",
@@ -179,6 +181,7 @@ return {
 
 	["level.fixed_blocker"] = "움직이지 않아요. 옆에서 매치해서 부수세요",
 	["level.fixed_chained"] = "사슬에 묶인 조각은 옮길 수 없어요. 같은 색으로 줄을 맞추세요",
+	["level.fixed_frozen"] = "얼어붙은 조각은 옮길 수 없어요. 옆에서 줄을 맞추세요",
 	["level.fixed_veiled"] = "커튼이 닫혀 있어요. 열릴 때까지 기다리세요",
 	["level.fixed_wired"] = "전선에 묶인 조각은 움직이지 않아요. 그 자리에서 맞추세요",
 
@@ -426,6 +429,7 @@ return {
 	["tutorial.booster"] = "부스터를 누르고 대상을 고르세요",
 	["tutorial.curtain"] = "커튼이 닫히면 기다리고, 열리면 움직여요!",
 	["tutorial.boombox"] = "붐박스 옆에서 맞추면 같은 색 세 개가 더 터져요!",
+	["tutorial.ice"] = "얼음은 바로 옆에서 줄을 맞추면 녹아요!",
 	["tutorial.conveyor"] = "벨트는 움직일 때마다 한 칸씩 가요. 한 수 앞을 봐요!",
 	["tutorial.carpet"] = "카펫 위에서 줄을 맞춰요. 카펫이 더 펼쳐져요!",
 	["tutorial.chain"] = "사슬이 조각을 붙잡고 있어요. 줄을 맞춰 끊어요!",

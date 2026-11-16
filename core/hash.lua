@@ -171,6 +171,14 @@ function HS.state(s)
 		for i = 1, s.N do h = fold(h, s.carpet[i]) end
 		for k = 1, #ids do h = fold(h, s.sources[ids[k]].carpet) end
 	end
+	-- the ice (10.11): the hp of the ice of the piece in every cell, written only on a level that has
+	-- ice, so every other level hashes as before
+	if s.level.has_ice then
+		for i = 1, N do
+			local id = slot[i]
+			h = fold(h, id ~= 0 and objs[id].ice or 0)
+		end
+	end
 	return h
 end
 

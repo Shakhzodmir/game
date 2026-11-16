@@ -43,6 +43,7 @@
 -- Reduced motion: no shakes, no slow motion, no screen flash, no charge; fewer particles.
 
 local level_boombox = require("client.level_boombox")
+local level_ice = require("client.level_ice")
 
 local M = {}
 
@@ -417,6 +418,9 @@ function H.hit(self, e)
 		self:burst("spark", e.x, e.y, "#FFB463", 5, t)
 	elseif e.layer == "chain" then
 		self:burst("spark", e.x, e.y, "#FFD84D", 5, t)
+	elseif e.layer == "ice" then
+		-- a layer of ice cracks (core-rules 10.11): icy sparks
+		self:burst("spark", e.x, e.y, level_ice.COLOR, 5, t)
 	elseif e.layer == "floor" and (e.hp or 0) > 0 then
 		-- the first layer of a two-layer tile is gone: a gold blink while the tile itself (client/level_floor.lua)
 		-- lights its core
@@ -500,6 +504,16 @@ function H.unchained(self, e)
 	self:burst("spark", e.x, e.y, "#FFD84D", 8, t)
 	self:push({ kind = "ghost", image = "blockers_chain_1", x = lx, y = ly, s0 = 1, s1 = 1.4, rot0 = 0, rot1 = -24, a0 = 1,
 		a1 = 0, dy = -self.geom.cell * 0.35, dur = 0.38, at = t })
+end
+
+-- the last layer of ice is gone (core-rules 10.11): the cube swells and fades away over its piece, which stays
+function H.thawed(self, e)
+	local t = e.t or 0
+	local lx, ly = self:center(e.x, e.y)
+	self:burst("spark", e.x, e.y, level_ice.COLOR, 8, t)
+	self:flash(lx, ly, self.geom.cell * 1.5, level_ice.COLOR, t, 0.22)
+	self:push({ kind = "ghost", image = level_ice.anim(1), x = lx, y = ly, s0 = 1, s1 = level_ice.MELT_SCALE, rot0 = 0,
+		rot1 = 0, a0 = level_ice.ALPHA, a1 = 0, dy = 0, dur = level_ice.MELT_TIME, at = t })
 end
 
 function H.mic_delivered(self, e)

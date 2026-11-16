@@ -153,6 +153,23 @@ local function chain_hit(s, o, cell, src, acc)
 	s.chain_hit = true -- the survivors are searched again (section 6)
 end
 
+-- Hit on a frozen piece (10.11): an `adjacent` or an `effect` hit takes one hp off the ice, the piece
+-- stays. At 0 the piece is an ordinary free piece again, in place; the board is searched again, because
+-- it may stand in a ready-made line (inside a group resolution the search itself repeats, match.lua).
+local function ice_hit(s, o, cell, src, acc)
+	local hp = o.ice - 1
+	o.ice = hp
+	acc.score = acc.score + C.SCORE_HP
+	local x, y = U.xy(s.W, cell)
+	E.emit(s, "hit", { x = x, y = y, layer = "ice", id = o.id, hp = hp })
+	if hp == 0 then
+		E.emit(s, "thawed", { id = o.id, x = x, y = y })
+		B.raise_label(s, o, src.mv, src.wv)
+		H.goal(s, acc, C.GOAL_ICE, 0, 1)
+		if s.in_group then s.chain_hit = true else s.dirty = true end
+	end
+end
+
 -- Does source kind `src` break blocker o? (table 7.3)
 local function breaks(o, src)
 	local k = src.kind
@@ -280,7 +297,10 @@ function H.hit(s, cell, src, opt_instant)
 	if slot_ok and not open then
 		local k = o.kind
 		if k == K_REGULAR then
-			if o.chain > 0 then
+			if o.ice > 0 then
+				-- a frozen piece is never in a group: the ice melts from outside, the piece stays (10.11)
+				if src.kind ~= SRC_MATCH then ice_hit(s, o, cell, src, acc) end
+			elseif o.chain > 0 then
 				-- only a match touches a chained piece, and it takes the chain, not the piece
 				if src.kind == SRC_MATCH then chain_hit(s, o, cell, src, acc) end
 			elseif src.kind ~= SRC_ADJ then

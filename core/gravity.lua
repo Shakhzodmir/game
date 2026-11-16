@@ -31,7 +31,7 @@ local function scan(s, c)
 			local st = e.state
 			if st == S_CLEAR or st == S_SWAP or st == S_ARMED then return WAIT end
 			if e.pins[1] then return WAIT end
-			if e.kind == K_BLOCKER or (e.kind == K_REGULAR and s.wires[e.cell] > 0) then
+			if e.kind == K_BLOCKER or (e.kind == K_REGULAR and (s.wires[e.cell] > 0 or e.ice > 0)) then
 				return BLOCKED
 			end
 			return PIECE, e -- movable piece in idle or fall

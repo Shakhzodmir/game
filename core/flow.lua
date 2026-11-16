@@ -50,7 +50,7 @@ local function noise_growth(s)
 						local n = nb[j]
 						if n ~= 0 and not s.spawner[n] and s.wires[n] == 0 and not B.veiled(s, n) then
 							local p = B.get(s, n)
-							if p and p.kind == C.K_REGULAR and p.state == S_IDLE and p.chain == 0 then
+							if p and p.kind == C.K_REGULAR and p.state == S_IDLE and p.chain == 0 and p.ice == 0 then
 								pairs_[#pairs_ + 1] = { i, n }
 							end
 						end
@@ -101,7 +101,7 @@ function F.concert_a(s, k)
 	for i = 1, s.N do
 		local o = B.get(s, i)
 		if o and o.kind == C.K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and s.wires[i] == 0
-			and o.chain == 0 then
+			and o.chain == 0 and o.ice == 0 then
 			cands[#cands + 1] = o
 		end
 	end

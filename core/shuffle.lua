@@ -16,14 +16,14 @@ local SH = {}
 
 local K_REGULAR, S_IDLE = C.K_REGULAR, C.S_IDLE
 
--- Candidates: regular idle pieces without wires and without a chain, not pinned, by index.
+-- Candidates: regular idle pieces without wires, without a chain and not frozen, not pinned, by index.
 -- Pieces under a closed curtain are left alone (10.7).
 function SH.candidates(s)
 	local cells = {}
 	for i = 1, s.N do
 		local o = B.get(s, i)
 		if o and o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and s.wires[i] == 0
-			and o.chain == 0 and not B.veiled(s, i) then
+			and o.chain == 0 and o.ice == 0 and not B.veiled(s, i) then
 			cells[#cells + 1] = i
 		end
 	end
@@ -189,6 +189,29 @@ function SH.unchain_riff(s, st, res)
 	return true
 end
 
+-- Item 4b of 12.2: nothing of the above, so a frozen regular idle piece loses
+-- all its ice (counted in the `ice` goal, no score) and becomes a Riff: a board
+-- frozen solid always gets a move (10.11).
+function SH.thaw_riff(s, st, res)
+	local frozen = {}
+	for i = 1, s.N do
+		local o = B.get(s, i)
+		if o and o.kind == K_REGULAR and o.state == S_IDLE and o.ice > 0 then frozen[#frozen + 1] = o end
+	end
+	if #frozen == 0 then return false end
+	local o = frozen[R.int(st, #frozen)]
+	o.ice = 0
+	local x, y = U.xy(s.W, o.cell)
+	E.emit(s, "thawed", { id = o.id, x = x, y = y })
+	local H = require("core.hits")
+	local acc = H.acc()
+	H.goal(s, acc, C.GOAL_ICE, 0, 1)
+	H.flush(s, acc, o.cell)
+	SH.make_riff(o)
+	res.riff, res.riff_from = o, "ice"
+	return true
+end
+
 -- In-game shuffle at rest (12.2, items 1-6).
 function SH.in_game(s)
 	local st = s.rng[R.SHUFFLE]
@@ -209,6 +232,8 @@ function SH.in_game(s)
 			res.riff, res.riff_from = o, "wires"
 		elseif SH.unchain_riff(s, st, res) then
 			-- 4a. done: a chained piece lost its chain and became a Riff
+		elseif SH.thaw_riff(s, st, res) then
+			-- 4b. done: a frozen piece lost its ice and became a Riff
 		else
 			-- 5. a noise becomes a Riff
 			local noise = {}
