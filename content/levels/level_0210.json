@@ -1,0 +1,30 @@
+{
+  "id": 210, "version": 1,
+  "size": [7, 10],
+  "moves": 23,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "collect", "color": "red", "count": 60},
+    {"type": "collect", "color": "yellow", "count": 60},
+    {"type": "collect", "color": "blue", "count": 60}
+  ],
+  "cells": [
+    "..###..",
+    "..###..",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######"
+  ],
+  "slots": [
+    {"at": [2, 4], "type": "boombox", "hp": 3},
+    {"at": [4, 4], "type": "boombox", "hp": 3},
+    {"at": [2, 7], "type": "boombox", "hp": 3},
+    {"at": [4, 7], "type": "boombox", "hp": 3}
+  ]
+}
