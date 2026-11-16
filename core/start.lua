@@ -67,7 +67,8 @@ local function place_boosters(s, st, boosters)
 			local o = B.get(s, i)
 			if o and o.kind == C.K_REGULAR and s.wires[i] == 0 and o.chain == 0 and o.ice == 0 and not B.veiled(s, i) then
 				any[#any + 1] = o
-				if s.floor[i] == 0 and not B.goal_open(s, C.GOAL_COLLECT, o.color) then
+				if s.floor[i] == 0 and not B.goal_open(s, C.GOAL_COLLECT, o.color)
+					and not (s.fog and s.fog[i]) then -- (a paid special is not hidden under the fog, 10.13)
 					cands[#cands + 1] = o
 				end
 			end

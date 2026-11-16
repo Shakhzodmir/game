@@ -91,7 +91,7 @@ describe("core ice: level schema and rules (2.0, 2.1)", function()
 			"2.1.1 overlay[1]: type 'wires', 'chain' or 'ice' required")
 		expect(H.level(FULL, { goals = { { type = "ice" } } }), "2.1.1 goals[1]: count >= 1 required")
 		expect(H.level(FULL, { goals = { { type = "ice", count = 1, item = "ice" } } }), "2.1.1 goals[1]: unknown key 'item'")
-		expect(H.level(FULL, { goals = { { type = "thaw", count = 1 } } }), "collect|break|light|deliver|drop|chains|carpet|ice required")
+		expect(H.level(FULL, { goals = { { type = "thaw", count = 1 } } }), "collect|break|light|deliver|drop|chains|carpet|ice|fog required")
 	end)
 
 	it("2.1.2 / 2.1.3: one overlay a cell, and only over a regular piece", function()

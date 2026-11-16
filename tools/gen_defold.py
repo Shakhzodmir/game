@@ -120,6 +120,7 @@ META_ATLAS = (
     "blockers/record_box_1", "blockers/concrete_1", "blockers/noise", "blockers/balloon_red",
     "blockers/column_1", "blockers/mic", "blockers/coconut", "blockers/chain_1", "blockers/carpet",
     "blockers/conveyor", "blockers/boombox_3", "blockers/ice_2", "blockers/hay_2",
+    "blockers/fog",
     "fx/spark", "fx/star_particle", "fx/confetti", "fx/glow_dot", "fx/ring", "fx/note",
 )
 

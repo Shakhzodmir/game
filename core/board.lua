@@ -43,6 +43,8 @@ function B.new_state(level)
 		cur_closed = false, cur_left = 0,
 		-- the carpet (10.8): carpet[i] = is cell i covered; false on a level without the carpet
 		carpet = false,
+		-- the stage fog (10.13): fog[i] = is cell i still fogged; false on a level without fog
+		fog = false,
 		swaps = {}, queue = {}, sources = {}, eom = {}, praise = {}, unplaced = {},
 		rng = nil, help = 0, colorless = false, in_group = false,
 		ev = {}, cmds = {},
@@ -62,6 +64,10 @@ function B.new_state(level)
 	if level.carpet then
 		s.carpet = {}
 		for i = 1, N do s.carpet[i] = level.carpet.at[i] end
+	end
+	if level.fog then
+		s.fog = {}
+		for i = 1, N do s.fog[i] = level.fog.at[i] end
 	end
 	local cu = level.curtain
 	if cu then
@@ -252,6 +258,7 @@ function B.most_frequent(s, unwired_only)
 		if id ~= 0 and not (veil and veil[i]) then
 			local o = objs[id]
 			if o.kind == K_REGULAR and o.state == S_IDLE and o.pins[1] == nil and o.chain == 0 and o.ice == 0
+				and o.color ~= 0 -- (a colourless stand-in of a blind clone, 10.13)
 				and (not unwired_only or wires[i] == 0) then
 				count[o.color] = count[o.color] + 1
 			end

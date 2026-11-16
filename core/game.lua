@@ -166,6 +166,7 @@ function Game:pieces()
 		if o.chain > 0 then p.chain = o.chain end
 		if o.ice > 0 then p.ice = o.ice end
 		if B.veiled(s, o.cell) then p.veiled = true end -- under a closed curtain (10.7)
+		if s.fog and s.fog[o.cell] then p.fogged = true end -- its (target) cell is under the fog (10.13)
 		if o.blocker ~= 0 then
 			p.item = C.BLOCKER_NAME[o.blocker]
 			p.hp = o.hp
@@ -184,6 +185,7 @@ function Game:cells()
 		out[i] = { exists = s.exists[i], spawner = s.spawner[i], exit = s.exit[i], floor = s.floor[i], wires = s.wires[i] }
 		if cu and cu.at[i] then out[i].curtain = true end
 		if s.carpet and s.carpet[i] then out[i].carpet = true end -- covered by the carpet (10.8)
+		if s.fog and s.fog[i] then out[i].fog = true end -- still under the stage fog (10.13)
 		if cv and cv.at[i] ~= 0 then -- a cell of a conveyor belt (10.9)
 			local belt = cv.belts[cv.at[i]]
 			local k = cv.pos[i]
@@ -255,6 +257,23 @@ function Game:clone(opts)
 		s.rng[R.SPAWN] = R.stream(seed, R.SPAWN)
 		s.rng[R.EFFECTS] = R.stream(seed, R.EFFECTS)
 		s.rng[R.SHUFFLE] = R.stream(seed, R.SHUFFLE)
+	end
+	if opts and opts.blind and s.fog then
+		-- a clone that knows only what the player sees (10.13): whatever stands in a fogged cell becomes a
+		-- colourless regular piece (it falls and can be destroyed, but it matches nothing and is nobody's
+		-- colour), without wires, chain or ice, and the floor tile of a fogged cell is not there (the cloud
+		-- covers the tile too). The bots look ahead only on such clones.
+		for i = 1, s.N do
+			if s.fog[i] then
+				s.wires[i] = 0
+				s.floor[i] = 0
+				local o = B.get(s, i)
+				if o and o.cell == i and o.blocker ~= C.BK_COLUMN and (o.state == C.S_IDLE or o.state == C.S_FALL) then
+					o.kind, o.color, o.special, o.axis, o.blocker, o.hp = C.K_REGULAR, 0, 0, 0, 0, 0
+					o.chain, o.ice, o.gift = 0, 0, 0
+				end
+			end
+		end
 	end
 	return wrap(s)
 end

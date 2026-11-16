@@ -286,7 +286,7 @@ function View:set_wires(cells, g)
 	for y = 1, g.H do
 		for x = 1, g.W do
 			local c = cells[(y - 1) * g.W + x]
-			if c and c.exists and (c.wires or 0) > 0 then
+			if c and c.exists and (c.wires or 0) > 0 and not c.fog then -- (wires under the stage fog are not drawn, 10.13)
 				local lx, ly = g:center(x, y)
 				local hp = math.min(2, c.wires)
 				list[#list + 1] = { x = lx, y = ly, hp = hp, image = "blockers_wires_" .. hp, k = g.cell / 160 }
@@ -366,7 +366,7 @@ function View:wires_differ(cells, g)
 	for y = 1, g.H do
 		for x = 1, g.W do
 			local c = cells[(y - 1) * g.W + x]
-			if c and c.exists and (c.wires or 0) > 0 then
+			if c and c.exists and (c.wires or 0) > 0 and not c.fog then
 				n = n + 1
 				local w = wires[n]
 				local lx, ly = g:center(x, y)

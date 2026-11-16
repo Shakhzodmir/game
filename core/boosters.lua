@@ -17,6 +17,7 @@ function BO.has_effect(s, i)
 	if not s.exists[i] then return false end
 	if B.veiled(s, i) then return false end -- nothing reaches a cell under a closed curtain (10.7)
 	if s.wires[i] > 0 then return true end
+	if s.fog and s.fog[i] then return true end -- the hit blows the fog off, whatever hides under it (10.13)
 	local o = B.get(s, i)
 	if o then
 		local k = o.kind
@@ -51,6 +52,8 @@ function BO.exchange_cells(s, ax, ay, bx, by)
 	local a, b = (ay - 1) * s.W + ax, (by - 1) * s.W + bx
 	if a == b then return nil, "bad_cell" end
 	local oa, ob = B.get(s, a), B.get(s, b)
+	-- the Crossfader does not reach into the stage fog (10.13): the player cannot see what is exchanged
+	if s.fog and (s.fog[a] or s.fog[b]) then return nil, "not_movable" end
 	if not (oa and B.can_swap(s, oa)) or not (ob and B.can_swap(s, ob)) then return nil, "not_movable" end
 	if BO.same_look(oa, ob) then return nil, "same_piece" end
 	return a, b

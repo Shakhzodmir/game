@@ -15,6 +15,7 @@
 local level_floor = require("client.level_floor")
 local level_carpet = require("client.level_carpet")
 local level_ice = require("client.level_ice")
+local level_fog = require("client.level_fog")
 local stars = require("meta.stars")
 
 local M = {}
@@ -70,7 +71,7 @@ local function count_floor(data)
 end
 
 -- Goals of a decoded level as things to draw, in file order:
--- {kind = "collect"|"break"|"light"|"deliver"|"drop"|"chains"|"carpet"|"ice", image, count (nil for light
+-- {kind = "collect"|"break"|"light"|"deliver"|"drop"|"chains"|"carpet"|"ice"|"fog", image, count (nil for light
 -- without tiles), label = {key = i18n key}, color = piece colour (collect)}.
 function M.goals(data)
 	local out = {}
@@ -100,6 +101,9 @@ function M.goals(data)
 			elseif t == "ice" then
 				-- thaw the frozen pieces (core-rules 10.11)
 				out[#out + 1] = { kind = t, image = level_ice.GOAL_ICON, count = g.count, label = { key = "blocker.ice" } }
+			elseif t == "fog" then
+				-- clear the stage fog (core-rules 10.13): the number is the fogged cells
+				out[#out + 1] = { kind = t, image = level_fog.IMAGE, count = level_fog.count(data), label = { key = "blocker.fog" } }
 			elseif t == "carpet" then
 				-- cover the board with the carpet (core-rules 10.8): the number is the bare cells
 				out[#out + 1] = { kind = t, image = level_carpet.IMAGE, count = level_carpet.count(data),

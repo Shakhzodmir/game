@@ -110,7 +110,7 @@ describe("tools levels", function()
 		local raw = F.level_table({ conveyor = { { path = { { 1, 3 }, { 2, 3 }, { 3, 3 }, { 3, 4 } } } },
 			floor = { { at = { 2, 3 }, hp = 1 } }, goals = { { type = "light" } } })
 		assert_same(Levels.elements(raw), { "dancefloor", "conveyor" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 3], "conveyor")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 4], "conveyor")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		-- row 3 (0-based): right, right over a floor tile (4th char), down; row 4: the last cell keeps the way it came
@@ -128,7 +128,7 @@ describe("tools levels", function()
 		local raw = F.level_table({ goals = { { type = "carpet" } }, carpet = { { 2, 3 }, { 3, 3 } } })
 		assert_same(Levels.elements(raw), { "carpet" })
 		assert_same(Levels.elements(F.level_table({ goals = { { type = "carpet" } } })), { "carpet" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 4], "carpet")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 5], "carpet")
 		assert_eq(Levels.goals_text(raw), "carpet")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
@@ -147,7 +147,7 @@ describe("tools levels", function()
 			curtain = { covers = { { 2, 3 }, { 3, 3 } }, closed_moves = 2, open_moves = 3, start = "closed" },
 		})
 		assert_same(Levels.elements(raw), { "dancefloor", "curtain" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 5], "curtain")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 6], "curtain")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		assert_true(lines[6]:find("+ _t +  t", 1, true) ~= nil, lines[6])
@@ -171,7 +171,7 @@ describe("tools levels", function()
 		local raw = F.level_table({ slots = { { at = { 2, 2 }, type = "boombox", hp = 3 }, { at = { 4, 4 }, type = "record_box", hp = 1 } },
 			goals = { { type = "break", item = "boombox", count = 1 } } })
 		assert_same(Levels.elements(raw), { "record_box", "boombox" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 2], "boombox")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 3], "boombox")
 		assert_eq(Levels.goals_text(raw), "break boombox 1")
 		assert_true(Levels.preview_raw(raw):find("Q3", 1, true) ~= nil)
 		assert_true(Levels.LEGEND:find("Q boombox (+hp)", 1, true) ~= nil)
@@ -183,8 +183,8 @@ describe("tools levels", function()
 			slots = { { at = { 1, 5 }, type = "record_box", hp = 1 } }, goals = { { type = "ice", count = 2 } } })
 		assert_same(Levels.elements(raw), { "record_box", "ice" })
 		assert_same(Levels.elements(F.level_table({ goals = { { type = "ice", count = 1 } } })), { "ice" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "ice")
-		assert_eq(#Levels.ELEMENTS, 16)
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 2], "ice")
+		assert_eq(#Levels.ELEMENTS, 17)
 		assert_eq(Levels.goals_text(raw), "ice 2")
 		local out = Levels.preview_raw(raw)
 		assert_true(out:find("I", 1, true) ~= nil and out:find("i", 1, true) ~= nil, out)
@@ -205,7 +205,7 @@ describe("tools levels", function()
 		local el, specials = Levels.elements(raw)
 		assert_same(el, { "record_box", "hay" })
 		assert_eq(specials, 0) -- a gift is not a ready special of the board
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "hay")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "hay")
 		assert_eq(Levels.goals_text(raw), "break hay 5")
 		local out = Levels.preview_raw(raw)
 		for _, cell in ipairs({ "H2 ?", "H1 |", "H1 -", "H2 S", "H1  " }) do
@@ -217,6 +217,26 @@ describe("tools levels", function()
 		local drawn = Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7)
 		assert_true(drawn:find("H2  ", 1, true) ~= nil and drawn:find("H1  ", 1, true) ~= nil, drawn)
 		assert_true(drawn:find("H2 ?", 1, true) == nil and drawn:find("H2 S", 1, true) == nil)
+	end)
+
+	it("counts the fog (core-rules 10.13) as an element, by its field or by its goal, and draws it with an `f`", function()
+		local raw = F.level_table({ goals = { { type = "fog" } }, fog = { { 2, 3 }, { 3, 3 } },
+			overlay = { { at = { 3, 3 }, type = "wires", hp = 1 } } })
+		assert_same(Levels.elements(raw), { "wires", "fog" })
+		assert_same(Levels.elements(F.level_table({ goals = { { type = "fog" } } })), { "fog" })
+		assert_same(Levels.elements(F.level_table({ fog = { { 2, 3 } } })), { "fog" })
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "fog")
+		assert_eq(Levels.goals_text(raw), "fog")
+		local lines = {}
+		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
+		-- the 4th character; over wires (the 4th is taken) the 2nd
+		assert_true(lines[6]:find("+  f +f w", 1, true) ~= nil, lines[6])
+		assert_true(Levels.LEGEND:find("fog (f: 4th char", 1, true) ~= nil)
+		-- the board of a game (the author's view) shows what stands under the fog and marks the cell
+		local e = common.entry_from_text(common.encode(raw))
+		local drawn = Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7)
+		local _, n = drawn:gsub("f", "")
+		assert_eq(n, 2)
 	end)
 
 	it("keeps a column's hp to one character, up to the 12 the schema allows", function()

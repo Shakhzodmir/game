@@ -139,6 +139,17 @@ local function carpet_lay(s, cell, o, acc)
 	H.goal(s, acc, C.GOAL_CARPET, 0, 1)
 end
 
+-- The stage fog (10.13, step 0b of 7.1): any hit that reaches a fogged cell (a match in it, a match next to
+-- it, an effect) blows the fog off the cell for good. The fog is a cover of the cell, not its content: the
+-- hit then goes on by the usual rules.
+local function fog_clear(s, cell, acc)
+	s.fog[cell] = false
+	acc.score = acc.score + C.SCORE_HP
+	local x, y = U.xy(s.W, cell)
+	E.emit(s, "fog", { x = x, y = y })
+	H.goal(s, acc, C.GOAL_FOG, 0, 1)
+end
+
 -- Match hit on a chained piece (10.6): the chain loses one hp, the piece stays.
 local function chain_hit(s, o, cell, src, acc)
 	local hp = o.chain - 1
@@ -267,6 +278,8 @@ function H.hit(s, cell, src, opt_instant)
 	local acc = H.acc()
 	-- 0a. the carpet (10.8): before the layers, so wires, a chain or an empty slot do not stop it
 	if src.carpet then carpet_lay(s, cell, B.get(s, cell), acc) end
+	-- 0b. the stage fog (10.13): before the deduplication and the layers, whatever stands in the cell
+	if s.fog and s.fog[cell] then fog_clear(s, cell, acc) end
 	-- deduplication by object key
 	local key = B.key(s, cell)
 	local slot_ok = true
@@ -282,7 +295,10 @@ function H.hit(s, cell, src, opt_instant)
 	local destroyed, floors_done = false, false
 	-- 2. wires
 	if s.wires[cell] > 0 then
-		if src.kind == SRC_ADJ then return end -- (an adjacent source never carries the carpet: acc is empty)
+		if src.kind == SRC_ADJ then
+			H.flush(s, acc, cell) -- (only the fog can have put anything here: an adjacent source has no carpet)
+			return
+		end
 		local hp = s.wires[cell] - 1
 		s.wires[cell] = hp
 		acc.score = acc.score + C.SCORE_HP

@@ -289,7 +289,13 @@ function Session:autoplay_step()
 	if self.paused then return nil end -- a window of the level is open
 	if st.state ~= "playing" or not self.game:is_stable() then return nil end
 	local cmd = self:hint_command()
-	if not cmd then return nil end
+	if not cmd then
+		-- under the stage fog the fair hint may be silent while a move exists that needs a hidden colour
+		-- (core-rules 10.13): the QA autoplay is no player, it takes the first move of the core
+		local mv = self.game:moves()[1]
+		if not mv then return nil end
+		cmd = { type = "swap", from = { mv.from[1], mv.from[2] }, to = { mv.to[1], mv.to[2] } }
+	end
 	local ok = self:command(cmd)
 	if not ok then return nil end
 	a.left = a.left - 1
