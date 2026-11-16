@@ -423,22 +423,19 @@
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 16046,
-      "placeholder": true
+      "bytes": 42216
     },
     "blockers/boombox_2.png": {
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 12355,
-      "placeholder": true
+      "bytes": 36568
     },
     "blockers/boombox_3.png": {
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 11096,
-      "placeholder": true
+      "bytes": 35280
     },
     "blockers/carpet.png": {
       "w": 160,
