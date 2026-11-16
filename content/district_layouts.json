@@ -558,5 +558,66 @@
         "h": 205
       }
     }
+  },
+  "bazaar": {
+    "bg": "assets/images/districts/bazaar/bg.png",
+    "bg_concert": "assets/images/districts/bazaar/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "darbuka": {
+        "image": "assets/images/districts/bazaar/darbuka.png",
+        "ghost": "assets/images/districts/bazaar/darbuka_ghost.png",
+        "x": 196,
+        "y": 800,
+        "scale": 0.7,
+        "w": 154,
+        "h": 225
+      },
+      "oud": {
+        "image": "assets/images/districts/bazaar/oud.png",
+        "ghost": "assets/images/districts/bazaar/oud_ghost.png",
+        "x": 628,
+        "y": 672,
+        "scale": 0.7,
+        "w": 149,
+        "h": 260
+      },
+      "lanterns": {
+        "image": "assets/images/districts/bazaar/lanterns.png",
+        "ghost": "assets/images/districts/bazaar/lanterns_ghost.png",
+        "x": 98,
+        "y": 668,
+        "scale": 0.7,
+        "w": 177,
+        "h": 228
+      },
+      "tea_table": {
+        "image": "assets/images/districts/bazaar/tea_table.png",
+        "ghost": "assets/images/districts/bazaar/tea_table_ghost.png",
+        "x": 300,
+        "y": 694,
+        "scale": 0.7,
+        "w": 271,
+        "h": 228
+      },
+      "flutes": {
+        "image": "assets/images/districts/bazaar/flutes.png",
+        "ghost": "assets/images/districts/bazaar/flutes_ghost.png",
+        "x": 482,
+        "y": 682,
+        "scale": 0.7,
+        "w": 137,
+        "h": 244
+      },
+      "carpet": {
+        "image": "assets/images/districts/bazaar/carpet.png",
+        "ghost": "assets/images/districts/bazaar/carpet_ghost.png",
+        "x": 506,
+        "y": 826,
+        "scale": 0.7,
+        "w": 271,
+        "h": 203
+      }
+    }
   }
 }

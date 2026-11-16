@@ -1230,6 +1230,104 @@
           "stem_desc": "wordless choir with a soaring main theme"
         }
       ]
+    },
+    {
+      "id": "bazaar",
+      "first": 161,
+      "last": 180,
+      "map_tint": "#FBEED2",
+      "name": {
+        "ru": "Восточный базар",
+        "en": "Eastern Bazaar",
+        "ko": "동방 시장"
+      },
+      "genre": {
+        "ru": "Восточные сказки",
+        "en": "Eastern Tales",
+        "ko": "동방 이야기"
+      },
+      "bpm": 100,
+      "key": "G",
+      "semitones_from_c": 7,
+      "bars": 8,
+      "mood": "sunny eastern bazaar, playful and warm, hand drums, oud and flute",
+      "songs": [],
+      "chest": {
+        "coins": 1800,
+        "boosters": [
+          "disco",
+          "col_light",
+          "remix"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "darbuka",
+          "name": {
+            "ru": "Дарбука",
+            "en": "Darbuka",
+            "ko": "다르부카"
+          },
+          "cost": 1,
+          "stem": "darbuka",
+          "stem_desc": "darbuka maqsum rhythm with frame drum and finger cymbals"
+        },
+        {
+          "id": "oud",
+          "name": {
+            "ru": "Уд",
+            "en": "Oud",
+            "ko": "우드"
+          },
+          "cost": 4,
+          "stem": "oud",
+          "stem_desc": "oud riff and tremolo fills"
+        },
+        {
+          "id": "lanterns",
+          "name": {
+            "ru": "Фонари",
+            "en": "Lantern stand",
+            "ko": "등불 스탠드"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "round bass on root and fifth following the drum"
+        },
+        {
+          "id": "tea_table",
+          "name": {
+            "ru": "Чайный столик",
+            "en": "Tea table",
+            "ko": "찻상"
+          },
+          "cost": 5,
+          "stem": "qanun",
+          "stem_desc": "qanun arpeggios and shimmering tremolo"
+        },
+        {
+          "id": "flutes",
+          "name": {
+            "ru": "Флейты",
+            "en": "Flutes",
+            "ko": "피리"
+          },
+          "cost": 5,
+          "stem": "flute",
+          "stem_desc": "breathy ney flute melody with ornaments"
+        },
+        {
+          "id": "carpet",
+          "name": {
+            "ru": "Ковёр",
+            "en": "Carpet",
+            "ko": "양탄자"
+          },
+          "cost": 6,
+          "stem": "strings",
+          "stem_desc": "unison string section doubling and answering the melody"
+        }
+      ]
     }
   ],
   "level_stems": {
