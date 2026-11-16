@@ -532,15 +532,13 @@
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 14389,
-      "placeholder": true
+      "bytes": 45584
     },
     "blockers/ice_2.png": {
       "w": 160,
       "h": 160,
       "alpha": true,
-      "bytes": 7029,
-      "placeholder": true
+      "bytes": 30931
     },
     "blockers/mic.png": {
       "w": 160,

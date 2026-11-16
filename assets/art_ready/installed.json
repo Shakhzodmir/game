@@ -60,6 +60,8 @@
   "blockers/conveyor.png",
   "blockers/curtain_closed.png",
   "blockers/curtain_open.png",
+  "blockers/ice_1.png",
+  "blockers/ice_2.png",
   "bonus/bar_fill.png",
   "bonus/bar_frame.png",
   "bonus/gift_closed.png",
