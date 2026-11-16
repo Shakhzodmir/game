@@ -210,21 +210,93 @@ describe("main/audio.script: one song at a time", function()
 		end)
 	end)
 
-	it("random switching: the invariant holds in every frame", function()
+	-- The reduced form of what the random run found with twelve districts (theme, stop, song, the same song, the
+	-- theme again within 14 frames): A, then B, then A again before the first crossfade is over. These are TWO
+	-- crossfades, one per request, each of the documented length: A gives way to B, then B gives way to A (A is
+	-- restarted, a component has one gain). The two NAMES are heard together longer than one crossfade (here 1.5),
+	-- but no crossfade lasts longer than TRACK_CROSSFADE and one track is left that long after the last request.
+	it("A, B, A within one crossfade is two crossfades: each of one length, counted from its own request", function()
+		with_audio(function(E, a)
+			local owner = component_owner()
+			a:message("music", { district = "square" })
+			a:step(2)
+			a:message("music", { district = "caravan_bells" })
+			local half = math.floor(XF / 2 / DT)
+			for _ = 1, half do
+				a:step(1)
+				local _, n = live_tracks(E, owner)
+				assert_eq(n, 2)
+			end
+			assert_near(audio.status.overlap, half * DT, 1e-6, "the first crossfade is half way")
+			local played = #E.sounds.played
+			a:message("music", { district = "square" })
+			assert_true(#E.sounds.played > played, "the theme was started again: another crossfade began")
+			local together = 0
+			for _ = 1, math.floor(XF / DT) + 3 do
+				a:step(1)
+				local tr, n = live_tracks(E, owner)
+				if n == 2 then
+					together = together + DT
+					assert_true(tr.square and tr.caravan_bells)
+					assert_true(audio.status.overlap <= together + 1e-6, "the status counts this crossfade, not the one before")
+				end
+				assert_eq(audio.status.tracks, n)
+			end
+			assert_true(together > XF - 3 * DT and together <= XF + 3 * DT, "the second crossfade has its full length: " .. together)
+			local tr, n = live_tracks(E, owner)
+			assert_eq(n, 1, "one crossfade after the last request one track is left")
+			assert_true(tr.square)
+			assert_true(audio.status.max_overlap <= XF + 3 * DT, "no crossfade was longer than one crossfade")
+		end)
+	end)
+
+	it("a track that gives way while it is still coming in goes out from the level it had (no jump)", function()
+		with_audio(function(E, a)
+			local id = assets.song("scat_parade").id
+			local function gain()
+				for url, l in pairs(E.sounds.live) do
+					if string.find(url, "#" .. id, 1, true) then return l.gain end
+				end
+			end
+			a:message("music", { district = "bossa_breeze" })
+			a:step(2)
+			a:message("music", { district = "scat_parade" })
+			a:run(XF / 4)
+			local before = gain()
+			assert_true(before > 0.2 and before < 0.6, "the song is a quarter in: " .. tostring(before))
+			a:message("music", { district = "pixel_cafe" })
+			local prev = before
+			for _ = 1, math.floor(XF / DT) - 1 do
+				a:step(1)
+				local g = gain()
+				if not g then break end
+				assert_true(g <= prev + 1e-9, "it only goes down: " .. g .. " after " .. prev)
+				prev = g
+			end
+			a:run(0.1)
+			assert_eq(gain(), nil, "and it is gone after one crossfade")
+		end)
+	end)
+
+	-- A fixed pseudo-random sequence of `actions` requests, the invariants checked in every frame. The themes come from
+	-- the district list, so a new district changes every sequence: several seeds are run, not one.
+	local function random_switching(seed0, actions)
 		with_audio(function(E, a, app)
 			local owner = component_owner()
 			local songs_ids, themes = {}, {}
 			for id in pairs(assets.index.sounds.songs) do songs_ids[#songs_ids + 1] = id end
 			table.sort(songs_ids)
 			for _, d in ipairs(app.district_list) do themes[#themes + 1] = d.id end
-			local seed = 12345
+			local seed = seed0
 			local function rnd(n)
 				seed = (seed * 1103515245 + 12345) % 2147483648
 				return math.floor(seed / 65536) % n + 1
 			end
+			local tag = " (seed " .. seed0 .. ")"
 			local frames, both = 0, 0
 			local overlap_run, worst_run, pair = 0, 0, nil
-			for _ = 1, 400 do
+			local seen_played = #E.sounds.played
+			for _ = 1, actions do
 				local k = rnd(10)
 				if k <= 3 then
 					a:message("music", { district = songs_ids[rnd(#songs_ids)] })
@@ -246,31 +318,52 @@ describe("main/audio.script: one song at a time", function()
 					a:step(1)
 					frames = frames + 1
 					local tracks, count = live_tracks(E, owner)
-					assert_true(count <= 2, "never more than two tracks sound together, frame " .. frames)
-					assert_eq(audio.status.tracks, count, "the status tells the truth, frame " .. frames)
+					assert_true(count <= 2, "never more than two tracks sound together, frame " .. frames .. tag)
+					assert_eq(audio.status.tracks, count, "the status tells the truth, frame " .. frames .. tag)
+					-- A crossfade begins when a track is started (sound.play of one of its components, as the stub saw
+					-- it: not what the script says about itself). Two tracks may sound together for one crossfade
+					-- counted from that start. The names of the pair are not enough to tell crossfades apart: A giving
+					-- way to B and then B giving way to the restarted A are two crossfades of the same two names.
+					local started = false
+					for i = seen_played + 1, #E.sounds.played do
+						local c = string.match(E.sounds.played[i].url, "#([^%]]+)")
+						if c and owner[c] then started = true end
+					end
+					seen_played = #E.sounds.played
 					if count == 2 then
 						both = both + 1
-						-- the time ONE PAIR of tracks sounds together (a new pair starts the count again)
 						local names = {}
 						for name in pairs(tracks) do names[#names + 1] = name end
 						table.sort(names)
 						local key = table.concat(names, "+")
-						if key ~= pair then overlap_run = 0 end
+						assert_true(started or key == pair, "another pair needs a track to start, frame " .. frames .. tag)
+						if started then overlap_run = 0 end
 						pair = key
 						overlap_run = overlap_run + DT
 						if overlap_run > worst_run then worst_run = overlap_run end
+						assert_true(overlap_run <= XF + 3 * DT,
+							"two tracks together at most one crossfade after the last start: " .. overlap_run .. " " .. key .. ", frame " .. frames .. tag)
+						assert_near(audio.status.overlap, overlap_run, 1e-6, "the status counts what was heard, frame " .. frames .. tag)
 					else
 						overlap_run, pair = 0, nil
 					end
 				end
 			end
-			assert_true(both > 50, "the run really crossfaded: " .. both)
-			assert_true(worst_run <= XF + 3 * DT, "the same two tracks together at most one crossfade: " .. worst_run)
+			assert_true(both > actions / 8, "the run really crossfaded: " .. both .. tag)
+			assert_true(worst_run > XF - 3 * DT, "a whole crossfade was seen: " .. worst_run .. tag)
 			assert_true(audio.status.max_overlap <= XF + 3 * DT)
 			-- left alone, it settles on one track
 			a:run(XF + 0.2)
 			local _, n = live_tracks(E, owner)
 			assert_true(n <= 1)
 		end)
+	end
+
+	it("random switching: the invariant holds in every frame", function()
+		random_switching(12345, 400)
+	end)
+
+	it("random switching, other seeds: a new district cannot leave a sequence untested by accident", function()
+		for _, seed in ipairs({ 1, 777, 20240229, 99991, 31337, 4242 }) do random_switching(seed, 400) end
 	end)
 end)

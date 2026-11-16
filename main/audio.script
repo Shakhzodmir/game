@@ -143,7 +143,8 @@ local function retire_current(self, dur)
 		local ids, base = {}, {}
 		for i, name in ipairs(self.mixer.order) do
 			ids[i] = self.track.ids[name]
-			base[i] = self.mixer:gain(name) or 0
+			-- the level it sounds at now: a track that gives way while it is still coming in goes out from there
+			base[i] = (self.mixer:gain(name) or 0) * self.in_level
 		end
 		self.old = { ids = ids, base = base, t = 0, dur = dur or audio.TRACK_CROSSFADE }
 		self.mixer:stop()
@@ -221,7 +222,8 @@ local function advance_fades(self, dt)
 	local o = self.old
 	if o then
 		o.t = o.t + dt
-		self.overlap = (self.overlap or 0) + dt
+		-- (a deck that fades out alone, after stop_music, is not an overlap)
+		if self.track then self.overlap = (self.overlap or 0) + dt end
 		if self.overlap > (audio.status.max_overlap or 0) then audio.status.max_overlap = self.overlap end
 		if o.t >= o.dur then
 			release_old(self)
