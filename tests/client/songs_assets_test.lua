@@ -12,7 +12,7 @@ local function read(path)
 end
 
 local districts = json.decode(read("content/districts.json")).districts
--- the seven district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
+-- the eight district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
 local extra_genres = json.decode(read("content/genres.json")).genres
 local catalogue = {}
 for _, d in ipairs(districts) do catalogue[#catalogue + 1] = d end
@@ -38,7 +38,7 @@ describe("the registry of the jukebox songs", function()
 				assert_true(e.loop >= 16 and e.loop <= 32, s.id .. " loops " .. e.loop .. " s")
 			end
 		end
-		assert_eq(n, 77)
+		assert_eq(n, 81)
 	end)
 
 	it("has no song that the catalogue does not name, and no id of a district", function()
@@ -163,6 +163,8 @@ describe("the audio manifest of the jukebox songs", function()
 		end
 		assert_eq(manifest.music.carnival.key_reading.tasks.best, "C maj")
 		assert_eq(manifest.music.carnival.key_reading["tasks+party"].best, "C maj")
+		assert_eq(manifest.music.cinema.key_reading.tasks.best, "Eb maj")
+		assert_eq(manifest.music.cinema.key_reading["tasks+party"].best, "Eb maj")
 	end)
 
 	it("passes every check the generator ran", function()

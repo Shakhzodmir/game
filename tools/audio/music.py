@@ -36,6 +36,7 @@ HI_RATE = {
     "garage": {"tamb", "party"},
     "beach": {"shaker", "party"},
     "carnival": {"shaker", "party"},
+    "cinema": {"party"},
 }
 
 
@@ -409,6 +410,17 @@ def kit(name, sr):
             k["guiro_short"] = [guiro_scrape(sr, 0.07, key=10 + i) for i in range(3)]
             k["hat"] = [ins.shaker(sr, key=90 + i, dur=0.05) for i in range(3)]
             k["bell"] = [unit(ins.cowbell(sr, key=5, f1=float(midi_hz(72)), f2=float(midi_hz(79)), t60=0.3))]
+        elif name == "cinema":
+            unit = lambda x: x / dsp.peak(x)  # noqa: E731
+            # a concert snare played softly, the big bass drum of the orchestra (a felt thump that settles on Bb1,
+            # the fifth of the key), a pair of crash cymbals and the dry stick taps of the tension layer
+            k["snare"] = [unit(dsp.lowpass(ins.snare(sr, 196.0, 0.06, 0.15, 1.0, 1700, 8000, key=300 + i), 7500, sr))
+                          for i in range(4)]
+            k["bd"] = [unit(dsp.lowpass(ins.kick(sr, 76.0, float(midi_hz(34)), 0.02, 0.75, 0.04, 1.15, key=310 + i),
+                                        700, sr, 2)) for i in range(2)]
+            k["crash"] = [ins.crash(sr, key=41, t60=2.8)]
+            k["hat"] = [unit(dsp.highpass(ins.snare(sr, 233.0, 0.025, 0.05, 1.0, 2500, 9000, key=320 + i), 1500, sr, 2))
+                        for i in range(3)]
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -484,6 +496,72 @@ def baby_bass(midi, dur, sr, key=0):
         y = dsp.filt(y, "peak", 800, sr, q=1.0, gain_db=2.0)
         return dsp.fade(y, sr, 0.001, 0.01)
     return cached(("babybass", midi, round(dur, 3), sr, key), mk)
+
+
+def timpani(midi, sr, hard=1.0, key=0):
+    """One stroke on a kettledrum tuned to `midi`: the principal tone with the fifth, the octave and the twelfth
+    above it (a tuned head rings close to 1 : 1.5 : 2 : 3; the major third at 2.5 is left out, it would spell a
+    chord of its own), a small drop of pitch after the stroke and the thump of the felt mallet. The octave is as
+    strong as the principal: that is what a phone plays of the drum. `hard` (0..1) is how hard the stroke is:
+    more thump, more of the upper partials."""
+    def mk():
+        n = nsamp(1.5, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("timpani", midi, key)
+        ph = TAU * np.cumsum(float(midi_hz(midi)) * (1.0 + 0.02 * hard * np.exp(-t / 0.03))) / sr
+        x = 0.5 * np.sin(ph) * np.exp(-t / 0.36) + (0.2 + 0.15 * hard) * np.sin(1.5 * ph + 0.4) * np.exp(-t / 0.2)
+        x += (0.6 + 0.2 * hard) * np.sin(2.0 * ph + 1.1) * np.exp(-t / 0.28)
+        x += (0.15 + 0.2 * hard) * np.sin(3.0 * ph + 0.7) * np.exp(-t / 0.14)
+        x += 0.12 * hard * np.sin(4.0 * ph + 0.2) * np.exp(-t / 0.08)
+        th = dsp.lowpass(r.standard_normal(n), 450.0 + 900.0 * hard, sr, 2) * np.exp(-t / 0.014)
+        x = x + (0.25 + 0.3 * hard) * th / dsp.peak(th)
+        return dsp.fade(x / dsp.peak(x), sr, 0.001, 0.1)
+    return cached(("timpani", midi, sr, round(hard, 2), key), mk)
+
+
+def pizz(midi, sr, key=0):
+    """A plucked orchestral string: a short dark pluck, longer and rounder in the bass."""
+    low = midi < 60
+    return ins.guitar(midi, 0.5 if low else 0.35, sr, bright=0.3 if low else 0.42, t60=0.8 if low else 0.4,
+                      pick=0.22 if low else 0.14, mute=0.3, key=key, damp=0.5, attack=0.002)
+
+
+def bowed(midi, dur, sr, key=0, attack=0.07, release=0.2, vib=1.0, cutoff=2400.0):
+    """A bowed string (two players a few cents apart): the bow takes `attack` seconds to speak, vibrato arrives
+    after a quarter of a second."""
+    def mk():
+        n = nsamp(dur + release * 1.6, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("bowed", midi, key)
+        f = midi_hz(midi) * (1.0 + vib * 0.004 * np.sin(TAU * r.uniform(5.0, 5.8) * t + r.uniform(0, 6))
+                             * np.clip((t - 0.22) / 0.3, 0.0, 1.0))
+        x = dsp.saw(f * 2 ** (4 / 1200), n, sr, r.uniform()) + dsp.saw(f * 2 ** (-4 / 1200), n, sr, r.uniform())
+        x = dsp.lowpass(x, cutoff, sr, 2)
+        x *= dsp.env_adsr(n, sr, attack, 0.25, 0.85, dur, release)
+        return dsp.fade(x / dsp.peak(x), sr, 0.002, 0.02)
+    return cached(("bowed", midi, round(dur, 3), sr, key, attack, release, vib, cutoff), mk)
+
+
+def horn(midi, dur, sr, vel=0.8, key=0):
+    """French horn: one saw behind a low-pass that opens with the breath (never bright), a round peak near
+    480 Hz, a soft start from a little under the note."""
+    def mk():
+        n = nsamp(dur + 0.3, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("horn", midi, key)
+        cents = -22.0 * np.exp(-t / 0.04) + r.uniform(-4, 4)
+        f = midi_hz(midi) * 2 ** (cents / 1200) * (1.0 + 0.002 * np.sin(TAU * r.uniform(4.6, 5.4) * t)
+                                                   * np.clip((t - 0.3) / 0.4, 0.0, 1.0))
+        env = dsp.env_adsr(n, sr, 0.06, 0.25, 0.82, dur, 0.14)
+        y = dsp.sweep_filter(dsp.saw(f, n, sr, r.uniform()), 350.0 + (800.0 + 1100.0 * vel) * env, sr, q=0.8)
+        y = dsp.filt(y, "peak", 480, sr, q=1.0, gain_db=4.0)
+        return dsp.fade(y * env * vel, sr, 0.002, 0.02)
+    return cached(("horn", midi, round(dur, 3), sr, round(vel, 2), key), mk)
+
+
+def harp(midi, sr, key=0, dur=1.3):
+    """A harp string: plucked near the middle (round), left to ring."""
+    return ins.guitar(midi, dur, sr, bright=0.55, t60=2.4, pick=0.32, mute=0.35, key=key, damp=0.45, attack=0.0015)
 
 
 def hit(s, buf, samples, beat, vel, r, jitter=0.004, key=None):
@@ -1753,6 +1831,227 @@ def carnival_trumpet(s):
     return room(s, b, 0.2, 1.2, "trumpet", damp=5000)
 
 
+# ===================================================== CINEMA (Eb major)
+
+def cinema_song(d):
+    # a warm adventure score in Eb for a small orchestra: I - IV - vi - V (with a 4-3 suspension), then
+    # IV - I - ii7 V - I. Triads, one suspension and one minor 7th, all diatonic; the last bar is the tonic, where
+    # the choir comes home to Eb and the timpani roll on the fifth leads back into bar 1
+    Eb, F, Ab, Bb, C = 3, 5, 8, 10, 0
+    maj, mnr, m7, sus4 = [0, 4, 7], [0, 3, 7], [0, 3, 7, 10], [0, 5, 7]
+    return Song(d, progression([
+        (4, Eb, maj, "Eb"), (4, Ab, maj, "Ab"), (4, C, mnr, "Cm"), (2, Bb, sus4, "Bbsus4"), (2, Bb, maj, "Bb"),
+        (4, Ab, maj, "Ab"), (4, Eb, maj, "Eb"), (2, F, m7, "Fm7"), (2, Bb, maj, "Bb"), (4, Eb, maj, "Eb"),
+    ]))
+
+
+# The two kettledrums are tuned to the tonic and the fifth (Eb2, Bb2) and never retuned: bar -> (beat, midi, vel).
+# The Eb drum plays under every chord that holds an Eb, the Bb drum under the dominant; the last bar ends in a
+# roll on Bb that swells into the repeat.
+CINEMA_TIMP = {
+    0: [(0, 39, 1.0), (1.5, 39, 0.45), (2, 46, 0.75), (3, 46, 0.5), (3.5, 46, 0.55)],
+    1: [(0, 39, 0.9), (2, 39, 0.6), (3.5, 39, 0.45)],
+    2: [(0, 39, 0.7), (2, 39, 0.5)],
+    3: [(0, 46, 0.9), (1.5, 46, 0.45), (2, 46, 0.75), (3, 46, 0.55), (3.5, 46, 0.6)],
+    4: [(0, 39, 0.9), (2, 39, 0.6), (3.5, 39, 0.45)],
+    5: [(0, 39, 0.95), (1.5, 39, 0.45), (2, 46, 0.75), (3.5, 46, 0.5)],
+    6: [(2, 46, 0.85), (3, 46, 0.5), (3.5, 46, 0.6)],
+    7: [(0, 39, 1.0), (2, 39, 0.6)] + [(3.0 + i * 0.125, 46, 0.22 + 0.06 * i) for i in range(8)],
+}
+
+
+def cinema_third(c):
+    """The interval that names the chord above its root: the third, or the fourth of a suspension."""
+    return [t for t in c.tones if t in (3, 4, 5)][0]
+
+
+def cinema_timpani(s):
+    """Timpani on the tonic and the fifth (beat 1, an answer on 3, soft pickups; a roll into the repeat) over
+    pizzicato strings in 8ths: the cellos pluck root and fifth on beats 1 and 3, the violas fill the 8ths between
+    with the rest of the chord. The first layer: pulse and harmony on its own (the strings carry it on a phone,
+    where the drums are mostly their stroke)."""
+    r = dsp.rng(s.id, "timpani")
+    tb, pz = s.zeros(), s.zeros()
+    for bar, strokes in CINEMA_TIMP.items():
+        for j, (bt, m, v) in enumerate(strokes):
+            s.add(tb, timpani(m, s.sr, hard=round(0.3 + 0.7 * v, 1), key=j % 2), bar * 4 + bt, v,
+                  dt=r.normal(0.002, 0.002))
+    for c in s.chords:
+        R = nearest(c.root, 51, 46, 57)
+        up = nearest(c.root, 63, 58, 69)
+        mid, top = up + cinema_third(c), up + 7
+        for q in range(int(c.dur * 2)):
+            h = q % 4  # the place in the half bar: cello, viola, viola, viola
+            if h == 0:
+                m = R if (c.start + q * 0.5) % 4 == 0 or c.dur < 4 else R + 7
+                m, v = (m if m <= 58 else m - 12), 0.9
+            else:
+                m, v = (mid, top, mid)[h - 1], (0.5, 0.62, 0.45)[h - 1]
+            s.add(pz, pizz(m, s.sr, key=q % 3), c.start + q * 0.5, v, dt=r.normal(0.003, 0.003))
+    b = 0.5 * dsp.drive(tb / dsp.peak(tb) * 1.3, 1.5) + pz / dsp.peak(pz)  # the strokes rounded, not peaky
+    b = loop_filter(s, b, "hp", 55)
+    return room(s, b, 0.2, 1.5, "timpani", damp=4000, predelay=0.02)
+
+
+# The counter-melody of the first cello: long notes that move where the choir holds, climb through bars 5-6
+# while the tune comes down, and rest on the third (G3) under the last Eb. bar -> (beat, beats, midi)
+CINEMA_CELLO = bars({
+    0: [(0.0, 2.0, 55), (2.0, 2.0, 58)],
+    1: [(0.0, 2.0, 60), (2.0, 0.5, 58), (2.5, 0.5, 56), (3.0, 1.0, 60)],
+    2: [(0.0, 2.0, 63), (2.0, 1.0, 60), (3.0, 1.0, 58)],
+    3: [(0.0, 2.0, 58), (2.0, 1.0, 53), (3.0, 0.5, 55), (3.5, 0.5, 58)],
+    4: [(0.0, 2.0, 60), (2.0, 1.0, 63), (3.0, 1.0, 65)],
+    5: [(0.0, 1.5, 67), (1.5, 0.5, 65), (2.0, 2.0, 63)],
+    6: [(0.0, 2.0, 60), (2.0, 1.0, 62), (3.0, 1.0, 58)],
+    7: [(0.0, 3.0, 55)],
+})
+
+
+def cinema_cello(s):
+    """Two cello desks. The second rocks an ostinato in 8ths (root, fifth, octave, fifth; the third on top in the
+    second half of the bar); the first sings the counter-melody above it with a slow vibrato."""
+    r = dsp.rng(s.id, "cello")
+    ost = s.zeros()
+    for c in s.chords:
+        R = nearest(c.root, 51, 46, 57)
+        fig = [R, R + 7, R + 12, R + 7, R + 12 + cinema_third(c), R + 7, R + 12, R + 7]
+        for q in range(int(c.dur * 2)):
+            x = bowed(fig[q % 8], s.sec(0.48), s.sr, key=q % 2, attack=0.035, release=0.12, vib=0.0, cutoff=1900.0)
+            s.add(ost, x, c.start + q * 0.5, 0.9 if q % 4 == 0 else (0.7 if q % 2 == 0 else 0.55),
+                  dt=r.normal(0.004, 0.003))
+    src, env, onset = render_line(s, events(s, CINEMA_CELLO), osc="saw", detune=6.0, glide=0.03, legato_gap=0.02,
+                                  attack=0.07, release=0.12, vib_rate=5.3, vib_depth=0.14, vib_delay=0.3, key="ccello")
+    x = dsp.sweep_filter(src * env, 900.0 + 1500.0 * np.clip(env, 0, 1), s.sr, q=0.8)
+    mel = wrap(s, x / dsp.peak(x))
+    b = mel + 0.5 * ost / dsp.peak(ost)
+    b = loop_eq(s, b, "peak", 240, 3.0, 1.0)  # the body of the instrument
+    b = loop_eq(s, b, "peak", 600, 2.0, 1.2)
+    b = loop_filter(s, loop_filter(s, b, "hp", 60), "lp", 3200)
+    return room(s, b, 0.24, 1.7, "cello", damp=4000, predelay=0.02)
+
+
+def cinema_harp(s):
+    """Harp: 16ths that climb through two octaves of the chord in the first half of the bar, touch the top on
+    beat 3 and come down again; in the last beat of bars 4 and 8 a glissando up the scale of Eb lands on the
+    downbeat of the next phrase."""
+    r = dsp.rng(s.id, "harp")
+    b = s.zeros()
+    scale = [m for m in range(55, 92) if (m - s.tonic) % 12 in (0, 2, 4, 5, 7, 9, 11)]
+    gliss = {3 * 4 + 3: 82, 7 * 4 + 3: 87}  # the beat it fills -> the note it lands on
+    for c in s.chords:
+        R = nearest(c.root, 51, 46, 57)
+        ns = [m for m in range(R, R + 44) if (m - c.root) % 12 in [t % 12 for t in c.tones]][:9]
+        seq = ns[:8] + [ns[8]] + ns[7:0:-1]
+        for i in range(int(c.dur * 4)):
+            beat = c.start + i * 0.25
+            if int(beat) in gliss:
+                continue
+            v = 0.95 if i == 8 else (0.8 if i % 4 == 0 else 0.55 + 0.02 * (i % 4))
+            s.add(b, harp(seq[i], s.sr, key=i % 2), beat, v, dt=r.normal(0.003, 0.003))
+    for beat, top in gliss.items():
+        run = [m for m in scale if m <= top][-13:]
+        for i, m in enumerate(run[:-1]):
+            s.add(b, harp(m, s.sr, key=2, dur=0.6), beat + i / 12.0, 0.3 + 0.035 * i)
+        for m, g in ((run[-1], 1.0), (run[-1] - 12, 0.6)):
+            s.add(b, harp(m, s.sr, key=3), beat + 1.0, g)
+    b = loop_filter(s, b, "hp", 120)
+    b = loop_eq(s, b, "highshelf", 4000, 2.5)
+    return room(s, b, 0.26, 1.8, "harp", damp=7000, predelay=0.02)
+
+
+def cinema_drums(s):
+    """A soft march: the snare taps a two-bar cadence in 16ths (ghost notes between the taps), the big bass drum
+    marks beats 1 and 3, and a roll swells through the second half of bars 4 and 8 into the next phrase."""
+    k = kit("cinema", s.sr)
+    r = dsp.rng(s.id, "drums")
+    b = s.zeros()
+    pats = ("x..gx.xgx..gx.xx", "x..gx.xgx.xgxgxx")
+    vel = {"x": 0.62, "g": 0.25}
+    for bar in range(s.bars):
+        o = bar * 4
+        roll = bar in (3, 7)
+        for i, ch in enumerate(pats[bar % 2]):
+            if ch in vel and not (roll and i >= 8):
+                hit(s, b, k["snare"], o + i * 0.25, vel[ch] * (1.2 if i % 4 == 0 else 1.0), r, 0.003)
+        if roll:  # twelve strokes a beat, the two sticks never quite even
+            for i in range(24):
+                hit(s, b, k["snare"], o + 2.0 + i / 12.0, 0.16 + 0.024 * i, r, 0.006)
+        for bt, v in ((0, 0.7), (2, 0.42)):
+            hit(s, b, k["bd"], o + bt, 0.3 if roll and bt == 2 else v, r, 0.002)
+        if bar in (0, 4):  # the roll lands on the downbeat
+            hit(s, b, k["snare"], o, 0.9, r, 0.002)
+    b = dsp.drive(b / dsp.peak(b) * 1.4, 1.5)
+    return room(s, b, 0.2, 1.4, "drums", damp=5500, predelay=0.02)
+
+
+def cinema_brass(s):
+    """Three french horns hold the chords in a noble rhythm (a long note, a short one before beat 4, a long one)
+    and two trombones lay root and fifth under them, one note a chord."""
+    r = dsp.rng(s.id, "brass")
+    hb, tb = s.zeros(), s.zeros()
+    vo = voice_lead([c.pcs() for c in s.chords], 58, 72, 65)
+    for i, (c, v) in enumerate(zip(s.chords, vo)):
+        last = i == len(s.chords) - 1
+        if c.dur >= 4 and not last:
+            rhythm = [(0.0, 2.4, 0.85), (2.5, 0.45, 0.6), (3.0, 0.95, 0.8)]
+        else:
+            rhythm = [(0.0, 3.4 if last else c.dur - 0.15, 0.85)]
+        for bt, du, vel in rhythm:
+            for j, m in enumerate(v[-3:]):
+                s.add(hb, horn(m, s.sec(du), s.sr, vel=vel, key=j), c.start + bt, 1.0, dt=r.normal(0.006, 0.004))
+        R = nearest(c.root, 48, 43, 54)
+        for j, m in enumerate((R, R + 7)):
+            x = ins.brass(m, round(s.sec(3.4 if last else c.dur - 0.2), 4), s.sr, vel=0.55, bright=0.5,
+                          release=0.16, key=j)
+            s.add(tb, x, c.start, 1.0 if j == 0 else 0.7, dt=r.normal(0.008, 0.004))
+    b = hb / dsp.peak(hb) + 0.55 * tb / dsp.peak(tb)
+    b = loop_filter(s, b, "lp", 3600)
+    return room(s, b, 0.3, 1.9, "brass", damp=4500, predelay=0.025)
+
+
+# The main theme, sung on "ah": a rising fourth and a third up to G5, a 4-3 suspension over the dominant at the
+# end of the first phrase, the top (Ab5) in bar 5, and 're - do' home to Eb5 over the last bar. Bb4-Ab5, all in
+# the scale. bar -> (beat, beats, midi)
+CINEMA_THEME = bars({
+    0: [(0.0, 1.5, 70), (1.5, 0.5, 75), (2.0, 1.5, 79), (3.5, 0.5, 77)],
+    1: [(0.0, 2.0, 75), (2.0, 1.0, 72), (3.0, 1.0, 75)],
+    2: [(0.0, 1.5, 79), (1.5, 0.5, 75), (2.0, 1.0, 72), (3.0, 1.0, 74)],
+    3: [(0.0, 2.0, 75), (2.0, 1.0, 74), (3.0, 1.0, 70)],
+    4: [(0.0, 1.5, 72), (1.5, 0.5, 75), (2.0, 1.5, 80), (3.5, 0.5, 79)],
+    5: [(0.0, 2.0, 79), (2.0, 1.0, 75), (3.0, 1.0, 79)],
+    6: [(0.0, 1.5, 80), (1.5, 0.5, 77), (2.0, 1.0, 77), (3.0, 1.0, 74)],
+    7: [(0.0, 3.0, 75)],
+})
+
+
+def choir_ah(midi, dur, sr, key=0):
+    """One sung "ah" of a choir section (choir_src through the vowel, with some of its own low end for the body).
+    Every note is brought to the same level after the vowel: a tune must not swell on the notes that happen to
+    sit on a formant (G5 is right on the 800 Hz of this "ah")."""
+    def mk():
+        src = choir_src(midi, dur, sr, key=key, attack=0.11, release=0.3)
+        rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+        y = dsp.formant(src, sr, dsp.VOWELS["a_sop"])
+        low = dsp.lowpass(src, 1500, sr, 2)
+        return 0.8 * y / rms(y) + 0.3 * low / rms(low)
+    return cached(("choir_ah", midi, round(dur, 3), sr, key), mk)
+
+
+def cinema_choir(s):
+    """Wordless choir: sopranos sing the theme, tenors double it an octave lower, and from bar 5 the altos add
+    the chord note under the tune. Unlike the stadium choir, which holds chords, this one carries the melody."""
+    b = s.zeros()
+    for bt, du, m in CINEMA_THEME:
+        voices = [(m, 1.0, 0), (m - 12, 0.6, 1)]
+        if bt >= 16:
+            pcs = set(s.chord_at(bt).pcs())
+            voices.append((max(x for x in range(m - 9, m - 2) if x % 12 in pcs), 0.5, 2))
+        for mm, g, key in voices:
+            s.add(b, choir_ah(mm, s.sec(du) + 0.04, s.sr, key=key), bt, g, dt=0.01 * key)
+    b = loop_filter(s, b, "hp", 150)
+    return room(s, b, 0.4, 2.4, "choir", damp=5000, predelay=0.03)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -1770,7 +2069,7 @@ def tension_stem(s, style):
     r = dsp.rng(s.id, "tension")
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -1791,6 +2090,8 @@ def tension_stem(s, style):
             x = ins.guitar(m, s.sec(0.3), s.sr, bright=0.45, t60=0.55, pick=0.18, mute=0.04, key=7)
         elif style == "carnival":  # the left hand of the piano, staccato
             x = ins.piano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.8, release=0.06)
+        elif style == "cinema":  # cellos and basses off the string (spiccato): the chase is on
+            x = bowed(m, s.sec(0.2), s.sr, key=9, attack=0.012, release=0.07, vib=0.0, cutoff=1800.0)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -1854,7 +2155,7 @@ def party_stem(s, style):
     """Final concert: crashes, claps, 16th percussion, stabs and a bright arp."""
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -1885,7 +2186,9 @@ def party_stem(s, style):
     chords = party_chords(s, style)
     vo = [party_voicing(c) for c in chords]
     for bar in range(s.bars):
-        for bt in (0.5, 1.5, 2.5, 3.5) if style != "jazz" else (T, 1 + T, 2 + T, 3 + T):
+        # off-beat stabs; swung in the jazz club; in the cinema a fanfare rhythm (long, short-long) on the beats
+        for bt in {"jazz": (T, 1 + T, 2 + T, 3 + T), "cinema": (0.0, 0.75, 1.0, 2.0, 2.75, 3.0)}.get(
+                style, (0.5, 1.5, 2.5, 3.5)):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
             for j, m in enumerate(vo[ci]):
@@ -1942,6 +2245,9 @@ DISTRICTS = {
     "carnival": dict(song=carnival_song, stems={
         "congas": carnival_congas, "shaker": carnival_shaker, "bass": carnival_bass, "piano": carnival_piano,
         "guitar": carnival_guitar, "trumpet": carnival_trumpet}),
+    "cinema": dict(song=cinema_song, stems={
+        "timpani": cinema_timpani, "cello": cinema_cello, "harp": cinema_harp, "drums": cinema_drums,
+        "brass": cinema_brass, "choir": cinema_choir}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -1965,6 +2271,8 @@ LOUDNESS = {
               "tension": -18, "party": -16},
     "carnival": {"congas": -17, "shaker": -20, "bass": -19, "piano": -19, "guitar": -19, "trumpet": -18,
                  "tension": -18, "party": -16},
+    "cinema": {"timpani": -17, "cello": -19, "harp": -20, "drums": -19, "brass": -19, "choir": -18,
+               "tension": -18, "party": -16},
 }
 
 

@@ -1108,7 +1108,52 @@
       "semitones_from_c": 3,
       "bars": 8,
       "mood": "warm adventure film score, hopeful and grand, a small orchestra",
-      "songs": [],
+      "songs": [
+        {
+          "id": "adventure_overture",
+          "name": {
+            "ru": "Увертюра приключений",
+            "en": "Adventure Overture",
+            "ko": "모험 서곡"
+          },
+          "bpm": 132,
+          "bars": 16,
+          "mood": "adventure overture: galloping violins, a trumpet fanfare tune, french horn answers, timpani, soft snare"
+        },
+        {
+          "id": "balcony_waltz",
+          "name": {
+            "ru": "Вальс на балконе",
+            "en": "Balcony Waltz",
+            "ko": "발코니 왈츠"
+          },
+          "bpm": 112,
+          "bars": 12,
+          "mood": "love theme, a waltz in three: solo violin over a harp, a clarinet in thirds, soft strings, celesta"
+        },
+        {
+          "id": "popcorn_chase",
+          "name": {
+            "ru": "Погоня за попкорном",
+            "en": "Popcorn Chase",
+            "ko": "팝콘 추격전"
+          },
+          "bpm": 152,
+          "bars": 16,
+          "mood": "playful chase scherzo: xylophone runs, piccolo chirps, pizzicato off-beats, hopping tuba, woodblock"
+        },
+        {
+          "id": "closing_credits",
+          "name": {
+            "ru": "Финальные титры",
+            "en": "End Credits",
+            "ko": "엔딩 크레딧"
+          },
+          "bpm": 88,
+          "bars": 10,
+          "mood": "grand end credits: violins in octaves, noble french horns, wordless choir, timpani rolls, cymbals, harp"
+        }
+      ],
       "chest": {
         "coins": 1600,
         "boosters": [
