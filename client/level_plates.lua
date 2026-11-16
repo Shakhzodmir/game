@@ -10,6 +10,7 @@
 --                   wires). "veiled" (anything under a closed curtain, core-rules 10.7: p.veiled) comes first
 --                   and has no plate either: the curtain itself shows it (client/level_curtain.lua).
 --                   "chained" (core-rules 10.6) is refused like the others but has no plate: it falls
+--                   "frozen" (core-rules 10.11) is refused too and has no plate: the ice cube shows it
 --   plates ........ a cool, sunken, bolted plate (board/plate.png) under every such object, drawn as a "mark"
 --                   of client/level_view.lua below the object: one per cell, one at twice the size for the
 --                   column. It goes with the object: it blooms in with it, shrinks away with a destroyed
@@ -38,7 +39,7 @@ M.COLUMN_CELLS = 2
 
 -- Toast of the first refusal, by kind (literal keys: tools/check_refs.lua follows them).
 M.TOAST = { blocker = "level.fixed_blocker", wired = "level.fixed_wired", chained = "level.fixed_chained",
-	veiled = "level.fixed_veiled" }
+	veiled = "level.fixed_veiled", frozen = "level.fixed_frozen" }
 
 -- what makes an object fixed for good (not a passing state: falling, swapping, clearing, pinned pieces
 -- refuse too, but they do not sit on a plate)
@@ -48,6 +49,7 @@ function M.kind(p, wired)
 	if p.kind == "blocker" then return "blocker" end
 	if wired and p.kind == "regular" then return "wired" end
 	if p.chain and p.kind == "regular" then return "chained" end
+	if p.ice and p.kind == "regular" then return "frozen" end
 	return nil
 end
 
@@ -97,7 +99,7 @@ function Plates:fill(list, n, pieces, cells, geom, anim, t, sx, sy)
 			local idx = (p.y - 1) * W + p.x
 			local c = cells and cells[idx]
 			local kind = M.kind(p, c ~= nil and (c.wires or 0) > 0)
-			if kind and kind ~= "chained" and kind ~= "veiled" and not p.hidden then
+			if kind and kind ~= "chained" and kind ~= "frozen" and kind ~= "veiled" and not p.hidden then
 				-- how the object looks now: the plate blooms with it and shrinks with it, and waits while
 				-- the noise creeps over a piece that is still drawn as it was
 				local v = anim and anim:record(p.id)

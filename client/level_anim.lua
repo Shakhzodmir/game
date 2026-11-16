@@ -21,6 +21,8 @@
 --   A chained piece (core-rules 10.6) gets a second entry in the draw list, the chain: id CHAIN_ID + piece id,
 --   image blockers_chain_<hp>, the place, squash and alpha of its piece and a hair above it; it rattles when a
 --   match takes a link off.
+--   A frozen piece (core-rules 10.11) gets the ice cube the same way: id ICE_ID + piece id, image
+--   blockers_ice_<hp>, see-through (client/level_ice.lua); it jolts and flashes when a layer cracks.
 --
 --   local level_anim = require("client.level_anim")
 --   local A = level_anim.new({geom = g, reduced = false})
@@ -41,6 +43,7 @@
 -- (touch, squash, appear, flashes) on real seconds.
 
 local level_boombox = require("client.level_boombox")
+local level_ice = require("client.level_ice")
 local level_hint = require("client.level_hint")
 
 local M = {}
@@ -81,6 +84,8 @@ M.NOPE_FLASH = 0.22     -- ... with a white flash of this strength at the start
 
 M.CHAIN_ID = 1000000    -- draw-list id of the chain of piece `id` is CHAIN_ID + id (piece ids are far below)
 M.Z_CHAIN = 0.004       -- the chain lies this much above its piece
+M.ICE_ID = 2000000      -- draw-list id of the ice cube of piece `id` is ICE_ID + id
+M.Z_ICE = 0.005         -- the ice lies this much above its piece
 
 M.Z = {
 	blocker = 0.08, piece = 0.10, special = 0.11, mic = 0.10,
@@ -310,11 +315,13 @@ function Anim:event(e, t)
 			self.hits[cell_key(e.x, e.y)] = t
 		elseif e.layer == "chain" and e.id then
 			rec(self, e.id).chain_hit = t -- the chain rattles
+		elseif e.layer == "ice" and e.id then
+			rec(self, e.id).ice_hit = t -- the ice cracks: the cube jolts
 		end
 	elseif ty == "boombox" then
 		-- the boombox plays the colour of the match (core-rules 10.10): it shakes
 		if e.id then rec(self, e.id).shake = t end
-	elseif ty == "unchained" then
+	elseif ty == "unchained" or ty == "thawed" then
 		rec(self, e.id).pop = t
 	elseif ty == "noise_spread" then
 		local v = rec(self, e.id)
@@ -686,6 +693,32 @@ function Anim:frame(pieces, tick_f, t)
 			c.sx, c.sy, c.rot = sx * cs, sy * cs, crot
 			c.scale = base
 			c.flash, c.alpha, c.clip = cflash, alpha, e.clip
+			out[#out + 1] = c
+		end
+		if p.ice and kind == "regular" then
+			-- the ice cube stands over its piece, see-through (core-rules 10.11)
+			local c = v.out_ice
+			if not c then
+				c = { id = M.ICE_ID + p.id }
+				v.out_ice = c
+			end
+			c.image = level_ice.anim(p.ice)
+			local cs, crot, cflash = 1, 0, flash
+			if v.ice_hit then
+				local dt = t - v.ice_hit
+				if dt >= level_ice.HIT_TIME then
+					v.ice_hit = nil
+				else
+					local k = 1 - dt / level_ice.HIT_TIME
+					if not reduced then crot = level_ice.HIT_ROT * k * math.sin(dt * 55) end
+					cs = 1 + 0.05 * k
+					cflash = math.max(cflash, level_ice.HIT_FLASH * k)
+				end
+			end
+			c.x, c.y, c.z = x, y, z + M.Z_ICE
+			c.sx, c.sy, c.rot = sx * cs, sy * cs, crot
+			c.scale = base
+			c.flash, c.alpha, c.clip = cflash, alpha * level_ice.ALPHA, e.clip
 			out[#out + 1] = c
 		end
 	end

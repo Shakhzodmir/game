@@ -18,6 +18,7 @@
 -- concert (the mixer never plays them together).
 
 local level_boombox = require("client.level_boombox")
+local level_ice = require("client.level_ice")
 
 local M = {}
 
@@ -209,12 +210,18 @@ function LA:event(e)
 			self:sfx(M.BLOCKER_HIT[e.item] or "box_hit", nil, 0.06)
 		elseif e.layer == "wires" or e.layer == "chain" then
 			self:sfx("wires_snap", { gain = 0.5 }, 0.08)
+		elseif e.layer == "ice" then
+			-- a layer of ice cracks (core-rules 10.11): a short glassy tick
+			self:sfx(level_ice.CRACK_SFX, { gain = level_ice.CRACK_GAIN, speed = level_ice.CRACK_SPEED }, 0.08, "ice")
 		end
 	elseif ty == "destroy" then
 		self:sfx(M.BLOCKER_BREAK[e.item] or "box_break", nil, 0.05)
 		self:buzz("destroy")
 	elseif ty == "freed" or ty == "unchained" then
 		self:sfx("wires_snap", nil, 0.06)
+	elseif ty == "thawed" then
+		-- the ice is gone (core-rules 10.11): a soft pop
+		self:sfx(level_ice.MELT_SFX, { gain = level_ice.MELT_GAIN, speed = level_ice.MELT_SPEED }, 0.06, "thaw")
 	elseif ty == "floor_lit" then
 		self:sfx("floor_light", nil, 0.06)
 	elseif ty == "carpet" then

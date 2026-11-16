@@ -131,7 +131,7 @@ end
 
 -- where the last collected thing was (a goal event has no position)
 local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, coconut_collected = true,
-	transform = true, unchained = true, carpet = true }
+	transform = true, unchained = true, carpet = true, thawed = true }
 
 local function on_event(self, e)
 	local ty = e.type
@@ -228,7 +228,7 @@ local function command(self, cmd)
 end
 
 -- What is at core cell (x, y): the piece of game:pieces() (a column answers on all four of its cells) and what
--- keeps it in place for good ("veiled" | "blocker" | "wired" | "chained", client/level_plates.lua), or nil.
+-- keeps it in place for good ("veiled" | "blocker" | "wired" | "chained" | "frozen", client/level_plates.lua), or nil.
 local function fixed_at(self, x, y)
 	local i = (y - 1) * self.W + x
 	local p = self.cellmap[i]
@@ -243,7 +243,7 @@ end
 -- edge of the board, a piece still falling) keeps the small nudge of the piece that was touched.
 local function on_rejected(self, cmd, why)
 	if type(cmd) ~= "table" or (cmd.type ~= "swap" and cmd.type ~= "tap") then return end
-	local first_kind, shook, veiled = nil, false, false
+	local first_kind, shook, veiled, frozen = nil, false, false, false
 	if why == "not_movable" then
 		for k = 1, 2 do
 			local c = (k == 1) and (cmd.at or cmd.from) or cmd.to
@@ -256,6 +256,7 @@ local function on_rejected(self, cmd, why)
 						veiled = true
 					else
 						self.anim:nope(p.id, self.t)
+						if kind == "frozen" then frozen = true end -- (core-rules 10.11: answered like a failed swap)
 					end
 					shook = true
 					if not first_kind and level_plates.first(kind) then first_kind = kind end
@@ -264,7 +265,7 @@ local function on_rejected(self, cmd, why)
 		end
 	end
 	if shook then
-		if veiled then self.laudio:blocked() else self.laudio:nope() end
+		if veiled or frozen then self.laudio:blocked() else self.laudio:nope() end
 		if first_kind then app.toast_key(level_plates.TOAST[first_kind], nil, { color = "blue", duration = 3 }) end
 	elseif cmd.type == "swap" and type(cmd.from) == "table" then
 		local p = self.cellmap[(cmd.from[2] - 1) * self.W + cmd.from[1]]
@@ -398,7 +399,7 @@ function init(self)
 		if not p then return nil end
 		local c = self.cells[(y - 1) * self.W + x]
 		return { id = p.id, kind = p.kind, state = p.state, pinned = p.pinned, wired = c and (c.wires or 0) > 0,
-			chained = p.chain ~= nil, veiled = p.veiled == true }
+			chained = p.chain ~= nil, frozen = p.ice ~= nil, veiled = p.veiled == true }
 	end })
 	self.hint = level_hint.new()
 	self.plates = level_plates.new()
@@ -579,7 +580,7 @@ end
 
 -- What the board remembers of a piece or a cell is compared with a fresh look at the core by the janitor.
 local PIECE_FIELDS = { "id", "x", "y", "kind", "state", "offx", "offy", "hidden", "pinned", "color", "special", "axis", "item", "hp", "chain",
-	"veiled" }
+	"ice", "veiled" }
 local CELL_FIELDS = { "exists", "wires", "floor", "carpet" }
 
 local function same_list(a, b, fields)
@@ -615,6 +616,7 @@ local function janitor(self)
 	for i = 1, #pieces do
 		ids[pieces[i].id] = true
 		if pieces[i].chain then ids[level_anim.CHAIN_ID + pieces[i].id] = true end -- its chain is a sprite of the view too
+		if pieces[i].ice then ids[level_anim.ICE_ID + pieces[i].id] = true end -- and so is its ice cube
 	end
 	local fixed = self.vfx:audit() + self.view:audit(ids, cells, self.geom)
 	if not same_list(self.pieces, pieces, PIECE_FIELDS) then

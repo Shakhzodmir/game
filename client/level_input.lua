@@ -9,7 +9,7 @@
 --   local level_input = require("client.level_input")
 --   local inp = level_input.new({mode = "swipe" | "taptap", query = fn(x, y)})
 --   -- query(x, y) -> nil (no object) or {id, kind = "regular"|"special"|"mic"|"coconut"|"blocker",
---   --                  state = "idle"|..., pinned = bool, wired = bool, chained = bool,
+--   --                  state = "idle"|..., pinned = bool, wired = bool, chained = bool, frozen = bool,
 --   --                  veiled = bool (under a closed curtain, core-rules 10.7)}
 --   inp:press(fx, fy)          -- continuous cell coords (level_geom:frac), nil = off the board
 --   local cmd = inp:move(fx, fy)    -- a swipe of 30% of a cell -> {type = "swap", from, to}
@@ -81,9 +81,9 @@ function Input:deselect()
 	self.selected = nil
 end
 
--- A piece that may be selected: idle, not pinned, movable (no wires, no chain, no closed curtain over it).
+-- A piece that may be selected: idle, not pinned, movable (no wires, no chain, no ice, no closed curtain over it).
 local function selectable(p, mode)
-	if not p or p.state ~= "idle" or p.pinned or p.wired or p.chained or p.veiled then return false end
+	if not p or p.state ~= "idle" or p.pinned or p.wired or p.chained or p.frozen or p.veiled then return false end
 	if p.kind == "regular" or p.kind == "mic" or p.kind == "coconut" then return true end
 	return mode == "taptap" and p.kind == "special"
 end
@@ -92,10 +92,10 @@ local function launchable(p)
 	return p and p.kind == "special" and p.state == "idle" and not p.pinned and not p.veiled
 end
 
--- Something the finger never moves (a blocker, a piece under wires, a piece on a chain, anything under a
--- closed curtain).
+-- Something the finger never moves (a blocker, a piece under wires, a piece on a chain, a frozen piece,
+-- anything under a closed curtain).
 local function fixed(p)
-	return p and p.state == "idle" and (p.kind == "blocker" or p.wired == true or p.chained == true or p.veiled == true)
+	return p and p.state == "idle" and (p.kind == "blocker" or p.wired == true or p.chained == true or p.frozen == true or p.veiled == true)
 end
 
 -- Drops the selection when its piece is gone (rule 1). find(id) -> the
