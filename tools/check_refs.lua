@@ -63,6 +63,7 @@ M.TOPICS_WITHOUT_SUBSCRIBER = {
 	screen_changed = "informational: analytics logs screen_view at the same place; the overlay reacts to screen_leaving",
 	modal_result = "the answer to app.modal(); its only caller today is the QA bridge `modal` command",
 	level_floor = "informational: the dance-floor art follows the link view (floor_rev); kept for observers",
+	level_carpet = "informational: the carpet art follows the link view (cells, floor_rev); kept for observers",
 }
 -- Topics subscribed but not published by any code (none today).
 M.TOPICS_WITHOUT_PUBLISHER = {}
@@ -968,6 +969,7 @@ local function key_families(data)
 	blockers[#blockers + 1] = "coconut"
 	blockers[#blockers + 1] = "chain"
 	blockers[#blockers + 1] = "curtain"
+	blockers[#blockers + 1] = "carpet"
 	fam["blocker."] = blockers
 	fam["praise."] = { "1", "2", "3", "4", "5" }
 	local stems = {}

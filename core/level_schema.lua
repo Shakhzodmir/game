@@ -59,7 +59,7 @@ local SHAPE = {
 	size = "arr", colors = "arr", cells = "arr", at = "arr",
 	goals = "arr_obj", floor = "arr_obj", overlay = "arr_obj", slots = "arr_obj",
 	spawners = "arr_arr", exits = "arr_arr", mic = "obj", spawn_weights = "obj",
-	coconut = "obj", columns = "arr", curtain = "obj", covers = "arr_arr",
+	coconut = "obj", columns = "arr", curtain = "obj", covers = "arr_arr", carpet = "arr_arr",
 }
 
 local function ser_scalar(v, out)
@@ -118,7 +118,7 @@ end
 local ROOT = {
 	id = true, version = true, size = true, moves = true, difficulty = true, colors = true,
 	goals = true, cells = true, spawners = true, exits = true, floor = true, overlay = true,
-	slots = true, mic = true, spawn_weights = true, coconut = true, curtain = true,
+	slots = true, mic = true, spawn_weights = true, coconut = true, curtain = true, carpet = true,
 }
 
 local GOAL_KEYS = {
@@ -128,6 +128,7 @@ local GOAL_KEYS = {
 	deliver = { type = true, count = true },
 	drop = { type = true, count = true },
 	chains = { type = true, count = true },
+	carpet = { type = true },
 }
 
 -- slot type -> {fields = {name = checker}}
@@ -201,12 +202,12 @@ function LS.check(raw, errs)
 			local g = raw.goals[k]
 			local path = "goals[" .. k .. "]"
 			if not is_object(g) or type(g.type) ~= "string" or not GOAL_KEYS[g.type] then
-				e(path .. ": goal type collect|break|light|deliver|drop|chains required")
+				e(path .. ": goal type collect|break|light|deliver|drop|chains|carpet required")
 			else
 				check_keys(g, GOAL_KEYS[g.type], path, errs)
 				if g.type == "collect" and not is_color(g.color) then e(path .. ": color required") end
 				if g.type == "break" and type(g.item) ~= "string" then e(path .. ": item required") end
-				if g.type ~= "light" and not (is_int(g.count) and g.count >= 1) then
+				if g.type ~= "light" and g.type ~= "carpet" and not (is_int(g.count) and g.count >= 1) then
 					e(path .. ": count >= 1 required")
 				end
 				local key = g.type .. ":" .. tostring(g.color or g.item or "")
@@ -337,6 +338,17 @@ function LS.check(raw, errs)
 			if not hp_range(1, 9)(m.closed_moves) then e("curtain: closed_moves 1..9 required") end
 			if not hp_range(1, 9)(m.open_moves) then e("curtain: open_moves 1..9 required") end
 			if m.start ~= "closed" and m.start ~= "open" then e("curtain: start 'closed' or 'open' required") end
+		end
+	end
+	if raw.carpet ~= nil then
+		-- the carpet (10.8): the cells that are covered at the start
+		local m = raw.carpet
+		if not is_array(m) or #m < 1 then
+			e("carpet: a non-empty list of [x, y] required")
+		else
+			for j = 1, #m do
+				if not is_at(m[j]) then e("carpet[" .. j .. "]: [x, y] required") end
+			end
 		end
 	end
 	if raw.mic ~= nil then

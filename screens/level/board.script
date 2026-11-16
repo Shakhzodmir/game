@@ -58,6 +58,7 @@ local level_geom = require("client.level_geom")
 local level_input = require("client.level_input")
 local level_plates = require("client.level_plates")
 local level_curtain = require("client.level_curtain")
+local level_carpet = require("client.level_carpet")
 local level_hint = require("client.level_hint")
 local level_audio = require("client.level_audio")
 local level_link = require("client.level_link")
@@ -130,7 +131,7 @@ end
 
 -- where the last collected thing was (a goal event has no position)
 local SOURCE_EVENTS = { clear = true, destroy = true, floor_lit = true, mic_delivered = true, coconut_collected = true,
-	transform = true, unchained = true }
+	transform = true, unchained = true, carpet = true }
 
 local function on_event(self, e)
 	local ty = e.type
@@ -179,6 +180,12 @@ local function on_event(self, e)
 		v.lit[(e.y - 1) * self.W + e.x] = self.t
 		local lx, ly = self.geom:center(e.x, e.y)
 		bus.publish("level_floor", { x = e.x, y = e.y, lx = lx, ly = ly })
+	elseif ty == "carpet" then
+		-- a cell was covered by the carpet (core-rules 10.8): the background draws it from the cells (its
+		-- revision is the floor's), and the HUD may answer where it happened
+		self.floor_dirty = true
+		local lx, ly = self.geom:center(e.x, e.y)
+		bus.publish("level_carpet", { x = e.x, y = e.y, lx = lx, ly = ly })
 	elseif ty == "freed" or ty == "shuffle" then
 		self.wires_dirty = true
 	elseif ty == "noise_spread" then
@@ -421,6 +428,7 @@ function init(self)
 	self.link_board = {
 		session = s, input = self.input, geom = nil,
 		view = { rev = 0, floor_rev = 0, cells = self.cells, floor0 = floor0, lit = {}, deliver = deliver,
+			carpet = level_carpet.active(self.cells), -- a carpet level (core-rules 10.8): the cells say where it lies
 			shake_x = 0, shake_y = 0, W = self.W, H = self.H },
 		on_booster = function(id, phase) bus.publish("level_booster", { booster = id, phase = phase }) end,
 	}
@@ -572,7 +580,7 @@ end
 -- What the board remembers of a piece or a cell is compared with a fresh look at the core by the janitor.
 local PIECE_FIELDS = { "id", "x", "y", "kind", "state", "offx", "offy", "hidden", "pinned", "color", "special", "axis", "item", "hp", "chain",
 	"veiled" }
-local CELL_FIELDS = { "exists", "wires", "floor" }
+local CELL_FIELDS = { "exists", "wires", "floor", "carpet" }
 
 local function same_list(a, b, fields)
 	if not a or #a ~= #b then return false end

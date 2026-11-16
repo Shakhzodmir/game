@@ -39,6 +39,8 @@ function B.new_state(level)
 		tc = 0, rounds = 0, moves_at_win = 0, concert_A = 0,
 		-- the timed curtains (10.7): are they closed, moves left until the next change (0 without curtains)
 		cur_closed = false, cur_left = 0,
+		-- the carpet (10.8): carpet[i] = is cell i covered; false on a level without the carpet
+		carpet = false,
 		swaps = {}, queue = {}, sources = {}, eom = {}, praise = {}, unplaced = {},
 		rng = nil, help = 0, colorless = false, in_group = false,
 		ev = {}, cmds = {},
@@ -55,6 +57,10 @@ function B.new_state(level)
 		s.seg_bot[i] = level.seg_bot[i]
 	end
 	for k = 1, #level.goals do s.goal_left[k] = level.goals[k].count end
+	if level.carpet then
+		s.carpet = {}
+		for i = 1, N do s.carpet[i] = level.carpet.at[i] end
+	end
 	local cu = level.curtain
 	if cu then
 		s.cur_closed = cu.start_closed

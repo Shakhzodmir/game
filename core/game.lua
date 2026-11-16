@@ -181,6 +181,7 @@ function Game:cells()
 	for i = 1, s.N do
 		out[i] = { exists = s.exists[i], spawner = s.spawner[i], exit = s.exit[i], floor = s.floor[i], wires = s.wires[i] }
 		if cu and cu.at[i] then out[i].curtain = true end
+		if s.carpet and s.carpet[i] then out[i].carpet = true end -- covered by the carpet (10.8)
 	end
 	return out
 end

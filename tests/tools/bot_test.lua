@@ -438,6 +438,85 @@ describe("tools bot: the documented behaviour", function()
 		assert_true(Bot.W.drape > 0)
 	end)
 
+	-- the carpet (core-rules 10.8): three covered cells in the middle of a 7x7 board, two boxes as walls
+	local function carpet_level(extra)
+		local t = {
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "carpet" } },
+			carpet = { { 2, 3 }, { 3, 3 }, { 4, 3 } },
+			slots = { { at = { 1, 1 }, type = "record_box", hp = 2 }, { at = { 5, 5 }, type = "record_box", hp = 1 } },
+		}
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small carpet level: it covers the whole board, the cells behind the boxes too", function()
+		local e = carpet_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+	end)
+
+	it("counts the swaps that would roll the carpet out, only on a level with that goal, and plays the same game twice", function()
+		local e = carpet_level({ slots = {} })
+		local g = core.new(e.level, { seed = 2 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		assert_true(bot.rug)
+		-- white box: a board without a match where one swap only, (4,5) -> (4,4), makes a line: the purple
+		-- (3..5, 4) on the carpet row (purple is no colour of the level, so nothing else can match)
+		local s = g.s
+		local COL = { r = 1, y = 3, g = 4, b = 5, p = 6 }
+		local rows = { "byrgbyr", "yrgbyrg", "rgbyrgb", "gbprpby", "byrpbyr", "yrgbyrg", "rgbyrgb" }
+		for y = 1, 7 do
+			for x = 1, 7 do
+				s.objs[s.slot[(y - 1) * 7 + x]].color = COL[string.sub(rows[y], x, x)]
+			end
+		end
+		assert_eq(#g:moves(), 1)
+		assert_eq(Bot.carpet_moves(bot, g), 0, "the level's carpet (3..5, 4) is under the whole line")
+		for i = 1, 49 do s.carpet[i] = false end
+		s.carpet[3 * 7 + 3] = true
+		assert_eq(Bot.carpet_moves(bot, g), 1, "one cell of the line on the carpet: the match rolls it out")
+		s.carpet[3 * 7 + 4], s.carpet[3 * 7 + 5] = true, true
+		assert_eq(Bot.carpet_moves(bot, g), 0, "a match wholly on the carpet spreads nothing")
+		for i = 1, 49 do s.carpet[i] = false end
+		s.carpet[1] = true
+		assert_eq(Bot.carpet_moves(bot, g), 0, "a match off the carpet spreads nothing")
+		assert_true(Bot.W.rug > 0 and Bot.RUG_CAP >= 1)
+		-- a level without the goal: nil, and the bot's choice does not look at it
+		local plain = F.entry()
+		local pbot = Bot.new("greedy", { seed = 1, goals = plain.goals, width = 7 })
+		assert_false(pbot.rug)
+		assert_eq(Bot.carpet_moves(pbot, core.new(plain.level, { seed = 2 })), nil)
+		-- the same seeds, the same game
+		local function run(seed)
+			local lvl = carpet_level().level
+			local game = core.new(lvl, { seed = seed, timing = "turbo" })
+			local b = Bot.new("greedy", { seed = seed, goals = e.goals, width = 7 })
+			local log = {}
+			for _ = 1, 30 do
+				game:run_to_rest()
+				game:drain_events()
+				if game:status().state ~= "playing" then break end
+				local cmd = b:choose(game)
+				if not cmd then break end
+				assert_true(game:input(cmd))
+				log[#log + 1] = cmd.type .. (cmd.from and (cmd.from[1] .. cmd.from[2] .. cmd.to[1] .. cmd.to[2]) or (cmd.at[1] .. cmd.at[2]))
+			end
+			return log, game:hash()
+		end
+		local la, ha = run(4)
+		local lb, hb = run(4)
+		assert_true(#la >= 3)
+		assert_same(la, lb)
+		assert_eq(ha, hb)
+	end)
+
 	it("refuses an unknown bot kind and a budget below the schema's minimum", function()
 		assert_error(function() Bot.new("clever", {}) end, "unknown kind")
 		local e = F.entry()

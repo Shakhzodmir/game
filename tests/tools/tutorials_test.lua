@@ -159,6 +159,7 @@ local function elements_of(raw)
 		if o.type == "chain" then kinds.chain = true end -- (10.6: another element of the same layer)
 	end
 	if raw.curtain then kinds.curtain = true end -- (10.7: a block of its own, not a slot)
+	if raw.carpet then kinds.carpet = true end -- (10.8; its PLAN_ELEMENTS entry comes with its first level, 161)
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end

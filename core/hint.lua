@@ -39,6 +39,14 @@ local function progress(s, g)
 	local deliver = B.goal_open(s, C.GOAL_DELIVER, 0)
 	local drop = B.goal_open(s, C.GOAL_DROP, 0)
 	local chains = B.goal_open(s, C.GOAL_CHAINS, 0)
+	-- the carpet (10.8): a group that stands on the carpet and reaches beyond it rolls the carpet out
+	if s.carpet and B.goal_open(s, C.GOAL_CARPET, 0) then
+		local on, off = false, false
+		for k = 1, #g.cells do
+			if s.carpet[g.cells[k]] then on = true else off = true end
+		end
+		if on and off then return true end
+	end
 	for k = 1, #g.cells do
 		local i = g.cells[k]
 		if light and s.floor[i] > 0 then return true end

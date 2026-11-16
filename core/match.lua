@@ -302,6 +302,12 @@ function M.resolve(s, g, swaps)
 	local Wv = Wmax + 1
 	local src_m = H.new_source(s, C.SRC_MATCH, Mv, Wv, g.color)
 	local src_a = H.new_source(s, C.SRC_ADJ, Mv, Wv, g.color)
+	-- the carpet (10.8): a group that stands on the carpet with at least one cell spreads it under all of them
+	if s.carpet then
+		for k = 1, #g.cells do
+			if s.carpet[g.cells[k]] then src_m.carpet = true end
+		end
+	end
 	local ev = { cells = cells_xy(s, g.cells), color = C.COLOR_NAME[g.color], wave = Wv, act = Mv }
 	if special ~= 0 then ev.special = C.SPECIAL_NAME[special] end
 	E.emit(s, "match", ev)

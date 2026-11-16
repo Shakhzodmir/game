@@ -1581,3 +1581,99 @@ describe("screens/level/board.script with curtains (core-rules 10.7)", function(
 		end)
 	end)
 end)
+
+-- the carpet (core-rules 10.8) under (4,9); the swipe (6,8) -> (6,9) makes the green line (4..6, 9) on it
+local function carpet_level(bare)
+	local carpet = { { 3, 8 } }
+	if bare then
+		-- everything is covered but `bare` cells of the top row: a level the autoplay finishes soon
+		carpet = {}
+		for y = 0, 8 do
+			for x = 0, 8 do
+				if not (y == 0 and x < bare) then carpet[#carpet + 1] = { x, y } end
+			end
+		end
+	end
+	return core_helper.level({
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyrgbpyr",
+		"pyrgbypyr",
+		"yrgbpyrgb",
+		"rgbpyrgby",
+		"gbpyrgbpy",
+		"bpyggbpyr",
+	}, { moves = 30, goals = { { type = "carpet" } }, carpet = carpet })
+end
+
+describe("screens/level/board.script with the carpet (core-rules 10.8)", function()
+	local link = require("client.level_link")
+
+	local function sounds(E, name)
+		local n = 0
+		for _, m in ipairs(E.msgs) do
+			if m.id == "sfx" and m.message.name == name then n = n + 1 end
+		end
+		return n
+	end
+
+	it("tells the background where the carpet lies, and follows the core when a match rolls it out", function()
+		with_board({ level = 1, level_text = carpet_level() }, function(E, script, self, d)
+			d.frame(90)
+			local v = link.view()
+			assert_true(v.carpet == true, "the view says it is a carpet level")
+			assert_true(v.cells[(9 - 1) * 9 + 4].carpet == true)
+			assert_eq(v.cells[(9 - 1) * 9 + 5].carpet, nil)
+			local rev = v.floor_rev
+			local chimes = sounds(E, "floor_light")
+			d.swipe(6, 8, 6, 9)
+			d.frame(1)
+			assert_true(d.settle())
+			d.frame(30)
+			v = link.view()
+			assert_true(v.cells[(9 - 1) * 9 + 5].carpet == true and v.cells[(9 - 1) * 9 + 6].carpet == true,
+				"the cells of the match are covered in the view")
+			assert_true(v.floor_rev > rev, "the background was told to look again")
+			assert_true((d.topics.level_carpet or 0) >= 2, "a level_carpet message a covered cell")
+			assert_true((d.topics.level_goal or 0) >= 2, "the goal counted the cells")
+			assert_true(sounds(E, "floor_light") > chimes, "the carpet chimed")
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("a level without the carpet says so to the background", function()
+		with_board({ level = 1 }, function(E, script, self, d)
+			d.frame(30)
+			assert_eq(link.view().carpet, false)
+		end)
+	end)
+
+	it("the janitor finds nothing to put right on a carpet board at rest", function()
+		with_board({ level = 1, level_text = carpet_level() }, function(E, script, self, d)
+			d.frame(900)
+			assert_true((self.janitor_passes or 0) >= 1, "the janitor looked")
+			assert_eq(self.janitor_repairs or 0, 0)
+			assert_eq(self.view:stats().repaired, 0)
+		end)
+	end)
+
+	it("plays a carpet level to its final concert without an engine error; the whole board is covered", function()
+		with_board({ level = 1, level_text = carpet_level(3) }, function(E, script, self, d)
+			self.session:autoplay(nil, { free_moves = true })
+			local state
+			for _ = 1, 9000 do
+				d.frame(1)
+				state = self.session.game:status().state
+				if state == "complete" or state == "lost" then break end
+			end
+			assert_eq(state, "complete")
+			d.frame(60)
+			assert_eq(self.errors or 0, 0)
+			assert_eq(d.topics.level_result, 1)
+			for _, c in ipairs(self.session.game:cells()) do
+				assert_true(c.carpet == true)
+			end
+		end)
+	end)
+end)

@@ -49,8 +49,11 @@ local function weak_blocker(o)
 end
 
 -- Level of every cell (the table of section 9), array 1..N.
-function BD.levels(s)
+-- `src` (optional): the choosing source; if it carries the carpet (10.8) while the carpet goal is open, a cell
+-- its hit would cover is a goal cell (level 4).
+function BD.levels(s, src)
 	local ctx = goal_ctx(s)
+	local rug = s.carpet and src ~= nil and src.carpet and B.goal_open(s, C.GOAL_CARPET, 0) and s.carpet or nil
 	local W = s.W
 	local lv = {}
 	for i = 1, s.N do
@@ -87,6 +90,11 @@ function BD.levels(s)
 					l = 0 -- no effect reaches the tile under a chained piece either
 				elseif l < 4 and ctx.light and s.floor[i] > 0 and s.wires[i] == 0
 					and (not idle or o.kind == K_REGULAR or weak_blocker(o)) then
+					l = 4
+				end
+				-- a cell the carpet of this source would cover (10.8): any cell without an intact blocker,
+				-- except the cell of a chained piece (never a target, 10.6)
+				if rug and l < 4 and not rug[i] and not (idle and (o.kind == K_BLOCKER or o.chain > 0)) then
 					l = 4
 				end
 				-- the cell right under an idle mic (coconut), if the hit frees it
@@ -147,7 +155,7 @@ end
 -- Single target (section 9): max level, then max density, then one draw of
 -- the `effects` stream among the equal best. 0 = no target (no draw).
 function BD.pick_single(s, src)
-	local lv = BD.levels(s)
+	local lv = BD.levels(s, src)
 	local cands = BD.candidates(s, src, lv)
 	local best, bl, bd = {}, -1, -1
 	for k = 1, #cands do
@@ -224,7 +232,7 @@ end
 -- a Riff the better axis first, h on a tie), then one draw among the equal
 -- best. Returns cell, axis (0, 0 = no target, no draw).
 function BD.pick_cargo(s, src, cargo)
-	local lv = BD.levels(s)
+	local lv = BD.levels(s, src)
 	local cands = BD.candidates(s, src, lv)
 	local best, bt = {}, nil
 	for k = 1, #cands do
@@ -332,6 +340,8 @@ function BD.impact(s, d)
 		return
 	end
 	local csrc = H.new_source(s, C.SRC_EFFECT, src.mv, src.wv, 0)
+	-- the carpet (10.8): the Bird brings it with the cargo, and a cargo that lands on the carpet starts on it
+	if s.carpet and (src.carpet or s.carpet[cell]) then csrc.carpet = true end
 	local sp = CARGO_SPECIAL[cargo]
 	EF.activate_event(s, nil, cell, sp, axis, nil)
 	if sp == C.SP_RIFF then

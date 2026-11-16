@@ -324,3 +324,18 @@ and mutated levels; the empty cells of boards B0 and B1), `start_oracle_test.lua
 `swap_oracle_test.lua` (5.1.1 and 5.1.2 in the middle of random games). The
 swap oracle reads the state (`objs`, `swaps`, timers) and must be kept in step
 with it.
+
+## Carpet (§10.8)
+
+The carpet of district 9 is a flag of the cell (`s.carpet[i]`; `false` on a
+level without the field `carpet`), not a layer with hp. It is laid by one
+function only, step 0a of the hit (`hits.lua`, `carpet_lay`), for a source
+whose flag `carpet` is set; the flag is decided where the source is made:
+`match.lua` (a group with a covered cell), `specials.lua` (the special or
+either special of a combo stands on a covered cell), `bird.lua` (the cargo
+inherits it; a carrying Bird ranks a bare cell 4), `boosters.lua` (a
+spotlight whose line has a covered cell). An intact blocker is a wall; a
+closed curtain cell is not hit at all. The goal `GOAL_CARPET = 7` counts the
+bare cells (`level.lua`, rule 2.1.13 with the reachability check). The cells
+and the flags of the active sources are hashed only on such a level
+(`hash.lua`). Tests: `tests/core/carpet_test.lua`.

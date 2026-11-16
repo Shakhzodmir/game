@@ -88,6 +88,13 @@ function BO.run(s, rec)
 				if s.exists[i] then acts[#acts + 1] = { now + T.light_step * (y - 1), C.R_HIT, { src.id, i } } end
 			end
 		end
+		-- the carpet (10.8): a spotlight over a row or a column that has a covered cell rolls the carpet
+		-- out along the whole of it
+		if s.carpet then
+			for k = 1, #acts do
+				if s.carpet[acts[k][3][2]] then src.carpet = true end
+			end
+		end
 		EF.run(s, src, acts, true)
 	else -- remix
 		if #SH.candidates(s) < 2 then

@@ -53,6 +53,8 @@ M.HAPTIC = { tap = 8, special = 22, combo = 40, finale = 70, praise = 14, goal =
 M.NOPE_SFX, M.NOPE_GAIN, M.NOPE_GAP = "land", 0.9, 0.08
 -- The curtain (core-rules 10.7) closes and opens with the swap's whoosh, slowed down: lower when it closes.
 M.CURTAIN_GAIN, M.CURTAIN_CLOSE, M.CURTAIN_OPEN = 0.6, 0.6, 0.75
+-- The carpet (core-rules 10.8) unrolls with the chime of a lit floor tile, softer and a little lower.
+M.CARPET_GAIN, M.CARPET_SPEED = 0.7, 0.85
 
 local LA = {}
 LA.__index = LA
@@ -208,6 +210,10 @@ function LA:event(e)
 		self:sfx("wires_snap", nil, 0.06)
 	elseif ty == "floor_lit" then
 		self:sfx("floor_light", nil, 0.06)
+	elseif ty == "carpet" then
+		-- a cell is covered by the carpet (core-rules 10.8): the chime of a lit tile, softer and lower (a
+		-- whole row is covered at once, so the gap lets a few of them sound, not all)
+		self:sfx("floor_light", { gain = M.CARPET_GAIN, speed = M.CARPET_SPEED }, 0.06, "carpet")
 	elseif ty == "land" then
 		self:sfx("land", { gain = M.LAND_GAIN }, M.LAND_GAP)
 	elseif ty == "goal" then

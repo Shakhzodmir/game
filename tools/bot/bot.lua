@@ -28,6 +28,13 @@
 -- the phase with it. What it adds is Bot.W.drape for every unit of goal work
 -- done under a curtain (Bot.curtain_work): that work can only be done while
 -- the curtain is open, so it goes first.
+-- On a level with a `carpet` goal (core-rules 10.8) every newly covered cell
+-- is goal progress, and the clone of a move knows by itself that only a match
+-- that stands on the carpet (or an effect that starts on it) spreads it. What
+-- the bot adds is Bot.W.rug for every swap the board offers AFTER the move
+-- whose match would roll the carpet out (Bot.carpet_moves, at most
+-- Bot.RUG_CAP of them): when no move covers a cell now, it builds one for the
+-- next turn at the edge of the carpet instead of matching far away.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -52,10 +59,13 @@ local SPECIAL_RANK = { bird = 1, riff = 2, sub = 3, disco = 4 }
 -- adds best2 * second_ply_num / second_ply_den.
 Bot.SCALE = 1000
 Bot.W = {
-	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4,
+	progress = 10, special = 3, wave = 1, lower = 3, link = 5, ready = 2, drape = 4, rug = 2,
 	combo_greedy = 5, combo_strong = 15, combo_disco_strong = 25,
 	win_strong = 1000, near_goal = 3, rank_strong = 1, second_ply_num = 1, second_ply_den = 2,
 }
+
+-- Carpet levels: how many carpet-spreading moves left on the board after a move are paid (Bot.W.rug each).
+Bot.RUG_CAP = 2
 
 -- Max clone ticks per evaluated action (a guard; turbo needs ~10-60).
 Bot.MAX_EVAL_TICKS = 5000
@@ -74,6 +84,7 @@ function Bot.new(kind, opts)
 		totals = nil,               -- initial goal counts (first decision)
 		drop = false,               -- the level has a `drop` goal (coconuts)
 		chains = false,             -- the level has a `chains` goal (10.6)
+		rug = false,                -- the level has a `carpet` goal (10.8)
 		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
@@ -81,6 +92,7 @@ function Bot.new(kind, opts)
 	for k = 1, #self.goals do
 		if self.goals[k].type == "drop" then self.drop = true end
 		if self.goals[k].type == "chains" then self.chains = true end
+		if self.goals[k].type == "carpet" then self.rug = true end
 	end
 	return self
 end
@@ -235,6 +247,77 @@ function Bot.lowered(self, before, game)
 		local id, y = before[k][1], before[k][2]
 		local y2 = now[id] or (math.max(bottom, y) + 1)
 		if y2 > y then n = n + (y2 - y) end
+	end
+	return n
+end
+
+-- The swaps of game:moves() whose match would roll the carpet out (10.8): after the virtual swap of the two
+-- colours, the line of three or more (or a 2x2 square) through one of the two cells has a cell on the carpet
+-- and a cell off it. Counted up to Bot.RUG_CAP. Only on a level with a `carpet` goal; nil otherwise, so the
+-- other levels pay nothing and choose as before. Swaps with a special are not counted (their effect is
+-- valued by the clone when they are played).
+function Bot.carpet_moves(self, game)
+	if not self.rug then return nil end
+	local cl = game:cells()
+	local W = self.width
+	local Hh = math.floor(#cl / W)
+	local color = {}
+	local list = game:pieces()
+	for k = 1, #list do
+		local p = list[k]
+		if p.kind == "regular" and p.state == "idle" and not p.veiled then color[(p.y - 1) * W + p.x] = p.color end
+	end
+	local function col(x, y)
+		if x < 1 or x > W or y < 1 or y > Hh then return nil end
+		return color[(y - 1) * W + x]
+	end
+	-- does the group of colour c through (x, y) stand both on the carpet and off it?
+	local function spreads(x, y)
+		local c = col(x, y)
+		if not c then return false end
+		local on, off = false, false
+		local function see(cx, cy)
+			if cl[(cy - 1) * W + cx].carpet then on = true else off = true end
+		end
+		local x0, x1, y0, y1 = x, x, y, y
+		while col(x0 - 1, y) == c do x0 = x0 - 1 end
+		while col(x1 + 1, y) == c do x1 = x1 + 1 end
+		while col(x, y0 - 1) == c do y0 = y0 - 1 end
+		while col(x, y1 + 1) == c do y1 = y1 + 1 end
+		if x1 - x0 >= 2 then
+			for cx = x0, x1 do see(cx, y) end
+		end
+		if y1 - y0 >= 2 then
+			for cy = y0, y1 do see(x, cy) end
+		end
+		for dx = -1, 0 do
+			for dy = -1, 0 do
+				local ax, ay = x + dx, y + dy
+				if col(ax, ay) == c and col(ax + 1, ay) == c and col(ax, ay + 1) == c and col(ax + 1, ay + 1) == c then
+					see(ax, ay)
+					see(ax + 1, ay)
+					see(ax, ay + 1)
+					see(ax + 1, ay + 1)
+				end
+			end
+		end
+		return on and off
+	end
+	local n = 0
+	local mv = game:moves()
+	for k = 1, #mv do
+		local a, b = mv[k].from, mv[k].to
+		local ia, ib = (a[2] - 1) * W + a[1], (b[2] - 1) * W + b[1]
+		local ca, cb = color[ia], color[ib]
+		if ca and cb then
+			color[ia], color[ib] = cb, ca
+			local hit = spreads(a[1], a[2]) or spreads(b[1], b[2])
+			color[ia], color[ib] = ca, cb
+			if hit then
+				n = n + 1
+				if n >= Bot.RUG_CAP then break end
+			end
+		end
 	end
 	return n
 end
@@ -490,6 +573,7 @@ function Bot:choose(game)
 	local links = Bot.chain_hp(self, game)
 	local ready = Bot.chain_ready(self, game)
 	local work = Bot.curtain_work(self, game)
+	local rug = self.rug
 	local W = Bot.W
 	local scored = {}
 	for k = 1, #cands do
@@ -502,6 +586,7 @@ function Bot:choose(game)
 			if coconuts then sc = sc + Bot.SCALE * W.lower * Bot.lowered(self, coconuts, clone) end
 			if links then sc = sc + chain_score(self, links, ready, clone) end
 			if work then sc = sc + Bot.SCALE * W.drape * math.max(0, work - Bot.curtain_work(self, clone)) end
+			if rug and not acc.won then sc = sc + Bot.SCALE * W.rug * Bot.carpet_moves(self, clone) end
 			if strong then
 				local extra = acc.won and W.win_strong or 0
 				for j = 1, #acc.specials do

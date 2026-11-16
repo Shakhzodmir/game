@@ -82,7 +82,7 @@ describe("core chain: level schema and rules (2.0, 2.1)", function()
 		expect(H.level(FULL, { overlay = { { at = { 0, 0 }, type = "rope", hp = 1 } } }), "2.1.1 overlay[1]: type 'wires' or 'chain' required")
 		expect(H.level(FULL, { goals = { { type = "chains" } } }), "2.1.1 goals[1]: count >= 1 required")
 		expect(H.level(FULL, { goals = { { type = "chains", count = 1, item = "chain" } } }), "2.1.1 goals[1]: unknown key 'item'")
-		expect(H.level(FULL, { goals = { { type = "chain", count = 1 } } }), "collect|break|light|deliver|drop|chains required")
+		expect(H.level(FULL, { goals = { { type = "chain", count = 1 } } }), "collect|break|light|deliver|drop|chains|carpet required")
 	end)
 
 	it("2.1.2 / 2.1.3: one overlay a cell, and only over a regular piece", function()

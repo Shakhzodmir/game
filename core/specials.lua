@@ -84,11 +84,14 @@ function SP.activate(s, d)
 	local src = H.new_source(s, C.SRC_EFFECT, d[4], d[5], 0)
 	src.own = { o.id }
 	src.centre = cell
+	-- the carpet (10.8): an effect that starts on the carpet carries it to every cell it hits
+	if s.carpet and s.carpet[cell] then src.carpet = true end
 	local partner = d[3]
 	if partner ~= 0 then
 		local po = B.get(s, partner)
 		if po and po ~= o and po.kind == K_SPECIAL and po.state == S_ARMED then
 			src.own[2] = po.id
+			if s.carpet and s.carpet[partner] then src.carpet = true end -- (a combo: either of its two cells)
 			CB.run(s, src, o, po)
 			sched.retire_if_done(s, src)
 			return
