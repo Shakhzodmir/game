@@ -110,7 +110,7 @@ describe("tools levels", function()
 		local raw = F.level_table({ conveyor = { { path = { { 1, 3 }, { 2, 3 }, { 3, 3 }, { 3, 4 } } } },
 			floor = { { at = { 2, 3 }, hp = 1 } }, goals = { { type = "light" } } })
 		assert_same(Levels.elements(raw), { "dancefloor", "conveyor" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "conveyor")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "conveyor")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		-- row 3 (0-based): right, right over a floor tile (4th char), down; row 4: the last cell keeps the way it came
@@ -167,6 +167,17 @@ describe("tools levels", function()
 		assert_same(Levels.missing_ranges({ 1, 2, 7 }, 5), { "3-5" }, "ids beyond the plan do not count")
 	end)
 
+	it("counts the boombox (core-rules 10.10) as an element and draws it as Q with its hp", function()
+		local raw = F.level_table({ slots = { { at = { 2, 2 }, type = "boombox", hp = 3 }, { at = { 4, 4 }, type = "record_box", hp = 1 } },
+			goals = { { type = "break", item = "boombox", count = 1 } } })
+		assert_same(Levels.elements(raw), { "record_box", "boombox" })
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "boombox")
+		assert_eq(Levels.goals_text(raw), "break boombox 1")
+		assert_true(Levels.preview_raw(raw):find("Q3", 1, true) ~= nil)
+		assert_true(Levels.LEGEND:find("Q boombox (+hp)", 1, true) ~= nil)
+		local e = common.entry_from_text(common.encode(raw))
+		assert_true(Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7):find("Q3", 1, true) ~= nil)
+	end)
 	it("keeps a column's hp to one character, up to the 12 the schema allows", function()
 		assert_eq(Levels.hp_char(1), "1")
 		assert_eq(Levels.hp_char(9), "9")

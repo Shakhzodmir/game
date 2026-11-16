@@ -498,6 +498,93 @@ describe("tools bot: the documented behaviour", function()
 		assert_true(seen > 0)
 	end)
 
+	-- the boombox (core-rules 10.10): three boomboxes on a 7x7 board
+	local function boombox_level(extra)
+		local t = {
+			size = { 7, 7 }, moves = 30,
+			goals = { { type = "break", item = "boombox", count = 3 } },
+			slots = { { at = { 1, 4 }, type = "boombox", hp = 2 }, { at = { 3, 2 }, type = "boombox", hp = 3 },
+				{ at = { 5, 4 }, type = "boombox", hp = 2 } },
+		}
+		for k, v in pairs(extra or {}) do t[k] = v end
+		return F.entry(t)
+	end
+
+	it("wins a small boombox level and plays the same game twice", function()
+		local e = boombox_level()
+		for _, kind in ipairs({ "greedy", "strong" }) do
+			local wins = 0
+			for seed = 1, 6 do
+				local r = Run.play(e, { seed = seed, bot = kind, budget = 60, turbo = true })
+				if r.won then wins = wins + 1 end
+			end
+			assert_true(wins >= 5, kind .. " won " .. wins .. " of 6 within 30 moves")
+		end
+		local a = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		local b = Run.play(e, { seed = 4, bot = "strong", budget = 60, turbo = true })
+		assert_same({ a.won, a.moves_used, a.score }, { b.won, b.moves_used, b.score })
+	end)
+
+	it("pays Bot.W.boom for every hp a move takes off a boombox, only with a break goal for it", function()
+		local e = boombox_level()
+		local g = core.new(e.level, { seed = 2 })
+		local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+		assert_eq(Bot.boombox_hp(bot, g), 7)
+		assert_true(Bot.W.boom > 0)
+		-- the same board with a collect goal: the bot has no boombox term (the blast is goal progress in the clone)
+		local col = boombox_level({ goals = { { type = "collect", color = "red", count = 40 } } })
+		local cbot = Bot.new("greedy", { seed = 1, goals = col.goals, width = 7 })
+		assert_eq(Bot.boombox_hp(cbot, core.new(col.level, { seed = 2 })), nil)
+		-- a level without boomboxes: nothing either
+		local plain = F.entry()
+		assert_eq(Bot.boombox_hp(Bot.new("greedy", { seed = 1, goals = plain.goals, width = 7 }), core.new(plain.level, { seed = 2 })), nil)
+		-- the bot does choose a move that hits a boombox when one is on offer
+		local hit = 0
+		for seed = 1, 4 do
+			local gg = core.new(e.level, { seed = seed, timing = "turbo" })
+			local bb = Bot.new("strong", { seed = 1, goals = e.goals, width = 7 })
+			for _ = 1, 4 do
+				local cmd = bb:choose(gg)
+				if not cmd or gg:status().state ~= "playing" then break end
+				gg:input(cmd)
+				gg:run_to_rest()
+			end
+			if Bot.boombox_hp(bb, gg) < 7 then hit = hit + 1 end
+		end
+		assert_true(hit >= 3, "boomboxes were hit in " .. hit .. " of 4 games within four moves")
+	end)
+
+	it("on a collect level the blast is goal progress inside the look-ahead", function()
+		local e = boombox_level({ goals = { { type = "collect", color = "red", count = 60 } } })
+		local seen = 0
+		for seed = 1, 8 do
+			local g = core.new(e.level, { seed = seed })
+			local bot = Bot.new("greedy", { seed = 1, goals = e.goals, width = 7 })
+			local cands = Bot.candidates(g)
+			for k = 1, #cands do
+				local c = g:clone({ reseed = bot.reseed })
+				c:set_timing("turbo")
+				if c:input(cands[k].cmd) then
+					local blasted, red = 0, false
+					for _ = 1, 5000 do
+						if c:is_stable() then break end
+						c:step()
+						for _, ev in ipairs(c:drain_events()) do
+							if ev.type == "boombox" and ev.color == "red" then blasted, red = blasted + #ev.cells, true end
+						end
+					end
+					if red and blasted > 0 then
+						local clone = Bot.simulate(bot, g, cands[k])
+						assert_eq(clone:hash(), c:hash())
+						assert_true(60 - clone:status().goals[1] >= 3 + blasted)
+						seen = seen + 1
+					end
+				end
+			end
+		end
+		assert_true(seen > 0, "no red match next to a boombox in eight boards")
+	end)
+
 	-- the carpet (core-rules 10.8): three covered cells in the middle of a 7x7 board, two boxes as walls
 	local function carpet_level(extra)
 		local t = {
