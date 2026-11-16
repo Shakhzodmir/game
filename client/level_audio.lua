@@ -21,6 +21,7 @@ local level_boombox = require("client.level_boombox")
 local level_hay = require("client.level_hay")
 local level_fog = require("client.level_fog")
 local level_ice = require("client.level_ice")
+local level_portal = require("client.level_portal")
 
 local M = {}
 
@@ -282,6 +283,9 @@ function LA:event(e)
 		else
 			self:sfx(M.CONVEYOR_SFX, { gain = M.CONVEYOR_GAIN, speed = M.CONVEYOR_SPEED }, 0.1, "conveyor")
 		end
+	elseif ty == "portal" then
+		-- a piece dived through a portal (core-rules 10.14): a soft high whoosh, once for all the hops of a moment
+		self:sfx(level_portal.SFX, { gain = level_portal.SFX_GAIN, speed = level_portal.SFX_SPEED }, 0.1, "portal")
 	elseif ty == "exchange" then
 		-- the Crossfader scratches: the whoosh of the swap forth, high and fast, and back, low and slow, then a
 		-- click where the pieces land

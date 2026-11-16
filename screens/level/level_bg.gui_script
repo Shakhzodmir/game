@@ -9,7 +9,9 @@
 -- client/level_carpet.lua): a tile over every covered cell, unrolled with a
 -- pop when the core covers one more; and the conveyor belts (core-rules
 -- 10.9, client/level_conveyor.lua): one tile a belt cell, turned the way the
--- belt moves. Pieces, wires and effects are world
+-- belt moves; and the portals (core-rules 10.14, client/level_portal.lua):
+-- the picture of the entrance or the exit on its cell and the mark of the
+-- pair. Pieces, wires and effects are world
 -- sprites drawn on top by screens/level/board.script.
 --
 -- The board publishes what to draw through client/level_link.lua (view):
@@ -22,6 +24,7 @@ local link = require("client.level_link")
 local level_floor = require("client.level_floor")
 local level_carpet = require("client.level_carpet")
 local level_conveyor = require("client.level_conveyor")
+local level_portal = require("client.level_portal")
 
 local GUI = "/screens/level/level_bg.gui"
 local FRAME_PAD = 20 -- board/board_frame: 14 px frame + 6 px backing around the cells
@@ -113,6 +116,23 @@ local function rebuild(self, v)
 				if b.turn ~= 0 then gui.set_euler(n, vmath.vector3(0, 0, b.turn)) end
 				self.belts[#self.belts + 1] = n
 			end
+		end
+	end
+	-- the portals: the picture of its role on every portal cell and the mark of its pair in the corner (over
+	-- the cell tile, the floor and the carpet; under the pieces). Level data: made once, never changed
+	self.portals, self.portal_marks = {}, {}
+	for _, p in ipairs(level_portal.tiles(cells)) do
+		if g.ex[p.i] then
+			local x = (p.i - 1) % g.W + 1
+			local y = (p.i - x) / g.W + 1
+			local lx, ly = g:center(x, y)
+			local col = vmath.vector4(p.color[1], p.color[2], p.color[3], 1)
+			local n = s:image(parent, p.image, lx, ly, { w = cell, h = cell, color = level_portal.TINT and col or nil })
+			if n then self.portals[#self.portals + 1] = n end
+			local side = cell * level_portal.MARK_SIZE
+			local m = s:image(parent, level_portal.MARK, lx + cell * level_portal.MARK_AT[1], ly + cell * level_portal.MARK_AT[2],
+				{ w = side, h = side, color = col })
+			if m then self.portal_marks[#self.portal_marks + 1] = m end
 		end
 	end
 	self.rev = v.rev

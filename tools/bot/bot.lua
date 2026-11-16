@@ -86,6 +86,13 @@
 -- swaps in reading order until one is accepted: a failed swap costs nothing,
 -- and the only thing learnt is that it failed. Levels without fog never
 -- build a view and choose as before.
+-- On a level with portals (core-rules 10.14) the bot needs no rule of its
+-- own: the clone of a move simulates the hops. One term is corrected: on a
+-- `drop` level the way of a coconut is measured along its route (Bot.route:
+-- the cells left to the real bottom, through every portal on the way)
+-- instead of by its row, because a coconut that dives into a portal comes
+-- out higher on the screen and yet nearer to its exit. Levels without
+-- portals measure rows as before.
 --   greedy -- the best action with probability 0.7, otherwise a uniformly
 --             random one of the top 3 (the bot's own MINSTD stream);
 --   strong -- always the best; a win is worth +1000, combos weigh more,
@@ -140,6 +147,7 @@ function Bot.new(kind, opts)
 		ice = false,                -- the level has an `ice` goal (10.11)
 		hay = false,                -- the level has a `break hay` goal (10.12)
 		fog = nil,                  -- does the level have the stage fog (10.13): nil = not looked yet (first decision)
+		route = nil,                -- portals (10.14): cells left to the real bottom by cell index; false if no portals; nil = not looked yet
 		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
@@ -316,15 +324,55 @@ local function near(cells, x, y, d)
 	return false
 end
 
--- Rows of the coconuts on the board: {id, y} pairs (only on a level with a
--- `drop` goal; nil otherwise, so the other levels pay nothing).
+-- The routes of a level with portals (core-rules 10.14): by cell index, the number of cells a falling piece
+-- still has to go from that cell to the real bottom of its way, a hop through a portal counting as one cell.
+-- false on a level without portals (looked at once: portals are level data).
+function Bot.route(self, game)
+	if self.route ~= nil then return self.route end
+	local cl = game:cells()
+	local W = self.width
+	local any = false
+	for i = 1, #cl do
+		if cl[i].portal then any = true end
+	end
+	if not any then
+		self.route = false
+		return false
+	end
+	local left = {}
+	local function walk(i, depth)
+		if left[i] then return left[i] end
+		local n, j = 0, i
+		while cl[j + W] and cl[j + W].exists do
+			j = j + W
+			n = n + 1
+		end
+		local po = cl[j].portal
+		if po and po.role == "in" and depth < 64 then
+			n = n + 1 + walk((po.y - 1) * W + po.x, depth + 1)
+		end
+		left[i] = n
+		return n
+	end
+	for i = 1, #cl do
+		if cl[i].exists then walk(i, 0) end
+	end
+	self.route = left
+	return left
+end
+
+-- How far down the coconuts on the board are: {id, v} pairs, v = the row, or, on a level with portals,
+-- minus the cells left on the route (Bot.route); bigger = nearer to the exit. Only on a level with a `drop`
+-- goal; nil otherwise, so the other levels pay nothing.
 function Bot.coconuts(self, game)
 	if not self.drop then return nil end
+	local route = Bot.route(self, game)
+	local W = self.width
 	local out = {}
 	local list = game:pieces()
 	for k = 1, #list do
 		local p = list[k]
-		if p.kind == "coconut" then out[#out + 1] = { p.id, p.y } end
+		if p.kind == "coconut" then out[#out + 1] = { p.id, route and -route[(p.y - 1) * W + p.x] or p.y } end
 	end
 	return out
 end
@@ -337,15 +385,18 @@ function Bot.lowered(self, before, game)
 	local now = {}
 	local list = game:pieces()
 	local bottom = 0
+	local route = Bot.route(self, game)
+	local W = self.width
 	for k = 1, #list do
 		local p = list[k]
-		if p.kind == "coconut" then now[p.id] = p.y end
+		if p.kind == "coconut" then now[p.id] = route and -route[(p.y - 1) * W + p.x] or p.y end
 		if p.y > bottom then bottom = p.y end
 	end
 	local n = 0
 	for k = 1, #before do
 		local id, y = before[k][1], before[k][2]
-		local y2 = now[id] or (math.max(bottom, y) + 1)
+		-- (a coconut that left the board: one step past the end of its route on a level with portals)
+		local y2 = now[id] or (route and 1 or (math.max(bottom, y) + 1))
 		if y2 > y then n = n + (y2 - y) end
 	end
 	return n

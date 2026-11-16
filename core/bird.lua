@@ -100,8 +100,11 @@ function BD.levels(s, src)
 					l = 4
 				end
 				-- the cell right under an idle mic (coconut), if the hit frees it
-				if l < 3 and (ctx.deliver or ctx.drop) and idle and i > W then
-					local m = B.get(s, i - W)
+				-- (the cell "above" a portal exit is the entrance of its pair, 10.14)
+				local up = i > W and i - W or 0
+				if s.level.portal and s.level.portal.entry_of[i] ~= 0 then up = s.level.portal.entry_of[i] end
+				if l < 3 and (ctx.deliver or ctx.drop) and idle and up ~= 0 then
+					local m = B.get(s, up)
 					if m and ((ctx.deliver and m.kind == K_MIC) or (ctx.drop and m.kind == C.K_COCONUT))
 						and m.state == S_IDLE
 						and ((o.kind == K_REGULAR and s.wires[i] == 0 and o.chain == 0 and o.ice == 0) or weak_blocker(o)) then

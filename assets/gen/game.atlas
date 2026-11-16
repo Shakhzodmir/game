@@ -245,6 +245,20 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "blockers_portal_in"
+  images {
+    image: "/assets/images/blockers/portal_in.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "blockers_portal_out"
+  images {
+    image: "/assets/images/blockers/portal_out.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "blockers_record_box_1"
   images {
     image: "/assets/images/blockers/record_box_1.png"

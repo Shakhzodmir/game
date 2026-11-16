@@ -179,6 +179,7 @@ local S = {
 	["blocker.ice"] = { en = "Ice", ru = "Лёд" },
 	["blocker.hay"] = { en = "Hay bale", ru = "Стог сена" },
 	["blocker.fog"] = { en = "Fog", ru = "Туман" },
+	["blocker.portal"] = { en = "Portal", ru = "Портал" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -218,6 +219,10 @@ local S = {
 	["blocker.hay_desc"] = {
 		en = "Take the hay bale apart with matches next to it: a bonus may be hiding inside.",
 		ru = "Разбери стог рядами по соседству: внутри может прятаться бонус.",
+	},
+	["blocker.portal_desc"] = {
+		en = "Pieces fall into one portal and drop out of the other one of the same colour.",
+		ru = "Фишки падают в один портал и выпадают из другого такого же цвета.",
 	},
 	["blocker.fog_desc"] = {
 		en = "You can't see the pieces under the fog. Make a match next to it and the fog clears.",
@@ -375,6 +380,10 @@ local S = {
 	["tutorial.hay"] = {
 		en = "A bonus hides in the hay bale. Take it apart!",
 		ru = "В стоге сена спрятан бонус. Разбери его!",
+	},
+	["tutorial.portal"] = {
+		en = "Pieces dive into a portal and drop out of the other!",
+		ru = "Фишки ныряют в портал и выпадают из второго!",
 	},
 	["tutorial.fog"] = {
 		en = "Fog hides the pieces. Match next to it!",

@@ -61,13 +61,16 @@ local function progress(s, g)
 		if light and s.floor[i] > 0 then return true end
 		if chains and B.get(s, i).chain > 0 then return true end
 		local x, y = U.xy(W, i)
-		if deliver and y > 1 then
-			local above = B.get(s, i - W)
-			if above and above.kind == K_MIC and not (fog and fog[i - W]) then return true end
+		-- (the cell "above" a portal exit is the entrance of its pair, 10.14)
+		local up = y > 1 and i - W or 0
+		if s.level.portal and s.level.portal.entry_of[i] ~= 0 then up = s.level.portal.entry_of[i] end
+		if deliver and up ~= 0 then
+			local above = B.get(s, up)
+			if above and above.kind == K_MIC and not (fog and fog[up]) then return true end
 		end
-		if drop and y > 1 then
-			local above = B.get(s, i - W)
-			if above and above.kind == C.K_COCONUT and not (fog and fog[i - W]) then return true end
+		if drop and up ~= 0 then
+			local above = B.get(s, up)
+			if above and above.kind == C.K_COCONUT and not (fog and fog[up]) then return true end
 		end
 		local nb = { y > 1 and i - W or 0, x > 1 and i - 1 or 0, x < W and i + 1 or 0, y < H and i + W or 0 }
 		for j = 1, 4 do
