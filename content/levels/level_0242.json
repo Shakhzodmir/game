@@ -1,0 +1,40 @@
+{
+  "id": 242, "version": 1,
+  "size": [8, 8],
+  "moves": 22,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "break", "item": "hay", "count": 5},
+    {"type": "break", "item": "record_box", "count": 12}
+  ],
+  "cells": [
+    "...##...",
+    "..####..",
+    ".######.",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########"
+  ],
+  "slots": [
+    {"at": [3, 2], "type": "hay", "hp": 1, "gift": "bird"},
+    {"at": [5, 3], "type": "hay", "hp": 1, "gift": "riff", "axis": "v"},
+    {"at": [1, 4], "type": "hay", "hp": 1, "gift": "riff", "axis": "h"},
+    {"at": [6, 4], "type": "hay", "hp": 1, "gift": "riff", "axis": "h"},
+    {"at": [3, 5], "type": "hay", "hp": 2, "gift": "sub"},
+    {"at": [2, 6], "type": "record_box", "hp": 2},
+    {"at": [3, 6], "type": "record_box", "hp": 2},
+    {"at": [4, 6], "type": "record_box", "hp": 2},
+    {"at": [5, 6], "type": "record_box", "hp": 2},
+    {"at": [0, 7], "type": "record_box", "hp": 2},
+    {"at": [1, 7], "type": "record_box", "hp": 2},
+    {"at": [2, 7], "type": "record_box", "hp": 2},
+    {"at": [3, 7], "type": "record_box", "hp": 2},
+    {"at": [4, 7], "type": "record_box", "hp": 2},
+    {"at": [5, 7], "type": "record_box", "hp": 2},
+    {"at": [6, 7], "type": "record_box", "hp": 2},
+    {"at": [7, 7], "type": "record_box", "hp": 2}
+  ]
+}

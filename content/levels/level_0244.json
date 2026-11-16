@@ -1,0 +1,42 @@
+{
+  "id": 244, "version": 1,
+  "size": [9, 10],
+  "moves": 28,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "ice", "count": 10},
+    {"type": "break", "item": "hay", "count": 5}
+  ],
+  "cells": [
+    "#...#...#",
+    "##.###.##",
+    ".#######.",
+    "..#####..",
+    ".#######.",
+    "##.###.##",
+    "#..###..#",
+    "...###...",
+    "..#####..",
+    "..#####.."
+  ],
+  "overlay": [
+    {"at": [1, 1], "type": "ice", "hp": 2},
+    {"at": [7, 1], "type": "ice", "hp": 2},
+    {"at": [2, 2], "type": "ice", "hp": 2},
+    {"at": [6, 2], "type": "ice", "hp": 2},
+    {"at": [2, 4], "type": "ice", "hp": 2},
+    {"at": [6, 4], "type": "ice", "hp": 2},
+    {"at": [1, 5], "type": "ice", "hp": 2},
+    {"at": [7, 5], "type": "ice", "hp": 2},
+    {"at": [0, 6], "type": "ice", "hp": 1},
+    {"at": [8, 6], "type": "ice", "hp": 1}
+  ],
+  "slots": [
+    {"at": [4, 1], "type": "hay", "hp": 1, "gift": "riff", "axis": "h"},
+    {"at": [4, 3], "type": "hay", "hp": 2, "gift": "sub"},
+    {"at": [4, 6], "type": "hay", "hp": 1, "gift": "random"},
+    {"at": [3, 8], "type": "hay", "hp": 1, "gift": "riff", "axis": "h"},
+    {"at": [5, 8], "type": "hay", "hp": 1, "gift": "none"}
+  ]
+}

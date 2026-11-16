@@ -96,5 +96,8 @@
   ]},
   "221": {"steps": [
     {"kind": "swap", "from": [4, 2], "to": [4, 3], "text": "tutorial.ice"}
+  ]},
+  "241": {"steps": [
+    {"kind": "swap", "from": [2, 1], "to": [2, 2], "text": "tutorial.hay"}
   ]}
 }
