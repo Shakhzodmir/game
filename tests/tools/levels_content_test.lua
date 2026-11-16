@@ -362,6 +362,7 @@ local function row_problems(n, cells, raw)
 	if gift_words ~= gifts(raw) then bad("элементы", gift_words .. " ready specials named, the file has " .. gifts(raw)) end
 	local nothing = columns == 0 and #(raw.floor or {}) == 0 and #(raw.overlay or {}) == 0 and raw.mic == nil and gifts(raw) == 0
 		and raw.coconut == nil and raw.curtain == nil and raw.carpet == nil and raw.conveyor == nil and raw.fog == nil
+		and raw.portals == nil
 	for _, kind in ipairs({ "record_box", "concrete", "noise", "balloon", "boombox", "hay" }) do
 		if count_slots(raw, kind) > 0 then nothing = false end
 	end

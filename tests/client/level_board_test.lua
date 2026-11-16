@@ -1743,3 +1743,55 @@ describe("screens/level/board.script with the conveyor (core-rules 10.9)", funct
 		end)
 	end)
 end)
+
+-- the portals (core-rules 10.14): three columns with a gap in the middle; the cells above the gap are the entrances,
+-- the cells under it the exits, so everything that falls in columns 4..6 dives through a pair
+local function portal_level(count)
+	return core_helper.level({ "#########", "#########", "#########", "#########", "###...###", "#########", "#########",
+		"#########", "#########" }, { moves = 30, colors = { "red", "yellow", "green", "blue", "purple" },
+		goals = { { type = "collect", color = "green", count = count or 99 } },
+		portals = { { ["in"] = { 3, 3 }, out = { 3, 5 } }, { ["in"] = { 4, 3 }, out = { 4, 5 } }, { ["in"] = { 5, 3 }, out = { 5, 5 } } } })
+end
+
+describe("screens/level/board.script with portals (core-rules 10.14)", function()
+	local link = require("client.level_link")
+
+	it("shows the portal cells to the background", function()
+		with_board({ level = 1, level_text = portal_level() }, function(E, script, self, d)
+			d.frame(90)
+			local v = link.view()
+			assert_same(v.cells[3 * 9 + 4].portal, { role = "in", pair = 1, x = 4, y = 6 })
+			assert_same(v.cells[5 * 9 + 6].portal, { role = "out", pair = 3, x = 6, y = 4 })
+			assert_eq(v.cells[1].portal, nil)
+			assert_eq(self.errors or 0, 0)
+		end)
+	end)
+
+	it("plays a portal level to its final concert: pieces dive through the pairs, no engine error, nothing to repair", function()
+		with_board({ level = 1, level_text = portal_level(40) }, function(E, script, self, d)
+			local hops = 0
+			local game = self.session.game
+			local drain = game.drain_events
+			game.drain_events = function(g2)
+				local ev = drain(g2)
+				for _, e in ipairs(ev) do
+					if e.type == "portal" then hops = hops + 1 end
+				end
+				return ev
+			end
+			self.session:autoplay(nil, { free_moves = true })
+			local state
+			for _ = 1, 12000 do
+				d.frame(1)
+				state = game:status().state
+				if state == "complete" or state == "lost" then break end
+			end
+			assert_eq(state, "complete")
+			d.frame(60)
+			assert_eq(self.errors or 0, 0)
+			assert_eq(d.topics.level_result, 1)
+			assert_true(hops > 0, "pieces went through the portals")
+			assert_eq(self.view:stats().repaired, 0)
+		end)
+	end)
+end)

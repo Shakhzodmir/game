@@ -147,7 +147,7 @@ function Bot.new(kind, opts)
 		ice = false,                -- the level has an `ice` goal (10.11)
 		hay = false,                -- the level has a `break hay` goal (10.12)
 		fog = nil,                  -- does the level have the stage fog (10.13): nil = not looked yet (first decision)
-		route = nil,                -- portals (10.14): cells left to the real bottom by cell index; false if no portals; nil = not looked yet
+		ways = nil,                 -- portals (10.14): cells left to the real bottom by cell index; false if no portals; nil = not looked yet
 		drape = nil,                -- cells under a curtain (10.7): a list of cell indices, false if none (first decision)
 		decisions = 0,
 		evals = 0,                  -- clones simulated
@@ -328,7 +328,7 @@ end
 -- still has to go from that cell to the real bottom of its way, a hop through a portal counting as one cell.
 -- false on a level without portals (looked at once: portals are level data).
 function Bot.route(self, game)
-	if self.route ~= nil then return self.route end
+	if rawget(self, "ways") ~= nil then return self.ways end
 	local cl = game:cells()
 	local W = self.width
 	local any = false
@@ -336,7 +336,7 @@ function Bot.route(self, game)
 		if cl[i].portal then any = true end
 	end
 	if not any then
-		self.route = false
+		self.ways = false
 		return false
 	end
 	local left = {}
@@ -357,7 +357,7 @@ function Bot.route(self, game)
 	for i = 1, #cl do
 		if cl[i].exists then walk(i, 0) end
 	end
-	self.route = left
+	self.ways = left
 	return left
 end
 

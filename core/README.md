@@ -440,3 +440,29 @@ a fogged cell and a paid starting special is not placed under the fog
 `fogged` with the true content: hiding it is the client's work
 (`client/level_fog.lua`). Hash: the flags are appended only when `level.fog`.
 Tests: `tests/core/fog_test.lua`.
+
+## Portals (§10.14)
+
+The portals of district 15 are static level data (`portals` ->
+`level.portal = {pairs = {{inn, out}}, role, pair, exit_of, entry_of}`); the
+state holds nothing of them and the hash is unchanged. A pair links two
+columns for gravity: its exit cell (the top of a segment without a spawner)
+is "the cell below" its entrance cell (the bottom of another segment). The
+whole mechanic is in `gravity.lua`: `scan()` of a cell whose segment starts
+with an exit ends in `through(s, n, direct)`, which answers WAIT, BLOCKED or
+HOP for the entrance `n` by the same rows as `scan()` (and, for an empty
+entrance, for its own column, recursing through a chain of pairs); `hop()`
+moves an idle movable piece from the entrance into the EMPTY EXIT CELL as a
+fall of one cell (event `portal`), and from there it falls on by the ordinary
+transfer. So a piece passes one portal per gravity step, and only after it
+landed in the entrance. `diagonal()` treats the exit as the cell under a
+donor that stands in an entrance. Mics and coconuts are not collected on an
+entrance (it is never an exit: `read_spawners_and_exits` skips portal cells
+for `"top"` and `"bottom"`); `bird.lua` and `hint.lua` take the exit cell as
+the cell under a mic or coconut waiting in an entrance. Rule 2.1.16 in
+`level.lua` (`read_portals`, `static_rules`): places, no fixed content, no
+curtain / fog / belt on a portal cell, no cycles, a spawner feeds every
+entrance; the fill check 2.1.7 runs with the portals. `cells()[i].portal`.
+A level without `portals` never reaches any of this code. Tests:
+`tests/core/portal_test.lua` (with a random play that checks the board
+invariants in every tick).
