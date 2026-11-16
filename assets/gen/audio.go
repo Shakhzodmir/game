@@ -304,6 +304,46 @@ embedded_components {
   data: "sound: \"/assets/music/jazz/vibes.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_skyclub_arp"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/arp.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_skyclub_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_skyclub_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_skyclub_fx"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/fx.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_skyclub_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_skyclub_pad"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/pad.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_skyclub_party"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_skyclub_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/skyclub/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_square_brass"
   type: "sound"
   data: "sound: \"/assets/music/square/brass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -939,6 +979,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/adventure_overture.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_afterglow_lounge"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/afterglow_lounge.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_arcade_sunrise"
   type: "sound"
   data: "sound: \"/assets/music/songs/arcade_sunrise.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1027,6 +1072,11 @@ embedded_components {
   id: "song_closing_credits"
   type: "sound"
   data: "sound: \"/assets/music/songs/closing_credits.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_cloud_bounce"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/cloud_bounce.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_coconut_cha_cha"
@@ -1149,6 +1199,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/midnight_shuffle.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_mirrorball_groove"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/mirrorball_groove.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_misty_glen_reel"
   type: "sound"
   data: "sound: \"/assets/music/songs/misty_glen_reel.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1232,6 +1287,11 @@ embedded_components {
   id: "song_rainy_window"
   type: "sound"
   data: "sound: \"/assets/music/songs/rainy_window.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_rooftop_sunrise"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/rooftop_sunrise.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_salon_morning"

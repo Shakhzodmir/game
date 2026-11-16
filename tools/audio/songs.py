@@ -2352,6 +2352,202 @@ def wedding_drums(s):
             "gang": room(s, hey, 0.2, 1.0, "hey", damp=5000)}
 
 
+# ================================================================ SKY CLUB (Ab)
+# The club on the roof: the kit, the rubber bass and the pluck of the district theme in music.py. Every song starts
+# from a major chord (the songs of the genre "edm" of songs_pop.py, also in Ab, all start on vi and are built on a
+# build-up and a drop): rooftop_sunrise opens its filter bar by bar under a piano, cloud_bounce is half-time with
+# chords that wobble and a tune of vocal chops, mirrorball_groove is disco (octave bass, scratch guitar, strings),
+# afterglow_lounge is what plays when the dance floor is empty.
+
+def duck(s, x, depth=0.6, rel=0.12):
+    """Ducks x under a kick on every beat."""
+    return sidechain(s, x, range(s.beats), depth, rel)
+
+
+def v_cbass(s, m, d, v=0.8):
+    return M.club_bass(m, s.sec(d), s.sr) * v
+
+
+def wobble(s, x, rates=(2, 2, 3, 4), depth=0.85):
+    """The chords of future bass: the level falls and jumps back rates[beat] times in every beat of the bar
+    (8ths, 8ths, triplets, 16ths), the same in every bar, so the loop stays a loop."""
+    pos = np.arange(s.n) / s.n * s.beats
+    u = ((pos % 1.0) * np.asarray(rates)[np.floor(pos).astype(int) % 4]) % 1.0
+    g = dsp.loop_apply(1.0 - depth * u ** 0.7, lambda z: dsp.onepole_lp(z, 70.0, s.sr))
+    return x * g
+
+
+def rooftop_sunrise(s):
+    """124 BPM progressive house, IV - I - V - vi: plucked chords in three-three-two behind a filter that opens
+    a little more in every bar (the sun comes up), a long bass note under every chord that pumps with the kick, a
+    warm pad; the piano brings the tune in bar 5 and doubles it an octave higher from bar 9 under a few high
+    bells; a riser leads round to bar 1."""
+    r = dsp.rng(s.id, "sunrise")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "skyclub")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X...X...X...", r, jit=0.0)
+    hits(s, d, k["clap"], "....x.......x...", r, gain=0.8, jit=0.0, mask=bs("5-12"))
+    hits(s, d, k["clap"], {11: "............o.xx"}, r, gain=0.6, jit=0.0)
+    hits(s, d, k["ohat"], "..x...x...x...x.", r, gain=0.6, jit=0.0, mask=bs("3-12"))
+    hits(s, d, k["hat"], ".g.o.g.o.g.o.g.o", r, gain=0.45, jit=0.002, mask=bs("5-12"))
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.2, 1.3), 0.08, 0.7, "drums", damp=6000)
+    bass = line(s, ch, lambda c, n, i: [(0, c.dur * 0.96, root_of(c, 41, 36, 47), 0.9)], v_cbass, r=r, jit=0.0)
+    bass = duck(s, loop_filter(s, bass, "lp", 1500), 0.75, 0.16)
+    vo = voicing(ch, 60, 79, 69, no_root)
+    ky = s.zeros()
+    for i, c in enumerate(ch):
+        cut = 1200.0 + 450.0 * int(c.start // 4)
+        for bt, v in ((0, 0.9), (0.75, 0.7), (1.5, 0.8), (2.25, 0.6), (3.0, 0.8), (3.5, 0.6)):
+            for j, m in enumerate(vo[i]):
+                s.add(ky, M.sky_pluck(m, s.sr, dur=0.3, key=j % 2, cutoff=cut), c.start + bt, v)
+    ky = room(s, duck(s, echo(s, ky, 0.75, 0.25, 0.4, 3, 5000), 0.4, 0.1), 0.2, 1.5, "keys", damp=6000)
+    pad = comp(s, ch, voicing(ch, 55, 74, 64, no_root), lambda c, i: [(0, c.dur * 0.97, 0.6)],
+               lambda ss, m, du, v: v_pad(ss, m, du, v, 1500.0, 0.4, 0.6, k=m % 3), r=r)
+    pad = room(s, duck(s, pad, 0.6, 0.16), 0.25, 1.8, "pad", damp=4500)
+    tn = tune("r:4 | r:4 | r:4 | r:4 | 6:1.5 1+:.5 3+:1 1+:1 | 5:1.5 1+:.5 3+:1 2+:1 | 2+:1.5 7:.5 5:1 7:1 |"
+              " 1+:2 6:1 5:.5 6:.5 | 6:1 1+:.5 3+:.5 4+:1.5 3+:.5 | 2+:1 5+:1 4+:.5 3+:.5 2+:1 | 3+:1.5 2+:.5 1+:2 |"
+              " 5:.5 6:.5 1+:3", t, 4)
+    pno = lay(s, lambda ss, m, du, v: v_piano(ss, m, du, v, 0.85, 0.25), tn, r=r, jit=0.003)
+    pno += lay(s, lambda ss, m, du, v: v_piano(ss, m + 12, du, v * 0.6, 0.85, 0.25), [e for e in tn if e[0] >= 32],
+               r=r, jit=0.003, dt=0.006)
+    pno = room(s, echo(s, pno, 0.75, 0.18, 0.35, 3, 4000), 0.24, 1.7, "piano", damp=5500)
+    bl = s.zeros()
+    for c in ch:
+        if c.start >= 32:
+            ns = chord_notes(c, 80, 96)
+            for q in range(8):
+                s.add(bl, v_celesta(s, ns[(0, 2, 1, 3, 2, 4, 3, 1)[q] % len(ns)], 0.5, 0.5, t60=0.5), c.start + q * 0.5)
+    bl = room(s, echo(s, bl, 0.75, 0.25, 0.35, 3, 6000), 0.25, 1.6, "bells", damp=7000)
+    return {"drums": d, "bass": bass, "keys": ky, "pad": pad, "lead": pno, "celesta": bl,
+            "fx": room(s, riser(s, 8, 0.6), 0.2, 1.6, "fx", damp=5000)}
+
+
+def cloud_bounce(s):
+    """100 BPM future bass in half time (the clap on beat 3): seventh and ninth chords on supersaws whose level
+    wobbles in 8ths, triplets and 16ths, a sub under them that wobbles too, a tune of chopped voices (ah - oh -
+    eh) with bells two octaves above it, hats that roll into bars 5 and 1, a run of plucks up the chord before
+    them."""
+    r = dsp.rng(s.id, "bounce")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "skyclub")
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X.....x.....x...", "X..x..x......x.."], r, jit=0.0)
+    hits(s, d, k["clap"], "........X.......", r, gain=1.0, jit=0.0)
+    hits(s, d, k["hat"], ["x.o.x.oox.o.x.o.", "x.o.xoo.x.o.x.oo"], r, gain=0.45, jit=0.002)
+    hits(s, d, k["ohat"], "......x.......x.", r, gain=0.5, jit=0.0)
+    hits(s, d, k["crash"], {0: "X..............."}, r, gain=0.35, jit=0.0)
+    for bar in (3, 7):
+        for j in range(8):
+            hit(s, d, k["hat"], bar * 4 + 3 + j * 0.125, 0.25 + 0.07 * j, r, 0.0)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.2, 1.3), 0.1, 0.8, "drums", damp=6000)
+    saw = comp(s, ch, voicing(ch, 58, 80, 69, no_root), lambda c, i: [(0, c.dur * 0.98, 0.9)],
+               lambda ss, m, du, v: v_super(ss, m, du, v, att=0.01, rel=0.1, k=m % 3), r=r, jit=0.0)
+    saw = room(s, wobble(s, loop_filter(s, saw, "lp", 6000)), 0.2, 1.3, "saw", damp=6000)
+    bass = line(s, ch, lambda c, n, i: [(0, c.dur * 0.95, root_of(c, 41, 36, 47), 0.9)], v_sub, r=r, jit=0.0)
+    bass = wobble(s, loop_filter(s, bass, "lp", 700), depth=0.5)
+    tn = tune("3+:.75 5+:.75 3+:.5 2+:.5 1+:.5 r:1 | 2+:.75 5:.75 7:.5 2+:.5 3+:.5 r:1 |"
+              " 3+:.75 6:.75 1+:.5 3+:.5 5+:.5 r:1 | 4+:.75 2+:.75 1+:.5 2+:1 r:1 |"
+              " 3+:.75 5+:.75 3+:.5 1+:.5 6:.5 r:1 | 2+:.75 5:.75 7:.5 2+:.5 5+:.5 r:1 |"
+              " 6+:.75 5+:.75 3+:.5 4+:.5 2+:.5 5+:1 | 5+:.75 3+:.75 1+:2.5", t, 3)
+    vx = s.zeros()
+    for i, (b, du, m, v) in enumerate(tn):
+        s.add(vx, v_vox(s, m, min(du, 0.75) * 0.9, v, vowel=("a_alto", "o_alto", "e_open", "a_alto")[i % 4], key=i % 3), b)
+    vx = room(s, echo(s, loop_filter(s, vx, "hp", 250), 0.75, 0.22, 0.4, 3, 4000), 0.22, 1.4, "chops", damp=5000)
+    bl = lay(s, lambda ss, m, du, v: v_celesta(ss, m + 24, du, v, t60=0.5), tn)
+    bl = room(s, echo(s, bl, 0.75, 0.2, 0.35, 2, 6000), 0.22, 1.4, "bells", damp=7000)
+    run = s.zeros()
+    for bar in (3, 7):
+        ns = chord_notes(chord_at(s, bar * 4 + 2), 68, 96)
+        for j in range(8):
+            s.add(run, M.sky_pluck(ns[j % len(ns)], s.sr, dur=0.22, key=j % 2), bar * 4 + 2 + j * 0.25, 0.4 + 0.07 * j)
+    run = room(s, echo(s, run, 0.75, 0.25, 0.4, 2, 6000), 0.2, 1.3, "run", damp=7000)
+    return {"drums": d, "keys": saw, "bass": bass, "chops": vx, "celesta": bl, "arp": run,
+            "fx": room(s, riser(s, 4, 0.6), 0.2, 1.6, "fx", damp=5000)}
+
+
+def mirrorball_groove(s):
+    """120 BPM disco house, I - vi - ii - V: four on the floor with an open hat on every off-beat and a
+    tambourine, a bass that jumps the octave on every 8th and walks into the next chord, a muted scratch guitar
+    in 16ths, an electric piano, the strings in unison with the tune (a run up and a long note, as on a disco
+    record) and brass stabs in the last four bars."""
+    r = dsp.rng(s.id, "mirror")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "dance", "skyclub")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X...X...X...", r, jit=0.0)
+    hits(s, d, k["clap"], "....X.......X...", r, gain=0.9, jit=0.0)
+    hits(s, d, k["snare"], {"*": "....o.......o...", 3: "....o.......o.xx", 7: "....o.......o.xx",
+                            11: "....o.....o.xxxx"}, r, gain=0.45, jit=0.0)
+    hits(s, d, k["ohat"], "..x...x...x...x.", r, gain=0.75, jit=0.0)
+    hits(s, d, k["hat"], ".o.g.o.g.o.g.o.g", r, gain=0.4, jit=0.002)
+    hits(s, d, k["crash"], {0: "X...............", 8: "X..............."}, r, gain=0.35, jit=0.0)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.2, 1.3), 0.1, 0.8, "drums", damp=6500)
+    tb = s.zeros()
+    hits(s, tb, [ins.tambourine(s.sr, key=60 + i, dur=0.08) for i in range(3)], "o.x.o.x.o.x.o.x.", r, gain=0.6,
+         mask=bs("5-12"))
+    tb = room(s, loop_filter(s, tb, "lp", 9000), 0.12, 0.8, "tamb", damp=7000)
+
+    def octaves(c, n, i):
+        R = root_of(c, 41, 36, 47)
+        ap = scale_step(t, root_of(n, 41, 36, 47), False)
+        return [(0, 0.4, R, 0.95), (0.5, 0.3, R + 12, 0.7), (1, 0.4, R, 0.9), (1.5, 0.3, R + 12, 0.7),
+                (2, 0.4, R, 0.9), (2.5, 0.3, R + 12, 0.7), (3, 0.4, R + 7, 0.85), (3.5, 0.3, ap, 0.75)]
+    bass = line(s, ch, octaves, lambda ss, m, du, v: v_gbass(ss, m, du, v, 0.5, 0.05, m % 3), r=r, jit=0.002)
+    bass = duck(s, loop_filter(s, bass, "lp", 2500), 0.3, 0.1)
+    vo = voicing(ch, 60, 76, 68, no_root)
+    gtr = s.zeros()
+    for i, c in enumerate(ch):
+        for q, mark in enumerate("..x.x..x..x.x.x."):
+            if mark == "x":
+                s.add(gtr, v_strum(s, vo[i], 0.2, 0.75 if q % 4 == 2 else 0.6, up=q % 4 != 2, spread=0.006, bright=0.6,
+                                   t60=0.25, mute=0.03, key=q % 3), c.start + q * 0.25, dt=float(r.normal(0.002, 0.002)))
+    gtr = room(s, loop_filter(s, gtr, "hp", 300), 0.12, 0.8, "guitar", damp=6000)
+    ep = comp(s, ch, voicing(ch, 55, 74, 65, no_root), [(0, 1.2, 0.7), (1.5, 0.5, 0.55), (2.5, 1.2, 0.65)], v_epiano, r=r)
+    ep = room(s, ep, 0.18, 1.2, "ep", damp=5500)
+    tn = tune("r:2 5:.5 6:.5 1+:.5 2+:.5 | 3+:2 1+:1 6:1 | r:2 4:.5 6:.5 1+:.5 2+:.5 | 4+:1.5 2+:.5 7:1 5:1 |"
+              " r:2 5:.5 6:.5 1+:.5 3+:.5 | 5+:2 3+:1 1+:1 | r:2 6:.5 1+:.5 2+:.5 4+:.5 | 5+:1 4+:1 2+:1 7:1 |"
+              " 1+:1 3+:.5 4+:.5 6+:2 | 5+:1.5 3+:.5 2+:2 | 1+:1 2+:.5 4+:.5 6+:1 4+:1 | 5+:1 4+:.5 2+:.5 7:1 2+:1", t, 4)
+    st = room(s, M.unison_strings(s, tn, key="mirror"), 0.25, 1.6, "strings", damp=5000)
+    br = comp(s, ch, voicing(ch, 62, 80, 71, no_root), [(0, 0.3, 0.9), (1.5, 0.3, 0.8)],
+              lambda ss, m, du, v: v_brass(ss, m, du, v, k=m % 3), r=r, mask=bs("9-12"))
+    br = room(s, br, 0.15, 1.0, "brass", damp=5500)
+    return {"drums": d, "tamb": tb, "bass": bass, "guitar": gtr, "keys": ep, "lead": st, "brass": br}
+
+
+def afterglow_lounge(s):
+    """88 BPM chill-out for the empty dance floor: an electric piano that rolls one chord a bar on tape, a slow
+    pad, a soft sine voice with a long echo for the tune, a few high bells, a round sub and a very quiet beat
+    (a soft kick, a rim click on 2 and 4, a shaker)."""
+    r = dsp.rng(s.id, "afterglow")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "lofi")
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X.........x.....", "X.....x...x....."], r, gain=0.7, jit=0.003)
+    hits(s, d, k["rim"], "....x.......x...", r, gain=0.6, jit=0.004)
+    hits(s, d, k["shaker"], "o.g.o.g.o.g.o.g.", r, gain=0.4, jit=0.004)
+    d = room(s, loop_filter(s, d, "lp", 6000), 0.25, 1.5, "drums", damp=4500)
+    ep = comp(s, ch, voicing(ch, 55, 76, 65, None, span=15),
+              lambda c, i: [(0, c.dur * 0.9, 0.6)] + ([(2.5, 1.2, 0.4)] if c.dur >= 4 else []), v_epiano, spread=0.035, r=r)
+    ep = room(s, tape(s, echo(s, ep, 1.5, 0.15, 0.3, 2, 3000), 6.0, 0.3), 0.3, 2.0, "ep", damp=4500)
+    pad = comp(s, ch, voicing(ch, 60, 79, 70, no_root), lambda c, i: [(0, c.dur * 0.97, 0.5)],
+               lambda ss, m, du, v: v_pad(ss, m, du, v, 1300.0, 0.8, 1.0, k=m % 3), r=r)
+    pad = room(s, pad, 0.3, 2.2, "pad", damp=3500)
+    tn = tune("5:2 3:1 5:1 | 6:1.5 1+:.5 5:2 | 6:2 4:1 6:1 | 5:1.5 4:.5 2:2 |"
+              " 5:1 7:1 2+:1.5 1+:.5 | 7:2 5:1 3:1 | 4:1 6:1 4:1 2:1 | 1:3 r:1", t, 4)
+    ld = room(s, echo(s, mono(s, tn, "bell", key="afterglow"), 1.5, 0.25, 0.4, 3, 3500), 0.35, 2.4, "lead", damp=5000,
+              predelay=0.03)
+    st = s.zeros()
+    for i, c in enumerate(ch):
+        ns = chord_notes(c, 84, 96)
+        for bt, j in (((1.5, 0), (3.25, 2)) if i % 2 == 0 else ((2.0, 1),)):
+            if bt < c.dur:
+                s.add(st, v_celesta(s, ns[(i + j) % len(ns)], 1.0, 0.45), c.start + bt, dt=float(r.normal(0.006, 0.004)))
+    st = room(s, echo(s, st, 0.75, 0.3, 0.4, 3, 6000), 0.35, 2.2, "stars", damp=7000)
+    bass = line(s, ch, lambda c, n, i: [(0, c.dur * 0.9, root_of(c, 44, 39, 50), 0.8)], v_sub, r=r)
+    return {"drums": d, "keys": ep, "pad": pad, "lead": ld, "celesta": st, "bass": loop_filter(s, bass, "lp", 600)}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -2429,6 +2625,16 @@ SONGS = {
     "wedding_drums": ("V:4 V:4 IV:4 V:4 V:4 V:4 IV:4 V:4 I:4 I:4 V:4 V:4 IV:4 IV:4 V:4 V:4", wedding_drums,
                       {"drums": -18, "tamb": -24, "lead": -18, "strings": -21, "guitar": -22, "bass": -20,
                        "gang": -22}),
+    # skyclub (Ab major)
+    "rooftop_sunrise": ("IVmaj7:4 I:4 V:4 vi7:4 IVmaj7:4 I:4 V:4 vi7:4 IVmaj7:4 V:4 Iadd9:4 Iadd9:4", rooftop_sunrise,
+                        {"drums": -17, "bass": -20, "keys": -20, "pad": -25, "lead": -18.5, "celesta": -25, "fx": -27}),
+    "cloud_bounce": ("Imaj9:4 iii7:4 IVmaj9:4 V7sus4:4 vi9:4 iii7:4 IVmaj9:2 V7sus4:2 Iadd9:4", cloud_bounce,
+                     {"drums": -17, "keys": -19, "bass": -21, "chops": -19, "celesta": -25, "arp": -24, "fx": -27}),
+    "mirrorball_groove": ("I6:4 vi7:4 ii7:4 V7:4 I6:4 vi7:4 ii7:4 V7:4 IVmaj7:4 iii7:4 ii7:4 V7:4", mirrorball_groove,
+                          {"drums": -17, "tamb": -26, "bass": -19, "guitar": -22, "keys": -22, "lead": -18.5,
+                           "brass": -22}),
+    "afterglow_lounge": ("Imaj9:4 vi7:4 IVmaj7:4 V7sus4:4 Imaj9:4 iii7:4 IVmaj7:2 ii7:2 Iadd9:4", afterglow_lounge,
+                         {"drums": -25, "keys": -20, "pad": -24, "lead": -19, "celesta": -27, "bass": -22}),
 }
 
 
