@@ -4,6 +4,46 @@ components {
   component: "/main/audio.script"
 }
 embedded_components {
+  id: "music_arcade_arp"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/arp.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_arcade_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_arcade_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_arcade_chords"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/chords.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_arcade_fx"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/fx.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_arcade_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_arcade_party"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_arcade_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/arcade/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_bazaar_bass"
   type: "sound"
   data: "sound: \"/assets/music/bazaar/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1199,6 +1239,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/boom_bap_sunrise.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_boss_rush_blitz"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/boss_rush_blitz.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_bossa_breeze"
   type: "sound"
   data: "sound: \"/assets/music/songs/bossa_breeze.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1207,6 +1252,11 @@ embedded_components {
   id: "song_bossa_sunday"
   type: "sound"
   data: "sound: \"/assets/music/songs/bossa_sunday.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_bubble_level_waltz"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/bubble_level_waltz.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_calypso_sun"
@@ -1342,6 +1392,11 @@ embedded_components {
   id: "song_hero_dawn"
   type: "sound"
   data: "sound: \"/assets/music/songs/hero_dawn.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_hero_overworld_march"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/hero_overworld_march.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_hopscotch_bounce"
@@ -1637,6 +1692,11 @@ embedded_components {
   id: "song_trap_playground"
   type: "sound"
   data: "sound: \"/assets/music/songs/trap_playground.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_try_again_lullaby"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/try_again_lullaby.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_tumbleweed_swing"

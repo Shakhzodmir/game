@@ -3455,6 +3455,194 @@ def lantern_stroll(s):
     return {"drums": d, "bass": bass, "sax": bari, "guitar": gt, "brass": br, "lead": sax}
 
 
+# ============================================================ PIXEL ARCADE (C)
+# The arcade beyond its theme (music.py: two pulse channels, a triangle channel and a noise channel, nothing
+# else). Four other screens of the same console, none of them the theme or a song of the genre "chiptune" of
+# songs_ambient.py (also in C: three 16-bar loops on I-V-vi-IV, I-IV-vi-V and a vi-based one, one arpeggio
+# pattern, a pulse tune, the kit2 "chip" drums): hero_overworld_march is a march in two (an oom-pah triangle
+# bass, a snare with rolls, chords broken into very fast rolls because the console has no channel left for
+# them, a fanfare tune that gets a second voice), bubble_level_waltz an underwater waltz in three for soft
+# triangle waves with bubbles rising, boss_rush_blitz a gallop at 176 BPM (the tune hammers 16ths against a
+# pedal note, then sings long notes over arpeggios), try_again_lullaby the slow "game over, try again" screen
+# (broken chords, a round square-wave tune, a music box, no drums).
+
+
+def v_pulse(duty=0.5, dec=0.0, vib=0.0, lp=4500.0, k=0, gate=1.0):
+    """A pulse channel of the console (music.chip_pulse) as a voice (s, midi, beats, vel)."""
+    return lambda s, m, d, v: M.chip_pulse(m, round(s.sec(d * gate), 4), s.sr, duty, round(v, 2), dec=dec, vib=vib,
+                                           lp=lp, key=k)
+
+
+def v_ctri(soft=False, vib=0.0, gate=1.0):
+    """The triangle channel of the console (music.chip_tri) as a voice."""
+    return lambda s, m, d, v: M.chip_tri(m, round(s.sec(d * gate), 4), s.sr, round(v, 2), vib=vib, soft=soft)
+
+
+def hero_overworld_march(s):
+    """120 BPM march across the world map, three four-bar phrases: the triangle bass plays oom-pah (root, its
+    octave, fifth, octave), the noise snare marches and rolls into every phrase, the chords are broken into
+    rolls of 32nds on every off-beat, a square wave plays the fanfare; in the last phrase a second pulse joins
+    it a third below."""
+    r = dsp.rng(s.id, "march")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "arcade")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X.......X.......", r, gain=0.9, jit=0)
+    hits(s, d, k["snare"], {"*": "....X..g....X.gg", 3: "....X..g..xxXxxx", 7: "....X..g..xxXxxx", 11: "x.xxX.xxxxxxX.X."},
+         r, gain=0.7, jit=0)
+    hits(s, d, k["hat"], "x.x.x.x.x.x.x.x.", r, gain=0.3, jit=0)
+    hits(s, d, k["crash"], {0: "X...............", 4: "X...............", 8: "X..............."}, r, gain=0.45, jit=0)
+    d = room(s, d, 0.06, 0.5, "drums", damp=6000)
+
+    def oompah(c, n, i):
+        R = root_of(c, 45, 41, 52)
+        out = []
+        for q in range(int(c.dur // 2)):
+            low = R if q % 2 == 0 else (R + 7 if R + 7 <= 55 else R - 5)
+            out += [(q * 2, 0.6, low, 0.9), (q * 2 + 1, 0.3, R + 12, 0.6)]
+        return out
+    bass = line(s, ch, oompah, v_ctri())
+    rolls = comp(s, ch, voicing(ch, 60, 76, 67, triad, span=12),
+                 lambda c, i: [(q + 0.5, 0.12, 0.7) for q in range(int(c.dur))], v_pulse(0.25, dec=0.05, lp=3500.0),
+                 spread=s.sec(0.125))
+    rolls = room(s, rolls, 0.06, 0.6, "rolls", damp=4500)
+    tn = tune("1:.75 1:.25 3:1 5:1.5 3:.5 | 5:1/3 6:1/3 5:1/3 3:1 1:1.5 r:.5 | 4:.75 4:.25 6:1 1+:1.5 6:.5 |"
+              " 5:1.5 3:.5 1:1 r:1 | 2:.75 2:.25 5:1 7:1.5 5:.5 | 1+:1 6:.5 1+:.5 3+:2 |"
+              " 4+:.5 3+:.5 1+:.5 6:.5 7:.5 1+:.5 2+:1 | 1+:2 r:1 5:.5 5:.5 | 6:1.5 1+:.5 4+:1 1+:1 |"
+              " 5:1.5 1+:.5 3+:1 1+:1 | 4+:1 2+:1 7:.5 2+:.5 5+:1 | 3+:1 1+:.5 5:.5 1+:2", t, 5)
+    lead = lay(s, v_pulse(0.5, vib=0.2, lp=4000.0, gate=0.9), tn)
+    lead += lay(s, v_pulse(0.25, lp=3200.0, k=1, gate=0.9), thirds_below([e for e in tn if e[0] >= 32], t, 0.55))
+    lead = room(s, echo(s, lead, 0.5, 0.1, 0.3, 2, 3000), 0.08, 0.7, "lead", damp=4500)
+    return {"drums": d, "bass": bass, "keys": rolls, "lead": lead}
+
+
+def bubble(sr, midi, key=0):
+    """A bubble: a soft triangle blip whose pitch runs up most of an octave in a tenth of a second."""
+    n = nsamp(0.11, sr)
+    u = np.arange(n) / n
+    x = dsp.triangle(midi_hz(midi + 9.0 * u ** 1.5), n, sr, 0.1 * key) * np.sin(np.pi * u) ** 0.8
+    return dsp.fade(dsp.lowpass(x, 3500.0, sr, 2), sr, 0.002, 0.01)
+
+
+def bubble_level_waltz(s):
+    """108 BPM waltz (three beats a bar, sixteen bars) for the underwater level, all soft: the triangle channel
+    sings the tune with a slow vibrato, low triangle notes mark the bars and two soft notes answer on two and
+    three, a rounded square wave runs up and down the chord in 8ths like a harp with a long echo, a thin music-box
+    pulse doubles the tune an octave up in the second half, and bubbles rise."""
+    r = dsp.rng(s.id, "bubbles")
+    t, ch = s.tonic, s.chords
+    bass, acc, harp = s.zeros(), s.zeros(), s.zeros()
+    for c, v in zip(ch, voicing(ch, 60, 74, 67, triad, span=12)):
+        R = root_of(c, 45, 41, 52)
+        tones = chord_notes(c, 67, 88)
+        for w in range(int(c.dur // 3)):
+            o = c.start + w * 3
+            s.add(bass, M.chip_tri(R if w % 2 == 0 else R + 7, round(s.sec(2.5), 4), s.sr, 0.85), o)
+            for bt, vel in ((1, 0.6), (2, 0.5)):
+                for m in v[-2:]:
+                    s.add(acc, M.chip_tri(m, round(s.sec(0.7), 4), s.sr, vel, soft=True), o + bt)
+            for q, j in enumerate((0, 1, 2, 3, 2, 1)):
+                s.add(harp, M.chip_pulse(tones[(j + w % 2) % len(tones)], round(s.sec(0.4), 4), s.sr, 0.5,
+                                         0.7 if q else 0.9, dec=0.12, lp=2200.0), o + q * 0.5)
+    harp = room(s, echo(s, harp, 1.5, 0.3, 0.45, 3, 2500), 0.2, 1.6, "harp", damp=4000)
+    tn = tune("5:2 3:1 | 5:2 7:1 | 1+:1.5 7:.5 6:1 | 5:3 | 6:2 4:1 | 5:2 3:1 | 4:1 2:1 4:1 | 2:3 |"
+              " 5:2 3:1 | 5:2 7:1 | 1+:1.5 2+:.5 1+:1 | 3+:2 1+:1 | 6:1 1+:1 4+:1 | 2+:1.5 7:.5 5:1 | 1+:3 | r:2 3:1",
+              t, 5, bar=3.0)
+    lead = lay(s, v_ctri(soft=True, vib=0.18, gate=0.97), tn)
+    lead = room(s, echo(s, lead, 1.0, 0.12, 0.3, 2, 2500), 0.22, 1.6, "lead", damp=4000, predelay=0.02)
+    box = lay(s, v_pulse(0.125, dec=0.2, lp=3000.0, k=1), [(b, min(du, 1.0), m + 12, v) for b, du, m, v in tn if b >= 24])
+    box = room(s, echo(s, box, 0.75, 0.2, 0.35, 2, 3000), 0.2, 1.6, "box", damp=4500)
+    fx = s.zeros()
+    pent = [m for m in range(74, 92) if (m - t) % 12 in (0, 2, 4, 7, 9)]
+    for i in range(22):
+        beat = float(r.integers(0, s.beats * 2)) * 0.5 + 0.25
+        s.add(fx, bubble(s.sr, pent[int(r.integers(len(pent)))], key=i), beat, float(r.uniform(0.4, 1.0)))
+    fx = room(s, fx, 0.3, 1.8, "bubbles", damp=4000)
+    return {"bass": bass, "keys": acc, "arp": harp, "lead": lead, "celesta": box, "fx": fx}
+
+
+def boss_rush_blitz(s):
+    """176 BPM boss rush, two eight-bar halves over a falling line of chords: a kick on every beat, the noise
+    snare on two and four, galloping hats, tom fills; the triangle bass gallops (an 8th and two 16ths an octave
+    up); in the first half the tune hammers 16ths, every note thrown against a pedal note of the chord, and
+    the chords flash as rolls on the off-beats; in the second half a square wave sings long notes with vibrato
+    over 16th arpeggios."""
+    r = dsp.rng(s.id, "boss")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "arcade")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X...X...X...", r, gain=0.9, jit=0)
+    hits(s, d, k["snare"], {"*": "....X.......X...", 3: "....X.......X.xx", 11: "....X.......X.xx", 7: "....X...........",
+                            15: "....X..........."}, r, gain=0.75, jit=0)
+    hits(s, d, k["hat"], "x.xxx.xxx.xxx.xx", r, gain=0.35, jit=0)
+    for drum, pat in (("tom_hi", "........xx......"), ("tom_mid", "..........xx...."), ("tom_lo", "............xxxx")):
+        hits(s, d, k[drum], {7: pat, 15: pat}, r, gain=0.7, jit=0)
+    hits(s, d, k["crash"], {0: "X...............", 8: "X..............."}, r, gain=0.45, jit=0)
+    d = room(s, d, 0.06, 0.5, "drums", damp=6000)
+
+    def gallop(c, n, i):
+        R = root_of(c, 45, 41, 52)
+        out = []
+        for q in range(int(c.dur)):
+            up = R + 7 if q % 4 == 3 else R + 12
+            out += [(q, 0.3, R, 0.9), (q + 0.5, 0.2, up, 0.7), (q + 0.75, 0.2, up, 0.6)]
+        return out
+    bass = line(s, ch, gallop, v_ctri())
+    a = tune("1+:1 7:1 1+:1 3+:1 | 2+:1 7:1 5:1 7:1 | 1+:1 6:1 1+:1 3+:1 | 7:1 5:1 3:1 5:1 |"
+             " 6:1 4:1 6:1 1+:1 | 5:1 3:1 5:1 1+:1 | 4:1 2:1 4:1 6:1 | 7:1 5:1 7:1 2+:1", t, 5)
+    riff = s.zeros()
+    for beat, _, m, _ in a:
+        pedal = chord_notes(s.chord_at(beat), 67, 78)[0]
+        for j in range(4):
+            s.add(riff, M.chip_pulse(m if j % 2 == 0 else pedal, round(s.sec(0.2), 4), s.sr, 0.25,
+                                     0.85 if j % 2 == 0 else 0.5, dec=0.06, lp=4000.0), beat + j * 0.25)
+    b2 = tune("5:1.5 1+:.5 3+:2 | 2+:1.5 7:.5 5:2 | 1+:1.5 3+:.5 1+:1 6:1 | 7:3 5:.5 7:.5 |"
+              " 1+:1.5 6:.5 4:1 6:1 | 5:1 1+:1 3+:2 | 4+:1 1+:1 2+:1 7:1 | 1+:3 r:1", t, 5)
+    sing = lay(s, v_pulse(0.5, vib=0.25, lp=4000.0, gate=0.92), [(b + 32, du, m, v) for b, du, m, v in b2])
+    lead = room(s, echo(s, riff + sing, 0.75, 0.1, 0.3, 2, 3000), 0.08, 0.7, "lead", damp=4500)
+    first = [c for c in ch if c.start < 32]
+    rolls = comp(s, first, voicing(first, 60, 76, 67, triad, span=12),
+                 lambda c, i: [(q + 0.5, 0.12, 0.7) for q in range(1, int(c.dur), 2)], v_pulse(0.25, dec=0.05, lp=3500.0),
+                 spread=s.sec(0.125))
+    arp = s.zeros()
+    for c in ch:
+        if c.start < 32:
+            continue
+        tones = chord_notes(c, 64, 84)[:4]
+        for q in range(int(c.dur * 4)):
+            s.add(arp, M.chip_pulse(tones[(0, 1, 2, 3, 2, 1, 2, 1)[q % 8] % len(tones)], round(s.sec(0.2), 4), s.sr, 0.125,
+                                    0.75 if q % 4 == 0 else 0.55, dec=0.05, lp=3500.0, key=1), c.start + q * 0.25)
+    return {"drums": d, "bass": bass, "lead": lead, "keys": rolls, "arp": arp}
+
+
+def try_again_lullaby(s):
+    """72 BPM lullaby of the 'game over, try again' screen, no drums: a soft triangle rocks broken chords in
+    8ths (low, high, middle, high), the triangle bass holds one long note a chord, a rounded square wave sings
+    a slow tune with a little vibrato, and a thin music-box pulse answers at the end of every bar, three notes
+    up the chord, and climbs down the C chord over the last one."""
+    t, ch = s.tonic, s.chords
+    acc = s.zeros()
+    for c, v in zip(ch, voicing(ch, 55, 69, 62, triad, span=12)):
+        for q in range(int(c.dur * 2)):
+            m = (v[0], v[2], v[1], v[2])[q % 4]
+            s.add(acc, M.chip_tri(m, round(s.sec(0.48), 4), s.sr, 0.7 if q % 4 == 0 else 0.5, soft=True), c.start + q * 0.5)
+    acc = room(s, acc, 0.16, 1.4, "acc", damp=4000)
+    bass = line(s, ch, lambda c, n, i: [(0, c.dur * 0.95, root_of(c, 45, 41, 52), 0.8)], v_ctri())
+    tn = tune("3:1.5 5:.5 1+:2 | 6:1.5 4:.5 6:2 | 5:1 3:1 1:2 | 2:1.5 3:.5 2:1 r:1 |"
+              " 3:1.5 6:.5 1+:2 | 1+:1 6:1 4:2 | 4:1 2:1 7-:1 2:1 | 1:3 r:1", t, 5)
+    lead = lay(s, v_pulse(0.5, vib=0.15, lp=2600.0, gate=0.97), tn)
+    lead = room(s, echo(s, lead, 1.0, 0.14, 0.3, 2, 2500), 0.2, 1.5, "lead", damp=4000, predelay=0.02)
+    box = s.zeros()
+    for bar in range(s.bars - 1):
+        tones = chord_notes(s.chord_at(bar * 4 + 3), 84, 96)[:3]
+        for j, m in enumerate(tones):
+            s.add(box, M.chip_pulse(m, 0.3, s.sr, 0.125, 0.7, dec=0.08, lp=4000.0, key=1), bar * 4 + 2.5 + j * 0.5)
+    for j, m in enumerate((96, 91, 88, 84, 79)):
+        s.add(box, M.chip_pulse(m, 0.3, s.sr, 0.125, 0.7, dec=0.08, lp=4000.0, key=1), (s.bars - 1) * 4 + 1 + j * 0.5)
+    box = room(s, echo(s, box, 0.75, 0.25, 0.4, 3, 3000), 0.22, 1.6, "box", damp=4500)
+    return {"keys": acc, "bass": bass, "lead": lead, "celesta": box}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -3581,6 +3769,15 @@ SONGS = {
                              {"drums": -20, "guitar": -20, "bass": -19, "lead": -18, "trumpet": -20.5, "fx": -28}),
     "lantern_stroll": ("I6:4 vi7:4 IV6:4 V7:4 I6:4 vi7:4 IV6:4 V7:4 IV6:4 I6:4 V7:4 I6:2 V7:2", lantern_stroll,
                        {"drums": -18.5, "bass": -19, "sax": -22, "guitar": -21, "brass": -22, "lead": -18.5}),
+    # arcade (C major)
+    "hero_overworld_march": ("I:4 I:4 IV:4 I:4 V:4 vi:4 IV:2 V:2 I:4 IV:4 I:4 ii:2 V:2 I:4", hero_overworld_march,
+                             {"drums": -18.5, "bass": -19, "keys": -23, "lead": -18}),
+    "bubble_level_waltz": ("I:3 iii:3 IV:3 I:3 IV:3 I:3 ii:3 V:3 I:3 iii:3 IV:3 I:3 IV:3 V:3 I:6", bubble_level_waltz,
+                           {"bass": -21, "keys": -22, "arp": -24, "lead": -18, "celesta": -25, "fx": -28}),
+    "boss_rush_blitz": ("I:4 V:4 vi:4 iii:4 IV:4 I:4 ii:4 V:4 I:4 V:4 vi:4 iii:4 IV:4 I:4 IV:2 V:2 I:4", boss_rush_blitz,
+                        {"drums": -17, "bass": -19, "lead": -18, "keys": -23, "arp": -23}),
+    "try_again_lullaby": ("I:4 IV:4 I:4 V:4 vi:4 IV:4 ii:2 V:2 I:4", try_again_lullaby,
+                          {"keys": -21, "bass": -22, "lead": -18, "celesta": -24}),
 }
 
 

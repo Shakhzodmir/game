@@ -43,6 +43,7 @@ HI_RATE = {
     "island": set(),  # every stem at 22.05 kHz: reggae is round and warm, its hats end below 10 kHz
     "ranch": set(),  # every stem at 22.05 kHz: a washboard, strings and reeds, nothing lives above 10 kHz
     "bluesclub": set(),  # every stem at 22.05 kHz: brushes, a dark ride and warm amps, nothing lives above 10 kHz
+    "arcade": set(),  # every stem at 22.05 kHz: the pulse waves are rounded off at 3-5 kHz, the noise ends at 9 kHz
 }
 
 
@@ -497,6 +498,8 @@ def kit(name, sr):
             k = ranch_kit(sr)
         elif name == "bluesclub":
             k = bluesclub_kit(sr)
+        elif name == "arcade":
+            k = arcade_kit(sr)
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -3934,6 +3937,249 @@ def bluesclub_lead(s):
     return room(s, b, 0.18, 1.2, "lead", damp=4500)
 
 
+# ================================================ PIXEL ARCADE (C major)
+
+def arcade_song(d):
+    # bright 8-bit console music in C, 140 BPM: I - IV - I - V, vi - IV - V - I, plain triads. The loop opens and
+    # closes on C (the closing C is where the tune comes home), so it reads as C major, not A minor.
+    # Everything is made of what an old game console has: two pulse channels (duty 12.5, 25 or 50 %), one triangle
+    # channel and one noise channel. The sky club (Ab) is modern dance music (saws, a house kick, vocal chops);
+    # the songs of the genre "chiptune" (also in C) are I-V-vi-IV / I-IV-vi-V / vi-based loops of 16 bars with one
+    # arpeggio pattern and their own kit (songs.kit2 "chip"); here the voices, the kit and the tune are different.
+    C, F, G, A = 0, 5, 7, 9
+    maj, mnr = [0, 4, 7], [0, 3, 7]
+    return Song(d, progression([
+        (4, C, maj, "C"), (4, F, maj, "F"), (4, C, maj, "C"), (4, G, maj, "G"),
+        (4, A, mnr, "Am"), (4, F, maj, "F"), (4, G, maj, "G"), (4, C, maj, "C"),
+    ]))
+
+
+def chip_pulse(midi, dur, sr, duty=0.5, vel=0.8, dec=0.0, vib=0.0, lp=5000.0, key=0):
+    """A pulse channel of the console: a band-limited pulse wave of the given duty cycle (0.125 thin and nasal,
+    0.25 bright, 0.5 a hollow square) under a flat envelope, or one that falls to 40 % (`dec`: its time constant
+    in seconds); `vib` (semitones) is a vibrato that sets in after a seventh of a second. The top is rounded by a
+    gentle low-pass (`lp`): a small speaker makes raw square waves bite."""
+    def mk():
+        n = nsamp(dur + 0.03, sr)
+        t = np.arange(n) / sr
+        f = midi_hz(midi + vib * np.clip((t - 0.14) / 0.15, 0.0, 1.0) * np.sin(TAU * 6.0 * t))
+        x = dsp.pulse(f, n, sr, duty, 0.13 * key)
+        env = dsp.env_adsr(n, sr, 0.003, 0.05, 0.9, dur, 0.02)
+        if dec:
+            env = env * (0.4 + 0.6 * np.exp(-t / dec))
+        x = dsp.lowpass(x * env, lp, sr, 2)
+        return dsp.fade(x, sr, 0.001, 0.008) * vel
+    return cached(("chip_pulse", midi, round(dur, 4), sr, duty, round(vel, 2), dec, vib, lp, key), mk)
+
+
+def chip_tri(midi, dur, sr, vel=0.8, vib=0.0, soft=False):
+    """The triangle channel: no volume control on the console, so the note is simply on or off. A triangle
+    wave is almost a sine: a bass note gets its octave and a little saturation (overtones a phone can play),
+    unless `soft` (the tune of a lullaby or a waltz); `vib` as in chip_pulse."""
+    def mk():
+        n = nsamp(dur + 0.04, sr)
+        t = np.arange(n) / sr
+        f = midi_hz(midi + vib * np.clip((t - 0.2) / 0.25, 0.0, 1.0) * np.sin(TAU * 5.0 * t))
+        x = dsp.triangle(f, n, sr)
+        if not soft:  # with its octave, a little quieter, on top: that is what a phone plays of a bass note
+            x = dsp.drive(x + 0.5 * dsp.triangle(2.0 * f, n, sr, 0.25), 3.0)
+        x = dsp.lowpass(x, 3000.0 if soft else 1800.0, sr, 2) * dsp.env_adsr(n, sr, 0.004, 0.05, 0.95, dur, 0.025)
+        return dsp.fade(x, sr, 0.001, 0.01) * vel
+    return cached(("chip_tri", midi, round(dur, 4), sr, round(vel, 2), vib, soft), mk)
+
+
+def chip_noise(sr, length, hold=1, lo=0.0, hi=9000.0, key=0):
+    """The noise channel: a stream of random bits, each held for `hold` samples (the longer, the lower and
+    rougher the rumble), falling away exponentially; band-limited below 10 kHz."""
+    n = nsamp(length, sr)
+    bits = dsp.rng("arcadenoise", key).integers(0, 2, n // hold + 1) * 2.0 - 1.0
+    x = dsp.lowpass(np.repeat(bits, hold)[:n], hi, sr, 2)
+    if lo:
+        x = dsp.highpass(x, lo, sr, 2)
+    x = x * np.exp(-np.arange(n) / sr / (length * 0.22))
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.01)
+
+
+def chip_drop(sr, midi, length=0.18, start=14.0, tau=0.02):
+    """A drum on the triangle channel: the pitch falls from `start` semitones above onto `midi` in a few
+    hundredths of a second (a kick on C2, toms on notes of the C chord)."""
+    n = nsamp(length, sr)
+    t = np.arange(n) / sr
+    x = dsp.triangle(midi_hz(midi + start * np.exp(-t / tau)), n, sr)
+    x = dsp.lowpass(dsp.drive(x, 2.5), 2500.0, sr, 2) * np.exp(-t / (length * 0.35))
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.02)
+
+
+def arcade_kit(sr):
+    """The drums of the console, made for 22.05 kHz: a kick and three toms on the triangle channel (C2; G3, E3,
+    C3), a snare, closed and open hats and a crash on the noise channel (nothing above 9 kHz)."""
+    k = {}
+    k["kick"] = [chip_drop(sr, 36, 0.2, 19.0, 0.018)]
+    k["tom_hi"] = [chip_drop(sr, 55, 0.16, 7.0, 0.03)]
+    k["tom_mid"] = [chip_drop(sr, 52, 0.17, 7.0, 0.03)]
+    k["tom_lo"] = [chip_drop(sr, 48, 0.2, 7.0, 0.03)]
+    k["snare"] = [chip_noise(sr, 0.16, 3, 600.0, 6500.0, key=900 + i) for i in range(2)]
+    k["hat"] = [chip_noise(sr, 0.04, 1, 4500.0, 9000.0, key=910 + i) for i in range(3)]
+    k["ohat"] = [chip_noise(sr, 0.18, 1, 4000.0, 9000.0, key=920)]
+    k["crash"] = [chip_noise(sr, 0.9, 2, 1800.0, 8500.0, key=930)]
+    return k
+
+
+def arcade_beat(s):
+    """The noise channel drums (a kick on the triangle channel, a snare on two and four, galloping hats: an
+    8th and two 16ths, a tom fill into each half) and a triangle blip on the root of every chord, on one and
+    on the 'and' of three: alone the first layer already walks C - F - C - G, A - F - G - C."""
+    k = kit("arcade", s.sr)
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        fill = bar in (3, 7)
+        for bt, v in (((0.0, 1.0), (1.5, 0.6), (2.0, 0.9), (2.75, 0.55)) if bar % 2 == 0 else
+                      ((0.0, 1.0), (1.5, 0.6), (2.0, 0.9), (2.5, 0.55))):
+            hit(s, b, k["kick"], o + bt, 0.9 * v, r, 0.0)
+        for bt in (1.0, 3.0):
+            if not (fill and bt == 3.0):
+                hit(s, b, k["snare"], o + bt, 0.75, r, 0.0)
+        for i in range(16):
+            if i % 4 == 1 or (fill and i >= 12):
+                continue
+            hit(s, b, k["hat"], o + i * 0.25, 0.42 if i % 4 == 0 else 0.26, r, 0.0)
+        if bar % 2 == 1 and not fill:
+            hit(s, b, k["ohat"], o + 3.5, 0.34, r, 0.0)
+        if fill:
+            for j, drum in enumerate(("tom_hi", "tom_hi", "tom_mid", "tom_lo")):
+                hit(s, b, k[drum], o + 3 + j * 0.25, 0.6 + 0.08 * j, r, 0.0)
+    b = b / dsp.peak(b)
+    blip = s.zeros()
+    for c in s.chords:
+        R = nearest(c.root, 52, 48, 59)
+        for bt, du, v in ((0.0, 0.4, 0.9), (2.5, 0.3, 0.7)):
+            s.add(blip, chip_tri(R, round(s.sec(du), 4), s.sr, v), c.start + bt)
+    b = b + 0.5 * blip / dsp.peak(blip)
+    return room(s, b, 0.06, 0.5, "beat", damp=6000)
+
+
+def arcade_bass(s):
+    """A bouncy bass on the triangle channel: staccato 8ths that hop from the root to its octave and its
+    fifth (F2-C4, the register a small speaker still plays), and step into the next chord on the last 8th."""
+    b = s.zeros()
+    scale = [m for m in range(34, 66) if (m - s.tonic) % 12 in (0, 2, 4, 5, 7, 9, 11)]
+    for c in s.chords:
+        R = nearest(c.root, 45, 41, 52)
+        nxt = nearest(s.next_chord(c).root, 45, 41, 52)
+        step = max(m for m in scale if m < nxt) if nxt >= R else min(m for m in scale if m > nxt)
+        line = [R, R + 12, R + 7, R + 12, R, R + 12, R + 7, step if nxt != R else R + 12]
+        for q, m in enumerate(line):
+            s.add(b, chip_tri(m, round(s.sec(0.36 if q % 2 == 0 else 0.26), 4), s.sr, 0.9 if q % 2 == 0 else 0.7),
+                  c.start + q * 0.5)
+    return room(s, b, 0.04, 0.4, "bass", damp=3000)
+
+
+ARC_ARP = (0, 1, 2, 3, 2, 1)  # up the chord and down again in 16ths: six steps against the four of a beat
+
+
+def arcade_arp(s):
+    """Fast arpeggios on a pulse channel: 16ths up and down the chord (root, third, fifth, octave, C5-C7), the
+    six-step figure rolling across the beats; the duty cycle changes every two bars (12.5 % - 25 %), a short
+    echo answers on the dotted 8th."""
+    b = s.zeros()
+    for c in s.chords:
+        root = nearest(c.root, 76, 72, 83)
+        tones = [root + t for t in c.tones] + [root + 12]
+        duty = 0.125 if int(c.start // 8) % 2 == 0 else 0.25
+        for q in range(int(c.dur * 4)):
+            m = tones[ARC_ARP[q % len(ARC_ARP)]]
+            s.add(b, chip_pulse(m, round(s.sec(0.2), 4), s.sr, duty, 0.8 if q % 4 == 0 else 0.6, dec=0.05, lp=4500.0),
+                  c.start + q * 0.25)
+    b = echo(s, b, 0.75, 0.2, 0.35, 2, 3500)
+    return room(s, b, 0.06, 0.6, "arp", damp=5000)
+
+
+ARC_STABS = {  # even / odd bars -> (beat, beats, vel)
+    0: ((0.0, 0.3, 0.9), (1.5, 0.3, 0.75), (2.5, 0.6, 0.85)),
+    1: ((0.5, 0.3, 0.75), (1.5, 0.3, 0.75), (2.5, 0.25, 0.8), (3.0, 0.25, 0.7), (3.5, 0.3, 0.85)),
+}
+
+
+def arcade_chords(s):
+    """Chord stabs: three pulse voices (C4-E5, the voicings led from chord to chord) punch short syncopated
+    chords, a 25 % pulse that opens to a square on the longer ones."""
+    b = s.zeros()
+    vo = voice_lead([c.pcs() for c in s.chords], 60, 76, 67)
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, du, v in ARC_STABS[bar % 2]:
+            ci = s.chords.index(s.chord_at(o + bt))
+            for j, m in enumerate(vo[ci]):
+                s.add(b, chip_pulse(m, round(s.sec(du), 4), s.sr, 0.5 if du > 0.5 else 0.25, v, dec=0.09, lp=3500.0,
+                                    key=j), o + bt)
+    return room(s, b, 0.08, 0.6, "chords", damp=4500)
+
+
+# The tune, C5-D6, singable: 'do-mi-SOL, mi-sol / LA, sol-fa-la / SOL, mi-do-mi / REEE', then from the top 'mi-la-DO,
+# ti-la / LA, do-la-fa / sol-la-ti-REE, ti / DOOO' - home on a long high C. bar -> (beat, beats, midi)
+ARC_TUNE = bars({
+    0: [(0.0, 0.5, 72), (0.5, 0.5, 76), (1.0, 1.5, 79), (2.5, 0.5, 76), (3.0, 1.0, 79)],
+    1: [(0.0, 1.5, 81), (1.5, 0.5, 79), (2.0, 1.0, 77), (3.0, 1.0, 81)],
+    2: [(0.0, 1.5, 79), (1.5, 0.5, 76), (2.0, 1.0, 72), (3.0, 1.0, 76)],
+    3: [(0.0, 2.5, 74), (3.0, 0.5, 71), (3.5, 0.5, 74)],
+    4: [(0.0, 0.5, 76), (0.5, 0.5, 81), (1.0, 1.5, 84), (2.5, 0.5, 83), (3.0, 1.0, 81)],
+    5: [(0.0, 1.5, 81), (1.5, 0.5, 84), (2.0, 1.0, 81), (3.0, 1.0, 77)],
+    6: [(0.0, 1.0, 79), (1.0, 0.5, 81), (1.5, 0.5, 83), (2.0, 1.5, 86), (3.5, 0.5, 83)],
+    7: [(0.0, 3.0, 84)],
+})
+
+
+def arcade_lead(s):
+    """The hero's tune on a square wave: every note longer than a beat gets a vibrato, the second half of the
+    loop is played with a thinner duty cycle (25 %), as the old cartridges did to make one channel sound like
+    two instruments."""
+    n = s.n + nsamp(1.0, s.sr)
+    pw = np.full(n, 0.5)
+    pw[int((s.sec(16.0) - 0.01) * s.sr):] = 0.25
+    src, env, onset = render_line(s, events(s, [(b, d * 0.95, m, 0.9 if d >= 1.0 else 0.75) for b, d, m in ARC_TUNE]),
+                                  osc="pulse", pw=pw, glide=0.0015, legato_gap=0.0, attack=0.004, release=0.03,
+                                  vib_rate=6.0, vib_depth=0.2, vib_delay=0.2, key="arcadelead")
+    x = src * env * (0.8 + 0.2 * np.clip(onset, 0, 1))
+    x = dsp.lowpass(x, 4000.0, s.sr, 2)
+    b = wrap(s, x / dsp.peak(x))
+    b = echo(s, b, 0.5, 0.12, 0.3, 2, 3000)
+    return room(s, b, 0.08, 0.7, "lead", damp=4500)
+
+
+# A second voice under the tune, G4-F5, a thin pulse: it moves where the tune holds a long note.
+ARC_COUNTER = bars({
+    0: [(1.5, 0.5, 67), (2.0, 0.5, 64)], 1: [(0.5, 0.5, 72), (1.0, 0.5, 69)], 2: [(0.5, 0.5, 72), (1.0, 0.5, 67)],
+    3: [(0.5, 0.5, 67), (1.0, 0.5, 71), (1.5, 0.5, 67)], 4: [(1.5, 0.5, 72), (2.0, 0.5, 69)],
+    5: [(0.5, 0.5, 72), (1.0, 0.5, 69)], 6: [(2.5, 0.5, 74), (3.0, 0.5, 71)], 7: [(3.0, 0.5, 67), (3.5, 0.5, 71)],
+})
+ARC_COINS = (6.5, 22.5)  # beats: a coin in the second and in the sixth bar
+ARC_PENT = (72, 74, 76, 79, 81, 84, 86, 88, 91, 93, 96, 98)  # the power-up runs up the pentatonic scale of C
+
+
+def arcade_fx(s):
+    """The sounds of the game itself, all on the scale of C: a coin (B5 flicking up to a ringing E6) in bars
+    2 and 6, a power-up (a run of 32nds up the pentatonic scale, growing) into the second half, a little
+    'bonus' fanfare up the C chord under the last long note, and a thin second voice that moves under the tune
+    wherever it holds."""
+    sr = s.sr
+    g = s.zeros()
+    for bt in ARC_COINS:
+        s.add(g, chip_pulse(83, 0.07, sr, 0.5, 0.8, lp=4500.0), bt)
+        s.add(g, chip_pulse(88, 0.45, sr, 0.5, 0.9, dec=0.12, lp=4500.0), bt, dt=0.075)
+    for i, m in enumerate(ARC_PENT):
+        s.add(g, chip_pulse(m, round(s.sec(0.11), 4), sr, 0.25, 0.4 + 0.045 * i, lp=4000.0), 14.5 + i * 0.125)
+    for i, (m, du) in enumerate(((84, 0.2), (79, 0.2), (84, 0.2), (88, 0.2), (91, 0.7))):
+        s.add(g, chip_pulse(m, round(s.sec(du), 4), sr, 0.25, 0.75, dec=0.15, lp=4000.0), 29.0 + i * 0.25)
+    cm = s.zeros()
+    for bt, du, m in ARC_COUNTER:
+        s.add(cm, chip_pulse(m, round(s.sec(du * 0.9), 4), sr, 0.125, 0.8, dec=0.2, lp=3000.0, key=1), bt)
+    b = g / dsp.peak(g) + 0.8 * cm / dsp.peak(cm)
+    b = echo(s, b, 0.75, 0.15, 0.3, 2, 3000)
+    return room(s, b, 0.08, 0.7, "fx", damp=4500)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -3952,7 +4198,7 @@ def tension_stem(s, style):
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
             "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub"}
+            "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style in ("jazz", "bluesclub"):
@@ -3990,6 +4236,8 @@ def tension_stem(s, style):
         elif style == "bluesclub":  # the left hand of the old piano, staccato, on the chord roots, shuffled
             x = upright_piano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.8, release=0.06)
             bt = sw8(bt, 1.0 / 3.0)
+        elif style == "arcade":  # a pulse channel, staccato, on the chord roots
+            x = chip_pulse(m, round(s.sec(0.25), 4), s.sr, 0.25, 0.8, dec=0.06, lp=3000.0)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -4007,6 +4255,8 @@ def tension_stem(s, style):
     elif style == "bluesclub":  # no synthesizer in the club: the organ holds the fifth of the key, its speaker trembling
         s.add(tr, ins.organ(fifth, round(s.sec(s.beats) - 1.5, 4), s.sr, bars=(0, 0, 8, 5, 0, 3, 0, 0, 0), perc=0.0,
                             click=0.0, attack=0.8, release=0.3), 0.0)
+    elif style == "arcade":  # the other pulse channel holds the fifth of the key, thin (12.5 %), the 8ths pulsing in it
+        s.add(tr, chip_pulse(fifth, round(s.sec(s.beats) - 0.5, 4), s.sr, 0.125, 0.8, lp=2500.0), 0.0)
     else:
         s.add(tr, pad_note(fifth, s.sec(s.beats) - 0.5, s.sr, cutoff=2500, attack=1.0, release=1.0, det=5, key=3), 0.0)
     tr *= 0.6 + 0.4 * np.sin(TAU * np.arange(s.n) / s.n * s.beats * 2) ** 2  # 8th-note tremolo
@@ -4066,7 +4316,7 @@ def party_stem(s, style):
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
             "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub"}
+            "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -4077,6 +4327,9 @@ def party_stem(s, style):
     for bar in range(s.bars):
         o = bar * 4
         for bt in (1, 3):
+            if style == "arcade":  # no hands in a console: the noise snare takes the backbeat
+                hit(s, b, k["snare"], o + bt, 0.6, r, 0.0)
+                continue
             for j in range(3):
                 hit(s, b, dk["clap"], o + bt, 0.45, r, 0.008)
         if style == "skyclub":  # no shaker in the club: its own closed hats on the 16ths, its open hat and its kick
@@ -4118,6 +4371,12 @@ def party_stem(s, style):
                 hit(s, b, k["ride"], o + bt, 0.26, r, 0.0)
                 if bt % 2:
                     hit(s, b, k["ride"], o + bt + BT, 0.15, r, 0.003)
+        elif style == "arcade":  # the whole console: noise hats on the 16ths, an open one off the beat, the kick on every beat
+            for i in range(16):
+                hit(s, b, k["hat"], o + i * 0.25, 0.3 if i % 2 == 0 else 0.18, r, 0.0)
+            for bt in range(4):
+                hit(s, b, k["ohat"], o + bt + 0.5, 0.26, r, 0.0)
+                hit(s, b, k["kick"], o + bt, 0.5, r, 0.0)
         else:
             for i in range(16):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
@@ -4137,6 +4396,9 @@ def party_stem(s, style):
         if bar in (3, 7) and style == "bluesclub":  # the roll into each half in triplets, as everything here
             for j in range(6):
                 hit(s, b, dk["snare"], o + 2 + j / 3.0, 0.3 + 0.08 * j, r, 0.002)
+        elif bar in (3, 7) and style == "arcade":  # the roll on the noise channel
+            for j in range(8):
+                hit(s, b, k["snare"], o + 2 + j * 0.25, 0.3 + 0.06 * j, r, 0.0)
         elif bar in (3, 7):
             for j in range(8):
                 hit(s, b, dk["snare"], o + 2 + j * 0.25, 0.3 + 0.06 * j, r, 0.002)
@@ -4151,7 +4413,8 @@ def party_stem(s, style):
         for bt in {"jazz": (T, 1 + T, 2 + T, 3 + T), "cinema": (0.0, 0.75, 1.0, 2.0, 2.75, 3.0),
                    "bazaar": (0.0, 0.5, 1.5, 2.0, 3.0), "skyclub": (0.0, 0.75, 1.5, 2.5, 3.5),
                    "block": (0.0, 1.5, 2.0, 3.5),  # horn stabs: on 1, pushed into 3, on 3, pushed into 1
-                   "bluesclub": (0.0, 1 + BT, 2.0, 3 + BT)}.get(  # the horns of a rhythm-and-blues band, shuffled
+                   "bluesclub": (0.0, 1 + BT, 2.0, 3 + BT),  # the horns of a rhythm-and-blues band, shuffled
+                   "arcade": (0.0, 0.5, 1.5, 2.0, 3.0, 3.5)}.get(  # a fanfare of pulse waves: 'ta-ta, ta-ta, ta-ta'
                        style, (0.5, 1.5, 2.5, 3.5)):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
@@ -4166,6 +4429,8 @@ def party_stem(s, style):
                     x = ins.piano(m, round(s.sec(0.4), 4), s.sr, vel=0.85, bright=0.9, release=0.12)
                 elif style == "ranch":  # the upright piano of the barn dance, short bright chords
                     x = ins.piano(m, round(s.sec(0.3), 4), s.sr, vel=0.9, bright=1.0, release=0.08, key=j % 2)
+                elif style == "arcade":  # three pulse voices
+                    x = chip_pulse(m, round(s.sec(0.3), 4), s.sr, 0.25, 0.9, dec=0.1, lp=4000.0, key=j)
                 else:
                     x = ins.brass(m, s.sec(0.3), s.sr, vel=0.9, key=j)
                 s.add(st, x, beat, 1.0)
@@ -4189,6 +4454,8 @@ def party_stem(s, style):
                 x = banjo_note(m - 12, 0.3, s.sr, 0.9, key=i % 2)
             elif style == "bluesclub":  # the top of the old piano, an octave under the glockenspiel's place
                 x = upright_piano(m - 12, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
+            elif style == "arcade":  # a thin pulse runs up the chord, an octave under the glockenspiel's place
+                x = chip_pulse(m - 12, 0.16, s.sr, 0.125, 0.8, dec=0.05, lp=4500.0)
             else:
                 x = ins.glock(m, s.sr, vel=0.7, dur=0.8, octave_up=False)
             at = c.start + i * 0.5
@@ -4243,6 +4510,9 @@ DISTRICTS = {
     "bluesclub": dict(song=bluesclub_song, stems={
         "piano": bluesclub_piano, "bass": bluesclub_bass, "drums": bluesclub_drums, "organ": bluesclub_organ,
         "harmonica": bluesclub_harmonica, "lead": bluesclub_lead}),
+    "arcade": dict(song=arcade_song, stems={
+        "beat": arcade_beat, "bass": arcade_bass, "arp": arcade_arp, "chords": arcade_chords, "lead": arcade_lead,
+        "fx": arcade_fx}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -4280,6 +4550,8 @@ LOUDNESS = {
               "tension": -18, "party": -16},
     "bluesclub": {"piano": -17, "bass": -19, "drums": -18, "organ": -20, "harmonica": -18, "lead": -17.5,
                   "tension": -18, "party": -16},
+    "arcade": {"beat": -16, "bass": -19, "arp": -19.5, "chords": -19, "lead": -18, "fx": -18.5,
+               "tension": -16.5, "party": -16},  # the tension layer sits on a dense mix of square waves: +1.5 dB
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on

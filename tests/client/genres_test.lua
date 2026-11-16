@@ -1,5 +1,5 @@
 -- The jukebox genres that are not districts (content/genres.json): the catalogue, the unlock switch
--- (meta/config.lua genres_unlock), the song of every room, and the window that pages through its genres (fourteen districts + 15 more).
+-- (meta/config.lua genres_unlock), the song of every room, and the window that pages through its genres (fifteen districts + 15 more).
 
 local G = require("tests.client.meta_gui_helper")
 local json = require("tools.lib.json")
@@ -126,7 +126,7 @@ describe("genres open with their district (the default) or all at once (config)"
 		with_mode("districts", function()
 			local m = new_meta()
 			local vm = views.jukebox(m, nil, nil)
-			assert_eq(#vm.tabs, 29)
+			assert_eq(#vm.tabs, 30)
 			assert_eq(vm.tabs[5].id, "garage")
 			assert_eq(vm.tabs[6].id, "beach")
 			assert_eq(vm.tabs[6].state, "locked")
@@ -146,12 +146,14 @@ describe("genres open with their district (the default) or all at once (config)"
 			assert_eq(vm.tabs[13].state, "locked")
 			assert_eq(vm.tabs[14].id, "bluesclub")
 			assert_eq(vm.tabs[14].state, "locked")
-			assert_eq(vm.tabs[15].id, "classical")
-			assert_eq(vm.tabs[15].state, "open")
-			assert_eq(vm.tabs[15].group, "classic")
-			assert_eq(vm.tabs[15].icon, "ui/genres/classical")
-			assert_eq(vm.tabs[17].id, "latin")
-			assert_eq(vm.tabs[17].state, "locked")
+			assert_eq(vm.tabs[15].id, "arcade")
+			assert_eq(vm.tabs[15].state, "locked")
+			assert_eq(vm.tabs[16].id, "classical")
+			assert_eq(vm.tabs[16].state, "open")
+			assert_eq(vm.tabs[16].group, "classic")
+			assert_eq(vm.tabs[16].icon, "ui/genres/classical")
+			assert_eq(vm.tabs[18].id, "latin")
+			assert_eq(vm.tabs[18].state, "locked")
 			assert_eq(#vm.songs.classical, 4)
 			assert_true(vm.songs.classical[1].playable)
 			assert_false(vm.songs.latin[1].playable)
@@ -231,6 +233,15 @@ describe("genres open with their district (the default) or all at once (config)"
 					seen[row.id] = id
 				end
 			end
+			-- and for the district "arcade" (genre name 8-Bit) and the extra genre "chiptune", both in C
+			assert_eq(#full.songs.arcade, 5, "the theme and four songs")
+			assert_eq(#full.songs.chiptune, 3)
+			for _, id in ipairs({ "arcade", "chiptune" }) do
+				for _, row in ipairs(full.songs[id]) do
+					assert_true(seen[row.id] == nil, row.id .. " is in two genres")
+					seen[row.id] = id
+				end
+			end
 		end)
 	end)
 end)
@@ -259,6 +270,7 @@ describe("every room has its own song", function()
 		assert_true(seen.island, "district 12 has its own theme")
 		assert_true(seen.ranch, "district 13 has its own theme")
 		assert_true(seen.bluesclub, "district 14 has its own theme")
+		assert_true(seen.arcade, "district 15 has its own theme")
 	end)
 
 	it("a pick wins over the room until the way home is taken", function()
@@ -277,7 +289,7 @@ describe("every room has its own song", function()
 	end)
 end)
 
-describe("the jukebox window with twenty-nine genres", function()
+describe("the jukebox window with thirty genres", function()
 	it("shows three tabs a page, pages with two arrows and plays a song of a new genre", function()
 		G.with_town({ setup = function(app) G.build_tasks(app, "cafe") end }, function(c)
 			open(c, "jukebox")
@@ -314,7 +326,11 @@ describe("the jukebox window with twenty-nine genres", function()
 			assert_eq(c.app.ui.jukebox.tab_page, 5)
 			assert_true(c.app.ui.popup_targets.tab_ranch ~= nil)
 			assert_true(c.app.ui.popup_targets.tab_bluesclub ~= nil, "the fourteenth district sits next to the thirteenth")
-			assert_true(c.app.ui.popup_targets.tab_classical ~= nil, "the first extra genre closes the fifth page")
+			assert_true(c.app.ui.popup_targets.tab_arcade ~= nil, "the fifteenth district closes the fifth page")
+			assert_true(c.app.ui.popup_targets.tab_classical == nil, "the first extra genre opens the sixth page")
+			wtap(c, "tabs_next")
+			assert_eq(c.app.ui.jukebox.tab_page, 6)
+			assert_true(c.app.ui.popup_targets.tab_classical ~= nil)
 			wtap(c, "tab_classical")
 			assert_eq(c.app.ui.jukebox.tab, "classical")
 			assert_true(c.town:has_text("Morning Salon", true), G.dump(c.town))
@@ -322,8 +338,9 @@ describe("the jukebox window with twenty-nine genres", function()
 			wtap(c, "play_salon_morning")
 			assert_eq(c.app.meta:song(), "salon_morning")
 			assert_eq(c.app.ui.jukebox.chosen, "salon_morning")
-			-- the last page is reachable and wraps round
-			for _ = 1, 6 do wtap(c, "tabs_next") end
+			-- the last page is reachable and wraps round (thirty genres: ten pages)
+			assert_eq(c.app.ui.jukebox.tab_pages, 10)
+			for _ = 1, 5 do wtap(c, "tabs_next") end
 			assert_eq(c.app.ui.jukebox.tab_page, 1)
 			assert_same(c.E.audit(), {})
 		end)

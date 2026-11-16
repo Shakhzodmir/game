@@ -12,7 +12,7 @@ local function read(path)
 end
 
 local districts = json.decode(read("content/districts.json")).districts
--- the fourteen district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
+-- the fifteen district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
 local extra_genres = json.decode(read("content/genres.json")).genres
 local catalogue = {}
 for _, d in ipairs(districts) do catalogue[#catalogue + 1] = d end
@@ -38,7 +38,7 @@ describe("the registry of the jukebox songs", function()
 				assert_true(e.loop >= 16 and e.loop <= 32, s.id .. " loops " .. e.loop .. " s")
 			end
 		end
-		assert_eq(n, 105)
+		assert_eq(n, 109)
 	end)
 
 	it("has no song that the catalogue does not name, and no id of a district", function()
@@ -120,7 +120,7 @@ describe("the audio manifest of the jukebox songs", function()
 	-- notes + SFX + district music: 14 MB since 16.11.2026 (10 MB since 13.11.2026, 7 MB before; raised for districts
 	-- 11-15 with the producer's approval, about 0.6-0.9 MB a district) -- the same number as SIZE_BUDGET of
 	-- tools/audio/gen_audio.py. The songs of the district genres: 8 MB (6 MB before; raised 16.11.2026 for districts
-	-- 13-15, approved by the producer): 7.01 MB with fourteen districts, about 0.45-0.55 MB a district
+	-- 13-15, approved by the producer): 7.46 MB with all fifteen districts, about 0.45-0.55 MB a district
 	it("costs at most 8 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 14 MB", function()
 		local bytes, extra = 0, 0
 		local extra_ids = {}
@@ -201,6 +201,13 @@ describe("the audio manifest of the jukebox songs", function()
 		assert_eq(manifest.music.bluesclub.key_reading["tasks+party"].best, "E maj")
 		assert_eq(manifest.music.bluesclub.key_reading["party alone"].best, "E maj")
 		assert_eq(manifest.music.bluesclub.key_reading["tension alone"].best, "E maj")
+		-- the arcade: plain triads that open and close on C, a triangle bass on the roots and a tune that comes
+		-- home on a long high C, so it reads as C major (not A minor, not the F or G major next door), with the
+		-- finale too, and the finale and the tension alone
+		assert_eq(manifest.music.arcade.key_reading.tasks.best, "C maj")
+		assert_eq(manifest.music.arcade.key_reading["tasks+party"].best, "C maj")
+		assert_eq(manifest.music.arcade.key_reading["party alone"].best, "C maj")
+		assert_eq(manifest.music.arcade.key_reading["tension alone"].best, "C maj")
 	end)
 
 	it("passes every check the generator ran", function()
