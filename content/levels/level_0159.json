@@ -1,0 +1,50 @@
+{
+  "id": 159, "version": 1,
+  "size": [9, 8],
+  "moves": 22,
+  "difficulty": "medium",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "concrete", "count": 5},
+    {"type": "light"}
+  ],
+  "cells": [
+    "......###",
+    "....#####",
+    "..#######",
+    "#########",
+    "#########",
+    "..#######",
+    "....#####",
+    "......###"
+  ],
+  "floor": [
+    {"at": [1, 3], "hp": 1},
+    {"at": [2, 3], "hp": 1},
+    {"at": [3, 3], "hp": 1},
+    {"at": [4, 3], "hp": 1},
+    {"at": [5, 3], "hp": 1},
+    {"at": [6, 3], "hp": 1},
+    {"at": [7, 3], "hp": 1},
+    {"at": [8, 3], "hp": 1},
+    {"at": [1, 4], "hp": 1},
+    {"at": [2, 4], "hp": 1},
+    {"at": [3, 4], "hp": 1},
+    {"at": [4, 4], "hp": 1},
+    {"at": [5, 4], "hp": 1},
+    {"at": [6, 4], "hp": 1},
+    {"at": [7, 4], "hp": 1},
+    {"at": [8, 4], "hp": 1}
+  ],
+  "slots": [
+    {"at": [8, 1], "type": "concrete", "hp": 1},
+    {"at": [5, 2], "type": "concrete", "hp": 1},
+    {"at": [0, 4], "type": "concrete", "hp": 1},
+    {"at": [5, 5], "type": "concrete", "hp": 1},
+    {"at": [8, 6], "type": "concrete", "hp": 1}
+  ],
+  "curtain": {
+    "covers": [[3, 3], [4, 3], [5, 3], [3, 4], [4, 4], [5, 4]],
+    "closed_moves": 2, "open_moves": 2, "start": "closed"
+  }
+}

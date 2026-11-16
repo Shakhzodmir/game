@@ -4,8 +4,9 @@
 -- (or the level, if the plan is right).
 --   * every file loads through the core (rules 2.1) and keeps the plan of levels-plan.md: the difficulty saw,
 --     the colours of its stretch, 20-35 moves (the same as `luajit tools/levels.lua validate --strict`);
---   * the saw earns 126 stars in the first hundred, the files 182 in all; the town costs 181 (meta-economy.md,
---     section 9; district 6 by the price rule of docs/handoff/WP-15.md, district 7 costs what its saw earns, 26);
+--   * the saw earns 126 stars in the first hundred, the files 208 in all; the town costs 207 (meta-economy.md,
+--     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7 and 8 cost what their saws
+--     earn, 26 each);
 --   * every level of the README table agrees with its file: difficulty, size and cells, colours, elements,
 --     goals, and the "(обучение)" mark with the lessons of content/tutorials.json. The moves column is only
 --     checked to be a number in the range of the schema: the tuner rewrites the real value (tools/README.md)
@@ -100,9 +101,9 @@ local function cell_count(raw)
 end
 
 describe("level content: the files", function()
-	it("has every level of the seven districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
+	it("has every level of the eight districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
 		local problems = {}
-		assert_eq(LAST, 140, "the last level of the last district")
+		assert_eq(LAST, 160, "the last level of the last district")
 		for n, f in ipairs(files()) do
 			for _, e in ipairs(f.res.errors) do problems[#problems + 1] = "level " .. n .. ": " .. e end
 			for _, w in ipairs(f.res.warnings) do problems[#problems + 1] = "level " .. n .. ": " .. w end
@@ -114,9 +115,9 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 182 stars on the saw (130 in the first hundred), more than the 181 of the town", function()
+	it("earns 208 stars on the saw (130 in the first hundred), more than the 207 of the town", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
-		local stars100, counts100, stars120, counts120
+		local stars100, counts100, stars120, counts120, stars140, counts140
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
@@ -129,6 +130,10 @@ describe("level content: the files", function()
 				stars120 = stars
 				counts120 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
 			end
+			if n == 140 then
+				stars140 = stars
+				counts140 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
+			end
 		end
 		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
 		assert_same(counts100, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
@@ -140,15 +145,19 @@ describe("level content: the files", function()
 		-- costs 26 stars, so the spare stays 1 star: 8 easy, 8 medium, hard 127 and 133, super hard 137 and the
 		-- concert 140 (it was released with 5 hard + 3 super hard for a price of 31; 124, 129, 131 and 135 were
 		-- softened to medium)
-		assert_same(counts, { easy = 69, medium = 40, hard = 20, super_hard = 11 })
-		assert_eq(stars, 182)
+		assert_same(counts140, { easy = 69, medium = 40, hard = 20, super_hard = 11 })
+		assert_eq(stars140, 182)
+		-- district 8 (WP-17, levels 141-160) has the saw of district 6: 10 easy, 6 medium, hard 147 and 153, super
+		-- hard 157 and the concert 160: 26 stars for a price of 26, the spare stays 1 star
+		assert_same(counts, { easy = 79, medium = 46, hard = 22, super_hard = 13 })
+		assert_eq(stars, 208)
 		local town = json.decode(read("content/districts.json"))
 		local cost = 0
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 181, "the stars the town costs (content/districts.json)")
-		assert_true(stars - cost >= 1, "a spare star is left")
+		assert_eq(cost, 207, "the stars the town costs (content/districts.json)")
+		assert_eq(stars - cost, 1, "one spare star is left")
 		assert_true(stars >= cost, "the town cannot be finished: " .. stars .. " stars for " .. cost)
 	end)
 end)
@@ -249,6 +258,16 @@ local function row_problems(n, cells, raw)
 	end
 	if (elements:find("микрофоны (", 1, true) ~= nil) ~= (raw.mic ~= nil) then bad("элементы", "микрофоны exactly where the file has a mic block") end
 	if (elements:find("кокосы (", 1, true) ~= nil) ~= (raw.coconut ~= nil) then bad("элементы", "кокосы exactly where the file has a coconut block") end
+	-- the curtain (10.7): "занавес N (закрыт A, открыт B, с начала закрыт|открыт)" exactly where the file has the block
+	if (elements:find("занавес ", 1, true) ~= nil) ~= (raw.curtain ~= nil) then bad("элементы", "занавес exactly where the file has a curtain block") end
+	if raw.curtain then
+		local n_cells, closed, open, start = elements:match("занавес (%d+) %(закрыт (%d+), открыт (%d+), с начала (%S-)%)")
+		local want_start = raw.curtain.start == "closed" and "закрыт" or "открыт"
+		if tonumber(n_cells) ~= #raw.curtain.covers or tonumber(closed) ~= raw.curtain.closed_moves
+			or tonumber(open) ~= raw.curtain.open_moves or start ~= want_start then
+			bad("элементы", "the numbers of 'занавес N (закрыт A, открыт B, с начала ...)' are not the file's")
+		end
+	end
 	if raw.coconut then
 		local total, max, gap, start = elements:match("кокосы %(всего (%d+), на поле ≤(%d+), пауза (%d+), с начала (%d+)")
 		if tonumber(total) ~= raw.coconut.total or tonumber(max) ~= raw.coconut.on_board_max
@@ -263,7 +282,7 @@ local function row_problems(n, cells, raw)
 	for _ in elements:gmatch("готовый") do gift_words = gift_words + 1 end
 	if gift_words ~= gifts(raw) then bad("элементы", gift_words .. " ready specials named, the file has " .. gifts(raw)) end
 	local nothing = columns == 0 and #(raw.floor or {}) == 0 and #(raw.overlay or {}) == 0 and raw.mic == nil and gifts(raw) == 0
-		and raw.coconut == nil
+		and raw.coconut == nil and raw.curtain == nil
 	for _, kind in ipairs({ "record_box", "concrete", "noise", "balloon" }) do
 		if count_slots(raw, kind) > 0 then nothing = false end
 	end
