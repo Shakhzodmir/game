@@ -1087,6 +1087,104 @@
           "stem_desc": "trumpet melody with shakes and falls"
         }
       ]
+    },
+    {
+      "id": "cinema",
+      "first": 141,
+      "last": 160,
+      "map_tint": "#FBEBD0",
+      "name": {
+        "ru": "Кинотеатр",
+        "en": "Cinema",
+        "ko": "시네마"
+      },
+      "genre": {
+        "ru": "Саундтрек",
+        "en": "Soundtrack",
+        "ko": "사운드트랙"
+      },
+      "bpm": 92,
+      "key": "Eb",
+      "semitones_from_c": 3,
+      "bars": 8,
+      "mood": "warm adventure film score, hopeful and grand, a small orchestra",
+      "songs": [],
+      "chest": {
+        "coins": 1600,
+        "boosters": [
+          "disco",
+          "riff",
+          "row_light"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "timpani",
+          "name": {
+            "ru": "Литавры",
+            "en": "Timpani",
+            "ko": "팀파니"
+          },
+          "cost": 1,
+          "stem": "timpani",
+          "stem_desc": "timpani pulse on tonic and fifth with soft low strings pizzicato"
+        },
+        {
+          "id": "cello",
+          "name": {
+            "ru": "Виолончель",
+            "en": "Cello",
+            "ko": "첼로"
+          },
+          "cost": 5,
+          "stem": "cello",
+          "stem_desc": "warm cello ostinato and counter-melody"
+        },
+        {
+          "id": "harp",
+          "name": {
+            "ru": "Арфа",
+            "en": "Harp",
+            "ko": "하프"
+          },
+          "cost": 5,
+          "stem": "harp",
+          "stem_desc": "harp arpeggios and glissando pickups"
+        },
+        {
+          "id": "drum",
+          "name": {
+            "ru": "Сценический барабан",
+            "en": "Stage drum",
+            "ko": "무대 드럼"
+          },
+          "cost": 6,
+          "stem": "drums",
+          "stem_desc": "soft snare rolls and bass drum, march feel"
+        },
+        {
+          "id": "projector",
+          "name": {
+            "ru": "Кинопроектор",
+            "en": "Film projector",
+            "ko": "영사기"
+          },
+          "cost": 7,
+          "stem": "brass",
+          "stem_desc": "french horns and trombones, noble chords"
+        },
+        {
+          "id": "clapper",
+          "name": {
+            "ru": "Хлопушка",
+            "en": "Clapperboard",
+            "ko": "슬레이트"
+          },
+          "cost": 7,
+          "stem": "choir",
+          "stem_desc": "wordless choir with a soaring main theme"
+        }
+      ]
     }
   ],
   "level_stems": {

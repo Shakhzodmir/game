@@ -497,5 +497,66 @@
         "h": 261
       }
     }
+  },
+  "cinema": {
+    "bg": "assets/images/districts/cinema/bg.png",
+    "bg_concert": "assets/images/districts/cinema/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "timpani": {
+        "image": "assets/images/districts/cinema/timpani.png",
+        "ghost": "assets/images/districts/cinema/timpani_ghost.png",
+        "x": 228,
+        "y": 812,
+        "scale": 0.7,
+        "w": 286,
+        "h": 153
+      },
+      "cello": {
+        "image": "assets/images/districts/cinema/cello.png",
+        "ghost": "assets/images/districts/cinema/cello_ghost.png",
+        "x": 606,
+        "y": 700,
+        "scale": 0.7,
+        "w": 149,
+        "h": 241
+      },
+      "harp": {
+        "image": "assets/images/districts/cinema/harp.png",
+        "ghost": "assets/images/districts/cinema/harp_ghost.png",
+        "x": 108,
+        "y": 700,
+        "scale": 0.7,
+        "w": 183,
+        "h": 245
+      },
+      "drum": {
+        "image": "assets/images/districts/cinema/drum.png",
+        "ghost": "assets/images/districts/cinema/drum_ghost.png",
+        "x": 520,
+        "y": 826,
+        "scale": 0.7,
+        "w": 243,
+        "h": 168
+      },
+      "projector": {
+        "image": "assets/images/districts/cinema/projector.png",
+        "ghost": "assets/images/districts/cinema/projector_ghost.png",
+        "x": 286,
+        "y": 716,
+        "scale": 0.7,
+        "w": 214,
+        "h": 224
+      },
+      "clapper": {
+        "image": "assets/images/districts/cinema/clapper.png",
+        "ghost": "assets/images/districts/cinema/clapper_ghost.png",
+        "x": 452,
+        "y": 722,
+        "scale": 0.7,
+        "w": 209,
+        "h": 205
+      }
+    }
   }
 }

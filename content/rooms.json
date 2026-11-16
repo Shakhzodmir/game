@@ -87,6 +87,17 @@
         { "kind": "motes", "style": "sparkle", "item": "pinata", "rect": [40, 640, 110, 150], "count": 4, "layer": "over", "color": "#FFFFFF" },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "cinema": {
+      "mood": "grand",
+      "details": [
+        { "kind": "shaft", "x": 360, "y": 200, "w": 220, "h": 860, "angle": 10, "layer": "mid", "view": "day", "color": "#FFF1B8", "alpha": [0.1, 0.2], "period": 6.4 },
+        { "kind": "motes", "style": "dust", "rect": [160, 260, 400, 520], "count": 9, "layer": "mid", "color": "#FFE9B0" },
+        { "kind": "blink", "item": "projector", "points": [[340, 716]], "r": 46, "layer": "over", "colors": ["#FFF6C8"], "period": 0.7, "alpha": [0.35, 0.85] },
+        { "kind": "notes", "item": "harp", "x": 108, "y": 610, "count": 3, "layer": "over", "colors": ["#FFD84D", "#FF8FBE", "#B79CFF"], "rise": 190, "period": 3.8 },
+        { "kind": "notes", "item": "cello", "x": 606, "y": 610, "count": 2, "layer": "over", "colors": ["#FFB347", "#FF8FBE"], "rise": 170, "period": 4.4 },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }
