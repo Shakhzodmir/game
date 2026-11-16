@@ -118,7 +118,7 @@ describe("save code windows", function()
 end)
 
 describe("replay after the last level", function()
-	-- the last level of the game: bound to content/districts.json when the app starts (240 with district 12)
+	-- the last level of the game: bound to content/districts.json when the app starts (260 with district 13)
 	local function last_level() return require("meta.config").levels.count end
 	local function finished(app) G.win(app, last_level()) end
 
@@ -140,7 +140,7 @@ describe("replay after the last level", function()
 			local ui = c.app.ui.replay
 			local last = last_level()
 			local pages = math.ceil(last / 20) -- a page of 20 level buttons (gui/replay.lua)
-			assert_eq(last, 240)
+			assert_eq(last, 260)
 			assert_eq(ui.pages, pages)
 			assert_eq(ui.page, pages)
 			assert_eq(ui.last, last)

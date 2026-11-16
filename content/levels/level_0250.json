@@ -1,0 +1,30 @@
+{
+  "id": 250, "version": 1,
+  "size": [9, 10],
+  "moves": 22,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "break", "item": "hay", "count": 5},
+    {"type": "collect", "color": "yellow", "count": 45}
+  ],
+  "cells": [
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    ".#######.",
+    "..#####..",
+    "....#....",
+    "...###...",
+    "....#...."
+  ],
+  "slots": [
+    {"at": [4, 2], "type": "hay", "hp": 1, "gift": "random"},
+    {"at": [2, 3], "type": "hay", "hp": 1, "gift": "random"},
+    {"at": [6, 3], "type": "hay", "hp": 1, "gift": "random"},
+    {"at": [3, 5], "type": "hay", "hp": 1, "gift": "none"},
+    {"at": [5, 5], "type": "hay", "hp": 2, "gift": "riff", "axis": "v"}
+  ]
+}

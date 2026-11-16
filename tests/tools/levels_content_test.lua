@@ -4,8 +4,8 @@
 -- (or the level, if the plan is right).
 --   * every file loads through the core (rules 2.1) and keeps the plan of levels-plan.md: the difficulty saw,
 --     the colours of its stretch, 20-35 moves (the same as `luajit tools/levels.lua validate --strict`);
---   * the saw earns 126 stars in the first hundred, the files 312 in all; the town costs 311 (meta-economy.md,
---     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11 and 12 cost what
+--   * the saw earns 126 stars in the first hundred, the files 338 in all; the town costs 337 (meta-economy.md,
+--     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11, 12 and 13 cost what
 --     their saws earn, 26 each);
 --   * every level of the README table agrees with its file: difficulty, size and cells, colours, elements,
 --     goals, and the "(обучение)" mark with the lessons of content/tutorials.json. The moves column is only
@@ -102,9 +102,9 @@ local function cell_count(raw)
 end
 
 describe("level content: the files", function()
-	it("has every level of the twelve districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
+	it("has every level of the thirteen districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
 		local problems = {}
-		assert_eq(LAST, 240, "the last level of the last district")
+		assert_eq(LAST, 260, "the last level of the last district")
 		for n, f in ipairs(files()) do
 			for _, e in ipairs(f.res.errors) do problems[#problems + 1] = "level " .. n .. ": " .. e end
 			for _, w in ipairs(f.res.warnings) do problems[#problems + 1] = "level " .. n .. ": " .. w end
@@ -116,9 +116,9 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 312 stars on the saw (130 in the first hundred), more than the 311 of the town", function()
+	it("earns 338 stars on the saw (130 in the first hundred), more than the 337 of the town", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
-		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220
+		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220, stars240, counts240
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
@@ -151,6 +151,10 @@ describe("level content: the files", function()
 				stars220 = stars
 				counts220 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
 			end
+			if n == 240 then
+				stars240 = stars
+				counts240 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
+			end
 		end
 		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
 		assert_same(counts100, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
@@ -182,14 +186,18 @@ describe("level content: the files", function()
 		assert_eq(stars220, 286)
 		-- district 12 (WP-17, levels 221-240) has the same saw: 10 easy, 6 medium, hard 227 and 233, super hard 237
 		-- and the concert 240: 26 stars for a price of 26, the spare stays 1 star
-		assert_same(counts, { easy = 119, medium = 70, hard = 30, super_hard = 21 })
-		assert_eq(stars, 312)
+		assert_same(counts240, { easy = 119, medium = 70, hard = 30, super_hard = 21 })
+		assert_eq(stars240, 312)
+		-- district 13 (WP-17, levels 241-260) has the same saw: 10 easy, 6 medium, hard 247 and 253, super hard 257
+		-- and the concert 260: 26 stars for a price of 26, the spare stays 1 star
+		assert_same(counts, { easy = 129, medium = 76, hard = 32, super_hard = 23 })
+		assert_eq(stars, 338)
 		local town = json.decode(read("content/districts.json"))
 		local cost = 0
 		for _, d in ipairs(town.districts) do
 			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
 		end
-		assert_eq(cost, 311, "the stars the town costs (content/districts.json)")
+		assert_eq(cost, 337, "the stars the town costs (content/districts.json)")
 		assert_eq(stars - cost, 1, "one spare star is left")
 		assert_true(stars >= cost, "the town cannot be finished: " .. stars .. " stars for " .. cost)
 	end)

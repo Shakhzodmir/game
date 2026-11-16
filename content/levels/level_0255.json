@@ -1,0 +1,34 @@
+{
+  "id": 255, "version": 1,
+  "size": [7, 9],
+  "moves": 25,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "boombox", "count": 3},
+    {"type": "break", "item": "hay", "count": 5},
+    {"type": "collect", "color": "purple", "count": 75}
+  ],
+  "cells": [
+    ".#####.",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    ".#####."
+  ],
+  "slots": [
+    {"at": [1, 2], "type": "boombox", "hp": 3},
+    {"at": [3, 2], "type": "hay", "hp": 1, "gift": "random"},
+    {"at": [5, 2], "type": "boombox", "hp": 3},
+    {"at": [0, 4], "type": "hay", "hp": 1, "gift": "none"},
+    {"at": [2, 4], "type": "hay", "hp": 2, "gift": "riff", "axis": "h"},
+    {"at": [4, 4], "type": "hay", "hp": 1, "gift": "none"},
+    {"at": [1, 6], "type": "hay", "hp": 2, "gift": "sub"},
+    {"at": [3, 6], "type": "boombox", "hp": 3},
+    {"at": [5, 6], "type": "hay", "hp": 1, "gift": "riff", "axis": "v"}
+  ]
+}

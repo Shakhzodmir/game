@@ -1,0 +1,37 @@
+{
+  "id": 247, "version": 1,
+  "size": [9, 9],
+  "moves": 25,
+  "difficulty": "hard",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "hay", "count": 5},
+    {"type": "break", "item": "concrete", "count": 6},
+    {"type": "collect", "color": "blue", "count": 62}
+  ],
+  "cells": [
+    "....####.",
+    "....####.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "###.#####",
+    "###.#####",
+    ".#...###."
+  ],
+  "slots": [
+    {"at": [6, 1], "type": "hay", "hp": 1, "gift": "bird"},
+    {"at": [3, 3], "type": "hay", "hp": 1, "gift": "sub"},
+    {"at": [5, 3], "type": "hay", "hp": 2, "gift": "riff", "axis": "v"},
+    {"at": [7, 3], "type": "hay", "hp": 1, "gift": "none"},
+    {"at": [1, 4], "type": "hay", "hp": 2, "gift": "riff", "axis": "v"},
+    {"at": [4, 4], "type": "concrete", "hp": 1},
+    {"at": [0, 5], "type": "concrete", "hp": 1},
+    {"at": [2, 5], "type": "hay", "hp": 1, "gift": "none"},
+    {"at": [8, 5], "type": "concrete", "hp": 1},
+    {"at": [1, 7], "type": "concrete", "hp": 2},
+    {"at": [5, 7], "type": "concrete", "hp": 2},
+    {"at": [7, 7], "type": "concrete", "hp": 2}
+  ]
+}
