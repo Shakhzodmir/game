@@ -38,6 +38,7 @@ HI_RATE = {
     "carnival": {"shaker", "party"},
     "cinema": {"party"},
     "bazaar": set(),  # every stem at 22.05 kHz: the zills ring at 2.3 and 6.4 kHz, nothing lives above 10 kHz
+    "skyclub": set(),  # every stem at 22.05 kHz: hats, sweeps and the arpeggio are shaped to end below 10 kHz
 }
 
 
@@ -432,6 +433,18 @@ def kit(name, sr):
             k["zill"] = [zill(sr, key=i) for i in range(2)]
             k["riq"] = [unit(ins.tambourine(sr, key=40 + i, dur=0.14)) for i in range(3)]
             k["hat"] = [unit(ins.tambourine(sr, key=50 + i, dur=0.07)) for i in range(3)]
+        elif name == "skyclub":
+            unit = lambda x: x / dsp.peak(x)  # noqa: E731
+            # a house kit made for 22.05 kHz: a round kick that settles on Ab1 (with its octave Ab2, which is what
+            # a phone plays of it), a wide clap, a tight closed hat and a short open hat that end below 10 kHz
+            k["kick"] = [club_kick(sr)]
+            k["clap"] = [unit(ins.clap(sr, key=400 + i, tail=0.15, lo=1000.0, hi=4200.0)) for i in range(2)]
+            k["hat"] = [unit(dsp.lowpass(ins.hat(sr, 0.035, key=410 + i, lo=6000, tone=0.3), 9500, sr, 2))
+                        for i in range(3)]
+            no = nsamp(0.2, sr)
+            oh = dsp.lowpass(ins.hat(sr, open_=True, key=420, lo=5500, tone=0.3), 9500, sr, 2)[:no]
+            k["ohat"] = [unit(dsp.fade(oh * np.exp(-np.arange(no) / (0.07 * sr)), sr, 0.0003, 0.03))]
+            k["crash"] = [dsp.lowpass(ins.crash(sr, key=43, t60=2.0), 9500, sr, 2)]
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -651,6 +664,62 @@ def qanun(midi, sr, key=0, dur=0.9):
         y = dsp.highpass(sum(p[:n] for p in parts), 200, sr, 2)
         return dsp.fade(y / dsp.peak(y), sr, 0.0003, 0.01)
     return cached(("qanun", midi, sr, key, round(dur, 3)), mk)
+
+
+def club_kick(sr, midi=32, key=0):
+    """A house kick: a fast drop of pitch onto `midi` (Ab1), a second harmonic an octave above it (Ab2: what small
+    speakers play of the drum) and a short click."""
+    n = nsamp(0.34, sr)
+    t = np.arange(n) / sr
+    ph = TAU * np.cumsum(float(midi_hz(midi)) * (1.0 + 3.2 * np.exp(-t / 0.018))) / sr
+    x = np.sin(ph) * np.exp(-t / 0.11) + 0.45 * np.sin(2.0 * ph + 0.4) * np.exp(-t / 0.09)
+    click = dsp.bandpass(dsp.rng("clubkick", key).standard_normal(n), 1500, 6000, sr) * np.exp(-t / 0.003)
+    x = dsp.drive(x / dsp.peak(x) + 0.25 * click / dsp.peak(click), 1.8)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.03)
+
+
+def club_bass(midi, dur, sr, key=0):
+    """A rubbery house bass: square and saw behind a resonant low-pass that snaps shut, over a sine."""
+    def mk():
+        f = float(midi_hz(midi))
+        n = nsamp(dur + 0.08, sr)
+        t = np.arange(n) / sr
+        x = 0.7 * dsp.pulse(f, n, sr, 0.5) + 0.5 * dsp.saw(f * 1.004, n, sr, 0.3)
+        x = dsp.sweep_filter(x, 150.0 + 1600.0 * np.exp(-t / 0.07) + 2.0 * f, sr, q=2.0)
+        x += 0.8 * np.sin(TAU * f * t)
+        x *= dsp.env_adsr(n, sr, 0.004, 0.15, 0.6, dur, 0.05)
+        return dsp.fade(dsp.drive(x / dsp.peak(x) * 1.3, 1.5), sr, 0.001, 0.01)
+    return cached(("clubbass", midi, round(dur, 3), sr, key), mk)
+
+
+def sky_pluck(midi, sr, dur=0.3, key=0, cutoff=5500.0):
+    """A bright trance pluck: two saws a few cents apart and a narrow pulse an octave up behind a low-pass that
+    closes in a twentieth of a second, with a glassy sine on the octave."""
+    def mk():
+        f = float(midi_hz(midi))
+        n = nsamp(dur, sr)
+        t = np.arange(n) / sr
+        src = 0.5 * dsp.saw(f * 1.004, n, sr, 0.1 * key) + 0.5 * dsp.saw(f * 0.996, n, sr, 0.5)
+        src += 0.35 * dsp.pulse(2.0 * f, n, sr, 0.3)
+        y = dsp.sweep_filter(src, 500.0 + cutoff * np.exp(-t / 0.05), sr, q=1.6)
+        y += 0.3 * np.sin(TAU * 2.0 * f * t) * np.exp(-t / 0.08)
+        y *= dsp.env_perc(n, sr, dur * 0.9, 0.001)
+        return dsp.fade(y / dsp.peak(y), sr, 0.001, 0.02)
+    return cached(("skypluck", midi, sr, round(dur, 3), key, cutoff), mk)
+
+
+def vox_chop(midi, dur, sr, vowel="a_alto", key=0):
+    """A chopped vocal sample: one sung vowel (two glottal saws through formants) cut short, with a small fall of
+    pitch into the note."""
+    def mk():
+        n = nsamp(dur + 0.08, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("voxchop", midi, vowel, key)
+        f = midi_hz(midi) * (1.0 + 0.004 * np.sin(TAU * 5.5 * t + r.uniform(0, 6))) * (1.0 + 0.04 * np.exp(-t / 0.02))
+        src = dsp.saw(f, n, sr) + 0.5 * dsp.saw(f * 1.006, n, sr, 0.4) + 0.08 * r.standard_normal(n)
+        x = dsp.formant(src, sr, dsp.VOWELS[vowel]) * dsp.env_adsr(n, sr, 0.008, 0.2, 0.8, dur, 0.035)
+        return dsp.fade(x / dsp.peak(x), sr, 0.002, 0.02)
+    return cached(("voxchop", midi, round(dur, 3), sr, vowel, key), mk)
 
 
 def hit(s, buf, samples, beat, vel, r, jitter=0.004, key=None):
@@ -2366,6 +2435,202 @@ def bazaar_strings(s):
     return room(s, b, 0.3, 1.8, "strings", damp=4500, predelay=0.025)
 
 
+# ====================================================== SKY CLUB (Ab major)
+
+def skyclub_song(d):
+    # uplifting house in Ab, 126 BPM: I - V - vi - IV, then I - V - IV V - I. Every phrase starts from the tonic
+    # and the loop ends on it (the pop anthem of the stadium starts on IV and only reaches its tonic at the end;
+    # the songs of the genre "edm" all start on vi). Fm7 and Dbmaj7 both hold the Ab and C of the tonic triad:
+    # home is never far, the colour stays bright. All tones diatonic.
+    Ab, Eb, F, Db = 8, 3, 5, 1
+    add9, maj, m7, maj7 = [0, 4, 7, 14], [0, 4, 7], [0, 3, 7, 10], [0, 4, 7, 11]
+    return Song(d, progression([
+        (4, Ab, add9, "Abadd9"), (4, Eb, maj, "Eb"), (4, F, m7, "Fm7"), (4, Db, maj7, "Dbmaj7"),
+        (4, Ab, add9, "Abadd9"), (4, Eb, maj, "Eb"), (2, Db, maj7, "Dbmaj7"), (2, Eb, maj, "Eb"),
+        (4, Ab, add9, "Abadd9"),
+    ]))
+
+
+SKY_332 = (0.0, 0.75, 1.5, 2.0, 2.75, 3.5)  # three-three-two twice a bar: the accents of the pulse and the arp
+
+
+def skyclub_beat(s):
+    """Four on the floor: the kick on every beat (it settles on Ab), a short open hat on every off-beat, quiet
+    closed hats on the 16ths between, a clap on 2 and 4 (two more into bars 5 and 1). Under it a soft round
+    pulse in three-three-two that spells the chord (root - fifth - root, root - third - fifth), so that the
+    first layer alone already says the key."""
+    k = kit("skyclub", s.sr)
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt in range(4):
+            hit(s, b, k["kick"], o + bt, 1.0, r, 0.0)
+            hit(s, b, k["ohat"], o + bt + 0.5, 0.8, r, 0.0)
+            hit(s, b, k["hat"], o + bt + 0.25, 0.3, r, 0.002)
+            hit(s, b, k["hat"], o + bt + 0.75, 0.42, r, 0.002)
+        for bt in (1, 3):
+            hit(s, b, k["clap"], o + bt, 1.0, r, 0.0)
+        if bar in (3, 7):
+            hit(s, b, k["clap"], o + 3.5, 0.45, r, 0.0)
+            hit(s, b, k["clap"], o + 3.75, 0.65, r, 0.0)
+    b = dsp.drive(b / dsp.peak(b) * 1.2, 1.3)
+    b = room(s, b, 0.08, 0.7, "beat", damp=6000)
+    pl = s.zeros()
+    n = nsamp(0.3, s.sr)
+    t = np.arange(n) / s.sr
+    for bar in range(s.bars):
+        for i, bt in enumerate(SKY_332):
+            c = s.chord_at(bar * 4 + bt)
+            f = float(midi_hz(nearest(c.root, 54, 49, 60) + (0, 7, 0, 0, c.tones[1], 7)[i]))
+            x = (np.sin(TAU * f * t) + 0.3 * np.sin(2 * TAU * f * t + 0.5) * np.exp(-t / 0.05)) * np.exp(-t / 0.1)
+            s.add(pl, dsp.fade(x * (1.0 - np.exp(-t / 0.003)), s.sr, 0.001, 0.03), bar * 4 + bt,
+                  1.0 if i % 3 == 0 else 0.7)
+    pl = sidechain(s, pl, range(s.beats), 0.5, 0.08)
+    rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+    return b + 0.55 * pl * rms(b) / rms(pl)
+
+
+def skyclub_bass(s):
+    """Off-beat house bass ducked by the kick: the root on the 'and' of every beat, the octave on the third one,
+    and a 16th that steps (in the scale) into the root of the next bar."""
+    b = s.zeros()
+    scale = {(s.tonic + i) % 12 for i in (0, 2, 4, 5, 7, 9, 11)}
+    root = lambda c: nearest(c.root, 41, 36, 47)  # noqa: E731
+    for bar in range(s.bars):
+        o = bar * 4
+        for q in range(4):
+            R = root(s.chord_at(o + q))
+            up = q == 2 and s.chord_at(o) is s.chord_at(o + 3)
+            s.add(b, club_bass(R + 12 if up else R, s.sec(0.22 if up else 0.4), s.sr), o + q + 0.5,
+                  0.75 if up else 1.0)
+        nxt = root(s.chord_at(o + 4))
+        step = 1 if nxt <= R else -1  # from under a root that is no higher, from above one that is
+        m = nxt - step
+        while m % 12 not in scale:
+            m -= step
+        s.add(b, club_bass(m, s.sec(0.2), s.sr, key=1), o + 3.75, 0.7)
+    b = loop_filter(s, b, "lp", 2500)
+    return sidechain(s, b, range(s.beats), 0.6, 0.12)
+
+
+SKY_ARP = (0, 2, 4, 2, 1, 3, 5, 3, 2, 4, 6, 4, 3, 5, 3, 1)  # steps through the chord tones, low to high
+
+
+def skyclub_arp(s):
+    """A bright plucked arpeggio in 16ths that climbs through two octaves of the chord in broken steps, accented
+    in three-three-two, with a dotted-8th echo."""
+    b = s.zeros()
+    for c in s.chords:
+        tones = sorted(m for m in range(68, 93) if (m - c.root) % 12 in [t % 12 for t in c.tones])
+        for i in range(int(c.dur * 4)):
+            m = tones[SKY_ARP[i % 16] % len(tones)]
+            v = 0.9 if (i % 16) * 0.25 in SKY_332 else 0.5
+            s.add(b, sky_pluck(m, s.sr, dur=0.26, key=i % 2), c.start + i * 0.25, v)
+    b = loop_filter(s, loop_filter(s, b, "hp", 300), "lp", 9000)
+    b = loop_eq(s, b, "highshelf", 3500, 4.0)
+    b = echo(s, b, 0.75, 0.3, 0.4, 3, 6000)
+    b = sidechain(s, b, range(s.beats), 0.35, 0.1)
+    return room(s, b, 0.16, 1.3, "arp", damp=8000)
+
+
+def skyclub_pad(s):
+    """A wide supersaw pad: every chord held, seven voices a note, a filter that opens and closes once every four
+    bars, ducked deep by the kick so that it breathes on every beat."""
+    b = s.zeros()
+    vo = voice_lead([c.pcs(c.tones[:4]) for c in s.chords], 60, 80, 70)
+    for c, v in zip(s.chords, vo):
+        for j, m in enumerate(v):
+            s.add(b, ins.supersaw(m, round(s.sec(c.dur) - 0.03, 4), s.sr, voices=7, spread=22.0, attack=0.03,
+                                  release=0.2, key=20 + j), c.start, 0.8)
+        s.add(b, ins.supersaw(nearest(c.root, 56, 51, 62), round(s.sec(c.dur) - 0.03, 4), s.sr, voices=5, attack=0.03,
+                              release=0.2, key=29), c.start, 0.45)
+    fc = 2600.0 + 3000.0 * (0.5 - 0.5 * np.cos(TAU * 2.0 * np.arange(s.n) / s.n))  # closed on bars 1 and 5
+    b = dsp.sweep_filter(np.tile(b, 2), np.tile(fc, 2), s.sr, q=0.8)[s.n:]
+    b = loop_filter(s, b, "hp", 180)
+    b = sidechain(s, b, range(s.beats), 0.8, 0.18)
+    return room(s, b, 0.25, 1.8, "pad", damp=5000, predelay=0.02)
+
+
+# The tune, C5-C6: a two-bar call (C - Eb - Ab' G Eb | G - F Eb) that is answered over Fm7 and Dbmaj7, then the
+# same shape from the octave (Ab' Bb' C'' over the tonic: the top of the tune), down through the dominant, a
+# quick 'Ab F Ab | Bb G Bb' over IV - V and the long Ab that everything was heading for. The last two notes
+# (Ab Bb) lead back into the C of bar 1. bar -> (beat, beats, midi)
+SKY_LEAD = bars({
+    0: [(0.0, 1.5, 72), (1.5, 0.5, 75), (2.0, 1.0, 80), (3.0, 0.5, 79), (3.5, 0.5, 75)],
+    1: [(0.0, 1.5, 79), (1.5, 0.5, 77), (2.0, 1.5, 75), (3.5, 0.5, 72)],
+    2: [(0.0, 1.5, 72), (1.5, 0.5, 75), (2.0, 1.0, 80), (3.0, 0.5, 77), (3.5, 0.5, 75)],
+    3: [(0.0, 1.5, 77), (1.5, 0.5, 75), (2.0, 1.5, 72), (3.5, 0.5, 75)],
+    4: [(0.0, 1.0, 80), (1.0, 0.5, 82), (1.5, 1.5, 84), (3.0, 0.5, 82), (3.5, 0.5, 80)],
+    5: [(0.0, 1.5, 82), (1.5, 0.5, 79), (2.0, 1.0, 75), (3.0, 0.5, 77), (3.5, 0.5, 79)],
+    6: [(0.0, 1.0, 80), (1.0, 0.5, 77), (1.5, 0.5, 80), (2.0, 1.0, 82), (3.0, 0.5, 79), (3.5, 0.5, 82)],
+    7: [(0.0, 2.5, 80), (3.0, 0.5, 68), (3.5, 0.5, 70)],
+})
+
+
+def skyclub_lead(s):
+    """The lead: a hollow pulse wave with a pure whistle an octave above it, gliding from note to note, with a
+    dotted-8th echo."""
+    kw = dict(glide=0.03, legato_gap=0.01, attack=0.012, release=0.1, vib_rate=5.6, vib_depth=0.14, vib_delay=0.2,
+              key="skylead")
+    src, env, onset = render_line(s, events(s, SKY_LEAD), osc="pulse", pw=0.32, **kw)
+    top, _, _ = render_line(s, events(s, [(e[0], e[1], e[2] + 12) for e in SKY_LEAD]), osc="sine", **kw)
+    x = dsp.sweep_filter(src * env, 1800.0 + 2600.0 * onset + 1200.0 * np.clip(env, 0, 1), s.sr, q=0.9)
+    x = x / dsp.peak(x) + 0.35 * top * env
+    x = dsp.highpass(dsp.drive(x / dsp.peak(x) * 1.1, 1.2), 200, s.sr, 2)
+    b = wrap(s, x)
+    b = echo(s, b, 0.75, 0.28, 0.4, 3, 4000)
+    b = sidechain(s, b, range(s.beats), 0.2, 0.1)
+    return room(s, b, 0.24, 1.8, "lead", damp=6000, predelay=0.02)
+
+
+SKY_CHOPS = ((0.75, 0.25, "a_alto"), (1.5, 0.4, "o_alto"), (2.75, 0.25, "a_alto"), (3.5, 0.4, "e_open"))
+
+
+def skyclub_fx(s):
+    """The effects of the dance floor. A noise riser over the last two bars with a pitched roll in the last one
+    (plucks that climb the pentatonic scale of Ab in 16ths), an impact on Ab on the first downbeat, a sweep down
+    out of it and another into bar 5, and chopped vocal samples (ah - oh - ah - eh on notes of the chord, off
+    the beat, with a stutter every second bar) in bars 1-6."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "fx")
+    sr = s.sr
+    L = nsamp(s.sec(8), sr)
+    t = np.arange(L) / L
+    rise = dsp.sweep_filter(r.standard_normal(L), 400.0 * (6500.0 / 400.0) ** (t ** 1.4), sr, q=3.0, kind="bp")
+    rise = dsp.fade(rise * t ** 2.2, sr, 0.01, 0.004)
+    s.add(b, rise / dsp.peak(rise), s.beats - 8, 0.5)
+    pent = [m for m in range(68, 105) if (m - s.tonic) % 12 in (0, 2, 4, 7, 9)]
+    for i in range(16):
+        s.add(b, sky_pluck(pent[i], sr, dur=0.2, key=2, cutoff=4000.0), s.beats - 4 + i * 0.25, 0.15 + 0.035 * i)
+    # the impact: a boom that settles on Ab1 with its octave, and a short burst of noise
+    n = nsamp(1.6, sr)
+    tt = np.arange(n) / sr
+    ph = TAU * np.cumsum(float(midi_hz(32)) * (1.0 + 0.9 * np.exp(-tt / 0.08))) / sr
+    boom = (np.sin(ph) + 0.5 * np.sin(2.0 * ph + 0.3)) * dsp.env_perc(n, sr, 1.3, 0.001)
+    boom = dsp.highpass(boom, 40, sr, 4)
+    boom += 0.35 * dsp.bandpass(r.standard_normal(n), 300, 3000, sr) * np.exp(-tt / 0.12)
+    s.add(b, dsp.fade(dsp.drive(boom / dsp.peak(boom), 1.5), sr, 0.001, 0.2), 0, 0.7)
+    for beat, beats, g in ((0, 3, 0.4), (16, 2, 0.35)):  # sweeps down
+        L2 = nsamp(s.sec(beats), sr)
+        t2 = np.arange(L2) / L2
+        down = dsp.sweep_filter(r.standard_normal(L2), 6000.0 * (350.0 / 6000.0) ** t2, sr, q=3.0, kind="bp")
+        s.add(b, dsp.fade(down * (1 - t2) ** 2 / dsp.peak(down), sr, 0.005, 0.05), beat, g)
+    vx = s.zeros()
+    for bar in range(6):
+        for j, (bt, du, vowel) in enumerate(SKY_CHOPS):
+            c = s.chord_at(bar * 4 + bt)
+            tones = sorted(m for m in range(68, 81) if (m - c.root) % 12 in [x % 12 for x in c.tones[:3]])
+            m = tones[(bar + j) % len(tones)]
+            s.add(vx, vox_chop(m, s.sec(du), sr, vowel, key=j), bar * 4 + bt, 0.9)
+            if bar % 2 == 1 and j == 1:  # the stutter: the same slice twice more
+                for q in (0.5, 0.75):
+                    s.add(vx, vox_chop(m, s.sec(0.2), sr, vowel, key=j), bar * 4 + bt + q, 0.75)
+    vx = echo(s, loop_filter(s, vx, "hp", 250), 0.75, 0.25, 0.4, 3, 3500)
+    b = b / dsp.peak(b) + 0.9 * vx / dsp.peak(vx)
+    return room(s, b, 0.22, 1.6, "fx", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 def _pulse_notes(s, octave_center):
@@ -2383,7 +2648,7 @@ def tension_stem(s, style):
     r = dsp.rng(s.id, "tension")
     b = s.zeros()
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub"}
     k = kit(kits[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style == "jazz":
@@ -2408,6 +2673,8 @@ def tension_stem(s, style):
             x = bowed(m, s.sec(0.2), s.sr, key=9, attack=0.012, release=0.07, vib=0.0, cutoff=1800.0)
         elif style == "bazaar":  # the oud, short strokes on the chord roots
             x = oud(m, s.sec(0.3), s.sr, key=9)
+        elif style == "skyclub":  # the pluck of the arpeggio, darker, on the chord roots
+            x = sky_pluck(m, s.sr, dur=0.22, key=3, cutoff=2500.0)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -2438,6 +2705,8 @@ def party_chords(s, style):
             c = Chord(c.start, c.dur, (c.root + 8) % 12, [4, 7, 11, 14], "Bbmaj9")
         elif style == "carnival" and c.name == "G7":
             c = Chord(c.start, c.dur, c.root, [0, 4, 7], "G")
+        elif style == "skyclub" and c.name == "Abadd9":  # the plain tonic triad, the root doubled on top
+            c = Chord(c.start, c.dur, c.root, [0, 4, 7], "Ab")
         out.append(c)
     return out
 
@@ -2471,7 +2740,7 @@ def party_stem(s, style):
     """Final concert: crashes, claps, 16th percussion, stabs and a bright arp."""
     r = dsp.rng(s.id, "party")
     kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar"}
+            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub"}
     k = kit(kits[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
@@ -2484,10 +2753,17 @@ def party_stem(s, style):
         for bt in (1, 3):
             for j in range(3):
                 hit(s, b, dk["clap"], o + bt, 0.45, r, 0.008)
-        for i in range(16):
-            hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
-        for bt in range(4):
-            hit(s, b, dk["ohat"], o + bt + 0.5, 0.35, r, 0.0)
+        if style == "skyclub":  # no shaker in the club: its own closed hats on the 16ths, its open hat and its kick
+            for i in range(16):
+                hit(s, b, k["hat"], o + i * 0.25, 0.3 if i % 2 else 0.18, r, 0.003)
+            for bt in range(4):
+                hit(s, b, k["ohat"], o + bt + 0.5, 0.3, r, 0.0)
+                hit(s, b, k["kick"], o + bt, 0.5, r, 0.0)
+        else:
+            for i in range(16):
+                hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
+            for bt in range(4):
+                hit(s, b, dk["ohat"], o + bt + 0.5, 0.35, r, 0.0)
         if style in ("stadium", "garage", "square"):
             for bt in range(4):
                 hit(s, b, dk["kick"], o + bt, 0.5, r, 0.0)
@@ -2508,9 +2784,11 @@ def party_stem(s, style):
     vo = [party_voicing(c) for c in chords]
     for bar in range(s.bars):
         # off-beat stabs; swung in the jazz club; in the cinema a fanfare rhythm (long, short-long) on the beats;
-        # in the bazaar the accents of the maqsum (dum tek - tek dum - tek)
+        # in the bazaar the accents of the maqsum (dum tek - tek dum - tek); in the sky club the piano of a house
+        # anthem (three-three-two and two off-beats)
         for bt in {"jazz": (T, 1 + T, 2 + T, 3 + T), "cinema": (0.0, 0.75, 1.0, 2.0, 2.75, 3.0),
-                   "bazaar": (0.0, 0.5, 1.5, 2.0, 3.0)}.get(style, (0.5, 1.5, 2.5, 3.5)):
+                   "bazaar": (0.0, 0.5, 1.5, 2.0, 3.0), "skyclub": (0.0, 0.75, 1.5, 2.5, 3.5)}.get(
+                       style, (0.5, 1.5, 2.5, 3.5)):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
             for j, m in enumerate(vo[ci]):
@@ -2520,6 +2798,8 @@ def party_stem(s, style):
                     x = ins.organ(m, s.sec(0.3), s.sr, bars=(8, 0, 8, 8, 0, 6, 0, 0, 4), perc=0.3, click=0.3)
                 elif style in ("cafe", "beach"):
                     x = ins.epiano(m, s.sec(0.3), s.sr, vel=0.8, bright=1.0, release=0.1)
+                elif style == "skyclub":  # house piano
+                    x = ins.piano(m, round(s.sec(0.4), 4), s.sr, vel=0.85, bright=0.9, release=0.12)
                 else:
                     x = ins.brass(m, s.sec(0.3), s.sr, vel=0.9, key=j)
                 s.add(st, x, beat, 1.0)
@@ -2575,6 +2855,9 @@ DISTRICTS = {
     "bazaar": dict(song=bazaar_song, stems={
         "darbuka": bazaar_darbuka, "oud": bazaar_oud, "bass": bazaar_bass, "qanun": bazaar_qanun,
         "flute": bazaar_flute, "strings": bazaar_strings}),
+    "skyclub": dict(song=skyclub_song, stems={
+        "beat": skyclub_beat, "bass": skyclub_bass, "arp": skyclub_arp, "pad": skyclub_pad, "lead": skyclub_lead,
+        "fx": skyclub_fx}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -2602,6 +2885,8 @@ LOUDNESS = {
                "tension": -18, "party": -16},
     "bazaar": {"darbuka": -17, "oud": -19, "bass": -19, "qanun": -20, "flute": -18, "strings": -19,
                "tension": -18, "party": -16},
+    "skyclub": {"beat": -16, "bass": -19, "arp": -19, "pad": -19, "lead": -18, "fx": -18,
+                "tension": -18, "party": -16},
 }
 
 

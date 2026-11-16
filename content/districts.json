@@ -1395,7 +1395,52 @@
       "semitones_from_c": 8,
       "bars": 8,
       "mood": "bright uplifting dance music on a rooftop above the clouds, pastel neon, euphoric",
-      "songs": [],
+      "songs": [
+        {
+          "id": "rooftop_sunrise",
+          "name": {
+            "ru": "Рассвет на крыше",
+            "en": "Rooftop Sunrise",
+            "ko": "옥상의 일출"
+          },
+          "bpm": 124,
+          "bars": 12,
+          "mood": "sunrise progressive house: plucked chords behind a filter that opens bar by bar, pumping long bass, warm pad, a piano tune, high bells"
+        },
+        {
+          "id": "cloud_bounce",
+          "name": {
+            "ru": "Прыжки по облакам",
+            "en": "Cloud Bounce",
+            "ko": "구름 위 바운스"
+          },
+          "bpm": 100,
+          "bars": 8,
+          "mood": "bouncy future bass in half time: wobbling supersaw ninth chords, a tune of vocal chops with bells, rolling hats"
+        },
+        {
+          "id": "mirrorball_groove",
+          "name": {
+            "ru": "Грув зеркального шара",
+            "en": "Mirror Ball Groove",
+            "ko": "미러볼 그루브"
+          },
+          "bpm": 120,
+          "bars": 12,
+          "mood": "disco house: octave bass, open hats, tambourine, scratch guitar, electric piano, a string tune, brass stabs"
+        },
+        {
+          "id": "afterglow_lounge",
+          "name": {
+            "ru": "Огни после вечеринки",
+            "en": "Afterparty Glow",
+            "ko": "파티 뒤의 불빛"
+          },
+          "bpm": 88,
+          "bars": 8,
+          "mood": "dreamy chill-out after the party: electric piano on tape, slow pad, a soft sine voice with a long echo, a quiet beat"
+        }
+      ],
       "chest": {
         "coins": 2000,
         "boosters": [
