@@ -1,0 +1,34 @@
+{
+  "id": 290, "version": 1,
+  "size": [9, 7],
+  "moves": 28,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "break", "item": "balloon", "count": 6},
+    {"type": "collect", "color": "purple", "count": 25}
+  ],
+  "cells": [
+    ".###.###.",
+    "####.####",
+    "####.####",
+    "####.####",
+    ".###.###.",
+    "..##.##..",
+    "...#.#..."
+  ],
+  "slots": [
+    {"at": [1, 2], "type": "balloon", "color": "red"},
+    {"at": [2, 3], "type": "balloon", "color": "green"},
+    {"at": [6, 2], "type": "balloon", "color": "red"},
+    {"at": [8, 2], "type": "balloon", "color": "green"},
+    {"at": [5, 4], "type": "balloon", "color": "green"},
+    {"at": [7, 4], "type": "balloon", "color": "red"}
+  ],
+  "portals": [
+    {"in": [3, 6], "out": [5, 0]},
+    {"in": [2, 5], "out": [6, 0]},
+    {"in": [1, 4], "out": [7, 0]},
+    {"in": [0, 3], "out": [8, 1]}
+  ]
+}

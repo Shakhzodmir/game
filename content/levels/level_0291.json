@@ -1,0 +1,28 @@
+{
+  "id": 291, "version": 1,
+  "size": [9, 6],
+  "moves": 24,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "collect", "color": "blue", "count": 45}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 2},
+  "portals": [
+    {"in": [0, 5], "out": [3, 0]},
+    {"in": [1, 5], "out": [4, 0]},
+    {"in": [2, 5], "out": [5, 0]},
+    {"in": [3, 5], "out": [6, 0]},
+    {"in": [4, 5], "out": [7, 0]},
+    {"in": [5, 5], "out": [8, 0]}
+  ]
+}

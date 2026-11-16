@@ -96,7 +96,7 @@ end
 
 -- The first level that has each of the elements of the plan (slots, floor tiles, overlay): the level that brings it.
 local ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain",
-	"curtain", "carpet", "conveyor", "boombox", "ice", "hay", "fog" }
+	"curtain", "carpet", "conveyor", "boombox", "ice", "hay", "fog", "portal" }
 
 -- the last level of the game: the `last` of the last district of content/districts.json
 local function last_level()
@@ -119,6 +119,7 @@ local function first_levels()
 			if level.carpet then kinds.carpet = true end -- (core-rules 10.8: a list of cells of its own)
 			if level.conveyor then kinds.conveyor = true end -- (core-rules 10.9: a list of belts of its own)
 			if level.fog then kinds.fog = true end -- (core-rules 10.13: a list of cells of its own)
+			if level.portals then kinds.portal = true end -- (core-rules 10.14: a list of pairs of its own)
 			for _, k in ipairs(ELEMENTS) do
 				if kinds[k] and not first[k] then first[k] = n end
 			end

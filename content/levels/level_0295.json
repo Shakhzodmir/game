@@ -1,0 +1,35 @@
+{
+  "id": 295, "version": 1,
+  "size": [9, 10],
+  "moves": 28,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "break", "item": "boombox", "count": 3},
+    {"type": "collect", "color": "red", "count": 60}
+  ],
+  "cells": [
+    "...###...",
+    "..#####..",
+    "..#####..",
+    "...###...",
+    "...###...",
+    ".........",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 8], "type": "boombox", "hp": 3},
+    {"at": [7, 8], "type": "boombox", "hp": 3},
+    {"at": [4, 8], "type": "boombox", "hp": 3}
+  ],
+  "portals": [
+    {"in": [3, 4], "out": [3, 6]},
+    {"in": [4, 4], "out": [4, 6]},
+    {"in": [5, 4], "out": [5, 6]},
+    {"in": [2, 2], "out": [2, 6]},
+    {"in": [6, 2], "out": [6, 6]}
+  ]
+}

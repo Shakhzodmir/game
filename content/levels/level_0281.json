@@ -1,0 +1,60 @@
+{
+  "id": 281, "version": 1,
+  "size": [7, 8],
+  "moves": 24,
+  "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "collect", "color": "blue", "count": 24}
+  ],
+  "cells": [
+    "#######",
+    "#######",
+    "#######",
+    ".......",
+    "..###..",
+    "..###..",
+    "..###..",
+    "..###.."
+  ],
+  "slots": [
+    {"at": [0, 0], "type": "piece", "color": "purple"},
+    {"at": [1, 0], "type": "piece", "color": "yellow"},
+    {"at": [2, 0], "type": "piece", "color": "red"},
+    {"at": [3, 0], "type": "piece", "color": "yellow"},
+    {"at": [4, 0], "type": "piece", "color": "blue"},
+    {"at": [5, 0], "type": "piece", "color": "green"},
+    {"at": [6, 0], "type": "piece", "color": "green"},
+    {"at": [0, 1], "type": "piece", "color": "yellow"},
+    {"at": [1, 1], "type": "piece", "color": "purple"},
+    {"at": [2, 1], "type": "piece", "color": "yellow"},
+    {"at": [3, 1], "type": "piece", "color": "yellow"},
+    {"at": [4, 1], "type": "piece", "color": "red"},
+    {"at": [5, 1], "type": "piece", "color": "green"},
+    {"at": [6, 1], "type": "piece", "color": "yellow"},
+    {"at": [0, 2], "type": "piece", "color": "red"},
+    {"at": [1, 2], "type": "piece", "color": "red"},
+    {"at": [2, 2], "type": "piece", "color": "blue"},
+    {"at": [3, 2], "type": "piece", "color": "blue"},
+    {"at": [4, 2], "type": "piece", "color": "purple"},
+    {"at": [5, 2], "type": "piece", "color": "red"},
+    {"at": [6, 2], "type": "piece", "color": "green"},
+    {"at": [2, 4], "type": "piece", "color": "purple"},
+    {"at": [3, 4], "type": "piece", "color": "yellow"},
+    {"at": [4, 4], "type": "piece", "color": "yellow"},
+    {"at": [2, 5], "type": "piece", "color": "blue"},
+    {"at": [3, 5], "type": "piece", "color": "blue"},
+    {"at": [4, 5], "type": "piece", "color": "red"},
+    {"at": [2, 6], "type": "piece", "color": "green"},
+    {"at": [3, 6], "type": "piece", "color": "purple"},
+    {"at": [4, 6], "type": "piece", "color": "blue"},
+    {"at": [2, 7], "type": "piece", "color": "blue"},
+    {"at": [3, 7], "type": "piece", "color": "purple"},
+    {"at": [4, 7], "type": "piece", "color": "red"}
+  ],
+  "portals": [
+    {"in": [2, 2], "out": [2, 4]},
+    {"in": [3, 2], "out": [3, 4]},
+    {"in": [4, 2], "out": [4, 4]}
+  ]
+}

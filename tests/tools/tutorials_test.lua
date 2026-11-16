@@ -39,6 +39,7 @@ local PLAN_ELEMENTS = {
 	ice = 221, -- district 12 (WP-17)
 	hay = 241, -- district 13 (WP-17)
 	fog = 261, -- district 14 (WP-17)
+	portal = 281, -- district 15 (WP-17)
 }
 -- the special the first swap of these levels must make (2: 4 in a line, 4: L/T, 6: 2x2, 9: 5 in a line)
 local PLAN_SPECIAL = { [2] = "riff", [4] = "sub", [6] = "bird", [9] = "disco" }
@@ -175,6 +176,7 @@ local function elements_of(raw)
 	if raw.carpet then kinds.carpet = true end -- (10.8: a list of cells of its own, not a slot)
 	if raw.conveyor then kinds.conveyor = true end -- (10.9: a list of belts of its own, not a slot)
 	if raw.fog then kinds.fog = true end -- (10.13: a list of cells of its own, not a slot)
+	if raw.portals then kinds.portal = true end -- (10.14: a list of pairs of its own, not a slot)
 	if raw.mic then kinds.mic = true end
 	for _, g in ipairs(raw.goals) do
 		if g.type == "light" then kinds.dancefloor = true end
@@ -442,7 +444,31 @@ local function snap(game, info)
 		local cv = cells[(p.y - 1) * info.W + p.x].conveyor
 		if cv then t.riders[p.id] = { belt = cv.belt, pos = cv.pos, len = belt_len[cv.belt] } end
 	end
+	-- where every piece stands (10.14: a piece that went through a portal is found by its id in another run)
+	t.where = {}
+	for i = 1, #list do t.where[list[i].id] = (list[i].y - 1) * info.W + list[i].x end
 	return t
+end
+
+-- The runs of the portal pairs of a snapshot (10.14): for every pair, the cells of the column run that ends in its
+-- entrance (`above`) and of the run that starts with its exit (`below`), as sets of cell indices.
+local function portal_runs(t, info)
+	local runs = {}
+	for i = 1, #t.cells do
+		local po = t.cells[i].portal
+		if po then
+			local r = runs[po.pair] or { above = {}, below = {} }
+			runs[po.pair] = r
+			local set, step = r.above, -info.W
+			if po.role == "out" then set, step = r.below, info.W end
+			local j = i
+			while j >= 1 and j <= #t.cells and t.cells[j].exists do
+				set[j] = true
+				j = j + step
+			end
+		end
+	end
+	return runs
 end
 
 -- The effect a text promises, measured between two snapshots: true when kept, else why not.
@@ -517,6 +543,19 @@ local EFFECTS = {
 		if not (b.fog < a.fog) then return "no fog was cleared" end
 		local k = info.fog_goal
 		return (k and a.goals[k] - b.goals[k] == a.fog - b.fog) or "the fog goal did not count the cleared cells"
+	end,
+	-- the hinted match stands in the block under the exits (10.14): the pieces above it fall, the exit cells empty, and
+	-- the pieces that stood over the entrances dive in and drop out of the other block's top: at least three pieces
+	-- that were in the run above an entrance are now in the run under the exit of the same pair
+	["tutorial.portal"] = function(a, b, info)
+		local through = 0
+		for _, r in pairs(portal_runs(a, info)) do
+			for id, was in pairs(a.where) do
+				local now = b.where[id]
+				if now and r.above[was] and not r.below[was] and r.below[now] then through = through + 1 end
+			end
+		end
+		return through >= 3 or ("only " .. through .. " piece(s) went through a portal, the lesson promises a dive")
 	end,
 	["tutorial.mic_drop"] = function(a, b, info)
 		local k = info.deliver_goal
@@ -791,11 +830,11 @@ describe("tutorials: the plan", function()
 		assert_eq(steps[1].text, "tutorial.swap_booster")
 		-- no other lesson is moved by it: the 18 lessons that were there are still there (and the coconut of 101, the
 		-- chain of 121, the curtain of 141, the carpet of 161, the conveyor of 181, the boombox of 201, the ice of 221,
-		-- the hay bale of 241 and the fog of 261, WP-17)
-		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181, 201, 221, 241, 261 }) do
+		-- the hay bale of 241, the fog of 261 and the portal of 281, WP-17)
+		for _, n in ipairs({ 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 15, 16, 22, 30, 40, 50, 65, 90, 101, 121, 141, 161, 181, 201, 221, 241, 261, 281 }) do
 			assert_true(defs[tostring(n)] ~= nil, "level " .. n .. " still has its lesson")
 		end
-		assert_eq(#ids_of(defs), 28)
+		assert_eq(#ids_of(defs), 29)
 	end)
 
 	it("makes the special of the plan with the first swap of levels 2, 4, 6 and 9, and taps it on 2, 4 and 6", function()
