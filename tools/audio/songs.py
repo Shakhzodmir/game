@@ -2735,6 +2735,219 @@ def we_made_it(s):
     return {"drums": d, "bass": bass, "keys": pno, "strings": st, "choir": chr_, "brass": fan, "celesta": bl}
 
 
+# ============================================================ REGGAE ISLAND (A)
+# The island beyond its one-drop theme (music.py: the kit, the steel pan). Four other rhythms of the Caribbean,
+# none of them the roots reggae of the theme or of the genre "reggae" of songs_rnb.py (in Bb: a skank with an
+# e-piano tune, a one drop with a melodica, a one-drop dub with a spring snare): sunny_side_ska is fast ska with a
+# walking bass and a horn tune, palm_shade_sway slow rocksteady with the rim on two and four, a tenor sax and
+# 'ooh' voices, echo_cove_dub a 'steppers' dub (the kick on every beat) where a flute, the pan and the chords
+# fall into long echoes and the drums drop out, steelpan_parade a carnival calypso played by a steel band.
+
+def offbeat(du=0.2, v=0.8):
+    """The 'and' of every beat of a chord: [(beat, beats, vel)]."""
+    return lambda c, i: [(q + 0.5, du, v) for q in range(int(c.dur))]
+
+
+def triad(c):
+    return c.tones[:3]
+
+
+def pan(s, m, d, v=0.8, k=0):
+    return M.steel_pan(m, s.sr, round(v, 2), round(max(0.3, min(s.sec(d), 1.0)), 3), key=k) * v
+
+
+def thirds_below(evs, tonic, gain=0.6):
+    """The second voice of a tune: every note two scale steps lower (a diatonic third), quieter."""
+    return [(b, d, scale_step(tonic, scale_step(tonic, m, False), False), v * gain) for b, d, m, v in evs]
+
+
+def sunny_side_ska(s):
+    """132 BPM ska: the kick on every beat, the snare on two and four, an open hat and a bright guitar chop on
+    every off-beat with a piano 'bang' on top, an upright bass that walks in quarter notes, and a horn section
+    (trumpet and trombone in octaves) with a tune that skips."""
+    r = dsp.rng(s.id, "ska")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "march", "island")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...x...X...x...", r, gain=0.8, jit=0.002)
+    hits(s, d, k["snare"], {"*": "....X.......X...", 3: "....X.......X.xx", 7: "....X.......X.xx",
+                            9: "....X.....x.x.xX"}, r, gain=0.8, jit=0.002)
+    hits(s, d, k["hat"], "x...x...x...x...", r, gain=0.3, jit=0.003)
+    hits(s, d, k["ohat"], "..x...x...x...x.", r, gain=0.45, jit=0.003)
+    hits(s, d, k["crash"], {0: "X...............", 4: "X..............."}, r, gain=0.3, jit=0.0)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.2, 1.3), 0.1, 0.6, "drums", damp=6000)
+    gtr = strum_comp(s, ch, voicing(ch, 62, 79, 70, triad, span=12), offbeat(0.18, 0.8), r=r, bright=0.7, t60=0.4,
+                     mute=0.02, spread=0.005, alt=False)
+    gtr = room(s, loop_filter(s, gtr, "hp", 260), 0.1, 0.6, "gtr", damp=6000)
+    pno = comp(s, ch, voicing(ch, 69, 86, 77, triad, span=12), offbeat(0.2, 0.7),
+               lambda ss, m, du, v: v_piano(ss, m, du, v, 0.85, 0.08), r=r, jit=0.003)
+    pno = room(s, loop_filter(s, pno, "hp", 300), 0.12, 0.7, "piano", damp=6000)
+
+    def walking(c, n, i):
+        R = root_of(c, 45, 40, 51)
+        ap = scale_step(t, root_of(n, 45, 40, 51), i % 2 == 0)
+        if c.dur < 4:
+            return [(0, 0.9, R, 0.9), (1, 0.9, ap, 0.8)]
+        return [(0, 0.9, R, 0.9), (1, 0.9, R + (3 if 3 in c.tones else 4), 0.8), (2, 0.9, R + 7, 0.85),
+                (3, 0.9, ap, 0.8)]
+    bass = loop_filter(s, line(s, ch, walking, v_upright, r=r, jit=0.003), "lp", 1800)
+    tn = tune("5:.5 5:.5 6:.5 5:.5 r:.5 1+:.5 r:1 | 3:.5 3:.5 5:.5 3:.5 r:.5 6:.5 r:1 |"
+              " 4:.5 4:.5 6:.5 4:.5 r:.5 1+:.5 r:1 | 5:.5 7:.5 2+:.5 4+:.5 r:.5 2+:.5 7:1 |"
+              " 1+:1 5:.5 3:.5 5:1 1+:1 | 1+:1 6:.5 3:.5 6:1 1+:1 | 2+:.5 1+:.5 6:.5 4:.5 6:1 1+:1 |"
+              " 7:.5 2+:.5 7:.5 5:.5 7:1 2+:1 | 4+:.5 2+:.5 1+:.5 6:.5 7:.5 2+:.5 4+:.5 2+:.5 | 1+:1.5 5:.5 1+:1 r:1",
+              t, 4)
+    horns = lay(s, lambda ss, m, du, v: v_brass(ss, m, min(du, 0.8) * 0.85, v, k=0), tn, r=r, jit=0.003)
+    horns += lay(s, lambda ss, m, du, v: v_brass(ss, m - 12, min(du, 0.8) * 0.85, v * 0.7, k=1), tn, r=r, jit=0.003)
+    horns = room(s, loop_filter(s, horns, "lp", 6000), 0.15, 0.9, "horns", damp=5500)
+    return {"drums": d, "guitar": gtr, "keys": pno, "bass": bass, "brass": horns}
+
+
+def palm_shade_sway(s):
+    """88 BPM rocksteady: the kick and the rim together on two and four, lazy hats, a round bass with a tune of
+    its own, a guitar and a piano on the off-beats, a soft held organ, a tenor sax that sings (with a short echo)
+    and voices that hum 'ooh' in the second half."""
+    r = dsp.rng(s.id, "sway")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "island")
+    d = s.zeros()
+    hits(s, d, k["kick"], "....X.......X...", r, gain=0.9, jit=0.002)
+    hits(s, d, k["rim"], {"*": "....X.......X...", 3: "....X.......X..o", 7: "....X.....o.X.o."}, r, gain=0.8, jit=0.002)
+    hits(s, d, k["hat"], "x.x.x.x.x.x.x.x.", r, gain=0.3, jit=0.004)
+    hits(s, d, k["hat"], ".......o.......o", r, gain=0.3, swing=0.25, jit=0.004)
+    hits(s, d, k["bongo_hi"], {3: "..........x.x...", 7: "........x.xx...."}, r, gain=0.5, jit=0.004)
+    hits(s, d, k["bongo_lo"], {3: "..............xx", 7: "............x.xx"}, r, gain=0.5, jit=0.004)
+    d = room(s, d, 0.14, 0.9, "drums", damp=5500)
+
+    def riff(c, n, i):
+        R = root_of(c, 45, 40, 51)
+        ap = scale_step(t, root_of(n, 45, 40, 51), False)
+        if c.dur < 4:
+            return [(0, 1.0, R, 0.9), (1.5, 0.45, ap, 0.75)]
+        return [(0, 1.0, R, 0.9), (1.5, 0.45, R + 7, 0.75), (2.0, 0.45, R + (3 if 3 in c.tones else 4), 0.8),
+                (2.5, 0.7, R + 7, 0.8), (3.5, 0.45, ap, 0.75)]
+    bass = line(s, ch, riff, lambda ss, m, du, v: v_gbass(ss, m, du, v, bright=0.25, mute=0.06), r=r, jit=0.003)
+    bass = loop_filter(s, bass, "lp", 1200)
+    gtr = strum_comp(s, ch, voicing(ch, 60, 77, 68, no_root, span=12), offbeat(0.2, 0.75), r=r, bright=0.5, t60=0.45,
+                     mute=0.025, spread=0.007, alt=False)
+    gtr = room(s, loop_filter(s, gtr, "hp", 240), 0.12, 0.8, "gtr", damp=5000)
+    pno = comp(s, ch, voicing(ch, 57, 74, 65, guide), offbeat(0.22, 0.6),
+               lambda ss, m, du, v: v_piano(ss, m, du, v, 0.6, 0.1), r=r, jit=0.004)
+    pno = room(s, pno, 0.12, 0.8, "piano", damp=5000)
+    org = comp(s, ch, voicing(ch, 55, 71, 63, lambda c: [0] + guide(c)[:1]), lambda c, i: [(0, c.dur * 0.95, 0.7)],
+               lambda ss, m, du, v: v_organ(ss, m, du, v, bars=(6, 4, 8, 3, 0, 0, 0, 0, 0), perc=0.0, att=0.04, rel=0.15),
+               r=r)
+    org = room(s, leslie(s, org, 0.9, 0.3), 0.18, 1.1, "organ", damp=4500)
+    tn = tune("r:.5 3:.5 5:.5 6:.5 5:1.5 3:.5 | r:.5 1:.5 3:.5 5:.5 3:2 | r:.5 2:.5 4:.5 6:.5 4:1.5 2:.5 |"
+              " r:.5 7-:.5 2:.5 4:.5 2:2 | 5:1 6:.5 1+:.5 1+:1.5 6:.5 | 5:1 3:.5 1:.5 3:2 |"
+              " 4:.5 6:.5 4:.5 2:.5 7-:.5 2:.5 4:.5 2:.5 | 1:3 r:1", t, 4)
+    sax = mono(s, tn, "sax", key="sway")
+    sax = room(s, echo(s, sax, 0.75, 0.14, 0.3, 2, 3000), 0.22, 1.4, "sax", damp=5000, predelay=0.02)
+    ooh = choir_pad(s, ch, 62, 78, 69, "u_alto", mask=bs("5-8"))
+    return {"drums": d, "bass": bass, "guitar": gtr, "keys": pno, "organ": org, "sax": sax, "choir": ooh}
+
+
+def surf(s, spots, seed="surf"):
+    """Waves on the shore: (beat, beats) -> slow swells of soft noise that rise and break."""
+    buf = s.zeros()
+    for i, (beat, beats) in enumerate(spots):
+        n = nsamp(s.sec(beats), s.sr)
+        u = np.arange(n) / n
+        x = dsp.bandpass(dsp.rng(s.id, seed, i).standard_normal(n), 500, 4500, s.sr)
+        x = dsp.sweep_filter(x, 800.0 + 3200.0 * u ** 2, s.sr, q=0.7)
+        s.add(buf, dsp.fade(x * np.sin(np.pi * u ** 1.6) ** 2, s.sr, 0.05, 0.3), beat)
+    return buf
+
+
+def echo_cove_dub(s):
+    """84 BPM steppers dub: the kick on every beat, a rim shot on three that flies off into a dotted echo, a
+    heavy bass riff with holes in it, guitar chops and an organ stab that are thrown into the echo and left to
+    fade, a flute and a steel pan that call across the bay; in bars 4 and 8 the drums drop out and a wave
+    comes in."""
+    r = dsp.rng(s.id, "cove")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "island")
+    on = bs("1-3,5-7")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X...X...X...", r, gain=0.9, jit=0.002, mask=on)
+    hits(s, d, k["kick"], "X...............", r, gain=0.9, jit=0.002, mask=bs("4,8"))
+    hits(s, d, k["hat"], "..x...x...x...xo", r, gain=0.3, jit=0.004)
+    d = room(s, d, 0.1, 0.8, "drums", damp=4500)
+    sn = s.zeros()
+    hits(s, sn, k["rim"], "........X.......", r, gain=0.9, jit=0.002)
+    hits(s, sn, k["timbale"], {3: "....X.....x.....", 7: "....X..x..x....."}, r, gain=0.7, jit=0.003)
+    sn = room(s, echo(s, sn, 0.75, 0.5, 0.55, 5, 2600), 0.3, 1.6, "rim", damp=3200)
+    d = loop_filter(s, d + 0.8 * sn, "lp", 5000)
+
+    def heavy(c, n, i):
+        R = root_of(c, 45, 40, 51)
+        hi = R + 12 if R <= 44 else R
+        if i % 4 == 3:  # the bass drops out with the drums and climbs back in
+            return [(0, 1.4, R, 1.0), (3.0, 0.45, R + 7, 0.7), (3.5, 0.45, scale_step(t, root_of(n, 45, 40, 51), False), 0.7)]
+        return [(0, 0.9, R, 1.0), (1.0, 0.4, R, 0.8), (1.5, 0.4, R + 7, 0.75), (2.5, 0.9, hi, 0.85), (3.5, 0.4, R + 7, 0.7)]
+    bass = loop_filter(s, line(s, ch, heavy, v_sub, r=r, jit=0.002), "lp", 700)
+    gtr = strum_comp(s, ch, voicing(ch, 60, 77, 68, no_root, span=12), [(0.5, 0.2, 0.8), (2.5, 0.2, 0.8)], r=r,
+                     bright=0.5, t60=0.35, mute=0.02, spread=0.005, alt=False, mask=bs("1,2,5,6"))
+    gtr = room(s, echo(s, loop_filter(s, gtr, "hp", 250), 0.75, 0.5, 0.55, 5, 2400), 0.2, 1.3, "gtr", damp=4000)
+    stab = comp(s, ch, voicing(ch, 55, 72, 63, triad), [(1.5, 0.25, 0.8)],
+                lambda ss, m, du, v: v_organ(ss, m, du, v, bars=(8, 5, 8, 4, 0, 0, 0, 0, 0), perc=0.0, att=0.004, rel=0.05),
+                r=r, mask=bs("1,3,4,5,7,8"))
+    stab = room(s, echo(s, stab, 1.5, 0.6, 0.6, 4, 2000), 0.25, 1.6, "stab", damp=3500)
+    tn = tune("r:4 | r:2 4:1 6:1 | 1+:3 r:1 | r:2 6:.5 5:.5 4:1 | 6:2 4:1 6:1 | 5:3 r:1 | r:2 4:1 2:1 | 1:3 r:1", t, 4)
+    fl = mono(s, tn, "flute", key="cove")
+    fl = room(s, echo(s, fl, 1.5, 0.45, 0.55, 4, 2800), 0.3, 1.9, "flute", damp=4200, predelay=0.02)
+    pn = s.zeros()
+    for bar, order in ((0, (0, 1, 2)), (3, (2, 1, 0, 1)), (4, (0, 2, 1)), (7, (0, 1, 2, 3))):
+        ns = chord_notes(chord_at(s, bar * 4), 69, 88)
+        for q, j in enumerate(order):
+            s.add(pn, pan(s, ns[j % len(ns)], 0.8, 0.8 - 0.08 * q, q % 2), bar * 4 + (2.0 if bar in (3, 7) else 0.0) + q * 0.5)
+    pn = room(s, echo(s, pn, 0.75, 0.55, 0.6, 5, 3200), 0.3, 1.8, "pan", damp=4500)
+    waves = room(s, surf(s, [(12, 5.0), (28, 5.0)]), 0.3, 2.0, "surf", damp=4000)
+    return {"drums": d, "bass": bass, "guitar": gtr, "organ": stab, "lead": fl, "vibes": pn, "fx": waves}
+
+
+def steelpan_parade(s):
+    """116 BPM carnival calypso played by a steel band: lead pans sing the tune in thirds, a second row of pans
+    strums the chords in the calypso rhythm, the bass moves three-three-two, the 'engine room' (the iron, congas
+    and bongos, a shaker, a kick on every beat) drives it and the horns punch the ends of the phrases."""
+    r = dsp.rng(s.id, "parade")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "latin", "island")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X...X...X...", r, gain=0.7, jit=0.002)
+    hits(s, d, k["agogo_hi"], "x.xx.xx.x.xx.xx.", r, gain=0.3, jit=0.003)
+    hits(s, d, k["shaker"], "xoxoxoxoxoxoxoxo", r, gain=0.3, jit=0.003)
+    hits(s, d, k["conga_hi"], ["..x..x....x..x..", "..x..x....x.xx.."], r, gain=0.55, jit=0.004)
+    hits(s, d, k["conga_lo"], ["......x.......x.", "......xx......x."], r, gain=0.55, jit=0.004)
+    hits(s, d, k["timbale"], {3: "............x.xx", 7: "..........x.xxxx", 9: "........x.x.X..."}, r, gain=0.6, jit=0.003)
+    hits(s, d, k["crash"], {0: "X...............", 4: "X..............."}, r, gain=0.25, jit=0.0)
+    d = room(s, d, 0.12, 0.8, "perc", damp=6000)
+    tn = tune("5:.5 1+:.5 3+:.5 1+:.5 5:.5 1+:.5 3+:1 | 6:.5 1+:.5 4+:.5 1+:.5 6:.5 1+:.5 4+:1 |"
+              " 7:.5 2+:.5 4+:.5 2+:.5 5+:.5 4+:.5 2+:1 | 3+:1 1+:.5 5:.5 1+:1 r:1 |"
+              " 3+:.5 3+:.5 2+:.5 1+:.5 2+:.5 3+:.5 5+:1 | 4+:.5 4+:.5 3+:.5 2+:.5 1+:.5 6:.5 1+:1 |"
+              " 7:.5 7:.5 2+:.5 4+:.5 5+:.5 4+:.5 2+:1 | 1+:1 3+:.5 5+:.5 3+:1 r:1 |"
+              " 6:.5 1+:.5 4+:.5 6+:.5 5+:.5 4+:.5 2+:.5 7:.5 | 1+:.5 5:.5 3:.5 5:.5 1+:1 r:1", t, 4)
+    lead = lay(s, pan, tn, r=r, jit=0.004) + lay(s, lambda ss, m, du, v: pan(ss, m, du, v, 1), thirds_below(tn, t),
+                                                 r=r, jit=0.005, dt=0.005)
+    lead = room(s, echo(s, loop_filter(s, lead, "hp", 250), 0.75, 0.12, 0.3, 2, 5000), 0.2, 1.1, "pans", damp=6000)
+    strum = [(0, 0.3, 0.8), (0.75, 0.2, 0.55), (1.5, 0.3, 0.8), (2.5, 0.3, 0.7), (3.0, 0.2, 0.55), (3.5, 0.3, 0.7)]
+    row = comp(s, ch, voicing(ch, 57, 74, 65, triad, span=12), lambda c, i: within(c, strum),
+               lambda ss, m, du, v: pan(ss, m, du, v, 1), spread=0.012, r=r, jit=0.004)
+    row = room(s, loop_filter(s, row, "hp", 200), 0.18, 1.0, "row", damp=5500)
+
+    def three_three_two(c, n, i):
+        R = root_of(c, 45, 40, 51)
+        F = R + 7 if R + 7 <= 52 else R - 5
+        if c.dur < 4:
+            return [(0, 1.3, R, 0.9), (1.5, 0.45, F, 0.75)]
+        return [(0, 1.3, R, 0.9), (1.5, 1.3, F, 0.8), (3.0, 0.9, R + (3 if 3 in c.tones else 4), 0.8)]
+    bass = loop_filter(s, line(s, ch, three_three_two, v_gbass, r=r, jit=0.003), "lp", 2200)
+    hn = tune("r:4 | r:4 | r:4 | r:3 5:.5 5:.5 | r:4 | r:4 | r:4 | r:3 5:.5 3:.5 | r:4 | r:2 5:.5 5:.5 1+:1", t, 4)
+    horns = lay(s, lambda ss, m, du, v: v_brass(ss, m, du * 0.8, v, k=0), hn, r=r, jit=0.003)
+    horns += lay(s, lambda ss, m, du, v: v_brass(ss, m, du * 0.8, v * 0.7, k=1), thirds_below(hn, t, 1.0), r=r, jit=0.003)
+    horns = room(s, horns, 0.16, 1.0, "horns", damp=5500)
+    return {"drums": d, "lead": lead, "vibes": row, "bass": bass, "brass": horns}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -2833,6 +3046,16 @@ SONGS = {
     "we_made_it": ("IVmaj7:4 V:4 iii7:4 vi7:4 IVmaj7:4 V7sus4:4 Iadd9:4 I:4", we_made_it,
                    {"drums": -17, "bass": -20, "keys": -21, "strings": -23, "choir": -25, "brass": -18,
                     "celesta": -26}),
+    # island (A major)
+    "sunny_side_ska": ("I:4 I:4 IV:4 V7:4 I:4 I:4 IV:4 V7:4 IV:2 V7:2 I:4", sunny_side_ska,
+                       {"drums": -18, "guitar": -20, "keys": -24, "bass": -19, "brass": -18}),
+    "palm_shade_sway": ("I:4 vi7:4 ii7:4 V7:4 I:4 vi7:4 ii7:2 V7:2 I:4", palm_shade_sway,
+                        {"drums": -19, "bass": -19, "guitar": -22, "keys": -24, "organ": -27, "sax": -18.5,
+                         "choir": -25}),
+    "echo_cove_dub": ("I:4 ii7:4 I:4 ii7:4 IV:4 I:4 ii7:4 I:4", echo_cove_dub,
+                      {"drums": -18, "bass": -18, "guitar": -23, "organ": -24, "lead": -20, "vibes": -23, "fx": -27}),
+    "steelpan_parade": ("I:4 IV:4 V7:4 I:4 I:4 IV:4 V7:4 I:4 IV:2 V7:2 I:4", steelpan_parade,
+                        {"drums": -19, "lead": -17.5, "vibes": -22, "bass": -20, "brass": -20}),
 }
 
 

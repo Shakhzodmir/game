@@ -299,6 +299,46 @@ embedded_components {
   data: "sound: \"/assets/music/garage/toms.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_island_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/island/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_island_brass"
+  type: "sound"
+  data: "sound: \"/assets/music/island/brass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_island_drums"
+  type: "sound"
+  data: "sound: \"/assets/music/island/drums.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_island_organ"
+  type: "sound"
+  data: "sound: \"/assets/music/island/organ.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_island_party"
+  type: "sound"
+  data: "sound: \"/assets/music/island/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_island_rhythm"
+  type: "sound"
+  data: "sound: \"/assets/music/island/rhythm.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_island_steelpan"
+  type: "sound"
+  data: "sound: \"/assets/music/island/steelpan.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_island_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/island/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_jazz_bass"
   type: "sound"
   data: "sound: \"/assets/music/jazz/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1169,6 +1209,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/dusty_road_twang.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_echo_cove_dub"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/echo_cove_dub.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_epic_finale"
   type: "sound"
   data: "sound: \"/assets/music/songs/epic_finale.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1299,6 +1344,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/oompah_polka.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_palm_shade_sway"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/palm_shade_sway.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_pancake_sunday"
   type: "sound"
   data: "sound: \"/assets/music/songs/pancake_sunday.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1414,6 +1464,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/stardust_drift.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_steelpan_parade"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/steelpan_parade.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_stomp_clap"
   type: "sound"
   data: "sound: \"/assets/music/songs/stomp_clap.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1437,6 +1492,11 @@ embedded_components {
   id: "song_sunny_hook"
   type: "sound"
   data: "sound: \"/assets/music/songs/sunny_hook.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_sunny_side_ska"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/sunny_side_ska.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_sunrise_ballad"
