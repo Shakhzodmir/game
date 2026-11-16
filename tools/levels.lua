@@ -66,7 +66,7 @@ end
 
 -- Elements counted by rule 2.1.6, present in a raw level.
 Levels.ELEMENTS = { "record_box", "dancefloor", "wires", "mic", "concrete", "noise", "balloon", "column", "coconut", "chain",
-	"curtain" }
+	"curtain", "carpet" }
 
 -- Like the core's rule 2.1.6: a `mic` counts when there is a deliver goal, a
 -- mic block or a starting mic piece; a `coconut` likewise with a drop goal,
@@ -81,6 +81,8 @@ function Levels.elements(raw)
 	for _, g in ipairs(raw.goals or {}) do if g.type == "drop" then has.coconut = true end end
 	if raw.coconut ~= nil then has.coconut = true end
 	if raw.curtain ~= nil then has.curtain = true end -- the timed curtain (core-rules 10.7)
+	if raw.carpet ~= nil then has.carpet = true end -- the carpet (core-rules 10.8) ...
+	for _, g in ipairs(raw.goals or {}) do if g.type == "carpet" then has.carpet = true end end -- ... or its goal
 	local specials = 0
 	for _, s in ipairs(raw.slots or {}) do
 		if s.type == "riff" or s.type == "sub" or s.type == "bird" or s.type == "disco" then
@@ -194,7 +196,7 @@ local function draw_grid(g, W, H, marks)
 end
 
 Levels.LEGEND = "legend: r o y g b p piece colour, + random piece, R/S/B/D riff/sub/bird/disco (riff axis - or |),"
-	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), 3rd char floor (_ hp1, = hp2),"
+	.. " M mic, O coconut, X box, K concrete, N noise, A balloon (+colour), C column (+hp, a-c = 10-12), 3rd char floor (_ hp1, = hp2) or carpet (~),"
 	.. " 4th char wires (w hp1, W hp2), chain (c hp1, C hp2) or curtain (t), v spawner, e exit (2nd char), . void"
 
 -- Static preview from the JSON.
@@ -220,6 +222,12 @@ function Levels.preview_raw(raw)
 		local c = cell(o.at)
 		if c and o.type == "chain" then c[4] = o.hp == 2 and "C" or "c"
 		elseif c then c[4] = o.hp == 2 and "W" or "w" end
+	end
+	if type(raw.carpet) == "table" then
+		for _, at in ipairs(raw.carpet) do
+			local c = type(at) == "table" and cell(at) or nil
+			if c then c[3] = "~" end
+		end
 	end
 	if type(raw.curtain) == "table" then
 		for _, at in ipairs(raw.curtain.covers or {}) do
@@ -287,6 +295,7 @@ function Levels.preview_game(game, W, H)
 			if ce.floor and ce.floor > 0 then c[3] = ce.floor == 2 and "=" or "_" end
 			if ce.wires and ce.wires > 0 then c[4] = ce.wires == 2 and "W" or "w" end
 			if ce.curtain then c[4] = "t" end
+			if ce.carpet then c[3] = "~" end
 			if ce.spawner then top[x] = true end
 			if ce.exit then c[2] = "e" end
 		end

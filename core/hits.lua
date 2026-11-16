@@ -24,6 +24,7 @@ function H.new_source(s, kind, mv, wv, color)
 	local src = {
 		id = id, kind = kind, mv = mv, wv = wv, color = color or 0,
 		all_layers = false, own = {}, centre = 0, keys = {}, reserves = {}, nrec = 0,
+		carpet = false, -- the source lays the carpet under every cell it hits (10.8)
 	}
 	s.sources[id] = src
 	return src
@@ -125,6 +126,18 @@ local function floor_hit(s, cell, acc)
 	end
 end
 
+-- The carpet (10.8, step 0a of 7.1): a hit of a source that carries the carpet covers the cell, unless an
+-- intact blocker stands in it (the blocker is a wall: it goes first, a later hit covers the cell).
+local function carpet_lay(s, cell, o, acc)
+	if s.carpet[cell] or not s.exists[cell] then return end
+	if o and o.kind == K_BLOCKER and o.state == S_IDLE then return end
+	s.carpet[cell] = true
+	acc.score = acc.score + C.SCORE_HP
+	local x, y = U.xy(s.W, cell)
+	E.emit(s, "carpet", { x = x, y = y })
+	H.goal(s, acc, C.GOAL_CARPET, 0, 1)
+end
+
 -- Match hit on a chained piece (10.6): the chain loses one hp, the piece stays.
 local function chain_hit(s, o, cell, src, acc)
 	local hp = o.chain - 1
@@ -215,20 +228,25 @@ function H.hit(s, cell, src, opt_instant)
 	if src.centre == cell and src.own[1] then
 		remove_own(s, src)
 	end
+	local acc = H.acc()
+	-- 0a. the carpet (10.8): before the layers, so wires, a chain or an empty slot do not stop it
+	if src.carpet then carpet_lay(s, cell, B.get(s, cell), acc) end
 	-- deduplication by object key
 	local key = B.key(s, cell)
 	local slot_ok = true
 	if not U.sorted_add(src.keys, key) then
-		if not src.all_layers then return end
+		if not src.all_layers then
+			H.flush(s, acc, cell)
+			return
+		end
 		slot_ok = false
 	end
-	local acc = H.acc()
 	-- 1. openness, fixed before the slot is touched
 	local open = B.is_open(o)
 	local destroyed, floors_done = false, false
 	-- 2. wires
 	if s.wires[cell] > 0 then
-		if src.kind == SRC_ADJ then return end
+		if src.kind == SRC_ADJ then return end -- (an adjacent source never carries the carpet: acc is empty)
 		local hp = s.wires[cell] - 1
 		s.wires[cell] = hp
 		acc.score = acc.score + C.SCORE_HP

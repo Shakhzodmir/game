@@ -71,8 +71,9 @@ C.RECORD_FIELDS = { 6, 2, 3, 3, 4, 1, 0, 4 }
 
 -- Goals.
 C.GOAL_COLLECT, C.GOAL_BREAK, C.GOAL_LIGHT, C.GOAL_DELIVER, C.GOAL_DROP, C.GOAL_CHAINS = 1, 2, 3, 4, 5, 6
-C.GOAL = { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5, chains = 6 }
-C.GOAL_NAME = { "collect", "break", "light", "deliver", "drop", "chains" }
+C.GOAL_CARPET = 7 -- cover every cell of the board with the carpet (10.8)
+C.GOAL = { collect = 1, ["break"] = 2, light = 3, deliver = 4, drop = 5, chains = 6, carpet = 7 }
+C.GOAL_NAME = { "collect", "break", "light", "deliver", "drop", "chains", "carpet" }
 
 C.DIFFICULTY = { easy = 1, medium = 2, hard = 3, super_hard = 4 }
 C.DIFFICULTY_NAME = { "easy", "medium", "hard", "super_hard" }

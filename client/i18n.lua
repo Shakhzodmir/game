@@ -169,6 +169,7 @@ local S = {
 	["blocker.coconut"] = { en = "Coconut", ru = "Кокос" },
 	["blocker.chain"] = { en = "Chain", ru = "Цепь" },
 	["blocker.curtain"] = { en = "Curtain", ru = "Занавес" },
+	["blocker.carpet"] = { en = "Carpet", ru = "Ковёр" },
 	["blocker.concrete"] = { en = "Concrete block", ru = "Бетонная тумба" },
 	["blocker.noise"] = { en = "Noise", ru = "Помехи" },
 	["blocker.balloon"] = { en = "Balloon", ru = "Воздушный шарик" },
@@ -204,6 +205,10 @@ local S = {
 	["blocker.coconut_desc"] = {
 		en = "A coconut never pops. Clear the pieces under it and bring it down to the bottom row.",
 		ru = "Кокос не лопается. Убирай фишки под ним и доведи его до нижнего ряда.",
+	},
+	["blocker.carpet_desc"] = {
+		en = "Make a match on the carpet and it rolls out under the whole match.",
+		ru = "Собери ряд на ковре, и ковёр расстелется под всем рядом.",
 	},
 	["blocker.curtain_desc"] = {
 		en = "While the curtain is closed, the pieces under it can't be touched. Wait for it to open.",
@@ -338,6 +343,10 @@ local S = {
 	["tutorial.noise"] = { en = "Stop the noise before it spreads!", ru = "Убери помехи, пока они не разрослись!" },
 	["tutorial.balloon"] = { en = "Pop the balloons with their own colour!", ru = "Лопай шарики фишками их цвета!" },
 	["tutorial.column"] = { en = "Knock the dust off the big speaker!", ru = "Выбей пыль из большой колонки!" },
+	["tutorial.carpet"] = {
+		en = "Match on the carpet: it rolls out further!",
+		ru = "Собери ряд на ковре: он расстелется дальше!",
+	},
 	["tutorial.curtain"] = {
 		en = "Curtain closed: wait. Curtain open: go!",
 		ru = "Занавес закрыт: жди. Открылся: действуй!",

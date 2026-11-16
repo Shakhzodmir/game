@@ -106,13 +106,30 @@ describe("tools levels", function()
 		assert_eq(specials, 1)
 	end)
 
+	it("counts the carpet (core-rules 10.8) as an element, by its field or by its goal, and draws it with a `~`", function()
+		local raw = F.level_table({ goals = { { type = "carpet" } }, carpet = { { 2, 3 }, { 3, 3 } } })
+		assert_same(Levels.elements(raw), { "carpet" })
+		assert_same(Levels.elements(F.level_table({ goals = { { type = "carpet" } } })), { "carpet" })
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "carpet")
+		assert_eq(Levels.goals_text(raw), "carpet")
+		local lines = {}
+		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
+		assert_true(lines[6]:find("+ ~  + ~ ", 1, true) ~= nil, lines[6])
+		assert_true(Levels.LEGEND:find("carpet (~)", 1, true) ~= nil)
+		local e = common.entry_from_text(common.encode(raw))
+		local board = Levels.preview_game(core.new(e.level, { seed = 3 }), 7, 7)
+		local n = 0
+		for _ in board:gmatch("~") do n = n + 1 end
+		assert_eq(n, 2)
+	end)
+
 	it("counts a curtain (core-rules 10.7) as an element and draws its cells with a `t`", function()
 		local raw = F.level_table({
 			floor = { { at = { 2, 3 }, hp = 1 } },
 			curtain = { covers = { { 2, 3 }, { 3, 3 } }, closed_moves = 2, open_moves = 3, start = "closed" },
 		})
 		assert_same(Levels.elements(raw), { "dancefloor", "curtain" })
-		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS], "curtain")
+		assert_eq(Levels.ELEMENTS[#Levels.ELEMENTS - 1], "curtain")
 		local lines = {}
 		for l in Levels.preview_raw(raw):gmatch("[^\n]+") do lines[#lines + 1] = l end
 		assert_true(lines[6]:find("+ _t +  t", 1, true) ~= nil, lines[6])

@@ -14,6 +14,7 @@
     "blockers/column_*.png": "2x2 cells",
     "blockers/wires_*.png": "overlay drawn above the piece; the centre stays transparent",
     "blockers/chain_*.png": "PLACEHOLDER (PIL). Overlay drawn above a chained piece and moving with it; the number is the hp left: chain_1 one golden chain with a padlock, chain_2 the stronger one (a steel chain behind it)",
+    "blockers/carpet.png": "PLACEHOLDER (PIL). The carpet of district 9 (core-rules 10.8): a square oriental carpet seen from above (red field, teal border), drawn over the cell tile and under the piece, slightly inset in the cell (client/level_carpet.lua INSET). The real picture may have tassels on two sides and transparent corners",
     "blockers/curtain_*.png": "PLACEHOLDER (PIL). The timed curtain of district 8 (core-rules 10.7), drawn over the cell at cell size, above the piece: curtain_closed = the red velvet drawn shut with a gold fringe (opaque: it hides the piece), curtain_open = the same curtain tied to the sides (a frame: rail, pelmet and two side drapes, the middle stays transparent so the piece shows)",
     "blockers/floor_*.png": "opaque dance-floor tiles drawn instead of the cell tile, edge to edge so neighbours join. VIOLET = still to light (floor_2 two layers: double outline; floor_1 one layer), floor_half = a two-layer tile after its first hit (violet frame, gold core), floor_lit = lit (gold)",
     "ui/button_*.png": "nine-slice [left, top, right, bottom]; the bottom border holds the darker shelf",
@@ -415,6 +416,13 @@
       "h": 160,
       "alpha": true,
       "bytes": 34512
+    },
+    "blockers/carpet.png": {
+      "w": 160,
+      "h": 160,
+      "alpha": true,
+      "bytes": 10648,
+      "placeholder": true
     },
     "blockers/coconut.png": {
       "w": 160,

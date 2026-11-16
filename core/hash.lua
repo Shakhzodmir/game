@@ -165,6 +165,12 @@ function HS.state(s)
 		h = fold(h, s.cur_closed)
 		h = fold(h, s.cur_left)
 	end
+	-- the carpet (10.8): the covered cells and the carpet flag of the active sources, written only on a
+	-- level that has the carpet, so every other level hashes as before
+	if s.carpet then
+		for i = 1, s.N do h = fold(h, s.carpet[i]) end
+		for k = 1, #ids do h = fold(h, s.sources[ids[k]].carpet) end
+	end
 	return h
 end
 

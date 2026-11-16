@@ -19,6 +19,8 @@
 --   exit[i] is also kept with a drop goal (10.5).
 --   curtain = {at[i] (is cell i under a curtain), cells (indices, ascending),
 --   closed_moves, open_moves, start_closed} or nil (10.7).
+--   carpet = {at[i] (is cell i covered at the start), cells (indices, ascending)}
+--   or nil (10.8); the count of a carpet goal = the cells still to cover.
 
 local C = require("core.const")
 local U = require("core.util")
@@ -124,6 +126,7 @@ local function read_colors_and_goals(ctx)
 		elseif t == C.GOAL_BREAK then param = C.BLOCKER[g.item] or -1 end
 		if t == C.GOAL_DELIVER then ctx.deliver = true end
 		if t == C.GOAL_DROP then ctx.drop = true end
+		if t == C.GOAL_CARPET then ctx.carpet_goal = true end
 		lvl.goals[k] = { type = t, param = param, count = g.count or 1 }
 	end
 	if raw.mic then
@@ -234,6 +237,89 @@ local function read_curtain(ctx)
 		at = at, cells = cells, closed_moves = cu.closed_moves, open_moves = cu.open_moves,
 		start_closed = cu.start == "closed",
 	}
+end
+
+-- The carpet (10.8): the cells covered at the start (geometry by 2.1.2).
+local function read_carpet(ctx)
+	local ca = ctx.raw.carpet
+	if ca == nil then return end
+	local at, cells = {}, {}
+	for i = 1, ctx.N do at[i] = false end
+	for k = 1, #ca do
+		local c = ca[k]
+		local i = cell_of(ctx, c)
+		if not i then err_at(ctx, "2.1.2", "carpet is not on an existing cell", c)
+		elseif at[i] then err_at(ctx, "2.1.2", "two carpets in one cell", c)
+		else at[i] = true end
+	end
+	for i = 1, ctx.N do
+		if at[i] then cells[#cells + 1] = i end
+	end
+	ctx.lvl.carpet = { at = at, cells = cells }
+end
+
+-- Rule 2.1.13, the carpet (10.8). The goal and the starting cells come together; no dance floor on such a
+-- level; no starting carpet under a blocker; and every cell of the board can be covered by matches alone:
+-- starting from the carpet, any line of three or 2x2 square of existing cells that holds a covered cell
+-- covers its other cells, and that must reach the whole board.
+local function carpet_rules(ctx)
+	local lvl, N, W, H = ctx.lvl, ctx.N, ctx.W, ctx.H
+	local errs = ctx.errs
+	local goal = nil
+	for k = 1, #lvl.goals do
+		if lvl.goals[k].type == C.GOAL_CARPET then goal = lvl.goals[k] end
+	end
+	local ca = lvl.carpet
+	if not ca then
+		if goal then errs[#errs + 1] = "2.1.13 carpet goal without starting carpet cells (field carpet)" end
+		return
+	end
+	if not goal then
+		errs[#errs + 1] = "2.1.13 carpet cells without a carpet goal"
+		return
+	end
+	if ctx.n_tiles > 0 then errs[#errs + 1] = "2.1.13 floor tiles on a carpet level" end
+	local cov = {}
+	for i = 1, N do
+		cov[i] = ca.at[i]
+		local p = ctx.slot_at[i]
+		if ca.at[i] and p and p.kind == C.K_BLOCKER then
+			err(ctx, "2.1.13", "starting carpet under a blocker", i)
+		end
+	end
+	local ex = lvl.exists
+	-- a shape a match can be made of (a line of three, a 2x2 square) spreads once one of its cells is covered
+	local changed = true
+	local function spread(a, b, c, d)
+		if not (ex[a] and ex[b] and ex[c] and (d == nil or ex[d])) then return end
+		local any = cov[a] or cov[b] or cov[c] or (d ~= nil and cov[d])
+		local all = cov[a] and cov[b] and cov[c] and (d == nil or cov[d])
+		if any and not all then
+			cov[a], cov[b], cov[c] = true, true, true
+			if d then cov[d] = true end
+			changed = true
+		end
+	end
+	while changed do
+		changed = false
+		for y = 1, H do
+			for x = 1, W do
+				local i = (y - 1) * W + x
+				if x + 2 <= W then spread(i, i + 1, i + 2) end
+				if y + 2 <= H then spread(i, i + W, i + 2 * W) end
+				if x + 1 <= W and y + 1 <= H then spread(i, i + 1, i + W, i + W + 1) end
+			end
+		end
+	end
+	local left = 0
+	for i = 1, N do
+		if ex[i] then
+			if not ca.at[i] then left = left + 1 end
+			if not cov[i] then err(ctx, "2.1.13", "the carpet cannot reach the cell", i) end
+		end
+	end
+	if left == 0 then errs[#errs + 1] = "2.1.13 the carpet already covers the whole board" end
+	goal.count = left
 end
 
 local function preset_of(ctx, item, i)
@@ -348,7 +434,8 @@ local function static_rules(ctx)
 			end
 		end
 	end
-	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain
+	carpet_rules(ctx)
+	-- 2.1.6: record_box, dancefloor, wires, mic, concrete, noise, balloon, column, coconut, chain, curtain, carpet
 	local n_el = 0
 	for b = 1, 5 do
 		if counts[b] > 0 then n_el = n_el + 1 end
@@ -362,6 +449,7 @@ local function static_rules(ctx)
 	end
 	if ctx.n_chains > 0 then n_el = n_el + 1 end
 	if lvl.curtain then n_el = n_el + 1 end
+	if lvl.carpet or ctx.carpet_goal then n_el = n_el + 1 end
 	if ctx.deliver or ctx.raw.mic ~= nil or ctx.n_mics > 0 then n_el = n_el + 1 end
 	if ctx.drop or ctx.raw.coconut ~= nil or ctx.n_coconuts > 0 then n_el = n_el + 1 end
 	if n_el > 3 then errs[#errs + 1] = "2.1.6 more than three different elements" end
@@ -425,7 +513,7 @@ local function normalize(raw, errs)
 			difficulty = C.DIFFICULTY[raw.difficulty],
 			colors = {}, weights = {}, goals = {},
 			exists = {}, spawner = {}, exit = {}, floor = {}, wires = {}, chain = {},
-			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil,
+			seg_top = {}, seg_bot = {}, presets = {}, mic = nil, coconut = nil, curtain = nil, carpet = nil,
 		},
 	}
 	read_cells(ctx)
@@ -434,6 +522,7 @@ local function normalize(raw, errs)
 	read_layers(ctx)
 	read_slots(ctx)
 	read_curtain(ctx)
+	read_carpet(ctx)
 	static_rules(ctx)
 	return ctx.lvl, ctx.slot_at
 end
