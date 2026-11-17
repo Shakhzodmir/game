@@ -2232,6 +2232,150 @@
           "stem_desc": "coin blips, power-up sweeps and a counter-melody"
         }
       ]
+    },
+    {
+      "id": "midnight_cafe",
+      "part": 2,
+      "first": 301,
+      "last": 320,
+      "map_tint": "#D6D0EE",
+      "name": {
+        "ru": "Ночное кафе",
+        "en": "Midnight Café",
+        "ko": "한밤의 카페"
+      },
+      "genre": {
+        "ru": "Ночной лоу-фай",
+        "en": "Night Lo-fi",
+        "ko": "나이트 로파이"
+      },
+      "bpm": 68,
+      "key": "Db",
+      "semitones_from_c": 1,
+      "bars": 8,
+      "mood": "rainy-night lo-fi hip-hop: slow, warm and a little sleepy, wobbly electric piano and a muted horn, rain on the glass, city lights in the puddles",
+      "songs": [
+        {
+          "id": "night_tram",
+          "name": {
+            "ru": "Ночной трамвай",
+            "en": "Night Tram",
+            "ko": "심야 전차"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "late-night tram lo-fi: rail clicks as hats, warm e-piano, soft round bass, a distant muted-horn tune"
+        },
+        {
+          "id": "neon_puddles",
+          "name": {
+            "ru": "Неон в лужах",
+            "en": "Neon Puddles",
+            "ko": "웅덩이 속 네온"
+          },
+          "bpm": 84,
+          "bars": 8,
+          "mood": "jazzy hip-hop after the rain: muted guitar chops, swung drums, a vibraphone tune, dripping echoes"
+        },
+        {
+          "id": "three_am_tea",
+          "name": {
+            "ru": "Чай в три часа ночи",
+            "en": "3 a.m. Tea",
+            "ko": "새벽 세 시의 차"
+          },
+          "bpm": 64,
+          "bars": 8,
+          "mood": "sleepy ambient lo-fi, no kick drum: a kettle-hiss pad, music-box notes, slow brushes, a low hum"
+        },
+        {
+          "id": "rooftop_stars",
+          "name": {
+            "ru": "Звёзды над крышей",
+            "en": "Rooftop Stars",
+            "ko": "옥상 위의 별"
+          },
+          "bpm": 92,
+          "bars": 8,
+          "mood": "hopeful night-walk beat: a bright piano riff, a bouncy bass, finger snaps, a whistle-like synth tune"
+        }
+      ],
+      "chest": {
+        "coins": 3200,
+        "boosters": [
+          "disco",
+          "stick",
+          "remix"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "radio",
+          "name": {
+            "ru": "Ночное радио",
+            "en": "Night radio",
+            "ko": "심야 라디오"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "slow dusty boom-bap: soft kick, brushed snare, rim clicks, lazy swung hats"
+        },
+        {
+          "id": "string_lights",
+          "name": {
+            "ru": "Гирлянда",
+            "en": "String lights",
+            "ko": "줄조명"
+          },
+          "cost": 4,
+          "stem": "rain",
+          "stem_desc": "rain on the glass and tape hiss with a soft wind-chime glint on the chord tones, very quiet"
+        },
+        {
+          "id": "rhodes",
+          "name": {
+            "ru": "Электропиано",
+            "en": "Electric piano",
+            "ko": "전자 피아노"
+          },
+          "cost": 5,
+          "stem": "keys",
+          "stem_desc": "wobbly electric-piano chords, minor 9ths and 11ths, tape-warped"
+        },
+        {
+          "id": "umbrellas",
+          "name": {
+            "ru": "Мокрые зонты",
+            "en": "Wet umbrellas",
+            "ko": "젖은 우산"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "round warm upright-style bass sliding between the roots"
+        },
+        {
+          "id": "night_cat",
+          "name": {
+            "ru": "Кот в пледе",
+            "en": "Cat in a blanket",
+            "ko": "담요 속 고양이"
+          },
+          "cost": 5,
+          "stem": "lead",
+          "stem_desc": "sleepy muted-horn melody with a tape echo"
+        },
+        {
+          "id": "neon_sign",
+          "name": {
+            "ru": "Неон «Открыто»",
+            "en": "Open neon sign",
+            "ko": "영업 중 네온"
+          },
+          "cost": 6,
+          "stem": "pad",
+          "stem_desc": "deep night pad with a slow filter sweep and a distant city hum"
+        }
+      ]
     }
   ],
   "level_stems": {
