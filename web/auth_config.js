@@ -6,8 +6,8 @@
 // Where to find the values: Firebase console -> Project settings -> General -> "Your apps" -> Web app -> Config.
 // Do not put anything else here (no service-account keys, no passwords).
 window.GLOW_AUTH_CONFIG = {
-	apiKey: "",
-	authDomain: "",
-	projectId: "",
-	appId: ""
+	apiKey: "AIzaSyAVP6x2_43pgnbrkbZabaWVLIOrWXm78uk",
+	authDomain: "glow-dcd7e.firebaseapp.com",
+	projectId: "glow-dcd7e",
+	appId: "1:956973883845:web:a116712289c4057159ebac"
 };

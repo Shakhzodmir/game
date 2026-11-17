@@ -69,3 +69,6 @@ service cloud.firestore {
 - «Сервер отклонил запрос» — не опубликованы правила (шаг 3.3) или в `auth_config.js` значения от другого проекта.
 - «Этот способ входа ещё не включён» — не включён Google или Email/Password (шаг 2).
 - Не принимается ID с `@id.glow.invalid`: напишите мне, это единственное место, которое нельзя проверить без настоящего проекта (запасной план — зарегистрировать «ID» как настоящее имя пользователя через собственное поле Firestore, это полтора дня работы).
+
+## Что уже сделано (2026-11-17)
+Проект Firebase `glow-dcd7e` создан продюсером на отдельном Gmail (тариф Spark, бесплатный). Через инструменты: веб-приложение `glow-web`, Firestore в регионе `eur3` с правилами этого файла (`firestore.rules` в корне репозитория), вход по ID и паролю включён (проверено: регистрация с адресом `<id>@id.glow.invalid` проходит), публичные значения записаны в `web/auth_config.js`. Осталось вручную в консоли: включить **Google** (Authentication, Sign-in method; адрес поддержки выбирает продюсер) и добавить домен `shakhzodmir.github.io` в Authorized domains (Authentication, Settings). Для безопасности ключа веб-приложения можно ограничить в Google Cloud (APIs & Services, Credentials, ключ «Browser key»: HTTP referrers `shakhzodmir.github.io/*` и `localhost/*`).

@@ -5,3 +5,7 @@
 /.github
 /assets/art_incoming
 /assets/art_ready
+/firebase.json
+/.firebaserc
+/firestore.rules
+/firestore.indexes.json

@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // A player's save: only the player reads, writes and deletes it, and only the document with their own id.
+    match /saves/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['code', 'previous', 'v', 'updated'])
+        && request.resource.data.v == 1
+        && request.resource.data.code is string
+        && request.resource.data.code.size() < 200001
+        && request.resource.data.code.matches('^GLOW1-[A-Za-z0-9_-]+$')
+        && (!('previous' in request.resource.data)
+            || (request.resource.data.previous is string && request.resource.data.previous.size() < 200001));
+    }
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
