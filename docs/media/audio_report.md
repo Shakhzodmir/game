@@ -8,7 +8,7 @@ Meters (`tools/audio/analysis.py`): **LUFS** = ITU-R BS.1770-4 loudness; **M-max
 **dBTP** = 4x oversampled true peak (what a resampling mixer can reach). SFX loudness targets use the
 generator's gated K-weighted meter with 50 ms windows (`dsp.loudness`).
 
-**Total size:** 27.34 MB: 13.76 MB of 30 MB budget (66 notes, 40 SFX, 136 music stems) + 13.59 MB of 24 MB for the 113 jukebox songs.
+**Total size:** 27.35 MB: 13.76 MB of 30 MB budget (66 notes, 40 SFX, 136 music stems) + 13.59 MB of 24 MB for the 113 jukebox songs.
 
 ## 1. Piece notes (synesthesia core)
 
@@ -47,9 +47,9 @@ each district's in-level bed (task stems + tension, i.e. on the kick and snare t
 
 | Voices | Notes + clear, raw (all at 0 dB, no strum) | Notes + clear, per mixer | + music bed in a level (worst beat) |
 |---|---|---|---|
-| 1 | -3.66 dBTP | -4.04 dBTP | +0.09 dBTP (`neon_puddles` beat 8, step 1, green) |
+| 1 | -3.66 dBTP | -4.04 dBTP | -0.01 dBTP (`porch_pickin` beat 23, step 8, orange) |
 | 2 | -0.06 dBTP | -3.23 dBTP | -0.10 dBTP (`cinema` beat 29, step 1, green+orange) |
-| 3 | +1.81 dBTP | -2.52 dBTP | -0.07 dBTP (`lamplight_piano` beat 21, step 1, green+orange+blue) |
+| 3 | +1.81 dBTP | -2.52 dBTP | -0.02 dBTP (`neon_puddles` beat 1, step 1, green+orange+blue) |
 
 ## 2. Sound effects
 
@@ -751,7 +751,7 @@ the engine's layer calls are silent for it.
 | arcade | `boss_rush_blitz` | 176 | 16 | 21.8 | C | -19.9 | -1.95 | 0.0 | 98.1 | 537 | 124 | C G Am Em F Dm |
 | arcade | `try_again_lullaby` | 72 | 8 | 26.7 | C | -20.0 | -7.51 | 0.0 | 99.9 | 550 | 105 | C F G Am Dm |
 | midnight_cafe | `night_tram` | 72 | 8 | 26.7 | Db | -20.0 | -1.94 | 0.0 | 96.0 | 439 | 145 | Bbm9 Fm7 F#maj9 Dbmaj7 Ebm9 Ab7sus4 |
-| midnight_cafe | `neon_puddles` | 84 | 8 | 22.9 | Db | -20.0 | -1.08 | -0.3 | 93.0 | 534 | 128 | F#maj7 Fm7 Bbm9 Dbmaj9 Ebm9 Ab7sus4 |
+| midnight_cafe | `neon_puddles` | 84 | 8 | 22.9 | Db | -19.9 | -1.06 | 0.0 | 93.0 | 613 | 128 | F#maj7 Fm7 Bbm9 Dbmaj9 Ebm9 Ab7sus4 |
 | midnight_cafe | `three_am_tea` | 64 | 8 | 30.0 | Db | -19.9 | -4.53 | 0.0 | 99.9 | 751 | 152 | Dbmaj9 Bbm9 F#maj7 Ab7sus4 Fm7 F#maj9 Ab6 |
 | midnight_cafe | `rooftop_stars` | 92 | 8 | 20.9 | Db | -19.9 | -2.65 | 0.0 | 99.8 | 487 | 113 | Dbadd9 Fm7 F#maj7 Ab6 Ab7sus4 |
 | classical | `salon_morning` | 80 | 8 | 24.0 | D | -20.0 | -1.77 | 0.0 | 99.7 | 460 | 83 | D F#m G A Bm Em7 A7 |
@@ -867,7 +867,7 @@ the engine's layer calls are silent for it.
 | `boss_rush_blitz` | drums, bass, lead, keys, arp | 0.82 / 0.67 (C maj) | 0.031 | 0.976 | 0.68 |
 | `try_again_lullaby` | keys, bass, lead, celesta | 0.94 / 0.75 (C maj) | 0.056 | 0.025 | 0.62 |
 | `night_tram` | drums, keys, bass, trumpet, celesta, dust | 0.68 / 0.75 (F min) | 0.806 | 0.564 | 0.74 |
-| `neon_puddles` | drums, guitar, bass, vibes, fx, dust | 0.80 / 0.47 (C# maj) | 0.017 | 0.271 | 0.4 |
+| `neon_puddles` | drums, guitar, bass, vibes, fx, dust | 0.86 / 0.56 (C# maj) | 0.041 | 0.331 | 0.46 |
 | `three_am_tea` | drums, pad, bass, box, fx | 0.78 / 0.64 (C# maj) | 0.024 | 0.067 | 0.31 |
 | `rooftop_stars` | drums, keys, bass, lead, celesta | 0.84 / 0.50 (C# maj) | 0.014 | 0.026 | 0.48 |
 | `salon_morning` | arp, keys | 0.83 / 0.48 (D maj) | 0.102 | 0.322 | 1.2 |
@@ -923,7 +923,7 @@ the engine's layer calls are silent for it.
 ## 4. Checks
 
 - Notes: 66 files, phone M-max -20.04 … -19.93 LUFS within -20 ± 1: PASS; true peak ≤ -7 dBTP (max -7.07): PASS; max pitch error 1.60 cents < 5: PASS; YIN hears the written pitch on every note: PASS; purple C4–E4 harmonics 1–2 within 10 dB of the loudest: PASS; lengths 0.6–1.2 s: PASS.
-- Headroom (1–3 notes + clear + music in a level, played per the mixer contract): worst +0.09 dBTP ≤ +0.0: FAIL.
+- Headroom (1–3 notes + clear + music in a level, played per the mixer contract): worst -0.01 dBTP ≤ +0.0: PASS.
 - SFX: 40 files, every loudness within ±1 dB of its target: PASS; every true peak ≤ its ceiling (-3 dBTP, per-match effects lower): PASS; limiter takes ≤ 7 dB of any effect's energy: PASS; gameplay feedback loses ≤ 10 dB on a phone: PASS; short pitched cues ≥ 75 % in key: PASS.
 - Music `cafe`: 8 stems, identical duration (470400 samples at 22.05 kHz): PASS; worst realistic mix -1.07 dBTP / -1.07 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.56): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
 - Music `jazz`: 9 stems, identical duration (441000 samples at 22.05 kHz): PASS; worst realistic mix -1.14 dBTP / -1.27 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -5.82): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
@@ -956,7 +956,7 @@ the engine's layer calls are silent for it.
 - Songs `ranch`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 30.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.50 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.1) and ≤ 1 dB of the energy (max 0.03): PASS; in the key of the genre ≥ 85 % (min 92.6): PASS; seams clean: PASS.
 - Songs `bluesclub`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 18.9 … 26.7 s within 16–32: PASS; worst mix -1.09 dBTP / -1.10 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.2) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 94.9): PASS; seams clean: PASS.
 - Songs `arcade`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 21.8 … 26.7 s within 16–32: PASS; worst mix -1.56 dBTP / -1.62 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 98.1): PASS; seams clean: PASS.
-- Songs `midnight_cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 30.0 s within 16–32: PASS; worst mix -1.08 dBTP / -1.11 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 93.0): PASS; seams clean: PASS.
+- Songs `midnight_cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 30.0 s within 16–32: PASS; worst mix -1.06 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 93.0): PASS; seams clean: PASS.
 - Songs `classical`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 29.1 s within 16–32: PASS; worst mix -1.10 dBTP / -1.34 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.9) and ≤ 1 dB of the energy (max 0.23): PASS; in the key of the genre ≥ 85 % (min 98.4): PASS; seams clean: PASS.
 - Songs `folk`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.22 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.7) and ≤ 1 dB of the energy (max 0.08): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Songs `latin`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 24.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.15 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.6 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.4) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 91.2): PASS; seams clean: PASS.
