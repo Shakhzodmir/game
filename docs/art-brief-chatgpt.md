@@ -268,3 +268,47 @@ B4.5 icons_5, grid 2x2: streak (a small flame), super_star (golden star with rai
 - `logo/logo` (640×320, экран заставки, `screens/splash/splash.gui_script`) — логотип с надписью, а текст на картинках запрещён. Нужно решение: буквы рисует игра или логотип делаем отдельно.
 - Предметы комнат районов (`districts/<район>/<предмет>.png` и `_ghost`-версии, около 38 штук, `screens/town/scene.lua`) — в брифе нет списка размеров и листов, поэтому их нет в версии 2. Отдельная спецификация нужна до того, как их рисовать.
 - `ui/button_small_<цвет>` (64×64) — игра берёт её только для кнопки обучения 172×52, если картинки нет, рисуется процедурная рамка. В бриф не добавлена, чтобы не рисовать пять картинок ради одной кнопки.
+
+## 9. Часть 2: районы 16–30 (другие версии жанров)
+
+Часть 2 продолжает игру после 300-го уровня: районы 16–30 повторяют жанры районов 1–15 по порядку, но в другой версии (`docs/design/part2-districts.md`). Пока картинок нет, в игре стоят ночные заглушки, сделанные программой из картинок района-«родителя» (`tools/art/make_part2_placeholders.py`). На один район нужно **6 картинок** (как у районов 6–15): две комнаты, участок карты, ворота, лист украшений 3×2, лист предметов 3×2. Главный промпт раздела 5 остаётся в силе; для ночных районов добавь в начало чата строку:
+
+```
+PART 2 NIGHT SCENES: some districts of part 2 are night versions. A night scene is still LIGHT and cosy, never dark or gloomy: soft lavender-blue and indigo sky (#5B4FB0 to #8C7FE0), warm glowing lamps and windows (#FFD36E), neon accents (pink #FF4FD8, cyan #3CF2FF), gentle rain sparkles; the overall brightness stays like a pastel picture, only the colours are cooler.
+```
+
+Как передать: файлы с именами из таблицы в папку `assets/art_incoming/<имя>/`, установка одной командой `python3 tools/art/install_district.py <id района> assets/art_incoming/<имя> <имя>` (места предметов — таблица `ROOMS` в той же программе, у района 16 — места предметов кафе), затем `python3 tools/art/gate_signs.py && python3 tools/gen_map.py && python3 tools/gen_defold.py`. Заглушки при этом заменяются сами.
+
+### 9.1. Район 16 «Ночное кафе» (`midnight_cafe`, имя в файлах `midnight`)
+
+Ночная версия Lo-fi-кафе: дождливая ночь, кафе открыто для тех, кто не спит; электропиано, сонный кот, неоновая вывеска, огни города в лужах. Прикладывай `06_district_items.png` и для сравнения комнату и карту кафе.
+
+| № | Файл | Сетка | Промпт (копируй после номера) |
+|---|---|---|---|
+| C16.1 | `room_midnight_day.png` | один, портрет 2:3, без розового | `Room midnight_cafe "day": the same cosy lo-fi cafe room as the cafe reference, but late at night in the rain: a big window with a rainy city at night (lavender-blue sky, warm lit windows, a few stars between clouds, raindrops on the glass), a soft-lit wall with a small shelf, a wooden floor with warm lamp reflections. LIGHT and cosy, never dark. Do NOT draw furniture or items; leave free floor space for 6 items; keep the window and important details near the centre (8% of the width is cut on each side).` |
+| C16.2 | `room_midnight_concert.png` | один, портрет 2:3, без розового | `Room midnight_cafe "concert": the same room as C16.1 in concert mode: neon night, deep blue-violet #3B2A8F to #6B4CE0, pink, cyan and warm-yellow spotlights reflecting in rain streaks on the window and in the polished floor, small floating light dots. Bright and festive, not dark. No items, no people, no text.` |
+| C16.3 | `map_bg_midnight.png` | один, портрет 2:3, без розового | `map_bg_midnight: single, portrait 2:3, opaque: a vertical stretch of a rainy night street of cafes seen from above at a slight angle; a free band in the middle for a winding path (do NOT draw the path); on the left and right: cafe facades with warm lit windows, awnings, umbrellas, puddles reflecting neon, a sleeping cat on a sill, string lights; a soft lavender night sky at the top edge; no people, no text. The top and bottom edges must continue each other (the game stacks the tiles).` |
+| C16.4 | `gate_midnight.png` | один, пейзаж 3:2, розовый фон | `gate_midnight: single, landscape 3:2, magenta background: an entrance arch of a night cafe street: a lavender-and-cream awning arch, two glowing lanterns, a crescent moon and a steaming cup on top, raindrops; a big EMPTY pale cream signboard in the upper middle (the game writes the name on it; keep it plain and light).` |
+| C16.5 | `deco_midnight.png` | 3×2 | `deco_midnight, grid 3x2: six small props of a rainy night cafe street: a street lamp, an umbrella stand with wet umbrellas, a cafe chalkboard (no letters), a cat on a cushion, a potted plant with raindrops, a little neon cup sign (no letters).` |
+| C16.6 | `items_midnight.png` | 3×2 | `items_midnight, grid 3x2, in this order: (1) a vintage night radio-record player with a glowing dial, (2) a string of warm round lights hanging in a gentle curve, (3) a wobbly electric piano on legs, (4) a stand with two wet open umbrellas, (5) a sleepy cat wrapped in a knitted blanket on a cushion, (6) a neon sign shaped like a cup and a moon with an open-sign glow (no letters). Each item seen from the front at a slight angle, like the cafe items reference.` |
+
+### 9.2. Районы 17–30: что рисовать
+
+Те же шесть файлов (`room_<имя>_day`, `room_<имя>_concert`, `map_bg_<имя>`, `gate_<имя>`, `deco_<имя>` 3×2, `items_<имя>` 3×2) и те же правила, что у C16; промпты пишет воркер района по образцу C16, предметы — в порядке задач района в `content/districts.json`. Ниже предложение (уточняется, когда район добавлен в данные).
+
+| Район | Имя в файлах | Комната днём / концерт | Карта и ворота | Шесть предметов (порядок листа) |
+|---|---|---|---|---|
+| 17 Поздний клуб (`late_club`) | `lateclub` | маленький джаз-клуб после полуночи, бархатные шторы, лампа на сцене / синий неон и прожекторы | улица клубов ночью, ворота-козырёк с лампочками | ударная установка со щётками, контрабас, труба с сурдиной, рояль, барный стул с лампой, вывеска-нота |
+| 18 Фестиваль наций (`nations_fest`) | `nations` | площадь в флагах, полдень / вечерний салют | поляна фестиваля с шатрами, ворота из флагов | стил-пэн, барабан тайко, аккордеон, шатёр, гирлянда флагов, сцена-ракушка |
+| 19 Фан-встреча (`fan_meeting`) | `fanmeet` | уютный зал фан-встречи на закате, плакаты без букв / зал в огнях лайтстиков | улица с афишами без букв, ворота-сердце | рояль, микрофон-стойка, корзина подарков, стена фото, лайтстики, ступени сцены |
+| 20 Панк-гараж (`punk_garage`) | `punk` | гараж с граффити (без букв), утро / красные и зелёные лучи | двор гаражей, ворота из покрышек и молний | ударная установка, стек усилителей, гитара с наклейками, скейт, мотоцикл, рампа |
+| 21 Закатная босса (`sunset_bossa`) | `sunset` | терраса над морем на закате / огни лодок | набережная в золотом свете, ворота-пергола | нейлоновая гитара, флейта, шейкер, гамак, фонарь, лодка-кафе |
+| 22 Ночной карнавал (`night_carnival`) | `nightcarn` | улица карнавала ночью, факелы / салют | ночное шествие, ворота из перьев и фонарей | конги, тимбалес, труба, маска с перьями, платформа, фейерверк |
+| 23 Звёздный кинозал (`star_cinema`) | `starcine` | кинозал-корабль, иллюминаторы со звёздами / неон экрана | космопорт-кинотеатр, ворота-шлюз | синтезатор, хор-роботы, проектор-голограмма, кресла, ракета-попкорн, экран |
+| 24 Шёлковый путь ночью (`silk_night`) | `silknight` | шатёр каравана под звёздами / огни костров | ночная пустыня с караван-сараем, ворота-арка с фонарями | уд, канун, бубен, верблюд-игрушка, ковёр с подушками, фонари |
+| 25 Афтепати (`afterparty`) | `afterparty` | крыша клуба на рассвете / лазеры | крыши города на рассвете, ворота из ферм света | пульт диджея, колонка, арпеджиатор-синт, диско-шар, кресло-мешок, неоновое солнце |
+| 26 Трэп-квартал (`trap_block`) | `trap` | квартал ночью, неон, граффити без букв / фиолетовые лучи | ночной квартал, ворота-неоновая арка | драм-машина 808, колонки, колокольчики, кроссовки на стене, баскетбольное кольцо, неон |
+| 27 Даб-остров (`dub_island`) | `dub` | лагуна при луне, хижина / огни на воде | ночной пляж с пальмами, ворота из бамбука | мелодика, звуковая система, пружинный ревер, гамак, лодка, луна-фонарь |
+| 28 Блюграсс-холмы (`bluegrass_hills`) | `bluegrass` | крыльцо фермы на холме на рассвете / фонари и светлячки | холмы с заборами, ворота-калитка | банджо, мандолина, скрипка, контрабас, кресло-качалка, кувшин |
+| 29 Дельта-блюз (`delta_blues`) | `delta` | веранда у реки в сумерках / лодочные огни | река с пароходом, ворота из досок | слайд-гитара, губная гармошка, ящик-стомпбокс, кресло, лампа-керосинка, пароходное колесо |
+| 30 Бой с боссом (`boss_battle`) | `boss` | тронный зал пиксельного замка / вспышки битвы | пиксельный замок, ворота-портал | меч-джойстик, щит-колонка, сундук, трон, пиксельный дракон (добрый), кубок-финал |
