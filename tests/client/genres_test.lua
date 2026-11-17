@@ -122,7 +122,7 @@ describe("genres open with their district (the default) or all at once (config)"
 		end)
 	end)
 
-	it("the jukebox view lists the district genres first, then the others by group, with their state", function()
+	it("the jukebox view lists the district genres first, then the others in the order the districts open them, with their state", function()
 		with_mode("districts", function()
 			local m = new_meta()
 			local vm = views.jukebox(m, nil, nil)
@@ -152,8 +152,16 @@ describe("genres open with their district (the default) or all at once (config)"
 			assert_eq(vm.tabs[16].state, "open")
 			assert_eq(vm.tabs[16].group, "classic")
 			assert_eq(vm.tabs[16].icon, "ui/genres/classical")
-			assert_eq(vm.tabs[18].id, "latin")
-			assert_eq(vm.tabs[18].state, "locked")
+			-- the genres follow the districts that open them, 3 per district: the open ones sit together
+			local order = {}
+			for i = 16, 30 do order[#order + 1] = vm.tabs[i].id end
+			assert_same(order, { "classical", "folk", "ambient", "rnb", "blues", "bossa", "latin", "eastern", "reggae",
+				"pop", "edm", "chiptune", "hiphop", "country", "cinematic" })
+			assert_eq(vm.tabs[18].id, "ambient")
+			assert_eq(vm.tabs[18].state, "open")
+			assert_eq(vm.tabs[19].state, "locked")
+			assert_eq(vm.tabs[22].id, "latin")
+			assert_eq(vm.tabs[22].state, "locked")
 			assert_eq(#vm.songs.classical, 4)
 			assert_true(vm.songs.classical[1].playable)
 			assert_false(vm.songs.latin[1].playable)

@@ -354,7 +354,17 @@ function M.jukebox(meta, districts_by_id, genres_by_id)
 	end
 	-- the genres that are not districts (content/genres.json): classical, traditional, modern; a row per song and
 	-- no layered theme. state "open" | "locked" (the district that opens it is not available yet).
-	for _, g in ipairs(meta.genres and meta:genres() or {}) do
+	-- in the order the town opens them: the genres of the first district first (classical, folk, ambient), then the
+	-- second district's, and so on, so the open tabs sit together and the locked ones follow; inside a district the
+	-- file order of content/genres.json stays
+	local genres = {}
+	for i, g in ipairs(meta.genres and meta:genres() or {}) do genres[i] = { g = g, i = i } end
+	table.sort(genres, function(a, b)
+		if a.g.unlock_index ~= b.g.unlock_index then return a.g.unlock_index < b.g.unlock_index end
+		return a.i < b.i
+	end)
+	for _, entry in ipairs(genres) do
+		local g = entry.g
 		local data = genres_by_id and genres_by_id[g.id] or nil
 		local color = M.GROUP_COLORS[g.group] or "#B79CFF"
 		local state = g.open and "open" or "locked"
