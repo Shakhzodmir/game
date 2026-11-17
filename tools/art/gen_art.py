@@ -140,7 +140,7 @@ def build_jobs():
             J.append(("bit", f"bit/{a}_{n}.png", "bit", "draw_frame", (a, n), {}))
     J.append(("logo", "logo/logo.png", "logo", "draw_logo", (), {}))
     bg = {"opaque": True, "dither": BG_DITHER}
-    J.append(("backgrounds", "backgrounds/level_bg.png", "districts", "bg_level", (), bg))
+    J.append(("backgrounds", "backgrounds/level_bg.png", "districts", "bg_level", (False,), bg))  # no clouds: the game moves its own
     for d in load_districts():
         did = d["id"]
         J.append(("districts", f"districts/{did}/bg.png", "districts", "BG_FUNCS", (did,), bg))

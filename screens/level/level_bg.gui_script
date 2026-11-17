@@ -25,6 +25,7 @@ local level_floor = require("client.level_floor")
 local level_carpet = require("client.level_carpet")
 local level_conveyor = require("client.level_conveyor")
 local level_portal = require("client.level_portal")
+local level_sky = require("client.level_sky")
 
 local GUI = "/screens/level/level_bg.gui"
 local FRAME_PAD = 20 -- board/board_frame: 14 px frame + 6 px backing around the cells
@@ -187,11 +188,58 @@ local function update_floor(self, v)
 	end
 end
 
+-- The level being played: the board knows it first, the screen's params before that.
+local function level_now()
+	local info = link.info()
+	if info and info.level_id then return info.level_id end
+	local p = app.params or {}
+	return p.level_id or p.level
+end
+
+-- The backdrop and the living sky of the level's district (client/level_sky.lua): the district's own picture
+-- or the common one, with clouds drifting or stars twinkling over it. Built again when the level is known.
+local function apply_theme(self, level)
+	local s = self.ui
+	local district = level_sky.district_of(app.district_list, level)
+	local key, own = assets.level_bg_key(district)
+	local kind = level_sky.kind(district, own)
+	local id = key .. "|" .. kind .. "|" .. (district or "")
+	self.level_seen = level
+	if self.theme_id == id then return end
+	self.theme_id = id
+	if self.l_theme then s:clear(self.l_theme) end
+	self.l_theme = s:layer(self.c_theme, "theme")
+	s:backdrop(self.l_theme, key)
+	self.sky_nodes, self.sky_t = {}, 0
+	for _, it in ipairs(level_sky.items(kind, district or "")) do
+		local n = s:image(self.l_theme, it.key, it.x, it.y, { w = it.w, h = it.h, alpha = it.alpha })
+		if n then self.sky_nodes[#self.sky_nodes + 1] = { node = n, item = it } end
+	end
+	self.sky_drawn = false
+end
+
+-- The sky moves a little; with reduced motion it is drawn once and stands still.
+local function update_sky(self, dt)
+	local nodes = self.sky_nodes
+	if not nodes or #nodes == 0 then return end
+	local reduced = app.reduced_motion()
+	if reduced and self.sky_drawn then return end
+	self.sky_drawn = reduced
+	self.sky_t = (self.sky_t or 0) + dt
+	for _, e in ipairs(nodes) do
+		local x, y, a, sc = level_sky.pose(e.item, self.sky_t, reduced)
+		gui.set_position(e.node, vmath.vector3(x, y, 0))
+		gui.set_color(e.node, vmath.vector4(1, 1, 1, a))
+		gui.set_scale(e.node, vmath.vector3(sc, sc, 1))
+	end
+end
+
 function init(self)
 	self.ui = ui.scene({ gui = GUI, on_resize = function() self.dirty = true end })
 	local s = self.ui
 	s:sky({ clouds = false })
-	s:backdrop(s.root, "backgrounds/level_bg")
+	self.c_theme = s:layer(s.root, "theme_root")
+	apply_theme(self, level_now())
 	local bunting = s:image(s.root, "ui/bunting", 360, 1280 - 34, { w = 760, h = 68 })
 	if bunting then s:anchor(bunting, "top") end
 	self.c_board = s:layer(s.root, "board_root")
@@ -206,6 +254,9 @@ end
 
 function update(self, dt)
 	self.ui:update(dt)
+	local level = level_now()
+	if level and level ~= self.level_seen then apply_theme(self, level) end
+	update_sky(self, dt)
 	local v = link.view()
 	if not v or not v.geom then return end
 	if v.rev ~= self.rev or self.dirty then

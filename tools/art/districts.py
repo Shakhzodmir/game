@@ -319,12 +319,16 @@ def _hooks(cv, district, item, anchors, iw, ih, color="#FF7EB6"):
 # ==========================================================================
 # level background
 # ==========================================================================
-def bg_level():
+LEVEL_CLOUDS = [(58, 128, 0.42, 0.9), (300, 190, 0.34, 0.8), (110, 330, 0.28, 0.55), (310, 420, 0.3, 0.5)]
+
+
+def bg_level(clouds=True):
+    """The common level background. The game draws its clouds itself since 17.11.2026 (they drift:
+    client/level_sky.lua), so the installed picture is made with clouds=False."""
     cv = new_canvas()
     X, Y = cv.X, cv.Y
     f = full(cv)
-    sky(cv, f, 0, H, sun=(286, 62, 22),
-        clouds=[(58, 128, 0.42, 0.9), (300, 190, 0.34, 0.8), (110, 330, 0.28, 0.55), (310, 420, 0.3, 0.5)])
+    sky(cv, f, 0, H, sun=(286, 62, 22), clouds=LEVEL_CLOUDS if clouds else [])
     # sun rays
     for k in range(9):
         a = math.radians(100 + k * 16)
