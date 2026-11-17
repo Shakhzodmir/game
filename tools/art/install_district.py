@@ -112,6 +112,16 @@ ROOMS = {
         ("pixel_heart", 442, 624, 150),
         ("robot_dj", 502, 760, 160),
     ]),
+    # Part 2 (docs/design/part2-districts.md): the places of the parent room of Part 1 (cafe), so the producer's room
+    # can be drawn like the cafe one; until then tools/art/make_part2_placeholders.py puts night placeholders there
+    "midnight_cafe": ("3x2", [
+        ("radio", 370, 712, 148),
+        ("string_lights", 360, 348, 142),
+        ("rhodes", 160, 690, 190),
+        ("umbrellas", 578, 694, 160),
+        ("night_cat", 574, 418, 130),
+        ("neon_sign", 360, 540, 110),
+    ]),
 }
 
 
