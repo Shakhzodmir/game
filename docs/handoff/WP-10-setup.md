@@ -52,7 +52,7 @@ service cloud.firestore {
 «Authentication», вкладка «Templates», «Email address change» (письмо с подтверждением новой почты): карандаш, язык «Русский», сохранить. Письмо идёт с адреса `noreply@<проект>.firebaseapp.com`, это нормально.
 
 ## Шаг 6. Если окно Google пишет «приложение не проверено»
-Откройте https://console.cloud.google.com, проект тот же, меню «APIs & Services», «OAuth consent screen». Если статус «Testing», нажмите «Publish app» (для входа нужны только имя, почта и фото: проверка Google для этого не требуется). В «App information» укажите вашу почту поддержки и ссылку на политику конфиденциальности, когда она у вас будет.
+Откройте https://console.cloud.google.com, проект тот же, меню «APIs & Services», «OAuth consent screen». Если статус «Testing», нажмите «Publish app» (для входа нужны только имя, почта и фото: проверка Google для этого не требуется). В «App information» укажите вашу почту поддержки и ссылку на политику конфиденциальности: `https://shakhzodmir.github.io/game/privacy.html` (страница `web/privacy.html`, WP-18; появится на сайте после публикации сборки).
 
 ## Как проверить, что всё работает (5 минут)
 1. Откройте https://shakhzodmir.github.io/game/ (после того как CI закончит сборку), пройдите первый уровень: в городе появится окно «Сохранить прогресс?».
