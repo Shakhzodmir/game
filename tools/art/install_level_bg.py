@@ -5,7 +5,8 @@
   e.g.  python tools/art/install_level_bg.py assets/art_incoming bazaar skyclub
 
 Reads <folder>/level_bg_<district id>.png (ChatGPT portrait 2:3, 1024x1536; any portrait size of at least 720 px
-wide is fine), cuts the middle 9:16 out of it and scales it to 720x1280 -> assets/images/districts/<id>/level_bg.png.
+wide is fine), cuts the middle 9:16 out of it, scales it to 720x1280 and lifts it by 7% (see LIFT)
+-> assets/images/districts/<id>/level_bg.png.
 Without district ids every level_bg_<id>.png found in the folder is installed. The files are recorded in
 assets/art_ready/installed.json (gen_art.py leaves them alone). Run python tools/gen_defold.py afterwards: it puts
 the pictures into the registry (client/assets_index.lua); the level screen uses them at once
@@ -23,6 +24,10 @@ import installed as inst  # noqa: E402
 
 IMAGES = os.path.join(inst.ROOT, "assets", "images")
 SIZE = (720, 1280)
+# ChatGPT puts the scenery at the very bottom edge of the picture; there the booster bar and the bonus bar cover it.
+# The picture is lifted: its top LIFT of the height is cut off (calm sky) and the bottom is refilled with the last row
+# (hidden behind the bars), so the scenery shows between the board and the bar.
+LIFT = 0.07
 
 
 def district_ids():
@@ -42,7 +47,14 @@ def fit_916(im):
         nh = round(w / want)
         y0 = (h - nh) // 2
         im = im.crop((0, y0, w, y0 + nh))
-    return im.resize(SIZE, Image.LANCZOS)
+    im = im.resize(SIZE, Image.LANCZOS)
+    lift = round(SIZE[1] * LIFT)
+    if lift > 0:
+        out = Image.new("RGB", SIZE)
+        out.paste(im.crop((0, lift, SIZE[0], SIZE[1])), (0, 0))
+        out.paste(im.crop((0, SIZE[1] - 1, SIZE[0], SIZE[1])).resize((SIZE[0], lift), Image.NEAREST), (0, SIZE[1] - lift))
+        im = out
+    return im
 
 
 def main(argv):

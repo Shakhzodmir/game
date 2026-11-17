@@ -104,12 +104,22 @@ describe("screens/level/level_bg.gui_script: the sky", function()
 	end)
 
 	it("a level of any district has a sky; a level number outside every district gets the common one", function()
-		for _, level in ipairs({ 1, 21, 161, 300 }) do
+		for _, level in ipairs({ 1, 21, 161 }) do
 			with_sky(level, function(c)
 				c.step(1)
 				assert_eq(#c.clouds(), #sky.CLOUDS, "level " .. level)
 			end)
 		end
+		-- an evening district with its own picture: stars instead of clouds
+		with_sky(300, function(c)
+			c.step(1)
+			assert_eq(#c.clouds(), 0)
+			local stars = 0
+			for _, n in ipairs(c.E.gui.nodes) do
+				if not n.dead and n.anim == "fx_spark" then stars = stars + 1 end
+			end
+			assert_eq(stars, sky.STARS)
+		end)
 		with_sky(9999, function(c)
 			c.step(1)
 			assert_eq(#c.clouds(), #sky.CLOUDS)
@@ -122,7 +132,7 @@ describe("screens/level/level_bg.gui_script: the sky", function()
 			assert_eq(c.self.theme_id, "backgrounds/level_bg|clouds|")
 			app.params = { level = 161 }
 			c.step(1)
-			assert_eq(c.self.theme_id, "backgrounds/level_bg|clouds|bazaar")
+			assert_eq(c.self.theme_id, "districts/bazaar/level_bg|clouds|bazaar")
 			assert_eq(#c.clouds(), #sky.CLOUDS, "the old clouds are gone, the new ones stand in their place")
 		end)
 	end)

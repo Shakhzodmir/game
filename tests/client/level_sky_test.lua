@@ -41,8 +41,8 @@ describe("the district of a level", function()
 end)
 
 describe("the picture behind the board", function()
-	it("is the common one while a district has none of its own", function()
-		local key, own = assets.level_bg_key("cafe")
+	it("is the common one for a district without a picture of its own (and for no district)", function()
+		local key, own = assets.level_bg_key("zz_no_picture")
 		assert_eq(key, "backgrounds/level_bg")
 		assert_false(own)
 		key, own = assets.level_bg_key(nil)
@@ -61,6 +61,16 @@ describe("the picture behind the board", function()
 		end)
 		images["districts/zz_test/level_bg"] = nil
 		if not ok then error(err, 0) end
+	end)
+
+	it("has a picture of its own for every district of the game", function()
+		for _, d in ipairs(districts) do
+			local key, own = assets.level_bg_key(d.id)
+			assert_eq(key, "districts/" .. d.id .. "/level_bg", d.id)
+			assert_true(own, d.id)
+			local e = assets.image(key)
+			assert_true(e ~= nil and e.w == 720 and e.h == 1280, d.id .. " is 720x1280")
+		end
 	end)
 
 	it("has the sprites the sky draws", function()
