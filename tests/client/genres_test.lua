@@ -126,7 +126,9 @@ describe("genres open with their district (the default) or all at once (config)"
 		with_mode("districts", function()
 			local m = new_meta()
 			local vm = views.jukebox(m, nil, nil)
-			assert_eq(#vm.tabs, 30)
+			local ND = #H.districts().districts -- the district tabs come first (Part 2 adds districts)
+			local g0 = ND - 15            -- how far the genre tabs moved
+			assert_eq(#vm.tabs, ND + 15)
 			assert_eq(vm.tabs[5].id, "garage")
 			assert_eq(vm.tabs[6].id, "beach")
 			assert_eq(vm.tabs[6].state, "locked")
@@ -148,20 +150,20 @@ describe("genres open with their district (the default) or all at once (config)"
 			assert_eq(vm.tabs[14].state, "locked")
 			assert_eq(vm.tabs[15].id, "arcade")
 			assert_eq(vm.tabs[15].state, "locked")
-			assert_eq(vm.tabs[16].id, "classical")
-			assert_eq(vm.tabs[16].state, "open")
-			assert_eq(vm.tabs[16].group, "classic")
-			assert_eq(vm.tabs[16].icon, "ui/genres/classical")
+			assert_eq(vm.tabs[16 + g0].id, "classical")
+			assert_eq(vm.tabs[16 + g0].state, "open")
+			assert_eq(vm.tabs[16 + g0].group, "classic")
+			assert_eq(vm.tabs[16 + g0].icon, "ui/genres/classical")
 			-- the genres follow the districts that open them, 3 per district: the open ones sit together
 			local order = {}
-			for i = 16, 30 do order[#order + 1] = vm.tabs[i].id end
+			for i = 16 + g0, 30 + g0 do order[#order + 1] = vm.tabs[i].id end
 			assert_same(order, { "classical", "folk", "ambient", "rnb", "blues", "bossa", "latin", "eastern", "reggae",
 				"pop", "edm", "chiptune", "hiphop", "country", "cinematic" })
-			assert_eq(vm.tabs[18].id, "ambient")
-			assert_eq(vm.tabs[18].state, "open")
-			assert_eq(vm.tabs[19].state, "locked")
-			assert_eq(vm.tabs[22].id, "latin")
-			assert_eq(vm.tabs[22].state, "locked")
+			assert_eq(vm.tabs[18 + g0].id, "ambient")
+			assert_eq(vm.tabs[18 + g0].state, "open")
+			assert_eq(vm.tabs[19 + g0].state, "locked")
+			assert_eq(vm.tabs[22 + g0].id, "latin")
+			assert_eq(vm.tabs[22 + g0].state, "locked")
 			assert_eq(#vm.songs.classical, 4)
 			assert_true(vm.songs.classical[1].playable)
 			assert_false(vm.songs.latin[1].playable)
@@ -302,7 +304,7 @@ describe("the jukebox window with thirty genres", function()
 		G.with_town({ setup = function(app) G.build_tasks(app, "cafe") end }, function(c)
 			open(c, "jukebox")
 			local ui = c.app.ui.jukebox
-			assert_eq(ui.tab_pages, 10)
+			assert_eq(ui.tab_pages, math.ceil((#H.districts().districts + 15) / 3))
 			assert_eq(ui.tab_page, 1)
 			for _, name in ipairs({ "tabs_prev", "tabs_next", "tab_cafe", "tab_jazz", "tab_square" }) do
 				assert_true(c.app.ui.popup_targets[name] ~= nil, "no target " .. name)
@@ -347,8 +349,9 @@ describe("the jukebox window with thirty genres", function()
 			assert_eq(c.app.meta:song(), "salon_morning")
 			assert_eq(c.app.ui.jukebox.chosen, "salon_morning")
 			-- the last page is reachable and wraps round (thirty genres: ten pages)
-			assert_eq(c.app.ui.jukebox.tab_pages, 10)
-			for _ = 1, 5 do wtap(c, "tabs_next") end
+			local pages = math.ceil((#H.districts().districts + 15) / 3)
+			assert_eq(c.app.ui.jukebox.tab_pages, pages)
+			for _ = 1, pages - 5 do wtap(c, "tabs_next") end
 			assert_eq(c.app.ui.jukebox.tab_page, 1)
 			assert_same(c.E.audit(), {})
 		end)

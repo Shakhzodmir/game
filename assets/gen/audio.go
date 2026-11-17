@@ -464,6 +464,46 @@ embedded_components {
   data: "sound: \"/assets/music/jazz/vibes.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_midnight_cafe_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_midnight_cafe_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_midnight_cafe_keys"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/keys.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_midnight_cafe_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_midnight_cafe_pad"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/pad.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_midnight_cafe_party"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_midnight_cafe_rain"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/rain.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_midnight_cafe_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/midnight_cafe/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_ranch_banjo"
   type: "sound"
   data: "sound: \"/assets/music/ranch/banjo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1484,9 +1524,19 @@ embedded_components {
   data: "sound: \"/assets/music/songs/neon_heartbeat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_neon_puddles"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/neon_puddles.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_night_tide"
   type: "sound"
   data: "sound: \"/assets/music/songs/night_tide.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_night_tram"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/night_tram.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_oasis_nights"
@@ -1557,6 +1607,11 @@ embedded_components {
   id: "song_riverside_jump"
   type: "sound"
   data: "sound: \"/assets/music/songs/riverside_jump.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_rooftop_stars"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/rooftop_stars.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_rooftop_sunrise"
@@ -1687,6 +1742,11 @@ embedded_components {
   id: "song_tango_lanterns"
   type: "sound"
   data: "sound: \"/assets/music/songs/tango_lanterns.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_three_am_tea"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/three_am_tea.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_trap_playground"

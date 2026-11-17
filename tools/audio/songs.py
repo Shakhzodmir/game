@@ -3986,7 +3986,7 @@ SONGS = {
     "night_tram": ("vi9:4 iii7:4 IVmaj9:4 Imaj7:4 vi9:4 iii7:4 ii9:2 V7sus4:2 vi9:4", night_tram,
                    {"drums": -18, "keys": -19, "bass": -21, "trumpet": -19, "celesta": -25}),
     "neon_puddles": ("IVmaj7:4 iii7:4 vi9:4 Imaj9:4 IVmaj7:4 iii7:4 ii9:2 V7sus4:2 vi9:4", neon_puddles,
-                     {"drums": -17.5, "guitar": -21, "bass": -20, "vibes": -19, "fx": -27}),
+                     {"drums": -19.5, "guitar": -21, "bass": -20, "vibes": -19, "fx": -27}),
     "three_am_tea": ("Imaj9:4 vi9:4 IVmaj7:4 V7sus4:4 Imaj9:4 iii7:4 IVmaj9:4 V6:4", three_am_tea,
                      {"drums": -25, "pad": -21, "bass": -25, "box": -18, "fx": -30}),
     "rooftop_stars": ("Iadd9:4 iii7:4 IVmaj7:4 V6:4 Iadd9:4 iii7:4 IVmaj7:2 V7sus4:2 Iadd9:4", rooftop_stars,
