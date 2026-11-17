@@ -1,6 +1,8 @@
 -- Account window. params.mode = "choice" (the first-launch window: guest / Google / ID and password / create
 -- an account) or nothing (the account manager opened from the settings: who is signed in, link Google or an
--- e-mail, sign out, delete the account and its data). Without a configured provider it says honestly that
+-- e-mail, sign out, delete the account and its data). Before a sign-in both windows offer "Forgot password?"
+-- (a letter to the linked e-mail) and say where a forgotten ID can be found; the first-launch window also links the
+-- privacy policy. Without a configured provider it says honestly that
 -- sign-in is not available yet and the player stays a guest.
 -- The actions are in client/account.lua; passwords are typed into the browser's own form, not here.
 
@@ -15,6 +17,7 @@ local M = {}
 
 local W = 620
 local BTN_W, BTN_H, GAP = 520, 88, 18
+local LINK_H = 68 -- the quiet buttons ("Forgot password?", the privacy policy): lower than the main ones
 local TEXT_W = W - 90
 
 -- Lines a text takes in a block TEXT_W wide at `size` (an estimate by characters: Korean is wider).
@@ -37,6 +40,11 @@ end
 
 local function button(items, id, text, style, fn)
 	items[#items + 1] = { kind = "button", id = id, text = text, style = style or "white", fn = fn, h = BTN_H }
+end
+
+-- A quiet button for a side action: lower, with a smaller text.
+local function link(items, id, text, fn)
+	items[#items + 1] = { kind = "button", id = id, text = text, style = "white", fn = fn, h = LINK_H, text_size = 24 }
 end
 
 local function confirm_sign_out(e)
@@ -85,9 +93,14 @@ local function build_items(e, choice)
 			button(items, "google", i18n.t("account.google"), "green", function() account.sign_in_google(done) end)
 			button(items, "id_login", i18n.t("account.id_login"), "blue", function() account.sign_in_id("login", done) end)
 			button(items, "create", i18n.t("account.create"), "blue", function() account.sign_in_id("register", done) end)
+			link(items, "forgot", i18n.t("account.forgot"), function() account.reset_password() end)
+			text_block(items, { key = "account.find_id" }, 22, "text_soft")
 		end
 		text_block(items, { key = "account.guest_note" }, 24, "text_soft")
-		if available then text_block(items, { key = "account.privacy" }, 22, "text_soft") end
+		if available then
+			text_block(items, { key = "account.privacy" }, 22, "text_soft")
+			link(items, "privacy", i18n.t("privacy.link"), function() account.open_privacy() end)
+		end
 		button(items, "guest", i18n.t("account.guest"), "pink", function()
 			cloud.set_welcomed()
 			e:close("guest")
@@ -100,6 +113,8 @@ local function build_items(e, choice)
 			button(items, "google", i18n.t("account.google"), "green", function() account.sign_in_google(done) end)
 			button(items, "id_login", i18n.t("account.id_login"), "blue", function() account.sign_in_id("login", done) end)
 			button(items, "create", i18n.t("account.create"), "blue", function() account.sign_in_id("register", done) end)
+			link(items, "forgot", i18n.t("account.forgot"), function() account.reset_password() end)
+			text_block(items, { key = "account.find_id" }, 22, "text_soft")
 		else
 			text_block(items, { key = "account.unavailable" }, 26, "text_soft")
 		end
@@ -113,6 +128,7 @@ local function build_items(e, choice)
 			text_block(items, { key = "account.pending_mail", vars = { email = account.short(user.pending_email, 22) } }, 24, "text_soft")
 		else
 			text_block(items, { key = "account.no_mail_warn" }, 24, "pink")
+			text_block(items, { key = "account.no_mail_hint" }, 22, "text_soft")
 		end
 	end
 	if not user.google_linked and user.kind == "password" then
@@ -149,8 +165,8 @@ function M.build(e)
 		if it.kind == "text" then
 			s:text(body, it.text, 0, cy, { font = "body", size = it.size, color = it.color, width = TEXT_W, height = it.h })
 		else
-			s:button({ parent = body, x = 0, y = cy, w = BTN_W, h = it.h, style = it.style, text = it.text, text_size = 28,
-				on_click = it.fn })
+			s:button({ parent = body, x = 0, y = cy, w = BTN_W, h = it.h, style = it.style, text = it.text,
+				text_size = it.text_size or 28, on_click = it.fn })
 			e:target(it.id, 0, cy)
 		end
 		y = y - it.h - GAP

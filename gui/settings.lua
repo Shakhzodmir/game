@@ -19,7 +19,7 @@ local auth = require("client.services.auth")
 local M = {}
 
 local W = 640
-local H_BASE = 1170            -- without the save code rows
+local H_BASE = 1264            -- without the save code rows
 local H_CODES = H_BASE + 232   -- with them (a caption and two rows)
 
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
@@ -228,6 +228,10 @@ function M.build(e)
 			width = CARD_W - 40, height = 56 })
 		y = y - 96 - 60
 	end
+
+	-- the privacy policy: a page of the site, opened in a new tab (web only; elsewhere nothing happens)
+	row_button(e, body, y - 52, "ui/icons/lock", i18n.t("privacy.link"), function() account.open_privacy() end, "privacy")
+	y = y - 94
 
 	-- save code: the progress lives in the cloud now, so the two rows are hidden (five taps on the version show them)
 	if codes then

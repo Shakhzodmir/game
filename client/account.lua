@@ -7,6 +7,7 @@ local app = require("client.app")
 local auth = require("client.services.auth")
 local cloud = require("client.cloud")
 local i18n = require("client.i18n")
+local platform = require("client.platform")
 
 local M = {}
 
@@ -43,6 +44,8 @@ function M.form_labels(kind)
 		L.title, L.note = i18n.t("account.create"), i18n.t("account.form_register_note")
 	elseif kind == "email" then
 		L.title, L.note = i18n.t("account.link_email"), i18n.t("account.form_mail_note")
+	elseif kind == "reset" then
+		L.title, L.note, L.submit = i18n.t("account.forgot"), i18n.t("account.form_reset_note"), i18n.t("account.reset_send")
 	else
 		L.title = i18n.t("account.id_login")
 	end
@@ -80,6 +83,32 @@ function M.link_email(done)
 		end
 		if done then done(ok, why) end
 	end)
+end
+
+-- "Forgot the password": a form asks for the e-mail, the provider mails a link. The answer is the same whether
+-- or not the address has an account (the provider does not tell either), so the toast only says "if there is".
+-- The letter comes in the language of the game. Needs no sign-in.
+local RESET_FAIL = { offline = "account.reset_offline", too_many = "account.reset_too_many" }
+
+function M.reset_password(done)
+	auth.reset_password(M.form_labels("reset"), i18n.language(), function(ok, why)
+		if ok then
+			app.toast_key("account.reset_sent", nil, { color = "blue", duration = 4 })
+		elseif why ~= "cancelled" then
+			app.toast_key(RESET_FAIL[why] or M.error_key(why), nil, { color = "pink" })
+		end
+		if done then done(ok, why) end
+	end)
+end
+
+-- Opens the privacy page (it sits next to the game's index.html). Only the web build has one; elsewhere nothing
+-- happens. A browser that blocks the new tab gets a toast.
+M.PRIVACY_PAGE = "privacy.html"
+function M.open_privacy()
+	if not platform.is_html5() then return false end
+	local ok = platform.open_url(M.PRIVACY_PAGE)
+	if not ok then app.toast_key("privacy.blocked", nil, { color = "pink", duration = 4 }) end
+	return ok
 end
 
 -- "I confirmed the e-mail": asks the provider for the account again.

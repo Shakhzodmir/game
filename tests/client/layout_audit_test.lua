@@ -57,6 +57,13 @@ SETUPS.acct_id = function(app)
 	auth.link_email_form({}, function() end)
 	cloud.on_signed_in()
 end
+SETUPS.acct_id_nomail = function(app) -- an ID account with no e-mail yet: the warning and the hint how to fix it
+	rich(app)
+	local m, auth, cloud = acct_env(app)
+	m.form_next = { id = "a_login_of_twenty_ch", password = "secret123" }
+	auth.password_form("register", {}, function() end)
+	cloud.on_signed_in()
+end
 SETUPS.acct_google = function(app)
 	rich(app)
 	local m, auth, cloud = acct_env(app)
@@ -131,7 +138,7 @@ local CASES = {
 	{ "shop", { tab = "boosters" } }, { "shop", { tab = "boosters" }, "rich" }, { "shop", { tab = "boosters" }, "late" },
 	{ "shop", { tab = "coins" } }, { "shop", { tab = "coins" }, "rich" }, { "shop", { tab = "coins" }, "nolives" },
 	{ "settings" }, { "settings", nil, "fresh" },
-	{ "account", nil, "acct_guest" }, { "account", { mode = "choice" }, "acct_guest" }, { "account", nil, "acct_id" },
+	{ "account", nil, "acct_guest" }, { "account", { mode = "choice" }, "acct_guest" }, { "account", nil, "acct_id" }, { "account", nil, "acct_id_nomail" },
 	{ "account", nil, "acct_google" }, { "cloud_choice", nil, "cloud_choose" }, { "cloud_choice", nil, "cloud_foreign" }, { "jukebox" }, { "jukebox", nil, "late" },
 	{ "chart", nil, "soc_unavailable" }, { "chart", nil, "soc_signin" }, { "chart", nil, "soc_setup" }, { "chart", nil, "soc_chart" },
 	{ "band", nil, "soc_unavailable" }, { "band", nil, "soc_signin" }, { "band", nil, "soc_setup" }, { "band", nil, "soc_none" },

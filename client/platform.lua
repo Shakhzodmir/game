@@ -9,6 +9,7 @@
 --   platform.vibrate(ms)    haptic tick; on the web navigator.vibrate via
 --                           html5.run (Android browsers), guarded by pcall;
 --                           no-op when haptics are off or unsupported
+--   platform.open_url(relative)  open a page of this site ("privacy.html") in a new tab: true | false; web only
 --   platform.copy_text(text, label)  copy to the clipboard: "clipboard" | "prompt" (web: the browser refused, the
 --                           text is shown in a prompt to copy by hand) | false
 --   platform.paste_text(label)  text from the clipboard (web: a prompt to paste into; label = its question) | nil
@@ -80,6 +81,17 @@ local function js_string(s)
 	return '"' .. s .. '"'
 end
 M.js_string = js_string
+
+-- Opens a page of this site (a relative address such as "privacy.html") in a new browser tab. Only on the web;
+-- elsewhere (and for anything but a plain relative file name or path) it quietly does nothing and answers false.
+-- True when the browser opened the tab, false when it refused (a pop-up blocker) or the call failed.
+function M.open_url(relative)
+	if type(relative) ~= "string" or not relative:match("^[%w][%w%._%-/]*$") or relative:find("..", 1, true) then return false end
+	if not M.is_html5() then return false end
+	local js = "(function(u){var w=window.open(u,'_blank');return w?'1':'0';})(" .. js_string(relative) .. ")"
+	local ok, res = pcall(html5.run, js)
+	return ok and res == "1"
+end
 
 -- Copies `text` (a save code: letters, digits, "-" and "_" only) to the clipboard. On the web the clipboard
 -- API may be refused (no permission, an iframe, an old browser): the text then appears in a prompt, ready
