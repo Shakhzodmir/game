@@ -64,11 +64,11 @@ max_count = 64
 max_count = 256
 
 [sound]
-max_sound_data = 512
+max_sound_data = 768
 max_sound_buffers = 128
 max_sound_sources = 64
 max_sound_instances = 256
-max_component_count = 400
+max_component_count = 768
 
 [resource]
 max_resources = 2048

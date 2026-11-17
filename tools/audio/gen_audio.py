@@ -91,9 +91,12 @@ PITCHED_SFX_MIN_IN_KEY = 75.0  # % of tonal energy on the C major scale for the 
 PITCHED_CUES = ("tap", "swap_fail", "bird", "moves_low", "coin", "star", "floor_light")
 # notes + sfx + the district music; raised 13.11.2026 from 7 MB for districts 7+, approved by the producer
 # (≈0.8 MB per district); raised 16.11.2026 for districts 11-15, approved by the producer; about 0.6-0.9 MB per
-# district
-SIZE_BUDGET = 14 * 1024 * 1024
-SONG_BUDGET = 14 * 1024 * 1024       # the jukebox songs: 6 MB of the district genres + 8 MB of the extra genres (WP-6)
+# district; raised 17.11.2026 from 14 MB for Part 2 (districts 16-30, about 1 MB each: 13.8 MB with district 16,
+# about 28 MB with all thirty), docs/handoff/WP-19-music.md
+SIZE_BUDGET = 30 * 1024 * 1024
+# the jukebox songs: 16 MB of the district genres (8 MB before Part 2; about 0.5 MB a district) + 8 MB of the extra
+# genres (WP-6)
+SONG_BUDGET = 24 * 1024 * 1024
 SONG_LUFS = -20.0     # integrated loudness of every song (the district full songs sit at -19.0 ... -20.0; in a level the song is a music bed: see the headroom check)
 SONG_TOL = 1.0
 SONG_GR_MAX = 5.0     # dB the loop limiter may take at one peak (a crash, a snare)

@@ -3643,6 +3643,210 @@ def try_again_lullaby(s):
     return {"keys": acc, "bass": bass, "lead": lead, "celesta": box}
 
 
+# ===================================================== MIDNIGHT CAFE (Db) - Part 2
+# The night café beyond its theme (music.py: rainy boom-bap at 68 BPM in Bb minor, an electric piano, a muted horn,
+# rain and a wind chime, a neon hum). Its four songs are other hours of the same night, none of them the café of
+# the day (rainy_window, pancake_sunday, pixel_cafe, sleepy_cat, in F): night_tram rides the last tram (the rail
+# joints are its hats, a far muted horn sings), neon_puddles is jazzy hip-hop after the rain (muted guitar chops,
+# a vibraphone, drops echoing in the puddles), three_am_tea has no kick at all (a kettle that starts to sing, a
+# music box, slow brushes, the hum of the fridge), rooftop_stars is the hopeful walk home in Db major (a bright
+# piano riff, a bouncy bass, finger snaps, a whistled tune).
+
+
+def rail_click(sr, key=0):
+    """A wheel over a rail joint: a hard little click with a ring of steel and the thud of the bogie under it."""
+    def mk():
+        n = nsamp(0.09, sr)
+        t = np.arange(n) / sr
+        r = dsp.rng("rail", key)
+        x = dsp.bandpass(r.standard_normal(n), 2500, 8000, sr) * np.exp(-t / 0.004)
+        x += 0.35 * np.sin(TAU * float(midi_hz(87)) * t) * np.exp(-t / 0.02)  # Eb7: the steel rings in key
+        x += 0.6 * np.sin(TAU * 70.0 * t) * np.exp(-t / 0.03) * (1 - np.exp(-t / 0.002))
+        return dsp.fade(x / dsp.peak(x), sr, 0.0003, 0.01)
+    return M.cached(("railclick", sr, key), mk)
+
+
+def night_tram(s):
+    """72 BPM: the last tram through the rain. A soft kick and a brushed snare, the wheels clicking over the rail
+    joints as hats ('clack-clack ... clack-clack'), a warm electric piano with a tape wobble, a round sub bass on
+    root and fifth, the tram's bell twice at the top of each half, and far away a muted horn sings the tune."""
+    r = dsp.rng(s.id, "tram")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "midnight")
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X.........x.....", "X.....o...x....."], r, swing=0.35, gain=0.85, jit=0.004)
+    hits(s, d, k["snare"], "....x.......x...", r, gain=0.7, jit=0.004)
+    hits(s, d, k["ghost"], {3: "..............og", 7: "............o.og"}, r, swing=0.35, gain=0.6)
+    rails = [rail_click(s.sr, i) for i in range(3)]
+    hits(s, d, rails, "X.x.....X.x.....", r, gain=0.55, jit=0.002)
+    hits(s, d, rails, "......g.......g.", r, gain=0.5, jit=0.003)
+    d = room(s, loop_filter(s, d, "lp", 7500), 0.14, 0.8, "drums", damp=5000)
+    vo = voicing(ch, 55, 74, 64, no_root)
+    rhy = lambda c, i: [(0, 2.4, 0.6), (2.5, 1.3, 0.42)] if c.dur >= 4 else [(0, 1.8, 0.55)]  # noqa: E731
+    keys = comp(s, ch, vo, rhy, lambda ss, m, du, v: v_epiano(ss, m, du, v, 0.75, 0.35), spread=0.018, r=r,
+                swing=0.35)
+    keys = room(s, tape(s, loop_filter(s, keys, "lp", 4500), 9.0, 0.4, 1.5), 0.22, 1.5, "keys", damp=4500)
+
+    def roots(c, n, i):
+        R = root_of(c, 42, 36, 47)
+        return ([(0, 2.3, R, 0.9), (2.5, 1.2, R + 7 if R + 7 <= 50 else R - 5, 0.65)] if c.dur >= 4
+                else [(0, 1.8, R, 0.85)])
+    bass = loop_filter(s, line(s, ch, roots, v_sub, r=r, jit=0.003, swing=0.35), "lp", 800)
+    ding = s.zeros()
+    for bar in (0, 4):
+        for j, (bt, m) in enumerate(((0.0, 85), (0.35, 85))):  # Db6 twice: 'ding-ding'
+            s.add(ding, bell(s, m, 0.8 - 0.15 * j, t60=1.4), bar * 4 + bt)
+    ding = room(s, ding, 0.35, 2.0, "bell", damp=6000)
+    tn = tune("r:1 6:.5 1+:.5 3+:1.5 2+:.5 | 7:2 5:1 6:1 | 1+:1.5 6:.5 5:2 | r:2 5:.5 6:.5 1+:1 |"
+              " 3+:1.5 2+:.5 1+:1 6:1 | 7:1.5 1+:.5 5:2 | 4+:1 2+:1 1+:1.5 2+:.5 | 6:3 r:1", t, 4)
+    trp = mono(s, tn, "trumpet", swing=0.35, key="tram")
+    trp = loop_filter(s, loop_eq(s, trp, "peak", 1500, 6.0, 2.0), "lp", 2800)  # the mute, and the distance
+    trp = room(s, echo(s, tape(s, trp, 6.0, 0.35), 0.75, 0.25, 0.4, 3, 2500), 0.4, 2.4, "trumpet", damp=3500,
+               predelay=0.04)
+    return {"drums": d, "keys": keys, "bass": bass, "trumpet": trp, "celesta": ding, "dust": M.vinyl_crackle(s)}
+
+
+def drip(s, m, key=0):
+    """A drop falling into a puddle: a soft round 'plip' that slides down a little from its note."""
+    def mk():
+        n = nsamp(0.25, s.sr)
+        tt = np.arange(n) / s.sr
+        f = float(midi_hz(m)) * (1.0 + 0.12 * np.exp(-tt / 0.012))
+        x = np.sin(TAU * np.cumsum(f) / s.sr) * np.exp(-tt / 0.06) * (1 - np.exp(-tt / 0.002))
+        return dsp.fade(x, s.sr, 0.0005, 0.02)
+    return M.cached(("drip", m, s.sr, key), mk)
+
+
+def neon_puddles(s):
+    """84 BPM jazzy hip-hop after the rain: a swung boom-bap, a guitar that chops muted chords on the off-beats,
+    a walking upright bass, a vibraphone tune, drops falling into the puddles on the notes of the pentatonic
+    scale and echoing long."""
+    r = dsp.rng(s.id, "puddles")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "lofi")
+    d = s.zeros()
+    # the kick never lands with the snare (a stacked hit on four would eat the headroom of the notes in a level)
+    hits(s, d, k["kick"], ["X.....x...x.....", "X.....x..x...x.."], r, swing=0.45, gain=0.9)
+    hits(s, d, k["snare"], "....X.......X...", r, swing=0.45, gain=0.8)
+    hits(s, d, k["rim"], {1: "..............g.", 5: "..............g.", 7: "...........g.gx."}, r, swing=0.45, gain=0.6)
+    hits(s, d, k["hat"], "x.ogx.o.x.ogx.o.", r, swing=0.45, gain=0.5)
+    d = room(s, loop_eq(s, dsp.drive(d / dsp.peak(d) * 1.1, 1.2), "highshelf", 4500, 1.5), 0.12, 0.7, "drums",
+             damp=6000)
+    vo = voicing(ch, 57, 74, 65, no_root)
+    gtr = s.zeros()
+    for i, c in enumerate(ch):
+        for bt, v, up in ((0.5, 0.8, False), (1.5, 0.65, True), (2.5, 0.8, False), (3.25, 0.5, True)):
+            if bt >= c.dur:
+                continue
+            x = v_strum(s, vo[i], 0.12, v, up=up, spread=0.006, bright=0.4, t60=0.35, mute=0.025, key=i % 3)
+            s.add(gtr, x, sw(c.start + bt, 0.45), 1.0, dt=float(r.normal(0.003, 0.002)))
+    gtr = room(s, loop_eq(s, loop_filter(s, gtr, "hp", 150), "peak", 2200, 2.0, 0.9), 0.15, 0.9, "gtr", damp=5000)
+
+    def walkin(c, n, i):
+        R = root_of(c, 43, 36, 50)
+        nxt = root_of(n, R, 36, 50)
+        ap = scale_step(t, nxt, nxt < R)
+        if c.dur < 4:
+            return [(0, 0.9, R, 0.9), (1.0, 0.9, ap, 0.7)]
+        third = R + (3 if 3 in c.tones else 4)
+        return [(0, 0.9, R, 0.9), (1.0, 0.9, third, 0.7), (2.0, 0.9, R + 7 if R + 7 <= 52 else R - 5, 0.8),
+                (3.0, 0.9, ap, 0.7)]
+    bass = room(s, loop_filter(s, line(s, ch, walkin, v_upright, r=r, jit=0.004, swing=0.45), "lp", 1100), 0.06,
+                0.6, "bass", damp=2500)
+    tn = tune("6:.5 5:.5 3:1 r:.5 2:.5 3:1 | 5:1.5 3:.5 7-:2 | r:.5 6-:.5 1:.5 3:.5 2:2 | 1:1 7-:.5 5-:.5 1:2 |"
+              " 6:.5 5:.5 3:1 r:.5 5:.5 6:1 | 7:1.5 5:.5 3:2 | 2:1 3:.5 4:.5 5:1 4:1 | 3:1 1:1 6-:2", t, 5)
+    vib = room(s, echo(s, lay(s, v_vibes, tn, r=r, jit=0.004, swing=0.45), 0.75, 0.2, 0.35, 3, 4500), 0.22, 1.5,
+               "vib", damp=6000)
+    pent = [m for m in range(85, 98) if (m - t) % 12 in (0, 2, 4, 7, 9)]
+    drops = s.zeros()
+    for bar in range(s.bars):
+        for j in range(2 if bar % 2 else 3):
+            bt = bar * 4 + float(r.uniform(0.0, 4.0))
+            s.add(drops, drip(s, pent[int(r.integers(len(pent)))], j), bt, float(r.uniform(0.4, 0.9)))
+    drops = room(s, echo(s, drops, 0.75, 0.45, 0.55, 5, 3500), 0.35, 2.2, "drops", damp=5000)
+    return {"drums": d, "guitar": gtr, "bass": bass, "vibes": vib, "fx": drops, "dust": M.vinyl_crackle(s)}
+
+
+def three_am_tea(s):
+    """64 BPM, three in the morning, no kick drum: a soft pad that breathes, a kettle on the stove that hisses
+    and slowly starts to sing (a faint whistle high on the fifth of the key), a music-box tune, brushes swept
+    slowly on two and four, and the low hum of the fridge on the root of every chord."""
+    r = dsp.rng(s.id, "tea")
+    t, ch = s.tonic, s.chords
+    d = s.zeros()
+    for bar in range(s.bars):
+        for bt in (1.0, 3.0):
+            s.add(d, ins.brush_swish(s.sr, s.sec(0.9), key=bar * 2 + int(bt)), bar * 4 + bt - 0.35, 0.7)
+        for bt, v in ((0.0, 0.35), (2.0, 0.3), (2.75, 0.2)):
+            s.add(d, ins.brush_tap(s.sr, key=bar * 3 + int(bt * 4), dur=0.1, tone=float(midi_hz(49))), bar * 4 + bt,
+                  v * float(r.uniform(0.85, 1.05)))
+    d = room(s, loop_filter(s, d, "lp", 7000), 0.25, 1.4, "drums", damp=5000)
+    pad = comp(s, ch, voicing(ch, 53, 72, 62, no_root), lambda c, i: [(0, c.dur * 0.98, 0.7)],
+               lambda ss, m, du, v: v_pad(ss, m, du, v, 1400.0, 1.0, 1.4, k=m % 3), r=r)
+    pad = room(s, tape(s, loop_filter(s, pad, "hp", 120), 6.0, 0.25, 1.0), 0.3, 2.4, "pad", damp=4000)
+    hum = loop_filter(s, line(s, ch, lambda c, n, i: [(0, c.dur * 0.98, root_of(c, 37, 32, 43), 0.8)], v_sub, r=r),
+                      "lp", 300)
+    tn = tune("5:1 3:1 1+:1.5 7:.5 | 6:2 5:1 3:1 | 4:1 6:1 1+:1 6:1 | 5:3 r:1 |"
+              " 3:1 5:1 2+:1.5 1+:.5 | 7:2 5:1 3:1 | 6:1 5:.5 4:.5 6:1 1+:1 | 7:1.5 5:.5 3:2", t, 5)
+    box = lay(s, lambda ss, m, du, v: v_celesta(ss, m, du, v * 0.85, t60=1.1), tn, r=r, jit=0.006)
+    box = room(s, echo(s, box, 1.0, 0.25, 0.4, 3, 4500), 0.35, 2.4, "box", damp=5000)
+    n = s.n
+    swell = 0.5 - 0.5 * s.lfo(1.0 / (n / s.sr), 0.25)  # the kettle warms up over the loop and calms again
+    hiss = dsp.loop_apply(r.standard_normal(n), lambda z: dsp.bandpass(z, 2500, 7500, s.sr)) * (0.3 + 0.7 * swell)
+    tt = np.arange(n) / s.sr
+    f = float(midi_hz(nearest((t + 7) % 12, 92, 86, 97)))  # the fifth of the key, high: the kettle's whistle
+    f = round(f * n / s.sr) * s.sr / n
+    whistle = np.sin(TAU * f * tt) * swell ** 3 * (1 + 0.1 * s.lfo(5.0))
+    kettle = hiss / np.std(hiss) + 0.6 * whistle / dsp.peak(whistle)
+    kettle = room(s, kettle, 0.3, 1.8, "kettle", damp=6000)
+    return {"drums": d, "pad": pad, "bass": hum, "box": box, "fx": kettle}
+
+
+def rooftop_stars(s):
+    """92 BPM, the hopeful walk home over the roofs in Db major: a light boom-bap with finger snaps on two and
+    four, a bright piano riff that pushes across the beat, a bouncy bass that hops between root and octave, a
+    whistled synth tune, a few high bells (the stars) in the second half."""
+    r = dsp.rng(s.id, "stars")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "lofi")
+    snaps = kits(s, "block")["snap"]
+    d = s.zeros()
+    hits(s, d, k["kick"], ["X.....x...x.....", "X.....x...x..x.."], r, swing=0.3, gain=0.9)
+    hits(s, d, k["snare"], {3: "............x.gx", 7: "..........g.x.xx"}, r, swing=0.3, gain=0.5)
+    hits(s, d, snaps, "....X.......X...", r, gain=0.9, jit=0.004)
+    hits(s, d, k["hat"], "x.o.x.o.x.o.x.oo", r, swing=0.3, gain=0.5)
+    d = room(s, loop_eq(s, dsp.drive(d / dsp.peak(d) * 1.1, 1.2), "highshelf", 5000, 2.0), 0.12, 0.7, "drums",
+             damp=6500)
+    vo = voicing(ch, 58, 77, 67)
+    riff = [(0, 0.45, 0.85), (0.75, 0.25, 0.6), (1.5, 0.45, 0.75), (2.5, 0.45, 0.8), (3.25, 0.6, 0.65)]
+    pno = comp(s, ch, vo, lambda c, i: within(c, riff), lambda ss, m, du, v: v_piano(ss, m, du, v, 0.9, 0.15),
+               spread=0.008, r=r, swing=0.3)
+    pno = room(s, loop_filter(s, pno, "hp", 140), 0.18, 1.2, "piano", damp=6000)
+
+    def hop(c, n, i):
+        R = root_of(c, 41, 36, 47)
+        out = []
+        for q in range(int(c.dur * 2)):
+            if q % 4 == 1:
+                continue
+            out.append((q * 0.5, 0.35, R + 12 if q % 2 == 1 else R, 0.9 if q % 4 == 0 else 0.65))
+        return out
+    bass = loop_filter(s, line(s, ch, hop, lambda ss, m, du, v: v_sbass(ss, m, du, v, 900.0, 0.07), r=r, jit=0.003,
+                               swing=0.3), "lp", 1300)
+    tn = tune("3:.5 5:.5 1+:1 2+:.5 1+:.5 5:1 | 7-:1 3:1 5:1.5 3:.5 | 6:1.5 5:.5 4:1 3:1 | 5:2 r:1 5:.5 6:.5 |"
+              " 1+:1 2+:.5 3+:.5 2+:1 1+:1 | 7:1.5 5:.5 3:2 | 6:1 4:1 5:1 2+:1 | 1+:3 r:1", t, 5)
+    whistle = room(s, echo(s, mono(s, tn, "flute", swing=0.3, key="stars"), 0.75, 0.2, 0.35, 3, 5000), 0.25, 1.6,
+                   "whistle", damp=6000)
+    stars = s.zeros()
+    for c in ch:
+        if c.start >= 16:
+            ns = chord_notes(c, 85, 98)
+            for q, j in enumerate((0, 2, 1, 3)):
+                s.add(stars, v_celesta(s, ns[j % len(ns)], 0.5, 0.45, t60=0.7), c.start + 0.5 + q * 0.75)
+    stars = room(s, echo(s, stars, 0.75, 0.25, 0.35, 3, 6000), 0.3, 1.8, "stars", damp=7000)
+    return {"drums": d, "keys": pno, "bass": bass, "lead": whistle, "celesta": stars}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -3778,6 +3982,15 @@ SONGS = {
                         {"drums": -17, "bass": -19, "lead": -18, "keys": -23, "arp": -23}),
     "try_again_lullaby": ("I:4 IV:4 I:4 V:4 vi:4 IV:4 ii:2 V:2 I:4", try_again_lullaby,
                           {"keys": -21, "bass": -22, "lead": -18, "celesta": -24}),
+    # midnight_cafe (Db major; the night leans on its relative minor, Bb minor) - Part 2
+    "night_tram": ("vi9:4 iii7:4 IVmaj9:4 Imaj7:4 vi9:4 iii7:4 ii9:2 V7sus4:2 vi9:4", night_tram,
+                   {"drums": -18, "keys": -19, "bass": -21, "trumpet": -19, "celesta": -25}),
+    "neon_puddles": ("IVmaj7:4 iii7:4 vi9:4 Imaj9:4 IVmaj7:4 iii7:4 ii9:2 V7sus4:2 vi9:4", neon_puddles,
+                     {"drums": -17.5, "guitar": -21, "bass": -20, "vibes": -19, "fx": -27}),
+    "three_am_tea": ("Imaj9:4 vi9:4 IVmaj7:4 V7sus4:4 Imaj9:4 iii7:4 IVmaj9:4 V6:4", three_am_tea,
+                     {"drums": -25, "pad": -21, "bass": -25, "box": -18, "fx": -30}),
+    "rooftop_stars": ("Iadd9:4 iii7:4 IVmaj7:4 V6:4 Iadd9:4 iii7:4 IVmaj7:2 V7sus4:2 Iadd9:4", rooftop_stars,
+                      {"drums": -17, "keys": -20, "bass": -20, "lead": -18, "celesta": -25}),
 }
 
 

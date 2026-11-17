@@ -136,12 +136,26 @@ describe("client.views (meta screens)", function()
 		local by_id = {}
 		for _, d in ipairs(H.districts().districts) do by_id[d.id] = d end
 		local vm = views.jukebox(m, by_id)
-		assert_eq(#vm.tabs, 15)
+		-- a tab per district: the fifteen of Part 1, then those of Part 2 in the order of content/districts.json
+		local all = H.districts().districts
+		assert_eq(#vm.tabs, #all)
 		assert_eq(vm.chosen, nil)
 		local ids = {}
 		for i, tab in ipairs(vm.tabs) do ids[i] = tab.id end
-		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage", "beach", "carnival", "cinema", "bazaar", "skyclub",
+		local part1 = {}
+		for i = 1, 15 do part1[i] = ids[i] end
+		assert_same(part1, { "cafe", "jazz", "square", "stadium", "garage", "beach", "carnival", "cinema", "bazaar", "skyclub",
 			"block", "island", "ranch", "bluesclub", "arcade" })
+		for i = 16, #all do
+			assert_eq(ids[i], all[i].id)
+			assert_eq(vm.tabs[i].state, "locked", all[i].id .. " is open at the start")
+			assert_eq(vm.tabs[i].count, 1 + #all[i].songs, all[i].id .. ": its theme and its songs")
+		end
+		assert_eq(ids[16], "midnight_cafe")
+		assert_same(vm.tabs[16].genre, { en = "Night Lo-fi", ru = "Ночной лоу-фай", ko = "나이트 로파이" })
+		local night = {}
+		for i, r in ipairs(vm.songs.midnight_cafe) do night[i] = r.id end
+		assert_same(night, { "midnight_cafe", "night_tram", "neon_puddles", "three_am_tea", "rooftop_stars" })
 		-- the district being built: its genre is open, the rest are dark
 		assert_eq(vm.tabs[1].state, "current")
 		assert_eq(vm.tabs[2].state, "locked")
@@ -223,7 +237,9 @@ describe("client.views (meta screens)", function()
 		assert_eq(vm.tabs[13].color, "#B23A2E", "the country ranch is barn red")
 		assert_eq(vm.tabs[14].color, "#2E5FB8", "the blues club is deep river blue")
 		assert_eq(vm.tabs[15].color, "#F02FC2", "the pixel arcade is neon magenta")
+		assert_eq(vm.tabs[16].color, "#4B3FA6", "the night café is midnight indigo")
 		for _, group in pairs(views.GROUP_COLORS) do
+			assert_true(group ~= vm.tabs[16].color, "the night café shares its colour with a genre group")
 			assert_true(group ~= vm.tabs[8].color, "the cinema shares its colour with a genre group")
 			assert_true(group ~= vm.tabs[9].color, "the bazaar shares its colour with a genre group")
 			assert_true(group ~= vm.tabs[10].color, "the sky club shares its colour with a genre group")

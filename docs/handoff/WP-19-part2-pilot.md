@@ -19,7 +19,7 @@
 
 ## Рецепт: как добавить район части 2 (17–30)
 
-Команды из корня репозитория, Windows + Git Bash (`export PATH="$PATH:/c/Users/aigpa/AppData/Local/Programs/LuaJIT/bin"` — путь LuaJIT у продюсера; на Linux `luajit` и `python3` уже в PATH). Район N, родитель — район N−15 части 1. Данные района берите из таблицы `docs/design/part2-districts.md`.
+Команды из корня репозитория, Windows + Git Bash (`export PATH="$PATH:<путь к LuaJIT>"` — путь LuaJIT у продюсера; на Linux `luajit` и `python3` уже в PATH). Район N, родитель — район N−15 части 1. Данные района берите из таблицы `docs/design/part2-districts.md`.
 
 1. **Данные** (`content/districts.json`, в конец списка, по образцу `midnight_cafe`): `id`, `"part": 2`, `first`/`last` (20 уровней сразу после предыдущего), `map_tint`, `name`/`genre` на ru/en/ko, `bpm`, `key`, `semitones_from_c`, `bars` (8), `mood`; 4 песни (`id` уникальные во всём каталоге, `name` ru/en/ko, `bpm`, `bars`, `mood`); `chest`: монеты 3200 + 200 × (N − 16), три бустера; 6 задач с ценами **1, 4, 5, 5, 5, 6**, первая со стемом `beat`. Задачи пишите в том же порядке, что предметы родителя (i-й предмет заглушки берётся у i-й задачи родителя; иначе таблица `TASK_FROM` в скрипте заглушек). Новое имя стема — ключ `stem.<имя>` в `client/i18n.lua` (en, ru) и `client/i18n_ko.lua`. Коммит.
 2. **Песенник**: `sb.<id>.1…32` и `sbt.<id>.1…16` в `client/i18n_songbook.lua` (en, ru; 1–8 слов, без чужих текстов) и в `client/i18n_ko.lua` (ko). Сюжет и тон — другие, чем у района-родителя. Файлы с CRLF: правьте так, чтобы концы строк не поменялись.

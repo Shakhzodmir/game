@@ -44,6 +44,7 @@ HI_RATE = {
     "ranch": set(),  # every stem at 22.05 kHz: a washboard, strings and reeds, nothing lives above 10 kHz
     "bluesclub": set(),  # every stem at 22.05 kHz: brushes, a dark ride and warm amps, nothing lives above 10 kHz
     "arcade": set(),  # every stem at 22.05 kHz: the pulse waves are rounded off at 3-5 kHz, the noise ends at 9 kHz
+    "midnight_cafe": set(),  # every stem at 22.05 kHz: dusty lo-fi, its hats, rain and chimes end below 9 kHz
 }
 
 
@@ -500,6 +501,8 @@ def kit(name, sr):
             k = bluesclub_kit(sr)
         elif name == "arcade":
             k = arcade_kit(sr)
+        elif name == "midnight":
+            k = midnight_kit(sr)
         for v in k.values():
             for a in v:
                 a.setflags(write=False)
@@ -4180,7 +4183,322 @@ def arcade_fx(s):
     return room(s, b, 0.08, 0.7, "fx", damp=4500)
 
 
+# =========================== MIDNIGHT CAFE (Db major, sounding in its relative minor, Bb minor)
+
+def midnight_cafe_song(d):
+    # Part 2, district 16: the café of district 1 at night. Rainy lo-fi hip-hop at 68 BPM in Db major that sounds
+    # in its relative minor (the night versions of Part 2 do, docs/design/part2-districts.md): i - VI - iv - v,
+    # then i - III (the warm Db of the lights in the puddles) - VI VII6 | i, and the minor dominant turns it round.
+    # Every tone is in the scale (the dominant stays minor: no A natural); both halves open on Bbm9, the second ends
+    # with the 'Aeolian' cadence VI - VII - i into Bbm9, the minor dominant keeps the Bb as its 11th, the bass and
+    # the kick lean on Bb: home is Bb minor. The café of the day (F major) is I - iii - IV - V in major sevenths
+    # and never lands on a minor tonic. Chord tones are written above the root (the root is not in them).
+    Bb, Gb, Eb, F, Db, Ab = 10, 6, 3, 5, 1, 8
+    m9, maj9, maj7, m7_11, six = [3, 7, 10, 14], [4, 7, 11, 14], [4, 7, 11], [3, 7, 10, 17], [4, 7, 9]
+    return Song(d, progression([
+        (4, Bb, m9, "Bbm9"), (4, Gb, maj9, "Gbmaj9"), (4, Eb, m9, "Ebm9"), (4, F, m7_11, "Fm7(11)"),
+        (4, Bb, m9, "Bbm9"), (4, Db, maj9, "Dbmaj9"), (2, Gb, maj7, "Gbmaj7"), (2, Ab, six, "Ab6"),
+        (2, Bb, m9, "Bbm9"), (2, F, m7_11, "Fm7(11)"),
+    ]))
+
+
+MC_SW = 0.42  # how late the off-beat 16ths are (of a 16th): the lazy, sleepy lilt of the whole night café
+
+
+def mc(beat):
+    return sw16(beat, MC_SW)
+
+
+def mc_home(s):
+    """The tonic the night café sounds in: Bb, the relative minor of its key (Db)."""
+    return (s.tonic + 9) % 12
+
+
+def mc_holds_home(s, c):
+    """Whether chord c holds the minor tonic (Bb) among its tones: what the bass and the tuned kick lean on."""
+    return mc_home(s) in [c.root] + c.pcs()
+
+
+def night_kick(sr, key=0):
+    """A soft, round kick for the night café: a short knock and a tail that falls onto Bb1 almost at once (a
+    small, quick pitch drop: little time spent on other notes), with a strong octave on Bb2 (what a phone plays
+    of it)."""
+    n = nsamp(0.32, sr)
+    t = np.arange(n) / sr
+    ph = TAU * np.cumsum(float(midi_hz(34)) * (1.0 + 1.2 * np.exp(-t / 0.014))) / sr
+    x = np.sin(ph) * np.exp(-t / 0.085) + 0.8 * np.sin(2.0 * ph + 0.4) * np.exp(-t / 0.075)
+    knock = dsp.bandpass(dsp.rng("nightkick", key).standard_normal(n), 700, 2500, sr) * np.exp(-t / 0.003)
+    x = dsp.drive(x / dsp.peak(x) + 0.2 * knock / dsp.peak(knock), 1.6)
+    return dsp.fade(x / dsp.peak(x), sr, 0.0005, 0.04)
+
+
+def midnight_kit(sr):
+    """The dusty kit of the night café, made for 22.05 kHz (nothing above 9 kHz): a soft kick whose tail
+    settles on Bb1 (and Bb2, what a phone plays of it), a brushed snare (a soft snare body under a brush slap),
+    rim clicks that ring on Bb6, lazy closed hats, a short open hat, a shaker and a dark crash."""
+    unit = lambda x: x / dsp.peak(x)  # noqa: E731
+    k = {}
+    k["kick"] = [unit(dsp.lowpass(night_kick(sr, key=700 + i), 2200, sr, 2)) for i in range(2)]
+    k["snare"] = [unit(dsp.lowpass(dsp.mix(ins.snare(sr, float(midi_hz(58)), 0.07, 0.2, 0.45, 900, 5000, key=710 + i),
+                                           0.8 * ins.brush_tap(sr, key=710 + i, dur=0.16, tone=float(midi_hz(53)))),
+                                   6500, sr, 2)) for i in range(3)]
+    k["ghost"] = [unit(dsp.lowpass(ins.brush_tap(sr, key=720 + i, dur=0.08, tone=float(midi_hz(58))), 6000, sr, 2))
+                  for i in range(2)]
+    k["rim"] = [unit(dsp.lowpass(ins.rim(sr, key=730 + i, f=float(midi_hz(94))), 8000, sr, 2)) for i in range(2)]
+    # little of the hats' metal (its square waves ring on A and D): more air, less pitch against Bb minor
+    k["hat"] = [unit(dsp.lowpass(ins.hat(sr, 0.035, key=740 + i, lo=5000, tone=0.15), 8500, sr, 2)) for i in range(4)]
+    no = nsamp(0.24, sr)
+    oh = dsp.lowpass(ins.hat(sr, open_=True, key=749, lo=5000, tone=0.15), 8500, sr, 2)[:no]
+    k["ohat"] = [unit(dsp.fade(oh * np.exp(-np.arange(no) / (0.08 * sr)), sr, 0.0003, 0.03))]
+    k["shaker"] = [unit(dsp.lowpass(ins.shaker(sr, key=750 + i, dur=0.07), 8500, sr, 2)) for i in range(3)]
+    k["crash"] = [dsp.lowpass(ins.crash(sr, key=76, t60=2.0), 7000, sr, 2)]
+    return k
+
+
+def midnight_cafe_beat(s):
+    """Night radio: slow dusty boom-bap. A soft kick on one and on the 'and' of three (a lazy push before three
+    every second bar), a brushed snare on two and four with brush ghosts, rim clicks after the backbeat, swung 8th
+    hats that pick up a 16th now and then, a short open hat into each half. Under the kick a round low tone: the
+    root of the chord on one, the Bb on the push and on the 'and' of three wherever the chord holds it, so that
+    the first layer alone already says Bb minor: the kick itself rings on Bb."""
+    k = kit("midnight", s.sr)
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        kicks = [(0.0, 1.0), (2.5, 0.8)]
+        if bar % 2 == 1:
+            kicks += [(1.75, 0.5)]
+        if bar in (3, 7):
+            kicks += [(3.75, 0.45)]
+        for bt, v in kicks:
+            hit(s, b, k["kick"], o + mc(bt), v, r, 0.003)
+        for bt in (1, 3):
+            hit(s, b, k["snare"], o + bt, 0.85, r, 0.004)
+        for bt, v in ((2.75, 0.22),) if bar % 2 == 0 else ((0.75, 0.2), (3.25, 0.18)):
+            hit(s, b, k["ghost"], o + mc(bt), v, r, 0.004)
+        for bt, v in ((1.5, 0.3), (3.5, 0.22)) if bar % 2 == 0 else ((1.5, 0.28),):
+            hit(s, b, k["rim"], o + mc(bt), v, r, 0.004)
+        for i in range(8):
+            if bar in (3, 7) and i == 7:
+                hit(s, b, k["ohat"], o + mc(3.5), 0.4, r, 0.0)
+                continue
+            hit(s, b, k["hat"], o + mc(i * 0.5), 0.5 if i % 2 == 0 else 0.32, r, 0.006)
+        for bt in ((1.75, 3.25) if bar % 2 == 0 else (2.25,)):
+            hit(s, b, k["hat"], o + mc(bt), 0.2, r, 0.006)
+        if bar == 7:  # rim clicks walk into the top of the loop
+            for bt, v in ((3.0, 0.3), (3.25, 0.25), (3.5, 0.35)):
+                hit(s, b, k["rim"], o + mc(bt), v, r, 0.003)
+    b = dsp.drive(b / dsp.peak(b) * 1.2, 1.4)
+    b = loop_filter(s, b, "lp", 7500)
+    b = room(s, b, 0.12, 0.6, "beat", damp=5000)
+    tone = s.zeros()
+    n = nsamp(0.55, s.sr)
+    t = np.arange(n) / s.sr
+    home = mc_home(s)
+    for bar in range(s.bars):
+        for bt, lean, v in ((0.0, False, 0.9), (1.75, True, 0.5), (2.5, True, 0.75)):
+            if bt == 1.75 and bar % 2 == 0:
+                continue
+            c = s.chord_at(bar * 4 + bt)
+            pc = home if lean and mc_holds_home(s, c) else c.root
+            f = float(midi_hz(nearest(pc, 58, 53, 64)))  # an octave above the bass
+            x = (np.sin(TAU * f * t) + 0.3 * np.sin(2 * TAU * f * t + 0.5) * np.exp(-t / 0.08)) * np.exp(-t / 0.13)
+            s.add(tone, dsp.fade(x * (1.0 - np.exp(-t / 0.005)), s.sr, 0.001, 0.06), bar * 4 + mc(bt), v)
+    rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+    return b + 0.4 * tone * rms(b) / rms(tone)
+
+
+# The wind chime of the string lights: bar -> beats where the draught touches it (a few glass notes each)
+MC_CHIMES = {0: (0.75, 2.6), 1: (1.4,), 2: (0.3, 2.9), 3: (2.2,), 4: (0.9, 3.1), 5: (1.6,), 6: (0.5, 2.4), 7: (1.2, 3.3)}
+
+
+def midnight_cafe_rain(s):
+    """String lights: rain on the window of the café. A steady patter (soft noise in two bands that swells and
+    eases with the gusts), single drops striking the glass (short glassy ticks, some bright, some dull), a thin
+    tape hiss, and now and then the draught touches the wind chime under the lights: two to four glass notes on
+    the tones of the chord, high (Db6-F7), left to ring."""
+    r = dsp.rng(s.id, "rain")
+    n = s.n
+    hi = dsp.loop_apply(r.standard_normal(n), lambda z: dsp.bandpass(z, 1800, 7000, s.sr))
+    lo = dsp.loop_apply(r.standard_normal(n), lambda z: dsp.lowpass(dsp.highpass(z, 150, s.sr), 900, s.sr, 2))
+    gust = 1.0 + 0.3 * s.lfo(0.11) + 0.15 * s.lfo(0.29, 0.4)
+    patter = (hi / np.std(hi) + 0.6 * lo / np.std(lo)) * gust
+    drops = s.zeros()
+    nd = int(n / s.sr * 7)
+    for i in range(nd):
+        f = float(r.uniform(1800, 5200))
+        m = nsamp(float(r.uniform(0.012, 0.04)), s.sr)
+        t = np.arange(m) / s.sr
+        x = np.sin(TAU * f * t * (1.0 - 0.15 * t / t[-1])) * np.exp(-t / (t[-1] * 0.3))
+        x += 0.5 * r.standard_normal(m) * np.exp(-t / 0.002)
+        s.add(drops, dsp.fade(x, s.sr, 0.0003, 0.003), float(r.uniform(0, s.beats)), float(r.uniform(0.2, 1.0)))
+    drops = loop_filter(s, drops, "lp", 8000)
+    hiss = dsp.loop_apply(r.standard_normal(n), lambda z: dsp.bandpass(z, 3000, 9000, s.sr))
+    chime = s.zeros()
+    for bar, spots in MC_CHIMES.items():
+        for bt in spots:
+            c = s.chord_at(bar * 4 + bt)
+            pcs = {(c.root + t) % 12 for t in [0] + c.tones}
+            tones = [m for m in range(85, 102) if m % 12 in pcs]
+            for j in range(int(r.integers(2, 5))):
+                m = tones[int(r.integers(len(tones)))]
+                x = ins.glock(m, s.sr, vel=0.5, dur=1.6, octave_up=False, t60_scale=0.9)
+                s.add(chime, x, bar * 4 + bt + j * float(r.uniform(0.12, 0.3)), float(r.uniform(0.45, 0.9)))
+    chime = room(s, echo(s, chime, 0.75, 0.2, 0.3, 2, 6000), 0.35, 2.0, "chime", damp=7000)
+    x = (0.035 * patter / np.std(patter) + 0.5 * drops / dsp.peak(drops) + 0.03 * hiss / np.std(hiss)
+         + chime / dsp.peak(chime))
+    return room(s, x, 0.15, 1.2, "rain", damp=6000)
+
+
+def midnight_cafe_keys(s):
+    """The electric piano at the window: wobbly rootless chords (the minor ninths, major ninths and the eleventh
+    of the minor dominant; the tonic chord keeps its Bb, on top of the ninth's C), each rolled a little late and
+    left to ring, a softer second hit on the swung 'and' of three in the long chords; the left hand plays the root
+    low and soft. Tape wow and a slow tremolo make it sway; the top is dull, like a speaker in the next room."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "keys")
+    home = mc_home(s)
+    vo = voice_lead([c.pcs() + ([home] if c.root == home else []) for c in s.chords], 55, 76, 65)
+    for i, c in enumerate(s.chords):
+        pat = [(0.0, 2.2, 0.62), (2.5, 1.3, 0.42)] if c.dur >= 4 else [(0.0, 1.8, 0.58)]
+        if c.dur >= 4 and c.name.startswith("Fm"):  # the minor dominant: a little push on the 'e' of four, home
+            pat = [(0.0, 2.2, 0.62), (2.5, 0.6, 0.4), (3.25, 0.7, 0.36)]
+        for bt, du, v in pat:
+            for j, m in enumerate(vo[i]):
+                x = ins.epiano(m, round(s.sec(du), 4), s.sr, vel=round(v + 0.03 * j, 2), bright=0.75, release=0.35)
+                s.add(b, x, c.start + mc(bt), 0.8, dt=0.018 + j * 0.02 + r.normal(0, 0.003))
+        lh = nearest(c.root, 44, 39, 50)
+        s.add(b, ins.epiano(lh, round(s.sec(min(c.dur, 4.0) * 0.9), 4), s.sr, vel=0.45, bright=0.5, release=0.4),
+              c.start, 0.55, dt=0.008)
+    b = loop_filter(s, b, "hp", 90)
+    b = loop_filter(s, b, "lp", 4200)
+    b = b * (1.0 - 0.14 * (0.5 + 0.5 * s.lfo(3.4)))
+    b = tape(s, b, 11.0, 0.37, 2.0)
+    b = dsp.drive(b / dsp.peak(b), 1.25)
+    return room(s, b, 0.22, 1.5, "keys", damp=4500)
+
+
+def midnight_cafe_bass(s):
+    """Wet umbrellas: a round upright-style bass that slides. The root on one, held; on the 'and' of three the
+    Bb wherever the chord holds it (the octave under the tonic chord, the third under Gb, the fifth under Eb, the
+    eleventh under F; else the fifth), scooped up into; on four a scale step that glides into the root of the next
+    chord. A finger thump on every note, a triangle an octave up (what a phone plays of it)."""
+    scale = {(s.tonic + i) % 12 for i in (0, 2, 4, 5, 7, 9, 11)}
+    root = lambda c: nearest(c.root, 44, 37, 49)  # noqa: E731
+    ev = []
+    for i, c in enumerate(s.chords):
+        R = root(c)
+        nxt = root(s.next_chord(c))
+        step = nxt + (2 if nxt <= R else -2)
+        while step % 12 not in scale:
+            step += -1 if nxt <= R else 1
+        if c.dur >= 4:
+            if c.root == mc_home(s):
+                hi = R + 12 if R + 12 <= 58 else R - 12
+            elif mc_holds_home(s, c):
+                hi = min(m for m in range(R + 1, R + 13) if m % 12 == mc_home(s))
+            else:
+                hi = R + 7 if R + 7 <= 52 else R - 5
+            ev += [(c.start, 1.9, R, 0.9), (c.start + mc(2.5), 0.9, hi, 0.75, {"bend": 1.0, "bend_t": 0.07}),
+                   (c.start + 3.5, 0.5, step, 0.7)]
+        else:
+            ev += [(c.start, 1.3, R, 0.85), (c.start + 1.5, 0.5, step, 0.65)]
+    kw = dict(glide=0.06, legato_gap=0.08, attack=0.01, release=0.09, vib_depth=0.0, key="mcbass")
+    src, env, onset = render_line(s, events(s, ev), osc="sine", **kw)
+    top, _, _ = render_line(s, events(s, [(e[0], e[1], e[2] + 12) + tuple(e[3:]) for e in ev]), osc="tri", **kw)
+    nz = dsp.lowpass(dsp.rng(s.id, "thump").standard_normal(len(src)), 500, s.sr, 2)
+    x = (src + 0.28 * top) * env + 0.5 * nz / np.std(nz) * np.clip(onset, 0, 1) ** 6 * env
+    x = dsp.tube(x * 1.1, 1.6, s.sr, bias=0.12)
+    b = wrap(s, dsp.highpass(x, 32, s.sr, 2))
+    b = loop_filter(s, b, "lp", 1000)
+    return room(s, b, 0.05, 0.5, "bass", damp=2500)
+
+
+# The cat's tune, F4-F5, sleepy: a pick-up into a long Db, Bb over the Gb chord, down from Eb over the iv, a C
+# that sighs down to Bb over the minor dominant; the second time up to a long F over the Db chord, and home on a
+# long Bb over the tonic (still the 11th of the dominant that turns the loop round). bar -> (beat, beats, midi)
+MC_TUNE = bars({
+    0: [(0.5, 0.5, 65), (1.0, 0.5, 68), (1.5, 2.0, 73), (3.5, 0.5, 72)],
+    1: [(0.0, 1.5, 70), (2.0, 0.5, 68), (2.5, 0.5, 70), (3.0, 1.0, 73)],
+    2: [(0.0, 1.5, 75), (1.5, 0.5, 73), (2.0, 1.5, 70)],
+    3: [(0.0, 1.5, 72), (1.5, 1.5, 70), (3.5, 0.5, 72)],
+    4: [(0.0, 1.0, 73), (1.0, 0.5, 72), (1.5, 0.5, 73), (2.0, 1.5, 77), (3.5, 0.5, 75)],
+    5: [(0.0, 2.0, 77), (2.0, 0.5, 75), (2.5, 0.5, 73), (3.0, 1.0, 72)],
+    6: [(0.0, 1.0, 70), (1.0, 0.5, 68), (1.5, 0.5, 66), (2.0, 1.5, 72), (3.5, 0.5, 70)],
+    7: [(0.0, 3.0, 70)],
+})
+
+
+def midnight_cafe_lead(s):
+    """Cat in a blanket: a sleepy muted horn (a harmon mute: thin, nasal and soft, far away) that sings the
+    tune lazily behind the beat, scooping into the long notes, with a tape echo on the dotted 8th that wobbles
+    with the tape."""
+    ev = [(mc(b) + 0.03, d * 0.94, m, 0.85 if d >= 1.5 else 0.72, {"scoop": 0.6} if d >= 1.5 else {})
+          for b, d, m in MC_TUNE]
+    src, env, _ = render_line(s, events(s, ev), osc="saw", glide=0.025, legato_gap=0.01, attack=0.05, release=0.12,
+                              vib_rate=5.0, vib_depth=0.09, vib_delay=0.3, key="mchorn")
+    x = src * env
+    x = dsp.highpass(x, 480, s.sr, 2)
+    x = dsp.filt(x, "peak", 1450, s.sr, q=1.5, gain_db=9.0)
+    x = dsp.filt(x, "peak", 2700, s.sr, q=2.0, gain_db=3.0)
+    x = dsp.lowpass(x, 3600, s.sr, 2)
+    x += 0.05 * ins.breath(len(x), s.sr, "mchorn", 1200, 4000) * env
+    b = wrap(s, x / dsp.peak(x))
+    b = tape(s, b, 6.0, 0.37, 1.0)
+    b = b + 0.32 * tape(s, dsp.delay_loop(b, s.sr, s.sec(0.75), 0.5, 4, 2200), 14.0, 0.25)
+    return room(s, b, 0.3, 2.0, "lead", damp=4000, predelay=0.025)
+
+
+def midnight_cafe_pad(s):
+    """The 'Open' neon sign: a deep night pad (the 3rd, 7th and 9th of every chord, low and wide; the tonic chord
+    has its own Bb instead of the 9th) whose filter opens and closes slowly over each half of the loop, and the
+    city far away: a low rumble of traffic that swells and fades, and the faint hum of the sign itself on Bb (with
+    its overtones), flickering a little."""
+    b = s.zeros()
+
+    def shell_of(c):  # 3rd, 7th (6th), 9th/11th: three distinct pitch classes
+        if c.root == mc_home(s):
+            return [c.tones[0], c.tones[2], 12]
+        out = []
+        for i in (0, 2, 3, 1):
+            if i < len(c.tones) and len(out) < 3 and c.tones[i] % 12 not in [t % 12 for t in out]:
+                out.append(c.tones[i])
+        return out
+    vo = voice_lead([c.pcs(shell_of(c)) for c in s.chords], 49, 70, 59)
+    for c, v in zip(s.chords, vo):
+        for j, m in enumerate(v):
+            s.add(b, pad_note(m, s.sec(c.dur) + 0.4, s.sr, cutoff=4000, attack=0.9, release=1.3, det=9.0, key=j),
+                  c.start - 0.15)
+    dark = loop_filter(s, b, "lp", 650)
+    bright = loop_filter(s, b, "lp", 2600)
+    w = 0.5 - 0.5 * s.lfo(2.0 / (s.n / s.sr), 0.25)  # two slow sweeps a loop: closed at the top of each half
+    pad = tape(s, dark + w * (bright - dark), 7.0, 0.3, 1.0)
+    pad = loop_filter(s, pad, "hp", 110)
+    r = dsp.rng(s.id, "city")
+    city = dsp.loop_apply(r.standard_normal(s.n), lambda z: dsp.lowpass(dsp.highpass(z, 45, s.sr), 220, s.sr, 2))
+    city = city / np.std(city) * (0.7 + 0.3 * s.lfo(0.07, 0.6))
+    t = np.arange(s.n) / s.sr
+    f = float(midi_hz(nearest(mc_home(s), 46, 40, 51)))  # Bb2: the neon hums on the tonic
+    f = round(f * s.n / s.sr) * s.sr / s.n  # a whole number of cycles in the loop: no step at the seam
+    hum = sum(a * np.sin(TAU * f * h * t) for h, a in ((1, 1.0), (2, 0.5), (3, 0.3), (4, 0.15)))
+    hum = hum * (0.85 + 0.15 * s.lfo(0.5, 0.1))
+    x = pad / dsp.peak(pad) + 0.06 * city + 0.06 * hum / dsp.peak(hum)
+    return room(s, x, 0.32, 2.4, "pad", damp=4000)
+
+
 # ============================================ tension / party (shared)
+
+# The drum kit of every district (kit() names), used by its tension and party layers.
+KITS = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
+        "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
+        "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade",
+        "midnight_cafe": "midnight"}
+
+# Districts whose theme sounds in the relative minor of their key (the night versions of Part 2,
+# docs/design/part2-districts.md): the tension layer holds the fifth of that minor tonic.
+RELATIVE_MINOR = {"midnight_cafe"}
+
 
 def _pulse_notes(s, octave_center):
     out = []
@@ -4196,21 +4514,21 @@ def tension_stem(s, style):
     hats (16ths or swung triplets) and a soft tremolo on the key's fifth."""
     r = dsp.rng(s.id, "tension")
     b = s.zeros()
-    kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade"}
-    k = kit(kits[style], s.sr)
+    k = kit(KITS[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
     if style in ("jazz", "bluesclub"):
         for i in range(s.beats * 3):
             hit(s, b, hats, i / 3.0, 0.5 if i % 3 == 0 else 0.3, r, 0.003)
     else:
         for i in range(s.beats * 4):
-            swing = {"cafe": 0.3, "block": BLK_SW}.get(style, 0.0)
+            swing = {"cafe": 0.3, "block": BLK_SW, "midnight_cafe": 0.3}.get(style, 0.0)
             hit(s, b, hats, sw16(i * 0.25, swing), 0.55 if i % 2 == 0 else 0.35, r, 0.002)
     pb = s.zeros()
-    for bt, m, v in _pulse_notes(s, 62 if style == "cafe" else 50):
-        if style == "garage":
+    for bt, m, v in _pulse_notes(s, {"cafe": 62, "midnight_cafe": 60}.get(style, 50)):
+        if style == "midnight_cafe":  # the electric piano, darker and softer than the café's, the 8ths a little lazy
+            x = ins.epiano(m, round(s.sec(0.25), 4), s.sr, vel=0.55, bright=0.8, release=0.1)
+            bt = sw8(bt, 0.2)
+        elif style == "garage":
             x = power_chord(m - 12 if m > 52 else m, s.sec(0.3), s.sr, muted=True, key=0)
         elif style == "jazz":
             x = upright(m - 12, s.sec(0.4), s.sr)
@@ -4243,10 +4561,12 @@ def tension_stem(s, style):
         s.add(pb, x, bt, v)
     if style == "garage":
         pb = dsp.loop_apply(pb / dsp.peak(pb), lambda z: ins.amp_sim(z, s.sr, gain=8.0))
-    if style == "cafe":
+    if style in ("cafe", "midnight_cafe"):
         pb = loop_filter(s, pb, "hp", 180)
     b = b / dsp.peak(b) * 0.55 + pb / dsp.peak(pb)
-    fifth = nearest((s.tonic + 7) % 12, 76, 70, 82)
+    # the fifth of the tonic the district sounds in (a night version of Part 2 sounds in the relative minor)
+    home = mc_home(s) if style in RELATIVE_MINOR else s.tonic
+    fifth = nearest((home + 7) % 12, 76, 70, 82)
     tr = s.zeros()
     if style == "ranch":  # no synthesizer in the barn: a fiddle shivers on two strings, the fifth and the root above it
         hold = round(s.sec(s.beats) - 0.5, 4)
@@ -4282,6 +4602,10 @@ def party_chords(s, style):
             c = Chord(c.start, c.dur, c.root, [0, 4, 7], "Ab")
         elif style == "block" and c.name in ("Bbmaj9", "Bb6/9"):  # the horns shout the plain tonic triad
             c = Chord(c.start, c.dur, c.root, [0, 4, 7], "Bb")
+        elif style == "midnight_cafe" and c.name == "Bbm9":  # the plain minor seventh of the tonic, no ninth
+            c = Chord(c.start, c.dur, c.root, [3, 7, 10], "Bbm7")
+        elif style == "midnight_cafe" and c.name == "Fm7(11)":  # the minor dominant with the Bb on top, no fifth
+            c = Chord(c.start, c.dur, c.root, [3, 10, 17], "Fm7(11)")
         out.append(c)
     return out
 
@@ -4314,10 +4638,7 @@ def party_voicing(c):
 def party_stem(s, style):
     """Final concert: crashes, claps, 16th percussion, stabs and a bright arp."""
     r = dsp.rng(s.id, "party")
-    kits = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
-            "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
-            "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade"}
-    k = kit(kits[style], s.sr)
+    k = kit(KITS[style], s.sr)
     dk = kit("dance", s.sr)
     lk = kit("lofi", s.sr)
     b = s.zeros()
@@ -4377,6 +4698,13 @@ def party_stem(s, style):
             for bt in range(4):
                 hit(s, b, k["ohat"], o + bt + 0.5, 0.26, r, 0.0)
                 hit(s, b, k["kick"], o + bt, 0.5, r, 0.0)
+        elif style == "midnight_cafe":  # the café wakes up: lazy 16th hats and a shaker, the kick on one and three
+            for i in range(16):
+                hit(s, b, k["hat"], o + mc(i * 0.25), 0.3 if i % 2 == 0 else 0.2, r, 0.003)
+                hit(s, b, k["shaker"], o + mc(i * 0.25), 0.25 if i % 2 else 0.15, r, 0.003)
+            for bt, v in ((0.0, 0.5), (1.75, 0.3), (2.5, 0.45)):
+                hit(s, b, k["kick"], o + mc(bt), v, r, 0.0)
+            hit(s, b, k["ohat"], o + mc(3.5), 0.3, r, 0.0)
         else:
             for i in range(16):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
@@ -4414,7 +4742,10 @@ def party_stem(s, style):
                    "bazaar": (0.0, 0.5, 1.5, 2.0, 3.0), "skyclub": (0.0, 0.75, 1.5, 2.5, 3.5),
                    "block": (0.0, 1.5, 2.0, 3.5),  # horn stabs: on 1, pushed into 3, on 3, pushed into 1
                    "bluesclub": (0.0, 1 + BT, 2.0, 3 + BT),  # the horns of a rhythm-and-blues band, shuffled
-                   "arcade": (0.0, 0.5, 1.5, 2.0, 3.0, 3.5)}.get(  # a fanfare of pulse waves: 'ta-ta, ta-ta, ta-ta'
+                   "arcade": (0.0, 0.5, 1.5, 2.0, 3.0, 3.5),  # a fanfare of pulse waves: 'ta-ta, ta-ta, ta-ta'
+                   # the night café: on one, the swung 16th before two, the 'and's of two and three, the swung
+                   # 'e' of four
+                   "midnight_cafe": (0.0, mc(0.75), 1.5, 2.5, mc(3.25))}.get(
                        style, (0.5, 1.5, 2.5, 3.5)):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
@@ -4425,6 +4756,8 @@ def party_stem(s, style):
                     x = ins.organ(m, s.sec(0.3), s.sr, bars=(8, 0, 8, 8, 0, 6, 0, 0, 4), perc=0.3, click=0.3)
                 elif style in ("cafe", "beach"):
                     x = ins.epiano(m, s.sec(0.3), s.sr, vel=0.8, bright=1.0, release=0.1)
+                elif style == "midnight_cafe":  # the electric piano of the night, warmer and a little longer
+                    x = ins.epiano(m, round(s.sec(0.4), 4), s.sr, vel=0.8, bright=0.85, release=0.15)
                 elif style == "skyclub":  # house piano
                     x = ins.piano(m, round(s.sec(0.4), 4), s.sr, vel=0.85, bright=0.9, release=0.12)
                 elif style == "ranch":  # the upright piano of the barn dance, short bright chords
@@ -4456,6 +4789,8 @@ def party_stem(s, style):
                 x = upright_piano(m - 12, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
             elif style == "arcade":  # a thin pulse runs up the chord, an octave under the glockenspiel's place
                 x = chip_pulse(m - 12, 0.16, s.sr, 0.125, 0.8, dec=0.05, lp=4500.0)
+            elif style == "midnight_cafe":  # a vibraphone runs up the chord, an octave under the glockenspiel's place
+                x = ins.vibes(m - 12, s.sr, vel=0.6, dur=1.0, release=0.5)
             else:
                 x = ins.glock(m, s.sr, vel=0.7, dur=0.8, octave_up=False)
             at = c.start + i * 0.5
@@ -4513,6 +4848,10 @@ DISTRICTS = {
     "arcade": dict(song=arcade_song, stems={
         "beat": arcade_beat, "bass": arcade_bass, "arp": arcade_arp, "chords": arcade_chords, "lead": arcade_lead,
         "fx": arcade_fx}),
+    # Part 2
+    "midnight_cafe": dict(song=midnight_cafe_song, stems={
+        "beat": midnight_cafe_beat, "rain": midnight_cafe_rain, "keys": midnight_cafe_keys,
+        "bass": midnight_cafe_bass, "lead": midnight_cafe_lead, "pad": midnight_cafe_pad}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -4552,6 +4891,9 @@ LOUDNESS = {
                   "tension": -18, "party": -16},
     "arcade": {"beat": -16, "bass": -19, "arp": -19.5, "chords": -19, "lead": -18, "fx": -18.5,
                "tension": -16.5, "party": -16},  # the tension layer sits on a dense mix of square waves: +1.5 dB
+    # the rain is the quietest layer (rain on the glass is a background), but its chimes still have to be heard
+    "midnight_cafe": {"beat": -16, "rain": -23, "keys": -18, "bass": -20, "lead": -18.5, "pad": -21,
+                      "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on

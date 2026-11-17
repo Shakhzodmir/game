@@ -14,6 +14,15 @@ end
 local districts = json.decode(read("content/districts.json")).districts
 -- the fifteen district genres and the 15 extra genres of content/genres.json (WP-6): both name songs
 local extra_genres = json.decode(read("content/genres.json")).genres
+-- the districts of Part 2 (docs/design/part2-districts.md: districts 16-30, four songs each)
+local part2 = 0
+for _, d in ipairs(districts) do
+	if (d.part or 1) >= 2 then part2 = part2 + 1 end
+end
+local PART2_DISTRICTS = 15
+-- the districts whose theme sounds in the relative minor of their key (the same list as RELATIVE_MINOR of
+-- tools/audio/music.py)
+local RELATIVE_MINOR = { midnight_cafe = true }
 local catalogue = {}
 for _, d in ipairs(districts) do catalogue[#catalogue + 1] = d end
 for _, g in ipairs(extra_genres) do catalogue[#catalogue + 1] = g end
@@ -38,7 +47,8 @@ describe("the registry of the jukebox songs", function()
 				assert_true(e.loop >= 16 and e.loop <= 32, s.id .. " loops " .. e.loop .. " s")
 			end
 		end
-		assert_eq(n, 109)
+		-- 109 in the fifteen districts of Part 1 and the extra genres; every district of Part 2 brings four
+		assert_eq(n, 109 + 4 * part2)
 	end)
 
 	it("has no song that the catalogue does not name, and no id of a district", function()
@@ -60,12 +70,17 @@ describe("the registry of the jukebox songs", function()
 		end
 	end)
 
-	it("stays inside the sound limits of game.project", function()
+	it("stays inside the sound limits of game.project, with room for the rest of Part 2", function()
 		local gp = read("game.project")
 		local function limit(key) return tonumber(string.match(gp, key .. " = (%d+)")) end
 		local components = select(2, string.gsub(audio_go, "embedded_components {", ""))
 		assert_true(components < limit("max_component_count"), components .. " sound components")
 		assert_true(components < limit("max_sound_data"), components .. " sound resources")
+		-- a district of Part 2 adds 12 components (6 task stems, tension, party, 4 songs): the limits (768 since
+		-- 17.11.2026, 400 / 512 before) already hold all fifteen (docs/handoff/WP-19-music.md)
+		local all = components + 12 * (PART2_DISTRICTS - part2)
+		assert_true(all < limit("max_component_count"), all .. " sound components with all of Part 2")
+		assert_true(all < limit("max_sound_data"), all .. " sound resources with all of Part 2")
 	end)
 end)
 
@@ -117,11 +132,12 @@ describe("the audio manifest of the jukebox songs", function()
 		end
 	end)
 
-	-- notes + SFX + district music: 14 MB since 16.11.2026 (10 MB since 13.11.2026, 7 MB before; raised for districts
-	-- 11-15 with the producer's approval, about 0.6-0.9 MB a district) -- the same number as SIZE_BUDGET of
-	-- tools/audio/gen_audio.py. The songs of the district genres: 8 MB (6 MB before; raised 16.11.2026 for districts
-	-- 13-15, approved by the producer): 7.46 MB with all fifteen districts, about 0.45-0.55 MB a district
-	it("costs at most 8 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 14 MB", function()
+	-- notes + SFX + district music: 30 MB since 17.11.2026 for Part 2 (14 MB since 16.11.2026, 10 MB since 13.11.2026,
+	-- 7 MB before; about 0.6-1 MB a district: 13.8 MB with district 16, about 28 MB with all thirty) -- the same number
+	-- as SIZE_BUDGET of tools/audio/gen_audio.py. The songs of the district genres: 16 MB since 17.11.2026 (8 MB since
+	-- 16.11.2026, 6 MB before): 7.46 MB with the fifteen districts of Part 1, about 0.45-0.55 MB a district, so about
+	-- 15.5 MB with all thirty (docs/handoff/WP-19-music.md)
+	it("costs at most 16 MB for the district genres and 8 MB more for the extra genres, the rest of the audio at most 30 MB", function()
 		local bytes, extra = 0, 0
 		local extra_ids = {}
 		for _, g in ipairs(extra_genres) do
@@ -130,13 +146,13 @@ describe("the audio manifest of the jukebox songs", function()
 		for id, m in pairs(songs) do
 			if extra_ids[id] then extra = extra + m.bytes else bytes = bytes + m.bytes end
 		end
-		assert_true(bytes <= 8 * 1024 * 1024, "the district songs weigh " .. bytes .. " bytes")
+		assert_true(bytes <= 16 * 1024 * 1024, "the district songs weigh " .. bytes .. " bytes")
 		assert_true(extra <= 8 * 1024 * 1024, "the songs of the new genres weigh " .. extra .. " bytes (the WP-6 budget is +8 MB)")
 		bytes = bytes + extra
-		assert_true(manifest.total_bytes - bytes <= 14 * 1024 * 1024, "the rest of the audio grew past its 14 MB")
+		assert_true(manifest.total_bytes - bytes <= 30 * 1024 * 1024, "the rest of the audio grew past its 30 MB")
 		local gen = read("tools/audio/gen_audio.py")
-		assert_true(string.find(gen, "SIZE_BUDGET = 14 * 1024 * 1024", 1, true) ~= nil, "the generator checks another budget")
-		assert_true(string.find(gen, "SONG_BUDGET = 14 * 1024 * 1024", 1, true) ~= nil, "the generator checks another song budget")
+		assert_true(string.find(gen, "SIZE_BUDGET = 30 * 1024 * 1024", 1, true) ~= nil, "the generator checks another budget")
+		assert_true(string.find(gen, "SONG_BUDGET = 24 * 1024 * 1024", 1, true) ~= nil, "the generator checks another song budget")
 	end)
 
 	it("measures the layered theme of every district: its stems in task order, then tension and party", function()
@@ -156,12 +172,18 @@ describe("the audio manifest of the jukebox songs", function()
 			end
 			assert_eq(m.stems[#d.tasks + 1].stem, "tension")
 			assert_eq(m.stems[#d.tasks + 2].stem, "party")
-			-- the loudest thing the game really plays stays under the ceiling, and the loop reads in the district's key
+			-- the loudest thing the game really plays stays under the ceiling, and the loop reads in the district's key:
+			-- its major, or, for the night versions of Part 2, its relative minor (docs/design/part2-districts.md;
+			-- tools/audio/music.py RELATIVE_MINOR)
 			for name, c in pairs(m.combos) do
 				if string.sub(name, 1, 3) ~= "all" then assert_true(c.true_peak_dbtp <= -1.0, d.id .. " " .. name) end
 			end
 			local kr = m.key_reading.tasks
-			assert_true(kr.major > kr.relative_minor, d.id .. " reads as its relative minor")
+			if RELATIVE_MINOR[d.id] then
+				assert_true(kr.relative_minor > kr.major, d.id .. " reads as its major, not as its relative minor")
+			else
+				assert_true(kr.major > kr.relative_minor, d.id .. " reads as its relative minor")
+			end
 		end
 		assert_eq(manifest.music.carnival.key_reading.tasks.best, "C maj")
 		assert_eq(manifest.music.carnival.key_reading["tasks+party"].best, "C maj")
@@ -208,6 +230,12 @@ describe("the audio manifest of the jukebox songs", function()
 		assert_eq(manifest.music.arcade.key_reading["tasks+party"].best, "C maj")
 		assert_eq(manifest.music.arcade.key_reading["party alone"].best, "C maj")
 		assert_eq(manifest.music.arcade.key_reading["tension alone"].best, "C maj")
+		-- the night café (Part 2): in Db major, but its kick, its bass and its tune lean on Bb and the second half
+		-- ends VI - VII - i, so the night reads as Bb minor, with the finale too, and the tension alone (the minor
+		-- dominant keeps the Bb as its 11th; no A natural anywhere, so it never leaves the key of the district)
+		assert_eq(manifest.music.midnight_cafe.key_reading.tasks.best, "Bb min")
+		assert_eq(manifest.music.midnight_cafe.key_reading["tasks+party"].best, "Bb min")
+		assert_eq(manifest.music.midnight_cafe.key_reading["tension alone"].best, "Bb min")
 	end)
 
 	it("passes every check the generator ran", function()
