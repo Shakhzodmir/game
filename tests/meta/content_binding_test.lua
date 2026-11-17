@@ -41,13 +41,16 @@ local function validate_error(d, needle)
 end
 
 describe("level count and district stretches from the data", function()
-	it("the shipped districts.json gives 300 levels in fifteen stretches of 20", function()
+	-- 20 levels a district: 300 with the fifteen districts of Part 1, 320 with district 16 (Part 2) ... 600 with 30
+	it("the shipped districts.json gives 20 levels a district (at least the 320 of district 16)", function()
 		guarded(function()
 			town.validate(H.districts())
-			assert_eq(C.levels.count, 300)
-			assert_eq(#C.songbook.districts, 15)
-			assert_eq(N, 300)
-			assert_eq(D, 15)
+			local list = H.districts().districts
+			assert_true(#list >= 16, "district 16 is in the data")
+			assert_eq(C.levels.count, 20 * #list)
+			assert_eq(#C.songbook.districts, #list)
+			assert_eq(N, 20 * #list)
+			assert_eq(D, #list)
 			for i, d in ipairs(C.songbook.districts) do
 				assert_eq(d.first, (i - 1) * 20 + 1)
 				assert_eq(d.last, i * 20)
