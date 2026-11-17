@@ -141,7 +141,7 @@ describe("the stars", function()
 		assert_eq(sky.kind("beach", true), "clouds")
 	end)
 
-	it("stand in the same places every time, in the upper half, and differ between districts", function()
+	it("stand in the same places every time, at the top, and differ between districts", function()
 		local a, b, c = sky.items("stars", "skyclub"), sky.items("stars", "skyclub"), sky.items("stars", "arcade")
 		assert_eq(#a, sky.STARS)
 		assert_same(a, b)
@@ -149,8 +149,8 @@ describe("the stars", function()
 		for i = 1, #a do
 			local s = a[i]
 			assert_eq(s.key, "fx/spark")
-			assert_true(s.x >= 30 and s.x <= sky.W - 30 and s.y >= 640 and s.y <= sky.H, "star " .. i)
-			assert_true(s.w >= 14 and s.w <= 32)
+			assert_true(s.x >= 30 and s.x <= sky.W - 30 and s.y >= 880 and s.y <= sky.H, "star " .. i)
+			assert_true(s.w >= 20 and s.w <= 42)
 			if s.x ~= c[i].x or s.y ~= c[i].y then same = false end
 		end
 		assert_false(same, "another district, another sky")

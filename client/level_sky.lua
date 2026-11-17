@@ -32,7 +32,7 @@ M.CLOUDS = {
 	{ y = 390, w = 220, speed = 6.0, x0 = 250, alpha = 0.50 },
 }
 
-M.STARS = 18
+M.STARS = 22
 
 function M.district_of(list, level)
 	if type(list) ~= "table" or type(level) ~= "number" then return nil end
@@ -70,11 +70,11 @@ function M.items(kind, district)
 	if kind == "stars" then
 		local r = lcg(seed_of(district or "sky"))
 		for i = 1, M.STARS do
-			local size = 14 + math.floor(r() * 18)
+			local size = 20 + math.floor(r() * 22)
 			out[i] = {
 				kind = "star", key = "fx/spark", w = size, h = size,
-				x = 30 + r() * (M.W - 60), y = 640 + r() * 620, -- the upper half of the screen: the board hides the rest
-				speed = 0.8 + r() * 1.6, phase = r() * 6.2832, alpha = 0.55 + r() * 0.4,
+				x = 30 + r() * (M.W - 60), y = 880 + r() * 380, -- the top of the screen: the board hides the middle
+				speed = 0.8 + r() * 1.6, phase = r() * 6.2832, alpha = 0.7 + r() * 0.3,
 			}
 		end
 		return out
