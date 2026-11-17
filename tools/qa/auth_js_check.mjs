@@ -23,7 +23,7 @@ function makeWindow(config, sdk, form) {
 }
 
 function fakeSdk() {
-	const users = {}, docs = {};
+	const users = {}, docs = {}, resets = [], resetMode = { fail: null };
 	let current = null, n = 0;
 	const err = (code) => Object.assign(new Error(code), { code });
 	const mk = (email, providers, extra) => ({ uid: "uid" + (++n), email, emailVerified: false, displayName: "", providerData: providers.map((p) => ({ providerId: p })), metadata: { lastSignInTime: new Date().toISOString() }, ...extra });
@@ -33,6 +33,11 @@ function fakeSdk() {
 		createUserWithEmailAndPassword: async (a, email, pw) => { if (users[email]) throw err("auth/email-already-in-use"); current = mk(email, ["password"]); users[email] = { user: current, pw }; return { user: current }; },
 		signInWithEmailAndPassword: async (a, email, pw) => { const u = users[email]; if (!u || u.pw !== pw) throw err("auth/invalid-credential"); current = u.user; return { user: current }; },
 		verifyBeforeUpdateEmail: async () => {},
+		sendPasswordResetEmail: async (auth, email) => {
+			if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw err("auth/invalid-email");
+			if (resetMode.fail) throw err(resetMode.fail);
+			resets.push({ email, lang: auth.languageCode });
+		},
 		linkWithPopup: async (u) => { u.providerData.push({ providerId: "google.com" }); return {}; },
 		reload: async () => {},
 		signOut: async () => { current = null; },
@@ -44,7 +49,7 @@ function fakeSdk() {
 		deleteDoc: async (ref) => { delete docs[ref.path]; },
 		serverTimestamp: () => "TS",
 	};
-	return { sdk: { m, auth: { get currentUser() { return current; } }, db: {} }, docs, users, setOld: () => { current.metadata.lastSignInTime = "2020-01-01T00:00:00Z"; } };
+	return { sdk: { m, auth: { get currentUser() { return current; }, languageCode: null }, db: {} }, docs, users, resets, resetMode, setOld: () => { current.metadata.lastSignInTime = "2020-01-01T00:00:00Z"; } };
 }
 
 async function run(win, op, args = []) {
@@ -97,6 +102,31 @@ r = await run(w, "cloud_put", ["GLOW1-abc_-", "GLOW1-old"]); assert.ok(r.ok);
 assert.deepEqual(Object.keys(F.docs[Object.keys(F.docs)[0]]).sort(), ["code", "previous", "updated", "v"]);
 r = await run(w, "cloud_get"); assert.equal(r.f.code, "GLOW1-abc_-"); assert.equal(r.f.previous, "GLOW1-old");
 r = await run(w, "cloud_put", ["not a code!", ""]); assert.equal(r.reason, "error");
+
+// forgot the password: no sign-in needed, the letter's language is the game's, the answer never tells who is registered
+await run(w, "sign_out");
+nextForm = { email: "Anna@gmail.com" };
+r = await run(w, "reset_password", ["ko", "title", "Forgot?", "submit", "Send"]);
+assert.ok(r.ok, JSON.stringify(r)); assert.equal(F.resets.length, 1);
+assert.deepEqual(F.resets[0], { email: "Anna@gmail.com", lang: "ko" });
+nextForm = { email: "nobody@example.invalid" };
+r = await run(w, "reset_password", ["xx"]);
+assert.ok(r.ok, "an unknown address answers success too"); assert.equal(F.resets[1].lang, "en", "an unknown language falls back to en");
+F.resetMode.fail = "auth/user-not-found";
+r = await run(w, "reset_password", ["ru"]);
+assert.ok(r.ok, "user-not-found must not leak: " + JSON.stringify(r));
+F.resetMode.fail = "auth/network-request-failed";
+r = await run(w, "reset_password", ["ru"]); assert.equal(r.reason, "offline");
+F.resetMode.fail = "auth/too-many-requests";
+r = await run(w, "reset_password", ["ru"]); assert.equal(r.reason, "too_many");
+F.resetMode.fail = null;
+nextForm = null;
+r = await run(w, "reset_password", ["ru"]); assert.equal(r.reason, "cancelled");
+nextForm = { email: "not an address" };
+r = await run(w, "reset_password", ["ru"]);
+assert.equal(r.reason, "bad_email", "the provider's own check of the address");
+nextForm = { id: "anna_7", password: "secret123" };
+r = await run(w, "password_form", ["login"]); assert.ok(r.ok);
 
 // e-mail link: pending until the address changes
 nextForm = { email: "anna@gmail.com" };

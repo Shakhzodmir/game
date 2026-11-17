@@ -13,6 +13,9 @@
 --   auth.sign_in_google(cb)                   auth.password_form("login" | "register", labels, cb)
 --   auth.link_google(cb)                      auth.link_email_form(labels, cb)
 --   auth.refresh(cb)                          auth.sign_out(cb)        auth.delete_account(cb)
+--   auth.reset_password(labels, lang, cb)     -- "forgot the password": a form asks for the e-mail, the provider
+--                                             -- mails a link (no sign-in needed; the answer never says whether the
+--                                             -- address is known; lang = ru | en | ko picks the letter's language)
 --   auth.cloud_get(function(ok, reason, doc) end)    -- doc = {code, previous} or nil: no cloud save yet
 --   auth.cloud_put(code, previous_code, cb)          auth.cloud_delete(cb)
 -- Every callback gets (ok, reason, data). Reasons (stable ids, texts are in client/i18n.lua "auth.err_*"):
@@ -106,7 +109,8 @@ local function done(cb, ...)
 end
 
 -- Runs provider[op](args..., cb'). `kind`: "user" (the result is the signed-in user), "gone" (success signs
--- the user out), "quiet" (a data call: no busy guard, no user change). The interactive calls share one guard:
+-- the user out), "free" (an interactive call that changes nothing about the user: busy guard only), "quiet"
+-- (a data call: no busy guard, no user change). The interactive calls share one guard:
 -- a second tap while a sign-in popup is open answers "busy".
 local function call(op, kind, cb, ...)
 	local p = state.provider
@@ -138,6 +142,7 @@ function M.link_email_form(labels, cb) return call("link_email_form", "user", cb
 function M.refresh(cb) return call("refresh", "user", cb) end
 function M.sign_out(cb) return call("sign_out", "gone", cb) end
 function M.delete_account(cb) return call("delete_account", "gone", cb) end
+function M.reset_password(labels, lang, cb) return call("reset_password", "free", cb, labels or {}, lang or "en") end
 
 -- The cloud calls do not take the busy guard (a background sync must not block a sign-in form, nor the other
 -- way round): the provider keeps its own queue.

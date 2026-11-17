@@ -5,6 +5,8 @@
 --   mock.google_next = {sub = "g1", email = "a@gmail.com", name = "Anna"}     -- who the Google popup picks
 --   mock.form_next = {id = "anna_7", password = "secret123"}                  -- what the sign-in form returns
 --   mock.online = false                                                       -- every call answers "offline"
+--   mock.too_many = true                                                      -- a password reset answers "too_many"
+--   mock.form_next = {email = "anna@gmail.com"}; auth.reset_password(...)     -- m.resets lists the requests
 --   mock.manual = true; ...; mock.flush()                                     -- hold the replies, release them later
 --
 -- Rules it keeps (the same the Firebase rules and the web provider keep):
@@ -31,6 +33,8 @@ function M.new(opts)
 		form_next = nil,      -- {id, password} | {email} | "cancel"
 		recent = true,        -- the last sign-in is recent enough to delete the account
 		mails = {},           -- verification mails "sent": {to, uid}
+		resets = {},          -- password-reset requests: {email, lang, sent}; sent only when an account has the address
+		too_many = false,     -- the provider refuses a reset request ("too many attempts")
 		calls = {},           -- op names in order
 		puts = 0, gets = 0,
 		pending = {},
@@ -157,6 +161,21 @@ function M.new(opts)
 		if not a or a.pending_email ~= mail.to then return false end
 		a.email, a.verified, a.pending_email = mail.to, true, nil
 		return true
+	end
+
+	-- "Forgot the password": the form asks for an e-mail; a letter goes out only when an account has that address,
+	-- but the answer is the same either way (the real provider does not tell who is registered).
+	function m.reset_password(labels, lang, cb)
+		if not begin("reset_password", cb) then return end
+		local f = m.form_next
+		m.form_next = nil
+		if f == nil or f == "cancel" then return reply(cb, false, "cancelled") end
+		local email = tostring(f.email or ""):lower()
+		if not email:match("^[^@%s]+@[^@%s]+%.[^@%s]+$") or auth.is_synthetic(email) then return reply(cb, false, "bad_email") end
+		if m.too_many then return reply(cb, false, "too_many") end
+		local known = find(function(x) return x.kind == "password" and x.email == email end) ~= nil
+		m.resets[#m.resets + 1] = { email = email, lang = lang, sent = known }
+		reply(cb, true)
 	end
 
 	function m.refresh(cb)

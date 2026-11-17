@@ -20,7 +20,7 @@ M.INTERACTIVE_TIMEOUT = 600 -- a sign-in popup or form may stay open for ten min
 M.DATA_TIMEOUT = 40         -- a cloud call that takes longer is given up (the sync retries later)
 
 local INTERACTIVE = { restore = false, sign_in_google = true, password_form = true, link_google = true,
-	link_email_form = true, refresh = false, sign_out = false, delete_account = false,
+	link_email_form = true, reset_password = true, refresh = false, sign_out = false, delete_account = false,
 	cloud_get = false, cloud_put = false, cloud_delete = false }
 
 local function decode(s)
@@ -96,7 +96,8 @@ function M.new(opts)
 				return e.cb(true, nil, { code = fields.code, previous = fields.previous ~= "" and fields.previous or nil })
 			end
 			return e.cb(true, nil, nil)
-		elseif e.op == "sign_out" or e.op == "delete_account" or e.op == "cloud_put" or e.op == "cloud_delete" then
+		elseif e.op == "sign_out" or e.op == "delete_account" or e.op == "cloud_put" or e.op == "cloud_delete"
+			or e.op == "reset_password" then
 			return e.cb(true)
 		end
 		return e.cb(true, nil, user_from(fields)) -- restore may answer "no user": nil
@@ -149,6 +150,12 @@ function M.new(opts)
 	end
 	function p.link_google(cb) start("link_google", {}, cb) end
 	function p.link_email_form(labels, cb) start("link_email_form", labels_list(labels), cb) end
+	-- the first argument is the language of the letter, the rest are the form's labels
+	function p.reset_password(labels, lang, cb)
+		local args = labels_list(labels)
+		table.insert(args, 1, lang)
+		start("reset_password", args, cb)
+	end
 	function p.refresh(cb) start("refresh", {}, cb) end
 	function p.sign_out(cb) start("sign_out", {}, cb) end
 	function p.delete_account(cb) start("delete_account", {}, cb) end

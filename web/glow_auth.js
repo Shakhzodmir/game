@@ -38,7 +38,7 @@
 			c === "auth/invalid-login-credentials") return "bad_credentials";
 		if (c === "auth/email-already-in-use") return ctx === "link_email" ? "email_in_use" : "id_taken";
 		if (c === "auth/weak-password") return "weak_password";
-		if (c === "auth/invalid-email") return ctx === "link_email" ? "bad_email" : "bad_id";
+		if (c === "auth/invalid-email" || c === "auth/missing-email") return (ctx === "link_email" || ctx === "reset_password") ? "bad_email" : "bad_id";
 		if (c === "auth/requires-recent-login") return "need_recent_login";
 		if (c === "auth/credential-already-in-use" || c === "auth/provider-already-linked") return "already_linked";
 		if (c === "auth/too-many-requests") return "too_many";
@@ -59,6 +59,7 @@
 					import(SDK_BASE + "firebase-auth.js"),
 					import(SDK_BASE + "firebase-firestore.js")
 				]).then(function (mods) {
+					// every export of the three modules lands in m, so m.sendPasswordResetEmail (firebase-auth) is there
 					var m = {};
 					[mods[0], mods[1], mods[2]].forEach(function (mod) { Object.keys(mod).forEach(function (k) { m[k] = mod[k]; }); });
 					var app = m.initializeApp(cfg);
@@ -114,7 +115,8 @@
 		return l;
 	}
 
-	// kind: "login" | "register" | "email". Resolves {id, password} | {email} | null (cancelled).
+	// kind: "login" | "register" | "email" | "reset" (the last two ask for an e-mail only).
+	// Resolves {id, password} | {email} | null (cancelled).
 	function showForm(kind, L) {
 		var test = window.glowAuth && window.glowAuth._test;
 		if (test && test.form) return Promise.resolve(test.form(kind, L));
@@ -145,7 +147,7 @@
 				inputs[name] = inp;
 			}
 			form.appendChild(text("div", L.title || "", "font-size:20px;font-weight:bold;text-align:center;"));
-			if (kind === "email") {
+			if (kind === "email" || kind === "reset") {
 				field("email", "email", L.email || "E-mail", "email");
 			} else {
 				field("id", "text", L.id || "ID", "username");
@@ -179,9 +181,11 @@
 			cancel.addEventListener("click", function () { close(null); });
 			form.addEventListener("submit", function (ev) {
 				ev.preventDefault();
-				if (kind === "email") {
+				if (kind === "email" || kind === "reset") {
 					var email = inputs.email.value.trim();
 					if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = L.err_email || ""; return; }
+					// an ID account's inner address can never receive mail: do not ask the provider to write to it
+					if (kind === "reset" && isSynthetic(email.toLowerCase())) { err.textContent = L.err_email || ""; return; }
 					return close({ email: email });
 				}
 				var id = inputs.id.value.trim().toLowerCase();
@@ -237,6 +241,21 @@
 				return s.m.verifyBeforeUpdateEmail(u, v.email).then(function () {
 					store(pendingKey(u.uid), v.email);
 					return userFields(u);
+				});
+			});
+		},
+		// "Forgot the password": no sign-in needed. args[0] = the letter's language (ru | en | ko), then the form labels.
+		// The answer never says whether the address has an account: Firebase answers "sent" either way while its
+		// e-mail enumeration protection is on, and "user-not-found" from a project without it is turned into success.
+		reset_password: function (s, args) {
+			var lang = /^(ru|en|ko)$/.test(args[0]) ? args[0] : "en";
+			if (typeof s.m.sendPasswordResetEmail !== "function") { var m = new Error("no sendPasswordResetEmail"); m.code = "sdk-missing"; throw m; }
+			return showForm("reset", labelsOf(args, 1)).then(function (v) {
+				if (!v) { var e = new Error("cancelled"); e.code = "auth/user-cancelled"; throw e; }
+				s.auth.languageCode = lang;
+				return s.m.sendPasswordResetEmail(s.auth, v.email).then(function () { return {}; }, function (err) {
+					if (err && err.code === "auth/user-not-found") return {};
+					throw err;
 				});
 			});
 		},
