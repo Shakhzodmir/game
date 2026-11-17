@@ -82,6 +82,32 @@ describe("tools tune: corridor choice", function()
 		assert_eq(Tune.choose(g, "super_hard").M, 23)
 	end)
 
+	it("aims --ease points easier: the target and both ends of the corridor move up (part 2, levels 301-310)", function()
+		local g = games_of(ladder(100, 10.5, 0.5)) -- p(M) = (2M - 20) / 100 for 11..60
+		assert_same(Tune.corridor("easy", 5), { lo = 0.9, target = 0.95, hi = 1 })
+		assert_same(Tune.corridor("medium", 5), { lo = 0.65, target = 0.73, hi = 0.8 })
+		assert_eq(Tune.corridor("hard", 0), common.CORRIDOR.hard, "no ease: the plan's corridor")
+		assert_eq(Tune.corridor("hard"), common.CORRIDOR.hard)
+		local c = Tune.choose(g, "easy", nil, 5)
+		assert_eq(c.M, 58) -- 95% lies between p(57) = 94% and p(58) = 96%: a tie goes to the side above
+		assert_near(c.p, 0.96, 1e-9)
+		assert_same(c.flags, { "outside_band" }, "inside the eased corridor (58 moves are outside 20-35)")
+		assert_eq(Tune.choose(g, "medium", nil, 5).M, 47) -- 73% between p(46) = 72% and p(47) = 74%: the side above
+		assert_eq(Tune.choose(g, "medium").M, 44, "the plain corridor is unchanged")
+		local rows = Tune.evaluate({
+			{ file = "a", id = 301, difficulty = "easy", moves = 30, games = g, n = 100, secs = 1 },
+			{ file = "b", id = 311, difficulty = "easy", moves = 30, games = g, n = 100, secs = 1 },
+		}, function(id) return id <= 310 and 5 or nil end)
+		assert_eq(rows[1].M, 58)
+		assert_eq(rows[1].ease, 5)
+		assert_eq(rows[2].M, 55)
+		assert_eq(rows[2].ease, nil)
+		local md = Tune.report_md(rows, { bot = "greedy", n = 100, budget = 120, jobs = 1, vm = "luajit", wall = 1, core_version = "x" })
+		assert_true(md:find("--ease 5", 1, true) ~= nil, "the report says which levels were eased")
+		assert_true(md:find("| 301 | easy +5 |", 1, true) ~= nil)
+		assert_true(md:find("| 311 | easy |", 1, true) ~= nil)
+	end)
+
 	it("takes the low end of a plateau above the target and the high end below it", function()
 		-- medium (68%): p = 0.5 for M in 10..19, 0.9 from 20 -> |0.5-0.68| = 0.18 < 0.22 -> below plateau, M = 19
 		local list = {}

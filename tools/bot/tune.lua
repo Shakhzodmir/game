@@ -5,6 +5,7 @@
 --         [--budget 120] [--levels 1-40] [--dir content/levels] [--write]
 --         [--work <dir>] [--fresh] [--force] [--md docs/levels/tuning.md]
 --         [--json docs/levels/tuning.json] [--no-report] [--vm luajit] [--quiet]
+--         [--ease 5] [--ease-levels 301-310]
 --
 -- For every level N games are played (game seed = bot seed = 1..N: common
 -- random numbers, so two runs of the same level compare game by game) with
@@ -12,6 +13,8 @@
 -- win rate for a limit M is the share of games with moves_to_win <= M; M
 -- is chosen so that it hits the centre of the level's difficulty corridor:
 --   easy 90% (85-95), medium 68% (60-75), hard 42% (35-50), super_hard 25% (20-30)
+-- (--ease P moves the corridor P percentage points easier, 0..10, for the levels of
+-- --ease-levels or for every level of the run: Tune.corridor)
 -- within 5..60 (the schema's range; ties: see Tune.choose). For the chosen M the tuner reports the
 -- expected attempts (1/p), the near-miss share (losses with <= 20% of the
 -- goals left after M moves), the median moves of the winners, and flags:
@@ -112,11 +115,23 @@ function Tune.median_winners(games, M)
 	return common.median(list)
 end
 
+-- The corridor of a difficulty, `ease` percentage points easier (0 or nil: the plan's corridor). An eased
+-- corridor moves its target and both ends up by the same points (capped at 100%): --ease 5 makes an easy
+-- level aim at 95% (90-100) and a medium one at 73% (65-80), for a stretch where the player comes back
+-- after a break (docs/design/part2-districts.md).
+function Tune.corridor(difficulty, ease)
+	local cor = common.CORRIDOR[difficulty]
+	if not cor or not ease or ease == 0 then return cor end
+	local function up(v) return math.min(1, math.floor((v + ease / 100) * 10000 + 0.5) / 10000) end
+	return { lo = up(cor.lo), target = up(cor.target), hi = up(cor.hi) }
+end
+
 -- Chooses M for a difficulty (see the header). Returns a table:
 --   M, p (win rate at M), attempts (1/p or nil), near_miss, losses,
 --   median (moves of the winners), flags (array of codes), p5, p60.
-function Tune.choose(games, difficulty, current)
-	local cor = common.CORRIDOR[difficulty]
+-- `ease` (percentage points, optional): aim at the eased corridor (Tune.corridor).
+function Tune.choose(games, difficulty, current, ease)
+	local cor = Tune.corridor(difficulty, ease)
 	if not cor then error("tune: unknown difficulty " .. tostring(difficulty)) end
 	local c = cor.target
 	local bestd = nil
@@ -490,10 +505,13 @@ end
 -- Fields added to the result of Tune.choose: file, id, difficulty, moves, n,
 -- secs, evals, sig, mtw (sorted moves_to_win of the winners), no_win,
 -- endings {won, budget, stuck, timeout}, specials_per_game, median_win_ticks.
-function Tune.evaluate(results)
+-- `ease_of` (optional): function(id) -> percentage points of an eased corridor for that level, or nil.
+function Tune.evaluate(results, ease_of)
 	local rows = {}
 	for _, lv in ipairs(results) do
-		local row = { file = lv.file, id = lv.id, difficulty = lv.difficulty, moves = lv.moves, sig = lv.sig }
+		local ease = ease_of and lv.id and ease_of(lv.id) or nil
+		if ease == 0 then ease = nil end
+		local row = { file = lv.file, id = lv.id, difficulty = lv.difficulty, moves = lv.moves, sig = lv.sig, ease = ease }
 		if lv.error then
 			row.error = lv.error
 			row.flags = { "invalid" }
@@ -501,7 +519,7 @@ function Tune.evaluate(results)
 			row.error = "no games were played"
 			row.flags = { "invalid" }
 		else
-			local ch = Tune.choose(lv.games, lv.difficulty, lv.moves)
+			local ch = Tune.choose(lv.games, lv.difficulty, lv.moves, ease)
 			for k, v in pairs(ch) do row[k] = v end -- order-independent (copy)
 			row.n, row.secs, row.evals = lv.n, lv.secs, lv.evals
 			local mtw, nowin, sp, dur = {}, 0, 0, {}
@@ -587,6 +605,19 @@ function Tune.report_md(rows, meta)
 		.. "hard 35–50% (42%), super_hard 20–30% (25%). M выбирается в 5..60 так, чтобы доля партий с `moves_to_win ≤ M` "
 		.. "была ближе всего к цели. «Близкие проигрыши» — доля проигрышей при M, у которых после M ходов осталось ≤ 20% целей "
 		.. "(среднее по целям). «Медиана» — ходы победителей при M."
+	local eased, ease_points = {}, nil
+	for _, r in ipairs(rows) do
+		if r.ease then
+			eased[#eased + 1] = tostring(r.id)
+			ease_points = r.ease
+		end
+	end
+	if #eased > 0 then
+		L[#L + 1] = ""
+		L[#L + 1] = string.format("Уровни %s подобраны с `--ease %d`: коридор на %d пунктов легче (цель easy %d%%, medium %d%%, "
+			.. "hard %d%%, super_hard %d%%); в колонке «сложность» у них «+%d».", table.concat(eased, ", "), ease_points, ease_points,
+			90 + ease_points, 68 + ease_points, 42 + ease_points, 25 + ease_points, ease_points)
+	end
 	L[#L + 1] = ""
 	L[#L + 1] = "| id | сложность | ходы было → стало | побед при M | побед было | попыток | близкие проигрыши | медиана | время, с | флаги |"
 	L[#L + 1] = "|---:|---|---|---:|---:|---:|---:|---:|---:|---|"
@@ -599,7 +630,7 @@ function Tune.report_md(rows, meta)
 			local flags = {}
 			for _, f in ipairs(r.flags) do flags[#flags + 1] = FLAG_RU[f] or f end
 			L[#L + 1] = string.format("| %d | %s | %s → %d | %s | %s | %s | %s | %s | %.1f | %s |",
-				r.id, r.difficulty, tostring(r.moves or "?"), r.M, pct(r.p), pct(r.p_before),
+				r.id, r.difficulty .. (r.ease and (" +" .. r.ease) or ""), tostring(r.moves or "?"), r.M, pct(r.p), pct(r.p_before),
 				r.attempts and string.format("%.2f", r.attempts) or "∞",
 				r.near_miss and pct(r.near_miss) or "—",
 				r.median and tostring(r.median) or "—", r.secs, table.concat(flags, "; "))
@@ -652,6 +683,7 @@ function Tune.report_json(rows, meta)
 			o.losses = r.losses
 			o.median_moves = r.median
 			o.corridor = { lo = r.corridor.lo, hi = r.corridor.hi, target = r.corridor.target }
+			o.ease = r.ease
 			o.win_rate_at_5 = common.round(r.p5, 4)
 			o.win_rate_at_60 = common.round(r.p60, 4)
 			o.moves_to_win = copy_array(r.mtw)
@@ -717,14 +749,14 @@ end
 
 local USAGE = "usage: luajit tools/bot/tune.lua [--n 100] [--jobs 3] [--bot greedy|strong] [--budget 120]"
 	.. " [--levels 1-40] [--dir content/levels] [--write] [--work dir] [--fresh] [--force]"
-	.. " [--md path] [--json path] [--no-report] [--vm luajit] [--quiet]"
+	.. " [--md path] [--json path] [--no-report] [--vm luajit] [--quiet] [--ease 5] [--ease-levels 301-310]"
 
 local FLAGS = {
 	write = true, worker = true, ["no-report"] = true, help = true, quiet = true, force = true, fresh = true,
 }
 local VALUES = {
 	n = true, jobs = true, bot = true, budget = true, levels = true, dir = true, md = true, json = true,
-	vm = true, work = true, wid = true, files = true, code = true,
+	vm = true, work = true, wid = true, files = true, code = true, ease = true, ["ease-levels"] = true,
 }
 
 Tune.OPTIONS = { flags = FLAGS, values = VALUES }
@@ -804,7 +836,20 @@ function Tune.main(argv)
 	local n, e1 = common.int_option(opts, "n", 100, 1, 100000)
 	local jobs, e2 = common.int_option(opts, "jobs", 1, 1, 64)
 	local budget, e3 = common.int_option(opts, "budget", Tune.DEFAULT_BUDGET, Tune.MAX_M, 100000)
-	local bad = e1 or e2 or e3
+	local ease, e4 = common.int_option(opts, "ease", 0, 0, 10)
+	local bad = e1 or e2 or e3 or e4
+	local ease_set
+	if not bad and opts["ease-levels"] then
+		local ids, ierr = common.parse_ids(opts["ease-levels"])
+		if not ids then
+			bad = "--ease-levels: " .. ierr
+		elseif ease == 0 then
+			bad = "--ease-levels without --ease"
+		else
+			ease_set = {}
+			for _, id in ipairs(ids) do ease_set[id] = true end
+		end
+	end
 	local bot = opts.bot or "greedy"
 	if not bad and not require("tools.bot.bot").KINDS[bot] then bad = "--bot: greedy or strong expected, got '" .. bot .. "'" end
 	if not bad and opts.write and n < Tune.MIN_N_WRITE and not opts.force then
@@ -858,7 +903,10 @@ function Tune.main(argv)
 	if temp then os.execute("rm -rf " .. shell_quote(work)) end
 
 	local vm = (jobs == 1 and not opts.vm) and common.vm_name() or find_vm(opts.vm)
-	local rows = Tune.evaluate(results)
+	local rows = Tune.evaluate(results, ease > 0 and function(id)
+		if not ease_set or ease_set[id] then return ease end
+		return nil
+	end or nil)
 	local proj = Tune.projection(rows, 100, 300, 3)
 	local sh = true
 	for _, r in ipairs(rows) do if r.difficulty == "super_hard" and r.secs then sh = false end end
