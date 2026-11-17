@@ -174,7 +174,7 @@ function View:build_world()
 	local rib = s:image(self.c_nodes, "ui/ribbon", 360, soon_y, { w = 600, h = 150 })
 		or s:round(self.c_nodes, 360, soon_y, 600, 120, "#9B5CFF", { radius = 40 })
 	s:text(self.c_nodes, i18n.t("map.soon"), 360, soon_y + 6, {
-		font = "button", size = 46, color = "white", outline = "#5220A6", shadow = "#5220A6", max_width = 470,
+		font = "button", size = 46, color = "white", shadow = "#6C32CF", max_width = 470,
 	})
 	s:text(self.c_nodes, i18n.t("map.soon_text"), 360, soon_y - 96, {
 		font = "body", size = 28, color = "text", width = 560, height = 80, max_width = 560,

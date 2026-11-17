@@ -167,7 +167,7 @@ function M.build(e)
 			fn = function() e:open("account") end })
 	elseif st.stage == "offline" or st.stage == "error" then
 		message(e, body, st.stage == "offline" and "chart.offline" or "chart.error", nil, { id = "retry",
-			text = i18n.t("common.retry"), style = "blue", fn = function() st.stage = "loading"; st.requested = false; e:rebuild() end })
+			text = i18n.t("common.retry"), style = "white", fn = function() st.stage = "loading"; st.requested = false; e:rebuild() end })
 	elseif st.stage == "setup" then
 		sk.profile_editor(e, body, hh, st, function(name, avatar)
 			social.save_profile(name, avatar, function(ok, reason)

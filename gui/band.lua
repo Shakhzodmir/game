@@ -194,7 +194,7 @@ local function draw_band(e, body, hh)
 			text = i18n.t("band.ask_life"), text_size = 28, on_click = function() act(e, "help_request") end })
 		e:target("ask_life", 0, -hh + 190)
 	end
-	s:button({ parent = body, x = -150, y = -hh + 90, w = 270, h = 84, style = "blue", text = i18n.t("band.invite"), text_size = 30,
+	s:button({ parent = body, x = -150, y = -hh + 90, w = 270, h = 84, style = "white", text = i18n.t("band.invite"), text_size = 30,
 		on_click = function() invite(e, b) end })
 	e:target("invite", -150, -hh + 90)
 	s:button({ parent = body, x = 150, y = -hh + 90, w = 270, h = 84, style = "pink", text = i18n.t("band.leave"), text_size = 30,
@@ -221,7 +221,7 @@ function M.build(e)
 		message(e, body, "band.signin", { id = "signin", text = i18n.t("chart.signin_button"), fn = function() e:open("account") end })
 	elseif stage == "offline" or stage == "error" then
 		message(e, body, stage == "offline" and "chart.offline" or "chart.error", { id = "retry", text = i18n.t("common.retry"),
-			style = "blue", fn = function() st.stage, st.requested = "loading", false; e:rebuild() end })
+			style = "white", fn = function() st.stage, st.requested = "loading", false; e:rebuild() end })
 	elseif stage == "setup" then
 		sk.profile_editor(e, body, hh, st, function(name, avatar)
 			social.save_profile(name, avatar, function(ok, reason)
@@ -238,7 +238,7 @@ function M.build(e)
 		s:button({ parent = body, x = 0, y = -120, w = 460, h = 100, style = "green", text = i18n.t("band.create"), text_size = 34,
 			on_click = function() st.stage, st.bk = "create", st.bk or 0; e:rebuild() end })
 		e:target("create", 0, -120)
-		s:button({ parent = body, x = 0, y = -250, w = 460, h = 100, style = "blue", text = i18n.t("band.join"), text_size = 34,
+		s:button({ parent = body, x = 0, y = -250, w = 460, h = 100, style = "white", text = i18n.t("band.join"), text_size = 34,
 			on_click = function() join(e) end })
 		e:target("join", 0, -250)
 		sk.note(e, body, i18n.t("band.join_hint"), 0, -380, 520, 22, "text_soft", 100)
@@ -247,7 +247,7 @@ function M.build(e)
 		sk.note(e, body, i18n.t("band.create_text"), 0, 330, 540, 28, "text", 160)
 		local pill = s:round(body, 0, 170, 540, 120, "#F6F2FF", { radius = 40 })
 		s:text(pill, social.name_text(name), 0, 2, { font = "button", size = 42, color = "purple", max_width = 480 })
-		s:button({ parent = body, x = 0, y = 40, w = 400, h = 88, style = "blue", text = i18n.t("band.other_name"), text_size = 30,
+		s:button({ parent = body, x = 0, y = 40, w = 400, h = 88, style = "white", text = i18n.t("band.other_name"), text_size = 30,
 			sfx = "tap", on_click = function() st.bk = st.bk + 1; e:rebuild() end })
 		e:target("reroll_band", 0, 40)
 		s:button({ parent = body, x = 0, y = -110, w = 420, h = 100, style = "green", text = i18n.t("band.create_do"), text_size = 34,

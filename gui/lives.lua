@@ -112,7 +112,7 @@ function M.build(e)
 		e.refill_btn = b
 		e:target("refill", 0, ry)
 		if not o.affordable then
-			local g = s:button({ parent = body, x = 0, y = ry - 120, w = 320, h = 96, style = "blue", icon = "ui/icons/shop",
+			local g = s:button({ parent = body, x = 0, y = ry - 120, w = 320, h = 96, style = "white", icon = "ui/icons/shop",
 				icon_size = 56, text = i18n.t("lives.get_coins"), text_size = 30,
 				on_click = function() e:open("shop", { tab = "coins" }) end })
 			e:target("get_coins", 0, ry - 120)

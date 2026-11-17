@@ -40,7 +40,7 @@ local function ribbon_title(e, ribbon, title)
 		if head then text, size = head .. "\n" .. tail, 34 end
 	end
 	return e.ui:text(ribbon, text, 0, 8, {
-		font = "button", size = size, color = "white", outline = "#5220A6", shadow = "#5220A6", max_width = RIBBON_TEXT_W,
+		font = "button", size = size, color = "white", shadow = "#6C32CF", max_width = RIBBON_TEXT_W,
 	})
 end
 

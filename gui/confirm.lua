@@ -22,7 +22,7 @@ function M.build(e)
 		font = "body", size = 30, color = "text", width = W - 90, height = th,
 	})
 	local cancel = p.cancel or {}
-	s:button({ parent = body, x = -130, y = -hh + 90, w = 230, h = 100, style = "blue",
+	s:button({ parent = body, x = -130, y = -hh + 90, w = 230, h = 100, style = "white",
 		text = i18n.tr(cancel.text or { key = "common.cancel" }), text_size = 32,
 		on_click = function() e:close("cancel") end })
 	e:target("cancel", -130, -hh + 90)

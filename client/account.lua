@@ -142,8 +142,8 @@ function M.decision_view(d)
 	elseif k == "offer_download" then
 		add("download", "cloud.do_download", "green")
 	elseif k == "choose" then
-		add("upload", "cloud.keep_device", d.recommend == "local" and "green" or "blue")
-		add("download", "cloud.keep_cloud", d.recommend == "cloud" and "green" or "blue")
+		add("upload", "cloud.keep_device", d.recommend == "local" and "green" or "white")
+		add("download", "cloud.keep_cloud", d.recommend == "cloud" and "green" or "white")
 	elseif k == "foreign" then
 		if d.has_cloud then
 			add("download", "cloud.do_download", "green")

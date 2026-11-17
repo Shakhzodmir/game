@@ -196,7 +196,7 @@ local function build_replay(e, n, info)
 	end
 	kit.caption(e, body, i18n.t("start.replay_text"), 0, sy - 150, { size = 24, color = "green", max_width = W - 80 })
 	local py = -hh + 88
-	local pb = s:button({ parent = body, x = 0, y = py, w = 420, h = 124, style = "blue", text = i18n.t("start.replay"),
+	local pb = s:button({ parent = body, x = 0, y = py, w = 420, h = 124, style = "white", text = i18n.t("start.replay"),
 		text_size = 48, enabled = not e.busy, on_click = function() play_replay(e, v) end })
 	e.play_btn = pb
 	e:target("play", 0, py)

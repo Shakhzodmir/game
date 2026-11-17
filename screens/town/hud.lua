@@ -87,7 +87,7 @@ function Hud:lives_view()
 end
 
 local function pill(s, parent, x, w)
-	local sh = s:round(parent, x, M.TOP_Y - 7, w, 80, "#D66E8C", { alpha = 0.22, radius = 38 })
+	local sh = s:round(parent, x, M.TOP_Y - 6, w, 80, "#CAB7DE", { alpha = 0.9, radius = 38 })
 	s:anchor(sh, "top")
 	local p = s:round(parent, x, M.TOP_Y, w, 78, "white", { radius = 38 })
 	s:anchor(p, "top")
@@ -191,7 +191,7 @@ M.ARROW_PREV_X, M.ARROW_NEXT_X = 68, 550
 local function arrow_button(self, parent, x, dir, enabled)
 	local s, town = self.ui, self.town
 	local has_icon = assets.has_image("ui/icons/arrow")
-	local b = s:button({ parent = parent, x = x, y = M.RIBBON_Y, w = 80, h = 80, style = "blue", icon = "ui/icons/arrow", icon_size = 48,
+	local b = s:button({ parent = parent, x = x, y = M.RIBBON_Y, w = 80, h = 80, style = "white", icon = "ui/icons/arrow", icon_size = 48,
 		text = not has_icon and (dir < 0 and "<" or ">") or nil, enabled = enabled, sfx = "button",
 		on_click = function() town:browse(dir) end })
 	if b.icon and dir < 0 then gui.set_euler(b.icon, vmath.vector3(0, 0, 180)) end
@@ -212,8 +212,8 @@ function Hud:build_ribbon(parent)
 		or s:round(parent, rx, M.RIBBON_Y, rw, 104, "purple")
 	s:anchor(rib, "top")
 	self.ribbon = rib
-	s:text(rib, i18n.name(p.name), 0, 22, { font = "button", size = paged and 30 or 34, color = "white", outline = "#5220A6",
-		shadow = "#5220A6", max_width = rw - 44 })
+	s:text(rib, i18n.name(p.name), 0, 22, { font = "button", size = paged and 30 or 34, color = "white",
+		shadow = "#6C32CF", max_width = rw - 44 })
 	s:text(rib, i18n.t("town.layers", { done = p.done, total = p.total }), 0, -10, {
 		font = "small", size = 21, color = "#F1E6FF", max_width = rw - 64,
 	})
@@ -223,14 +223,14 @@ function Hud:build_ribbon(parent)
 	local seg = (bw - (n - 1) * 5) / n
 	for i = 1, n do
 		local x = -bw / 2 + (i - 0.5) * seg + (i - 1) * 5
-		s:round(rib, x, -36, seg, 12, i <= p.done and "#FFDB1A" or "#6A2BD1", { radius = 5 })
+		s:round(rib, x, -36, seg, 12, i <= p.done and "#FFDB1A" or "#7B3FE0", { radius = 5 })
 	end
 	if paged then
 		arrow_button(self, parent, M.ARROW_PREV_X, -1, nav.prev ~= nil)
 		arrow_button(self, parent, M.ARROW_NEXT_X, 1, nav.next ~= nil)
 	end
 	local view = app.meta:view(town.district)
-	local toggle = s:button({ parent = parent, x = 652, y = M.RIBBON_Y, w = 112, h = 96, style = view == "day" and "blue" or "gold",
+	local toggle = s:button({ parent = parent, x = 652, y = M.RIBBON_Y, w = 112, h = 96, style = view == "day" and "white" or "gold",
 		icon = view == "day" and "ui/icons/music_on" or "ui/icons/star", icon_size = 38,
 		text = i18n.t(view == "day" and "town.concert" or "town.day"), text_size = 20,
 		on_click = function() town:toggle_view() end })
@@ -286,7 +286,7 @@ function Hud:build_task(parent)
 	end
 	if cv.kind == "back" then
 		-- another district is on display: one tap takes the player back to the one being built
-		local card = s:button({ parent = parent, x = x, y = y, w = 588, h = 128, style = "blue",
+		local card = s:button({ parent = parent, x = x, y = y, w = 588, h = 128, style = "white",
 			on_click = function() town:browse_to(cv.district, 1) end })
 		s:anchor(card.node, "bottom")
 		self.card = card.node
@@ -298,7 +298,7 @@ function Hud:build_task(parent)
 			gui.animate(arrow, "position.x", p.x + 10, gui.EASING_INOUTSINE, 0.5, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
 		end
 		kit.label({ ui = s }, card.node, i18n.t("town.back_to", { name = i18n.name(cv.name) }), -34, 4, {
-			font = "button", size = 32, color = "white", outline = "#174E9E", shadow = "#174E9E", max_width = 440, lines = 2,
+			font = "button", size = 32, color = "text", max_width = 440, lines = 2,
 		})
 		return
 	end
@@ -416,7 +416,7 @@ M.MAP_X, M.MAP_W = 620, 150
 
 function Hud:build_map_button(parent)
 	local s = self.ui
-	local b = s:button({ parent = parent, x = M.MAP_X, y = M.LEVEL_Y, w = M.MAP_W, h = 130, style = "blue", icon = "ui/icons/map",
+	local b = s:button({ parent = parent, x = M.MAP_X, y = M.LEVEL_Y, w = M.MAP_W, h = 130, style = "white", icon = "ui/icons/map",
 		icon_size = 72, text = i18n.t("map.button"), text_size = 28, on_click = function()
 			if self.town.bit then self.town.bit:cheer(1.0, 1) end
 			app.show_screen("map", { from = "town" })
@@ -440,7 +440,7 @@ function Hud:build_level(parent)
 	self:build_map_button(parent)
 	self.notes, self.closed = {}, {}
 	if v.all_done then
-		local b = s:button({ parent = parent, x = x, y = y, w = M.LEVEL_W, h = 128, style = "blue", text = i18n.t("replay.button"),
+		local b = s:button({ parent = parent, x = x, y = y, w = M.LEVEL_W, h = 128, style = "white", text = i18n.t("replay.button"),
 			text_size = 34, on_click = function()
 				if town.bit then town.bit:cheer(1.2, 1) end
 				town:open_popup("replay") -- the beaten levels can be played again
@@ -506,11 +506,11 @@ function Hud:build_nav(parent)
 	local s, town = self.ui, self.town
 	local bar = s:round(parent, 360, M.NAV_Y, 744, 196, "white", { alpha = 0.97, radius = 40 })
 	s:anchor(bar, "bottom")
-	s:round(bar, 0, 98, 744, 6, "#FFE3EF", { radius = 3 })
+	s:round(bar, 0, 98, 744, 6, "#E7DDF2", { radius = 3 })
 	self.nav = {}
 	for i, item in ipairs(M.NAV) do
 		local x = -288 + (i - 1) * 144
-		local b = s:button({ parent = bar, x = x, y = 32, w = 134, h = 116, style = item.active and "purple" or "white",
+		local b = s:button({ parent = bar, x = x, y = 32, w = 134, h = 116, style = item.active and "purple" or "flat",
 			icon = item.icon, icon_size = 60, sfx = item.soon and "tap" or "button",
 			on_click = function() town:on_nav(item, self.nav[item.id]) end })
 		if b.icon then

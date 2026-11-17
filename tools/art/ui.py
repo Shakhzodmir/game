@@ -8,7 +8,7 @@ from artkit import (C, Canvas, F32, WHITE, bbox_px, bez, candy, edge_fade, fit, 
                     closing, ramp, rim_gloss, rng, sd_arc, sd_box, sd_capsule, sd_circle, sd_ellipse, sd_poly,
                     sd_polyline, sd_rect, sd_ring, sd_star, sd_taper, smoothstep, soft_shadow, sparkle4, SU, SUB,
                     U, I)
-from palette import (PIECES, ORDER, BUTTONS, CELL_A, CELL_B, FRAME_GLOW, FRAME_SHADOW, PANEL_LINE, PINK_BADGE, PLATE,
+from palette import (PIECES, ORDER, BUTTONS, BUTTON_LINES, CELL_A, CELL_B, FRAME_GLOW, FRAME_SHADOW, PANEL_LINE, PINK_BADGE, PLATE,
                      PIECE_SHADOW)
 from pieces import note_sdf
 from blockers import floor_tile
@@ -270,54 +270,38 @@ FX_FUNCS = {"spark": fx_spark, "glow_dot": fx_glow_dot, "ring": fx_ring, "shock"
 # ==========================================================================
 # UI chrome
 # ==========================================================================
-SHELF = 10          # px of darker "shelf" under a button face
+SHELF = 8           # px of darker "shelf" under a button face
 
 
 def draw_button(kind):
+    """128x128 nine-slice (30/30/30/40), the "Soft Pop" surface of the producer's UI pack (GLOW_UI, theme-tokens.json):
+    a flat gradient face with a thin edge line, a thin white inner line and an 8 px shelf; no gloss blobs."""
     top, bot, shelf = BUTTONS[kind]
+    line = BUTTON_LINES.get(kind, shelf)
     cv = Canvas(128, 128)
     X, Y = cv.X, cv.Y
-    outer = sd_rect(X, Y, 1, 1, 127, 127, 28)
-    cv.fill(outer, shelf)
+    cv.fill(sd_rect(X, Y, 1, 1 + SHELF, 127, 127, 28), shelf, 0.92)
     face = sd_rect(X, Y, 1, 1, 127, 127 - SHELF, 28)
     cv.fill_grad(face, [(0, top), (1, bot)], axis="y", p0=4, p1=127 - SHELF)
-    # white top highlight (inner lip) + glossy band
-    lip = np.maximum(np.abs(face + 2.2) - 2.2, Y - 30)
-    w = cv.win(lip < 1)
-    cv.paint(np.clip(0.5 - lip[w] * cv.ss, 0, 1) * smoothstep(30, 6, Y[w]), WHITE, 0.55, win=w)
-    gl = sd_rect(X, Y, 12, 8, 116, 50, 18)
-    w = cv.win(gl < 1)
-    cv.paint(np.clip(0.5 - gl[w] * cv.ss, 0, 1) * smoothstep(54, 10, Y[w]), WHITE, 0.30, win=w)
-    # soft darker band at the bottom of the face
-    lo = np.maximum(face, 100 - Y)
-    w = cv.win(lo < 1)
-    cv.paint(np.clip(0.5 - lo[w] * cv.ss, 0, 1) * smoothstep(100, 117, Y[w]), C(shelf), 0.25, win=w)
-    cv.fill(sd_ellipse(X, Y, 20, 20, 5.2, 3.0, ang=-0.45), WHITE, 0.8, soft=0.6)     # stays at x <= 26
+    cv.stroke(face + 0.9, 1.8, line, 1.0)
+    cv.stroke(face + 3.6, 1.6, WHITE, 0.6)
     return cv
 
 
-SMALL_SHELF = 6
+SMALL_SHELF = 5
 
 
 def draw_button_small(kind):
     """64x64 nine-slice button (borders 16/16/16/22) for small square buttons such as the '+' (46 px)."""
     top, bot, shelf = BUTTONS[kind]
+    line = BUTTON_LINES.get(kind, shelf)
     cv = Canvas(64, 64)
     X, Y = cv.X, cv.Y
-    outer = sd_rect(X, Y, 1, 1, 63, 63, 14)
-    cv.fill(outer, shelf)
-    face = sd_rect(X, Y, 1, 1, 63, 63 - SMALL_SHELF, 14)
+    cv.fill(sd_rect(X, Y, 1, 1 + SMALL_SHELF, 63, 63, 15), shelf, 0.92)
+    face = sd_rect(X, Y, 1, 1, 63, 63 - SMALL_SHELF, 15)
     cv.fill_grad(face, [(0, top), (1, bot)], axis="y", p0=2, p1=63 - SMALL_SHELF)
-    lip = np.maximum(np.abs(face + 1.6) - 1.6, Y - 16)
-    w = cv.win(lip < 1)
-    cv.paint(np.clip(0.5 - lip[w] * cv.ss, 0, 1) * smoothstep(16, 3, Y[w]), WHITE, 0.55, win=w)
-    gl = sd_rect(X, Y, 6, 4, 58, 25, 9)
-    w = cv.win(gl < 1)
-    cv.paint(np.clip(0.5 - gl[w] * cv.ss, 0, 1) * smoothstep(27, 5, Y[w]), WHITE, 0.30, win=w)
-    lo = np.maximum(face, 48 - Y)
-    w = cv.win(lo < 1)
-    cv.paint(np.clip(0.5 - lo[w] * cv.ss, 0, 1) * smoothstep(48, 57, Y[w]), C(shelf), 0.25, win=w)
-    cv.fill(sd_ellipse(X, Y, 10, 10, 3.0, 1.8, ang=-0.45), WHITE, 0.8, soft=0.4)      # inside the 16 px border
+    cv.stroke(face + 0.7, 1.4, line, 1.0)
+    cv.stroke(face + 2.6, 1.2, WHITE, 0.6)
     return cv
 
 
@@ -326,14 +310,13 @@ def _panel(fill, line, shadow_col):
     X, Y = cv.X, cv.Y
     body = sd_rect(X, Y, 12, 8, 116, 112, 24)
     cv.fill(body, fill)
-    cv.stroke(body + 1.5, 3.0, line, 1.0)
-    cv.fill(np.maximum(np.abs(body + 4.5) - 1.0, Y - 30), WHITE, 0.8, soft=0.6)
-    cv.shadow_under(0, 5, 5, shadow_col, 0.28)
+    cv.stroke(body + 1.0, 2.0, line, 1.0)
+    cv.shadow_under(0, 5, 5, shadow_col, 0.22)
     return cv
 
 
 def draw_panel():
-    return _panel("#FFFFFF", PANEL_LINE, "#2F80ED")
+    return _panel("#FFFFFF", PANEL_LINE, "#6D4B84")
 
 
 def draw_panel_tint():
@@ -341,29 +324,16 @@ def draw_panel_tint():
 
 
 def draw_ribbon():
+    """320x80 nine-slice (112/0/112/0): the title plate of a window, a soft purple pill (the accent surface)."""
+    top, bot, shelf = BUTTONS["purple"]
     cv = Canvas(320, 80)
     X, Y = cv.X, cv.Y
-    line = "#5B17C9"
-    for sgn in (-1, 1):
-        xo = 160 + sgn * 158
-        xi = 160 + sgn * 104
-        pts = [(xi, 24), (xo, 24), (xo - sgn * 16, 46), (xo, 68), (xi, 68)]
-        tail = opening(sd_poly(X, Y, pts), 2, cv.ss)
-        candy(cv, tail, ("#C9A1FF", "#9B5CFF", "#7433E0", line), lw=2.6, depth=8, rim=0.3, grad_dir=(0, 1))
-        fold = sd_poly(X, Y, [(160 + sgn * 126, 58), (160 + sgn * 126, 70), (160 + sgn * 104, 58)])
-        cv.fill(fold, "#4A10A8")
-    band = sd_rect(X, Y, 34, 8, 286, 60, 12)
-    candy(cv, band, ("#D8B8FF", "#A66BFF", "#8B45FF", line), lw=2.8, depth=12, lift=0.5, rim=0.4, grad_dir=(0, 1),
-          stops=(0.0, 0.45, 1.0))
-    gl = I(sd_rect(X, Y, 42, 12, 278, 30, 7), band + 3)
-    w = cv.win(gl < 1)
-    cv.paint(np.clip(0.5 - gl[w] * cv.ss, 0, 1) * smoothstep(34, 12, Y[w]), WHITE, 0.45, win=w)
-    for yy in (15, 53):
-        stitch = np.abs(Y - yy) - 0.9
-        cv.fill(np.maximum(stitch, band + 5), "#F1E6FF", 0.6)
-    for sx in (52, 268):
-        sparkle4(cv, sx, 34, 7, WHITE, 0.9)
-    soft_shadow(cv, 0, 3, 3, PIECE_SHADOW, 0.3)
+    cv.fill(sd_rect(X, Y, 24, 10 + 6, 296, 70, 27), shelf, 0.92)
+    face = sd_rect(X, Y, 24, 10, 296, 64, 27)
+    cv.fill_grad(face, [(0, top), (1, bot)], axis="y", p0=10, p1=64)
+    cv.stroke(face + 0.9, 1.8, shelf, 1.0)
+    cv.stroke(face + 3.6, 1.6, WHITE, 0.55)
+    soft_shadow(cv, 0, 3, 3, PIECE_SHADOW, 0.22)
     return cv
 
 

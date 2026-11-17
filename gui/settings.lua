@@ -53,7 +53,7 @@ local function volume_row(e, body, key, text_key, icon_on, icon_off, y, value)
 			e.ui:clear(icon)
 			icon = ic
 		end
-	end, { color = key == "music" and "purple" or "pink", target = "slider_" .. key })
+	end, { color = "purple", target = "slider_" .. key })
 end
 
 local function reset(e)
@@ -178,17 +178,17 @@ function M.build(e)
 
 	-- account and cloud save (WP-10): one row, the window has the rest
 	y = y - 190 -- (clear of the language row above: the two overlapped)
-	s:button({ parent = body, x = 0, y = y, w = 520, h = 92, style = "purple", icon = "ui/icons/team", icon_size = 46,
+	s:button({ parent = body, x = 0, y = y, w = 520, h = 92, style = "white", icon = "ui/icons/team", icon_size = 46,
 		text = i18n.tr(account.who_spec()), text_size = 28, on_click = function() e:open("account") end })
 	e:target("account", 0, y)
 
 	-- save code
 	y = y - 110
 	kit.section(e, body, i18n.t("settings.code_section"), 0, y, W - 80)
-	s:button({ parent = body, x = 0, y = y - 90, w = 520, h = 92, style = "blue", icon = "ui/icons/city", icon_size = 46,
+	s:button({ parent = body, x = 0, y = y - 90, w = 520, h = 92, style = "white", icon = "ui/icons/city", icon_size = 46,
 		text = i18n.t("settings.code_copy"), text_size = 28, on_click = function() M.copy_code() end })
 	e:target("code_copy", 0, y - 90)
-	s:button({ parent = body, x = 0, y = y - 196, w = 520, h = 92, style = "blue", icon = "ui/icons/city", icon_size = 46,
+	s:button({ parent = body, x = 0, y = y - 196, w = 520, h = 92, style = "white", icon = "ui/icons/city", icon_size = 46,
 		text = i18n.t("settings.code_enter"), text_size = 28, on_click = function() M.enter_code(e) end })
 	e:target("code_enter", 0, y - 196)
 

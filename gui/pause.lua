@@ -55,7 +55,7 @@ function M.build(e)
 	lkit.pulse(resume.node, 0.025, 1.0)
 
 	y = y - 136
-	s:button({ parent = body, x = 0, y = y, w = 440, h = 100, style = "blue", icon = "ui/icons/settings", icon_size = 56,
+	s:button({ parent = body, x = 0, y = y, w = 440, h = 100, style = "white", icon = "ui/icons/settings", icon_size = 56,
 		text = i18n.t("pause.settings"), text_size = 36, on_click = function() e:open("settings") end })
 	e:target("settings", 0, y)
 

@@ -43,14 +43,17 @@ SPOTS = ["#FF4FD8", "#3CF2FF", "#FFE66D"]
 
 # ui
 INK = "#2B2345"
-BUTTONS = {   # top, bottom, shelf
-    "green": ("#6CF08E", "#22C55E", "#15964A"),
-    "blue": ("#5CD6FF", "#2F80ED", "#1C5FC0"),
-    "gold": ("#FFD84D", "#FFA41B", "#E07F00"),
-    "pink": ("#FF7EB6", "#FF4D8D", "#D62F6C"),
-    "purple": ("#C18CFF", "#8B45FF", "#6A2FD6"),
+# "Soft Pop" surfaces from the producer's UI pack (GLOW_UI/theme-tokens.json, light theme): top, bottom, shelf
+BUTTONS = {
+    "green": ("#60EAB2", "#15C886", "#0DA568"),      # primary
+    "blue": ("#A5DCFF", "#55ACF3", "#2F86D9"),
+    "gold": ("#FFE27C", "#FFBA31", "#E8991D"),       # coin
+    "pink": ("#FF8EA9", "#F34878", "#D93067"),       # heart / danger
+    "purple": ("#C399FF", "#8B45ED", "#6C32CF"),     # accent
+    "white": ("#FFFFFF", "#F7F0FF", "#CAB7DE"),      # surface
 }
-PANEL_LINE = "#E6DAFF"
+BUTTON_LINES = {"white": "#DED0EF"}                   # the thin line around a face when it is not the shelf colour
+PANEL_LINE = "#DED0EF"
 PINK_BADGE = [(0.0, "#FF8FC7"), (0.6, "#FF4D8D"), (1.0, "#F0306F")]
 
 # mascot Bit

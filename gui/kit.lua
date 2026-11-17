@@ -59,14 +59,14 @@ function M.panel(e, w, h, opts)
 		local ribbon = s:image(body, "ui/ribbon", 0, h / 2 - 2, { w = rw, h = 104, slice9 = true })
 			or s:round(body, 0, h / 2 - 2, rw - 60, 86, "purple")
 		s:text(ribbon, i18n.tr(opts.title), 0, 8, {
-			font = "button", size = 42, color = "white", outline = "#5220A6", shadow = "#5220A6", max_width = rw - 200,
+			font = "button", size = 42, color = "white", shadow = "#6C32CF", max_width = rw - 200,
 		})
 		e.ribbon = ribbon
 	end
 	if opts.close ~= false then
 		local cx, cy = w / 2 - 40, h / 2 - 40
-		local b = s:button({ parent = body, x = cx, y = cy, w = 92, h = 92, style = "pink", icon = "ui/icons/close",
-			icon_size = 50, text = not assets.has_image("ui/icons/close") and "X" or nil,
+		local b = s:button({ parent = body, x = cx, y = cy, w = 84, h = 84, style = "white", icon = "ui/icons/close",
+			icon_size = 56, text = not assets.has_image("ui/icons/close") and "X" or nil,
 			on_click = function() e:close("close") end })
 		e:target("close", cx, y + cy)
 		e.close_btn = b
@@ -235,12 +235,12 @@ end
 -- An on/off switch. on_change(new_value). Touch area 150 x 92.
 function M.toggle(e, parent, x, y, on, on_change, target)
 	local s = e.ui
-	local track = s:round(parent, x, y, 118, 62, on and "green" or "#D9D0EE", { radius = 30 })
+	local track = s:round(parent, x, y, 118, 62, on and "#27C893" or "#DCCFEA", { radius = 30 })
 	local knob = s:circle(track, on and 28 or -28, 0, 52, "white")
 	local hit = s:button({ parent = parent, x = x, y = y, w = 150, h = 92, style = "white", sfx = "tap",
 		on_click = function()
 			on = not on
-			gui.set_color(track, ui.color(on and "green" or "#D9D0EE"))
+			gui.set_color(track, ui.color(on and "#27C893" or "#DCCFEA"))
 			if M.reduced() then
 				gui.set_position(knob, vmath.vector3(on and 28 or -28, 0, 0))
 			else

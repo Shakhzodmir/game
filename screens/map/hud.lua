@@ -40,7 +40,7 @@ function Hud:build()
 	local rib = s:image(layer, "ui/ribbon", 380, M.TOP_Y, { w = 250, h = 78 })
 	if rib then s:anchor(rib, "top") end
 	local title = s:text(layer, i18n.t("map.title"), 380, M.TOP_Y + 2, {
-		font = "button", size = 38, color = "white", outline = "#5220A6", shadow = "#5220A6", max_width = 150,
+		font = "button", size = 38, color = "white", shadow = "#6C32CF", max_width = 150,
 	})
 	s:anchor(title, "top")
 

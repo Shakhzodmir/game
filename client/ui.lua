@@ -38,34 +38,36 @@ local i18n = require("client.i18n")
 local M = {}
 
 M.PALETTE = {
-	text = "#2B2345",
-	text_soft = "#6B5E8F",
+	text = "#3D285D",
+	text_soft = "#88739F",
 	white = "#FFFFFF",
 	sky_top = "#43BFFF",
 	sky = "#86DDFF",
 	sky_low = "#C9F2FF",
 	sun = "#FFF4C9",
 	lavender = "#EFE8FF",
-	panel_line = "#E3D9FF",
+	panel_line = "#DED0EF",
 	shadow = "#5A3FA0",
 	pink = "#FF4D8D",
 	yellow = "#FFDB1A",
 	coin = "#FFB020",
 	gold = "#FFB020",
-	green = "#22C55E",
+	green = "#15C886",
 	blue = "#2F80ED",
-	purple = "#8B45FF",
+	purple = "#8650EA",
 	glow = "#FFD84D",
 }
 
--- button styles: face top, face bottom, shelf, label outline
+-- button styles ("Soft Pop", the producer's UI pack): face top, face bottom, shelf, label shadow (or false),
+-- label colour. No label has an outline: dark ink on the light faces, white on the saturated ones.
 M.STYLES = {
-	green = { "#6CF08E", "#22C55E", "#15964A", "#0F7A3B" },
-	blue = { "#5CD6FF", "#2F80ED", "#1C5FC0", "#174E9E" },
-	gold = { "#FFD84D", "#FFA41B", "#E07F00", "#B35F00" },
-	pink = { "#FF7EB6", "#FF4D8D", "#D12F6B", "#A8204F" },
-	purple = { "#C18CFF", "#8B45FF", "#6A2BD1", "#5220A6" },
-	white = { "#FFFFFF", "#F3EEFF", "#D9CCF5", "#8B7BB8" },
+	green = { "#60EAB2", "#15C886", "#0DA568", false, "#15533E" },
+	blue = { "#A5DCFF", "#55ACF3", "#2F86D9", "#2F86D9", "#FFFFFF" },
+	gold = { "#FFE27C", "#FFBA31", "#E8991D", false, "#6B4300" },
+	pink = { "#FF8EA9", "#F34878", "#D93067", "#D93067", "#FFFFFF" },
+	purple = { "#C399FF", "#8B45ED", "#6C32CF", "#6C32CF", "#FFFFFF" },
+	white = { "#FFFFFF", "#F7F0FF", "#CAB7DE", false, "#3D285D" },
+	flat = { "#FFFFFF", "#FFFFFF", "#FFFFFF", false, "#3D285D" },
 }
 
 M.FONT_FALLBACK = "body"
@@ -127,7 +129,7 @@ local function button_texture_spec(style)
 	local s = M.STYLES[style] or M.STYLES.green
 	return 64, 80, function()
 		return gfx.round_rect(64, 80, 24, {
-			top = gfx.hex(s[1]), bottom = gfx.hex(s[2]), shelf = gfx.hex(s[3]), shelf_h = 10, gloss = 0.35,
+			top = gfx.hex(s[1]), bottom = gfx.hex(s[2]), shelf = gfx.hex(s[3]), shelf_h = 8, gloss = 0,
 		})
 	end
 end
@@ -137,7 +139,7 @@ local function small_button_texture_spec(style)
 	local s = M.STYLES[style] or M.STYLES.green
 	return 48, 52, function()
 		return gfx.round_rect(48, 52, 22, {
-			top = gfx.hex(s[1]), bottom = gfx.hex(s[2]), shelf = gfx.hex(s[3]), shelf_h = 5, gloss = 0.35,
+			top = gfx.hex(s[1]), bottom = gfx.hex(s[2]), shelf = gfx.hex(s[3]), shelf_h = 5, gloss = 0,
 		})
 	end
 end
@@ -724,6 +726,9 @@ function Scene:button(spec)
 	local function atlas_ok(e)
 		return e and not e.file and (not self.gui_path or assets.gui_has_texture(self.gui_path, e.atlas))
 	end
+	if not node and style == "flat" then -- no face of its own: a tab on a plate of the same colour
+		node = self:round(parent, spec.x, spec.y, w, h, spec.flat_color or "white", { radius = 28 })
+	end
 	local atlas_key = "ui/button_" .. style
 	local e = assets.image(atlas_key)
 	local fits = e and (not e.slice9 or (e.slice9[1] + e.slice9[3] < w and e.slice9[2] + e.slice9[4] < h))
@@ -760,13 +765,12 @@ function Scene:button(spec)
 	end
 	if spec.text then
 		local st = M.STYLES[style] or M.STYLES.green
-		local dark = style == "white"
 		btn.label, btn.label_info = self:text(node, spec.text, label_dx - (spec.text_pad_right or 0) / 2, 6, {
 			font = spec.font or "button",
 			size = spec.text_size or math.min(46, h * 0.42),
-			color = dark and "text" or "white",
-			outline = dark and false or st[4],
-			shadow = not dark and st[4] or false,
+			color = st[5],
+			outline = false,
+			shadow = st[4],
 			max_width = math.max(10, w - (w >= 120 and 40 or 12) - (label_dx * 2) - (spec.text_pad_right or 0)),
 		})
 		gui.set_inherit_alpha(btn.label, true)

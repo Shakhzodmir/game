@@ -320,7 +320,7 @@ function M.build(e)
 
 	-- back to the town music: always on screen, dull while the town's own music plays
 	local by = -hh + 70
-	local home = s:button({ parent = body, x = 0, y = by, w = 440, h = 92, style = vm.chosen and "blue" or "white",
+	local home = s:button({ parent = body, x = 0, y = by, w = 440, h = 92, style = vm.chosen and "purple" or "white",
 		icon = "ui/icons/city", icon_size = 50, text = i18n.t("jukebox.back_home"), text_size = 26, sfx = false,
 		on_click = function()
 			if not vm.chosen then

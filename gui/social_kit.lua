@@ -109,7 +109,7 @@ end
 function M.arrow(e, parent, x, y, dir, on_click, target)
 	local s = e.ui
 	local has = require("client.assets").has_image("ui/icons/arrow")
-	local b = s:button({ parent = parent, x = x, y = y, w = 80, h = 80, style = "blue", icon = "ui/icons/arrow", icon_size = 46,
+	local b = s:button({ parent = parent, x = x, y = y, w = 80, h = 80, style = "white", icon = "ui/icons/arrow", icon_size = 46,
 		text = not has and (dir > 0 and "^" or "v") or nil, sfx = "tap", on_click = on_click })
 	if b.icon then gui.set_euler(b.icon, vmath.vector3(0, 0, dir > 0 and 90 or -90)) end
 	if target then e:target(target, x, y) end
@@ -126,7 +126,7 @@ function M.profile_editor(e, body, hh, st, on_save)
 	M.note(e, body, i18n.t("social.profile_text"), 0, hh - 190, 540, 28, "text", 150)
 	local pill = s:round(body, 0, hh - 330, 540, 110, "#F6F2FF", { radius = 40 })
 	s:text(pill, social.name_text(name), 0, 2, { font = "button", size = 42, color = "purple", max_width = 480 })
-	s:button({ parent = body, x = 0, y = hh - 440, w = 400, h = 88, style = "blue", text = i18n.t("social.other_name"),
+	s:button({ parent = body, x = 0, y = hh - 440, w = 400, h = 88, style = "white", text = i18n.t("social.other_name"),
 		text_size = 30, sfx = "tap", on_click = function() st.k = st.k + 1; e:rebuild() end })
 	e:target("reroll", 0, hh - 440)
 	kit.caption(e, body, i18n.t("social.pick_avatar"), 0, hh - 520, { size = 28 })

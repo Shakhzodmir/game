@@ -146,7 +146,7 @@ function M.build(e)
 			s:text(body, i18n.t("continue.no_coins", { n = i18n.number(v.coins) }), 0, y - 34, {
 				font = "button", size = 26, color = "pink", max_width = W - 80,
 			})
-			s:button({ parent = body, x = 0, y = y - 106, w = 330, h = 88, style = "blue", icon = "ui/icons/shop", icon_size = 52,
+			s:button({ parent = body, x = 0, y = y - 106, w = 330, h = 88, style = "white", icon = "ui/icons/shop", icon_size = 52,
 				text = i18n.t("lives.get_coins"), text_size = 30, on_click = function() e:open("shop", { tab = "coins" }) end })
 			e:target("get_coins", 0, y - 106)
 			y = y - 150

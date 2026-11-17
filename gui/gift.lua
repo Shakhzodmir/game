@@ -73,7 +73,7 @@ function M.build(e)
 
 	local ribbon = s:image(e.content, "ui/ribbon", 0, 420, { w = 600, h = 116, slice9 = true })
 		or s:round(e.content, 0, 420, 540, 96, "purple")
-	s:text(ribbon, i18n.t("gift.title"), 0, 8, { font = "button", size = 42, color = "white", outline = "#5220A6", shadow = "#5220A6", max_width = 400 })
+	s:text(ribbon, i18n.t("gift.title"), 0, 8, { font = "button", size = 42, color = "white", shadow = "#6C32CF", max_width = 400 })
 	if e.first and not kit.reduced() then kit.pop_in(ribbon, 0.05, 0.4) end
 
 	if not opened then

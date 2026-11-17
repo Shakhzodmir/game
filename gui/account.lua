@@ -36,7 +36,7 @@ local function text_block(items, spec, size, color)
 end
 
 local function button(items, id, text, style, fn)
-	items[#items + 1] = { kind = "button", id = id, text = text, style = style or "blue", fn = fn, h = BTN_H }
+	items[#items + 1] = { kind = "button", id = id, text = text, style = style or "white", fn = fn, h = BTN_H }
 end
 
 local function confirm_sign_out(e)

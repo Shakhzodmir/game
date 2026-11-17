@@ -91,6 +91,20 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "ui_button_small_white"
+  images {
+    image: "/assets/images/ui/button_small_white.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_button_white"
+  images {
+    image: "/assets/images/ui/button_white.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "ui_genres_ambient"
   images {
     image: "/assets/images/ui/genres/ambient.png"

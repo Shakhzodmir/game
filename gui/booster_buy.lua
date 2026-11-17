@@ -96,7 +96,7 @@ function M.build(e)
 	local coins = kit.coins_pill(e, body, 0, y - 100, app.meta:coins())
 	e.coins_pill = coins
 	if not affordable then
-		s:button({ parent = body, x = 0, y = y - 190, w = 330, h = 80, style = "blue", icon = "ui/icons/shop", icon_size = 46,
+		s:button({ parent = body, x = 0, y = y - 190, w = 330, h = 80, style = "white", icon = "ui/icons/shop", icon_size = 46,
 			text = i18n.t("lives.get_coins"), text_size = 28, on_click = function() e:open("shop", { tab = "coins" }) end })
 		e:target("get_coins", 0, y - 190)
 	end

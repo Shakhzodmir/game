@@ -86,7 +86,7 @@ describe("level chest: the cases the first test round left open", function()
 			win(c)
 			local found = 0
 			for _, node in ipairs(c.E.alive_nodes(c.E.scene("/screens/level/level.gui"))) do
-				if node.texture == "px_btn_white" and node.size.x == 560 and node.size.y == 212 then
+				if (node.texture == "px_btn_white" or node.texture == "ui") and node.size.x == 560 and node.size.y == 212 then
 					found = found + 1
 					assert_true(node.color.w == 0, "the strip button draws itself: alpha " .. tostring(node.color.w))
 				end

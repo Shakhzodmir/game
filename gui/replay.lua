@@ -49,7 +49,7 @@ function M.build(e)
 		local k = i - first
 		local x = gx0 + (k % COLS) * (CELL_W + GAP_X)
 		local y = gy0 - math.floor(k / COLS) * (CELL_H + GAP_Y)
-		s:button({ parent = body, x = x, y = y, w = CELL_W, h = CELL_H, style = i == n and "gold" or "blue",
+		s:button({ parent = body, x = x, y = y, w = CELL_W, h = CELL_H, style = i == n and "gold" or "white",
 			text = tostring(i), text_size = 38, on_click = function() M.play(i) end })
 		e:target("replay_" .. i, x, y)
 	end

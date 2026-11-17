@@ -355,7 +355,7 @@ function Hud:set_target(id)
 		font = "button", size = 34, color = "purple", max_width = 280,
 	})
 	self.pick_step = 0
-	local cancel = s:button({ parent = c, x = 236, y = 2, w = 200, h = 84, style = "pink", icon = "ui/icons/close", icon_size = 40,
+	local cancel = s:button({ parent = c, x = 236, y = 2, w = 200, h = 84, style = "white", icon = "ui/icons/close", icon_size = 40,
 		text = i18n.t("common.cancel"), text_size = 28, on_click = function()
 			if self.actions.cancel_booster then self.actions.cancel_booster() end
 		end })
