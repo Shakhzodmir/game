@@ -17,6 +17,7 @@
 --   assets.district_bg_key("cafe", "concert") --> "districts/cafe/bg_concert",
 --                                        falling back to the day bg | nil
 --   assets.district_bg("cafe", "concert") --> image entry of that key | nil
+--   assets.level_bg_key("bazaar")     --> "districts/bazaar/level_bg", true | "backgrounds/level_bg", false
 --   assets.for_gui("pieces/red", "/screens/town/town.gui") --> the entry with the
 --                                        atlas this GUI has (a copy in "meta"), nil if none
 --   assets.gui_has_texture("/screens/level/level.gui", "game") --> bool
@@ -84,6 +85,16 @@ function M.district_bg_key(district, view)
 	local key = "districts/" .. district .. "/bg"
 	if M.image(key) then return key end
 	return nil
+end
+
+-- The background of the level screen: the picture of the level's district (districts/<id>/level_bg, drawn without
+-- clouds) or the common one. Second result: true when it is the district's own.
+function M.level_bg_key(district)
+	if district then
+		local key = "districts/" .. district .. "/level_bg"
+		if M.image(key) then return key, true end
+	end
+	return "backgrounds/level_bg", false
 end
 
 function M.district_bg(district, view)
