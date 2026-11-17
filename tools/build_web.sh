@@ -29,6 +29,9 @@ fi
 out="$(dirname "$(find dist -name index.html | head -1)")"
 # accounts (WP-10): the browser bridge and the public provider configuration sit next to index.html
 cp web/auth_config.js web/glow_auth.js "$out/"
+# the site's own pages (WP-18): the privacy policy (the game links it as ./privacy.html) and the 404 page that
+# GitHub Pages serves for any address the site does not have
+cp web/privacy.html web/404.html "$out/"
 rm -f "$out/DEBUG_BUILD_DO_NOT_PUBLISH"
 if [ "$VARIANT" = "debug" ]; then
 	echo "debug bundle: cheat keys and the QA bridge are in it. Never publish it." > "$out/DEBUG_BUILD_DO_NOT_PUBLISH"

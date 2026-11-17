@@ -1,0 +1,127 @@
+-- The static pages of the site (WP-18): web/privacy.html and web/404.html, and that the build and the publishing
+-- step carry them next to index.html. Run from the repository root.
+
+local i18n = require("client.i18n")
+
+local function slurp(path)
+	local f = assert(io.open(path, "rb"), path .. " is missing")
+	local s = f:read("*a")
+	f:close()
+	return s
+end
+
+local function has(s, needle) return s:find(needle, 1, true) ~= nil end
+
+local ISSUES = "https://github.com/Shakhzodmir/game/issues"
+local PAGES = { "web/privacy.html", "web/404.html" }
+
+-- everything starting with http: only the contact page of the repository may be linked
+local function external_urls(s)
+	local out = {}
+	for url in s:gmatch("https?://[^%s\"'<>)]+") do out[#out + 1] = url end
+	return out
+end
+
+describe("static pages: what every page must and must not contain", function()
+	it("are single self-contained files in three languages", function()
+		for _, path in ipairs(PAGES) do
+			local s = slurp(path)
+			assert_true(has(s, 'lang="ru"') and has(s, 'lang="en"') and has(s, 'lang="ko"'), path .. ": three languages")
+			assert_true(s:find("[\234-\237][\128-\191][\128-\191]") ~= nil, path .. ": Hangul")
+			assert_true(s:find("\208[\144-\175]") ~= nil, path .. ": Cyrillic")
+			for _, code in ipairs({ "RU", "EN", "KO" }) do
+				assert_true(s:find('data%-set="' .. code:lower() .. '"[^>]*>' .. code .. "</button>") ~= nil, path .. ": button " .. code)
+			end
+			assert_false(s:find("<link", 1, true) ~= nil, path .. ": no external stylesheet or font")
+			assert_false(s:find("<img", 1, true) ~= nil, path .. ": no pictures")
+			assert_false(s:find("<script[^>]-src=") ~= nil, path .. ": no external script")
+			assert_false(s:find("@import", 1, true) ~= nil, path .. ": no @import")
+			assert_false(s:find("url(", 1, true) ~= nil, path .. ": no url() resources")
+			assert_true(has(s, "<style>"), path .. ": inline CSS")
+		end
+	end)
+
+	it("hold no names, addresses, account paths or keys", function()
+		for _, path in ipairs(PAGES) do
+			local s = slurp(path)
+			local low = s:lower()
+			for _, bad in ipairs({ "@gmail", "aigpa", "c:\\", "c:/users", "apikey", "aiza", "api_key", "secret", "token", "password=" }) do
+				assert_false(has(low, bad), path .. " contains '" .. bad .. "'")
+			end
+			assert_true(s:find("[%w._%-]+@[%w.%-]+%.%a%a") == nil, path .. ": an e-mail address")
+		end
+	end)
+end)
+
+describe("web/privacy.html", function()
+	local s = slurp("web/privacy.html")
+
+	it("is dated and links the public contact page, and nothing else outside the site", function()
+		assert_true(has(s, "Обновлено: 17 ноября 2026"))
+		assert_true(has(s, "Updated: November 17, 2026"))
+		assert_true(has(s, "업데이트: 2026년 11월 17일"))
+		assert_true(has(s, 'href="' .. ISSUES .. '"'))
+		for _, url in ipairs(external_urls(s)) do assert_eq(url, ISSUES, "unexpected link " .. url) end
+	end)
+
+	it("leads back to the game next to it, in every language", function()
+		local _, n = s:gsub('class="back" href="%./"', "")
+		assert_eq(n, 6, "two back links per language")
+		assert_true(has(s, "Назад в игру") and has(s, "Back to the game") and has(s, "게임으로 돌아가기"))
+	end)
+
+	it("states the facts of the code: what is kept, what is not, where, how to delete, children", function()
+		local ru, en, ko = s:match('<section data%-l="ru".-</section>'), s:match('<section data%-l="en".-</section>'), s:match('<section data%-l="ko".-</section>')
+		assert_true(ru and en and ko, "three sections")
+		for _, t in ipairs({ ru, en, ko }) do assert_true(has(t, "eur3"), "the region") assert_true(has(t, "Firebase")) end
+		assert_true(has(ru, "Нет рекламы") and has(ru, "Нет аналитики и отслеживания") and has(ru, "не продаём"))
+		assert_true(has(en, "No ads") and has(en, "No analytics and no tracking") and has(en, "do not sell"))
+		assert_true(has(ko, "광고가 없습니다") and has(ko, "분석과 추적이 없습니다") and has(ko, "판매하지 않으며"))
+		assert_true(has(ru, "Пароль знает только сервис входа") and has(en, "known only to the sign-in service"))
+		assert_true(has(ru, "младше 13 лет без разрешения родителей") and has(en, "under 13 without a parent's permission") and has(ko, "만 13세 미만"))
+		assert_true(has(ru, "код сохранения игры") and has(en, "save code") and has(ko, "저장 코드"))
+	end)
+
+	it("names the deletion button exactly as the game does", function()
+		local expect = { ru = "Удалить аккаунт и данные", en = "Delete account and data", ko = "계정과 데이터 삭제" }
+		for lang, text in pairs(expect) do
+			assert_eq(i18n.STRINGS["account.delete"][lang], text, "the game's own label changed: update the page")
+			assert_true(has(s, text), lang .. ": the page must name the button '" .. text .. "'")
+		end
+	end)
+end)
+
+describe("web/404.html", function()
+	local s = slurp("web/404.html")
+
+	it("sends the visitor back to the game in every language and picks the language by the browser", function()
+		local _, n = s:gsub('<a class="go" href="/game/">', "")
+		assert_eq(n, 3)
+		assert_true(has(s, "Вернуться в игру") and has(s, "Back to the game") and has(s, "게임으로 돌아가기"))
+		assert_true(has(s, "navigator.language"))
+		assert_eq(#external_urls(s), 0, "no outside links at all")
+	end)
+
+	it("draws Bit with CSS only", function()
+		assert_true(has(s, 'class="bit"') and has(s, 'class="band"') and has(s, 'class="cup l"'))
+		assert_true(has(s, "#7B4FFF"), "the purple of the headphones")
+	end)
+end)
+
+describe("the build and the publishing step carry the pages", function()
+	it("tools/build_web.sh copies both pages next to index.html", function()
+		local s = slurp("tools/build_web.sh")
+		assert_true(has(s, "web/privacy.html") and has(s, "web/404.html"))
+		assert_true(s:find('cp [^\n]*web/privacy%.html[^\n]*"%$out/"') ~= nil)
+		assert_true(s:find('cp [^\n]*web/404%.html[^\n]*"%$out/"') ~= nil)
+	end)
+
+	it("the gh-pages step publishes the whole bundle folder, so the pages go with it", function()
+		local s = slurp(".github/workflows/ci.yml")
+		local pages = s:match("\n  pages:.*$")
+		assert_true(pages ~= nil)
+		assert_true(has(pages, "git add -A"), "the step must add every file of the bundle folder")
+		assert_true(has(pages, '$(dirname "$(find dist -name index.html | head -1)")'), "and publish the folder with index.html")
+		assert_false(has(pages, "privacy.html"), "no per-file list: a new page needs no workflow change")
+	end)
+end)
