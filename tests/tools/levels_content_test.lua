@@ -4,9 +4,12 @@
 -- (or the level, if the plan is right).
 --   * every file loads through the core (rules 2.1) and keeps the plan of levels-plan.md: the difficulty saw,
 --     the colours of its stretch, 20-35 moves (the same as `luajit tools/levels.lua validate --strict`);
---   * the saw earns 126 stars in the first hundred, the files 390 in all; the town costs 389 (meta-economy.md,
---     section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11, 12, 13, 14 and 15 cost what
---     their saws earn, 26 each);
+--   * the saw earns 126 stars in the first hundred, the files 390 in Part 1 (levels 1-300); Part 1 of the town costs 389
+--     (meta-economy.md, section 9; district 6 by the price rule of docs/handoff/WP-15.md, districts 7, 8, 9, 10, 11, 12, 13,
+--     14 and 15 cost what their saws earn, 26 each);
+--   * every Part 2 district (16-30, docs/design/part2-districts.md) has 20 levels: 10 easy, 6 medium, 2 hard and 2 super
+--     hard, the concert (its last level) among them; its saw earns the 26 stars it costs, so the spare stays 1 star.
+--     PART2_SAW pins where the hard and super hard levels of each district stand (add a line for a new district);
 --   * every level of the README table agrees with its file: difficulty, size and cells, colours, elements,
 --     goals, and the "(обучение)" mark with the lessons of content/tutorials.json. The moves column is only
 --     checked to be a number in the range of the schema: the tuner rewrites the real value (tools/README.md)
@@ -36,6 +39,10 @@ local ITEM_WORD = { record_box = "короб", concrete = "бетон", noise = 
 	boombox = "бумбокс", hay = "стог" }
 local FOG_GOAL = "рассеять туман" -- the goal `fog` of the table (10.13): no count, every fogged cell
 local LAST = Levels.content_count(DIR) -- the last level of the last district of content/districts.json
+-- Part 2: where the hard and the super hard levels of a district stand (docs/design/part2-districts.md, "Кривая")
+local PART2_SAW = {
+	midnight_cafe = { hard = { 312, 315 }, super_hard = { 318, 320 } }, -- district 16: the first half without hard levels
+}
 local TIMES = "\195\151" -- the multiplication sign of the "9×9" of the field column
 
 local function read(path)
@@ -103,9 +110,11 @@ local function cell_count(raw)
 end
 
 describe("level content: the files", function()
-	it("has every level of the fifteen districts, each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
+	it("has every level of the districts (300 in Part 1), each valid for the core and for the plan (saw, colours, 20-35 moves)", function()
 		local problems = {}
-		assert_eq(LAST, 300, "the last level of the last district")
+		local districts = json.decode(read("content/districts.json")).districts
+		assert_eq(districts[15].last, 300, "Part 1 ends with level 300")
+		assert_eq(LAST, districts[#districts].last, "the last level of the last district")
 		for n, f in ipairs(files()) do
 			for _, e in ipairs(f.res.errors) do problems[#problems + 1] = "level " .. n .. ": " .. e end
 			for _, w in ipairs(f.res.warnings) do problems[#problems + 1] = "level " .. n .. ": " .. w end
@@ -117,9 +126,9 @@ describe("level content: the files", function()
 		assert_true(#problems == 0, table.concat(first_n(problems, 12), "\n"))
 	end)
 
-	it("earns 390 stars on the saw (130 in the first hundred), more than the 389 of the town", function()
+	it("earns 390 stars on the saw of Part 1 (130 in the first hundred), one more than its 389; 26 more per Part 2 district", function()
 		local stars, counts = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
-		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220, stars240, counts240, stars260, counts260, stars280, counts280
+		local stars100, counts100, stars120, counts120, stars140, counts140, stars160, counts160, stars180, counts180, stars200, counts200, stars220, counts220, stars240, counts240, stars260, counts260, stars280, counts280, stars300, counts300
 		for n, f in ipairs(files()) do
 			assert_true(f.raw ~= nil, "level " .. n .. " is missing")
 			stars = stars + STARS[f.raw.difficulty]
@@ -164,6 +173,10 @@ describe("level content: the files", function()
 				stars280 = stars
 				counts280 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
 			end
+			if n == 300 then
+				stars300 = stars
+				counts300 = { easy = counts.easy, medium = counts.medium, hard = counts.hard, super_hard = counts.super_hard }
+			end
 		end
 		-- (WP-14: the concerts of districts 1 and 2, levels 20 and 40, are super hard now)
 		assert_same(counts100, { easy = 51, medium = 26, hard = 16, super_hard = 7 })
@@ -207,14 +220,37 @@ describe("level content: the files", function()
 		assert_eq(stars280, 364)
 		-- district 15 (WP-17, levels 281-300), the last of the plan, has the same saw: 10 easy, 6 medium, hard 287 and 293,
 		-- super hard 297 and the concert 300: 26 stars for a price of 26, the spare stays 1 star
-		assert_same(counts, { easy = 149, medium = 88, hard = 36, super_hard = 27 })
-		assert_eq(stars, 390)
+		assert_same(counts300, { easy = 149, medium = 88, hard = 36, super_hard = 27 })
+		assert_eq(stars300, 390)
 		local town = json.decode(read("content/districts.json"))
-		local cost = 0
-		for _, d in ipairs(town.districts) do
-			for _, t in ipairs(d.tasks) do cost = cost + t.cost end
+		local cost, cost1 = 0, 0
+		for i, d in ipairs(town.districts) do
+			local price = 0
+			for _, t in ipairs(d.tasks) do price = price + t.cost end
+			cost = cost + price
+			if i <= 15 then cost1 = cost1 + price end
+			-- Part 2: a district of 20 levels, 10 easy, 6 medium, 2 hard, 2 super hard with the concert last; its saw
+			-- earns what it costs, and the hard levels stand where PART2_SAW says
+			if i > 15 then
+				local saw, kinds = 0, { easy = 0, medium = 0, hard = 0, super_hard = 0 }
+				local at = { hard = {}, super_hard = {} }
+				assert_eq(d.last - d.first + 1, 20, d.id .. ": levels")
+				for n = d.first, d.last do
+					local raw = files()[n].raw
+					saw = saw + STARS[raw.difficulty]
+					kinds[raw.difficulty] = kinds[raw.difficulty] + 1
+					if at[raw.difficulty] then at[raw.difficulty][#at[raw.difficulty] + 1] = n end
+				end
+				assert_same(kinds, { easy = 10, medium = 6, hard = 2, super_hard = 2 }, d.id .. ": the saw of a Part 2 district")
+				assert_eq(files()[d.last].raw.difficulty, "super_hard", d.id .. ": the concert")
+				assert_eq(saw, price, d.id .. ": the saw earns what the district costs")
+				local pin = PART2_SAW[d.id]
+				assert_true(pin ~= nil, d.id .. ": add its hard and super hard levels to PART2_SAW")
+				assert_same(at, pin, d.id .. ": where the hard and the super hard levels stand")
+			end
 		end
-		assert_eq(cost, 389, "the stars the town costs (content/districts.json)")
+		assert_eq(cost1, 389, "the stars Part 1 of the town costs (content/districts.json)")
+		assert_eq(cost, 389 + 26 * (#town.districts - 15), "the stars the town costs (content/districts.json)")
 		assert_eq(stars - cost, 1, "one spare star is left")
 		assert_true(stars >= cost, "the town cannot be finished: " .. stars .. " stars for " .. cost)
 	end)
