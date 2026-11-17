@@ -604,6 +604,8 @@ return {
 	["cloud.err_write"] = "이 기기에 저장하지 못했어요. 아무것도 바뀌지 않았어요",
 	["settings.account_guest"] = "게스트",
 	["settings.account_user"] = "계정: {name}",
+	["settings.login"] = "로그인 / 회원가입",
+	["settings.guest_note"] = "게스트: 진행 상황은 이 기기에만 저장돼요.",
 	["notebook.chorus"] = "후렴",
 	["notebook.levels"] = "레벨 {first}-{last}",
 	["notebook.play"] = "들어보기",

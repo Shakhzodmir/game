@@ -226,6 +226,52 @@ describe("guest reminder", function()
 	end)
 end)
 
+describe("settings: the way in", function()
+	it("shows a guest one clear sign-in button (it opens the account window) and no save code rows", function()
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			with_account({ language = lang, welcomed = true }, function(c)
+				open(c, "settings")
+				local expect = ({ en = "Sign in or create account", ru = "Войти или создать аккаунт", ko = "로그인 / 회원가입" })[lang]
+				assert_true(has(c, expect), lang .. ": " .. G.dump(c.town))
+				assert_true(c.app.ui.popup_targets.account ~= nil, "the button is there")
+				assert_true(c.app.ui.popup_targets.code_copy == nil and c.app.ui.popup_targets.code_enter == nil,
+					"the save code rows are hidden")
+				wtap(c, "account")
+				c.run(0.6)
+				assert_eq(c.app.ui.popup, "account")
+				assert_true(c.app.ui.popup_targets.google ~= nil and c.app.ui.popup_targets.create ~= nil)
+			end)
+		end
+	end)
+
+	it("five taps on the version show the save code rows, five more hide them", function()
+		with_account({ welcomed = true }, function(c)
+			open(c, "settings")
+			for _ = 1, 4 do wtap(c, "version") end
+			assert_true(c.app.ui.popup_targets.code_copy == nil, "four taps are not enough")
+			wtap(c, "version")
+			c.run(0.5)
+			assert_true(c.app.ui.popup_targets.code_copy ~= nil and c.app.ui.popup_targets.code_enter ~= nil)
+			assert_true(c.app.ui.popup_targets.reset ~= nil and c.app.ui.popup_targets.account ~= nil)
+			for _ = 1, 5 do wtap(c, "version") end
+			c.run(0.5)
+			assert_true(c.app.ui.popup_targets.code_copy == nil)
+		end)
+	end)
+
+	it("shows a signed-in player a row with the account, not the sign-in button", function()
+		with_account({ welcomed = true, language = "en" }, function(c, m)
+			m.google_next = { sub = "g9", email = "me@gmail.com" }
+			auth.sign_in_google(function() end)
+			c.run(1)
+			open(c, "settings")
+			assert_true(has(c, "Account:"), G.dump(c.town))
+			assert_false(has(c, "Sign in or create account"))
+			assert_true(c.app.ui.popup_targets.account ~= nil)
+		end)
+	end)
+end)
+
 describe("account_gui cleanup", function()
 	it("leaves no provider and no cloud state behind for the next test file", function()
 		require("client.cloud").reset()

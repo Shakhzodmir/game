@@ -806,6 +806,8 @@ local S = {
 	-- settings ---------------------------------------------------------------------------------------------------------
 	["settings.account_guest"] = { en = "Guest", ru = "Гость" },
 	["settings.account_user"] = { en = "Account: {name}", ru = "Аккаунт: {name}" },
+	["settings.login"] = { en = "Sign in or create account", ru = "Войти или создать аккаунт" },
+	["settings.guest_note"] = { en = "Guest: your progress stays on this device only.", ru = "Гость: прогресс хранится только на этом устройстве." },
 	["settings.title"] = { en = "Settings", ru = "Настройки" },
 	["settings.music"] = { en = "Music", ru = "Музыка" },
 	["settings.sfx"] = { en = "Sounds", ru = "Звуки" },

@@ -1,7 +1,9 @@
 -- Settings: music and sound volumes (sliders: heard live while dragging,
 -- saved on release), vibration, reduced motion, controls (swipe / tap-tap),
--- language (auto / English / Russian / Korean), the account (a row that opens gui/account.lua), the save code (copy it, or enter one and
--- replace the progress after a confirmation), reset progress (with a confirmation)
+-- language (auto / English / Russian / Korean), the account (a guest sees a green "Sign in / Create account"
+-- button, a signed-in player a row with the account; both open gui/account.lua), the save code rows (copy it, or enter
+-- one and replace the progress after a confirmation: hidden since the cloud save, shown by five taps on the version or by
+-- params.codes), reset progress (with a confirmation)
 -- and the version. Every value goes through app.set_setting (the meta
 -- validates it, the save follows).
 
@@ -12,10 +14,13 @@ local audio = require("client.audio")
 local platform = require("client.platform")
 local kit = require("gui.kit")
 local account = require("client.account")
+local auth = require("client.services.auth")
 
 local M = {}
 
-local W, H = 640, 1330
+local W = 640
+local H_BASE = 1170            -- without the save code rows
+local H_CODES = H_BASE + 232   -- with them (a caption and two rows)
 
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
 -- offers that has no label yet (a new language needs its strings first) is left out.
@@ -169,7 +174,9 @@ end
 function M.build(e)
 	local s = e.ui
 	local v = views.settings(app.meta)
-	local body, hh = kit.panel(e, W, H, { title = { key = "settings.title" }, title_icon = "ui/icons/settings", inline_title = true, fit = true })
+	local codes = (e.params and e.params.codes) or e.state.codes
+	local body, hh = kit.panel(e, W, codes and H_CODES or H_BASE,
+		{ title = { key = "settings.title" }, title_icon = "ui/icons/settings", inline_title = true, fit = true })
 	local y = hh - 130
 
 	-- sound
@@ -207,15 +214,28 @@ function M.build(e)
 		e:rebuild()
 	end, { h = 72, text_size = 26, targets = "lang" })
 
-	-- account and cloud save (WP-10): one row, the window has the rest
+	-- account and cloud save (WP-10): a guest gets one clear green button, a signed-in player a row with the
+	-- account; the window it opens has sign out, link Google / e-mail and the rest
 	y = y - 130
-	row_button(e, body, y - 42, "ui/icons/team", i18n.tr(account.who_spec()), function() e:open("account") end, "account")
+	if auth.user() then
+		row_button(e, body, y - 42, "ui/icons/team", i18n.tr(account.who_spec()), function() e:open("account") end, "account")
+		y = y - 84
+	else
+		s:button({ parent = body, x = 0, y = y - 48, w = CARD_W, h = 96, style = "green", icon = "ui/icons/team", icon_size = 54,
+			text = i18n.t("settings.login"), text_size = 28, on_click = function() e:open("account") end })
+		e:target("account", 0, y - 48)
+		s:text(body, i18n.t("settings.guest_note"), 0, y - 96 - 32, { font = "small", size = 22, color = "text_soft",
+			width = CARD_W - 40, height = 56 })
+		y = y - 96 - 60
+	end
 
-	-- save code
-	y = y - 84 - 18
-	caption(e, body, i18n.t("settings.code_section"), y - 12)
-	row_button(e, body, y - 82, "ui/icons/copy", i18n.t("settings.code_copy"), function() M.copy_code() end, "code_copy")
-	row_button(e, body, y - 82 - 94, "ui/icons/import", i18n.t("settings.code_enter"), function() M.enter_code(e) end, "code_enter")
+	-- save code: the progress lives in the cloud now, so the two rows are hidden (five taps on the version show them)
+	if codes then
+		y = y - 18
+		caption(e, body, i18n.t("settings.code_section"), y - 12)
+		row_button(e, body, y - 82, "ui/icons/copy", i18n.t("settings.code_copy"), function() M.copy_code() end, "code_copy")
+		row_button(e, body, y - 82 - 94, "ui/icons/import", i18n.t("settings.code_enter"), function() M.enter_code(e) end, "code_enter")
+	end
 
 	-- reset + version: a pale pink row, not a loud button
 	local ry = -hh + 92
@@ -228,6 +248,17 @@ function M.build(e)
 	s:text(rb.node, label, 22, 4, { font = "button", size = 28, color = "#E4527D", max_width = 400 })
 	e:target("reset", 0, ry)
 	s:text(body, i18n.t("settings.version", { v = app.VERSION }), 0, -hh + 30, { font = "small", size = 20, color = "text_soft" })
+	-- five taps on the version show / hide the save code rows (for the producer's QA codes and for support)
+	local vb = s:button({ parent = body, x = 0, y = -hh + 34, w = 260, h = 66, style = "white", sfx = false, on_click = function()
+		e.state.taps = (e.state.taps or 0) + 1
+		if e.state.taps >= 5 then
+			e.state.taps = 0
+			e.state.codes = not e.state.codes
+			e:rebuild()
+		end
+	end })
+	gui.set_color(vb.node, vmath.vector4(1, 1, 1, 0))
+	e:target("version", 0, -hh + 34)
 end
 
 function M.on_input(e, action_id, action)
