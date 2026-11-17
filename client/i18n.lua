@@ -485,6 +485,7 @@ local S = {
 	-- music stems (layer names shown by tasks and the jukebox) -------------------------------------------------------
 	["stem.beat"] = { en = "Beat", ru = "Бит" },
 	["stem.vinyl"] = { en = "Vinyl crackle", ru = "Треск винила" },
+	["stem.rain"] = { en = "Rain on the glass", ru = "Дождь по стеклу" },
 	["stem.keys"] = { en = "Keys", ru = "Клавиши" },
 	["stem.bass"] = { en = "Bass", ru = "Бас" },
 	["stem.lead"] = { en = "Lead", ru = "Мелодия" },
