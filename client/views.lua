@@ -58,11 +58,14 @@ M.BOOSTER_ICON = {
 -- night (much darker and more saturated than the sky blue of the square and of the "modern" genres, bluer
 -- than the teal of the bazaar, far from the violet of the sky club), the fifteenth the neon magenta of the
 -- pixel arcade (far more saturated and bluer than the pastel pink of the cafe, pinker and much lighter than
--- the velvet red of the cinema, redder than the violet of the sky club). A district past the list starts it
--- again.
+-- the velvet red of the cinema, redder than the violet of the sky club). Part 2: the sixteenth the midnight
+-- indigo of the night café (the pink café of district 1 after dark: darker and bluer than the violet of the sky
+-- club, more violet than the river blue of the blues club, far from the lavender of the jazz club). A district
+-- past the list starts it again.
 M.DISTRICT_COLORS = {
 	"#FF9EC7", "#C9A7FF", "#FFD36E", "#7FC8FF", "#8BE39A", "#4FD1C5", "#FF8A5C", "#E0566F", "#2F9FB0",
 	"#A65CF2", "#F2741D", "#6FBF3A", "#B23A2E", "#2E5FB8", "#F02FC2",
+	"#4B3FA6",
 }
 
 -- Store products shown in the shop's coins tab, in display order, with
