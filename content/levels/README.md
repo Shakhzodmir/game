@@ -36,9 +36,10 @@
    - `map_tint` (цвет оттенка фона карты, например `"#E6E1F2"`; без него берётся этот же);
    - `name`, `genre` на ru, en, ko; `bpm`, `key`, `semitones_from_c`, `bars`, `mood`;
    - `tasks`: у первой задачи цена 1 звезда; каждая со `stem` (слой музыки района), `name` на ru, en, ko;
-   - `chest` (монеты и бустеры), `songs` (песни этого жанра для джукбокса).
+   - `chest` (монеты и бустеры), `songs` (песни этого жанра для джукбокса);
+   - район части 2 (районы 16–30, `docs/design/part2-districts.md`): `"part": 2`; задачи по цене 1, 4, 5, 5, 5, 6 (26 звёзд).
 3. **Тексты блокнота** для нового района (иначе валидатор ругается): в `client/i18n_songbook.lua` ключи `sb.<id>.1` … `sb.<id>.32` (en, ru; строка 3–8 слов или одно слово, без настоящих текстов песен) и `sbt.<id>.1` … `sbt.<id>.16` (названия); в `client/i18n_ko.lua` те же ключи по-корейски (читает носитель).
-4. **Арт района** (картинки кладёт `tools/art` или присылает продюсер, потом `python3 tools/gen_defold.py`): `districts/<id>/bg`, `bg_concert`, предметы задач и их `_ghost`; для карты `mapbg/bg_<id>`, `mapbg/gate_<id>`, `map/deco_<id>_1…6`.
+4. **Арт района** (картинки кладёт `tools/art` или присылает продюсер, потом `python3 tools/gen_defold.py`): `districts/<id>/bg`, `bg_concert`, предметы задач и их `_ghost`; для карты `mapbg/bg_<id>`, `mapbg/gate_<id>`, `map/deco_<id>_1…6`. Району части 2, пока нет картинок продюсера, ночные заглушки из района-родителя делает `python3 tools/art/make_part2_placeholders.py <id>` (весь рецепт: `docs/handoff/WP-19-part2-pilot.md`).
 5. **Музыка района**: стемы по задачам и песни джукбокса через `tools/audio/gen_audio.py` (WP-6).
 6. `python3 tools/gen_map.py` и проверки.
 
