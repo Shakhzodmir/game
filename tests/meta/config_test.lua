@@ -56,7 +56,10 @@ describe("meta config", function()
 		end
 	end)
 
-	it("accepts content/districts.json: 15 districts, 389 stars", function()
+	-- Part 1 (districts 1-15) is pinned: 389 stars. Every district after it belongs to Part 2 ("part": 2, districts
+	-- 16-30, docs/design/part2-districts.md) and costs 26 stars (1, 4, 5, 5, 5, 6), so a new Part 2 district needs no
+	-- edit here; district 16 midnight_cafe is the first one (415 stars with it).
+	it("accepts content/districts.json: Part 1 of 15 districts for 389 stars, then Part 2 districts of 26 stars", function()
 		local data = town.validate(H.districts())
 		local ids, stars = {}, {}
 		local total = 0
@@ -67,10 +70,27 @@ describe("meta config", function()
 			stars[i] = sum
 			total = total + sum
 		end
-		assert_same(ids, { "cafe", "jazz", "square", "stadium", "garage", "beach", "carnival", "cinema", "bazaar",
-			"skyclub", "block", "island", "ranch", "bluesclub", "arcade" })
-		assert_same(stars, { 11, 20, 28, 34, 31, 31, 26, 26, 26, 26, 26, 26, 26, 26, 26 })
-		assert_eq(total, 389)
+		local raw = H.districts().districts
+		local part1 = { "cafe", "jazz", "square", "stadium", "garage", "beach", "carnival", "cinema", "bazaar",
+			"skyclub", "block", "island", "ranch", "bluesclub", "arcade" }
+		local prices = { 11, 20, 28, 34, 31, 31, 26, 26, 26, 26, 26, 26, 26, 26, 26 }
+		assert_true(#ids >= 16, "district 16 (Part 2) is in the data: " .. #ids)
+		assert_eq(ids[16], "midnight_cafe")
+		for i = 1, 15 do
+			assert_eq(ids[i], part1[i])
+			assert_eq(stars[i], prices[i], ids[i])
+			assert_eq(raw[i].part, nil, ids[i] .. " is Part 1")
+		end
+		for i = 16, #ids do
+			assert_eq(raw[i].part, 2, ids[i] .. " is Part 2")
+			assert_eq(stars[i], 26, ids[i])
+			assert_same((function()
+				local c = {}
+				for j, t in ipairs(raw[i].tasks) do c[j] = t.cost end
+				return c
+			end)(), { 1, 4, 5, 5, 5, 6 })
+		end
+		assert_eq(total, 389 + 26 * (#ids - 15))
 	end)
 end)
 
