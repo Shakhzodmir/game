@@ -727,7 +727,7 @@ function Scene:button(spec)
 		return e and not e.file and (not self.gui_path or assets.gui_has_texture(self.gui_path, e.atlas))
 	end
 	if not node and style == "flat" then -- no face of its own: a tab on a plate of the same colour
-		node = self:round(parent, spec.x, spec.y, w, h, spec.flat_color or "white", { radius = 28 })
+		node = self:round(parent, spec.x, spec.y, w, h, spec.flat_color or "white", { radius = math.min(28, h / 2 - 2) })
 	end
 	local atlas_key = "ui/button_" .. style
 	local e = assets.image(atlas_key)
@@ -768,7 +768,7 @@ function Scene:button(spec)
 		btn.label, btn.label_info = self:text(node, spec.text, label_dx - (spec.text_pad_right or 0) / 2, 6, {
 			font = spec.font or "button",
 			size = spec.text_size or math.min(46, h * 0.42),
-			color = st[5],
+			color = spec.text_color or st[5],
 			outline = false,
 			shadow = st[4],
 			max_width = math.max(10, w - (w >= 120 and 40 or 12) - (label_dx * 2) - (spec.text_pad_right or 0)),

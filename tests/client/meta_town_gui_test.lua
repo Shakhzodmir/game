@@ -42,7 +42,7 @@ describe("screens/town/town.gui_script", function()
 		G.with_town({}, function(c)
 			local t = c.town
 			for _, text in ipairs({ "Full", "500", "0", "Lo-fi Café", "Track layers: 0/6", "Concert", "Turntable",
-				"Adds Beat to the track", "Need 1 more star", "Level 1", "Shop", "Band", "Town", "Chart", "Jukebox" }) do
+				"Adds Beat to the track", "Level 1", "Shop", "Band", "Town", "Chart", "Jukebox" }) do
 				assert_true(t:has_text(text, true), "no '" .. text .. "' in: " .. G.dump(t))
 			end
 			assert_eq(#c.E.audit(), 0)
@@ -342,7 +342,7 @@ describe("screens/town/town.gui_script", function()
 				local sr = layout.safe_rect(f, { inset_top = safe.top, inset_bottom = safe.bottom, inset_left = 0, inset_right = 0 })
 				local tg = c.app.ui.targets
 				assert_near(tg.lives.y, 1214 + (sr.y1 - 1280), 0.01, "top bar " .. w[1] .. "x" .. w[2])
-				assert_near(tg.nav_shop.y, 40 + 32 + sr.y0, 0.01, "navigation " .. w[1] .. "x" .. w[2])
+				assert_near(tg.nav_shop.y, 82 + sr.y0, 0.01, "navigation " .. w[1] .. "x" .. w[2])
 				assert_true(tg.lives.y <= f.y1 and tg.nav_shop.y >= f.y0)
 				assert_eq(#c.E.audit(), 0)
 				-- a tap on the level button lands wherever the window puts it

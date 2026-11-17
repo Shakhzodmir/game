@@ -531,15 +531,15 @@ describe("meta windows: settings", function()
 			open(c, "settings")
 			local t = c.app.ui.popup_targets.slider_music
 			assert_true(t ~= nil)
-			-- press on the knob (value 0.8 of a 300 px track), drag to the middle, release
-			local track_x0 = 360 + 128 - 150
-			local knob_x = track_x0 + 0.8 * 300
+			-- press on the knob (value 0.8 of a 270 px track), drag to the middle, release
+			local track_x0 = 360 + 96 - 135
+			local knob_x = track_x0 + 0.8 * 270
 			c.E.input(TOUCH(), c.E.touch_action(knob_x, t.y, true, false))
 			c.step(1)
-			c.E.input(TOUCH(), c.E.touch_action(track_x0 + 150, t.y, false, false))
+			c.E.input(TOUCH(), c.E.touch_action(track_x0 + 135, t.y, false, false))
 			c.step(1)
 			local vol = c.E.posted("volumes", "main:/audio#audio")
-			c.E.input(TOUCH(), c.E.touch_action(track_x0 + 150, t.y, false, true))
+			c.E.input(TOUCH(), c.E.touch_action(track_x0 + 135, t.y, false, true))
 			c.step(3)
 			assert_near(c.app.meta:settings().music, 0.5, 1e-9)
 			assert_eq(#vol >= 1 or #c.E.posted("volumes", "main:/audio#audio") >= 1, true)
@@ -552,9 +552,9 @@ describe("meta windows: settings", function()
 			open(c, "settings")
 			local before = c.app.meta:settings().music
 			local t = c.app.ui.popup_targets.slider_music
-			local track_x0 = 360 + 128 - 150
+			local track_x0 = 360 + 96 - 135
 			-- the finger goes down on the knob and the app loses focus: no release ever comes
-			c.E.input(TOUCH(), c.E.touch_action(track_x0 + before * 300, t.y, true, false))
+			c.E.input(TOUCH(), c.E.touch_action(track_x0 + before * 270, t.y, true, false))
 			c.step(2)
 			-- the next press is a new gesture: it hits Close, not the slider
 			wtap(c, "close")

@@ -28,7 +28,7 @@ M.TASK_Y = 382
 M.TASK_X = 316
 M.LEVEL_Y = 226
 M.NAV_Y = 40
-M.LIVES_X, M.COINS_X, M.STARS_X, M.GEAR_X = 118, 336, 520, 660
+M.LIVES_X, M.COINS_X, M.STARS_X, M.GEAR_X = 118, 334, 528, 662
 M.BIT_X, M.BIT_Y = 660, 398
 
 M.NAV = {
@@ -212,18 +212,18 @@ function Hud:build_ribbon(parent)
 		or s:round(parent, rx, M.RIBBON_Y, rw, 104, "purple")
 	s:anchor(rib, "top")
 	self.ribbon = rib
-	s:text(rib, i18n.name(p.name), 0, 22, { font = "button", size = paged and 30 or 34, color = "white",
+	s:text(rib, i18n.name(p.name), 0, 26, { font = "button", size = paged and 30 or 34, color = "white",
 		shadow = "#6C32CF", max_width = rw - 44 })
-	s:text(rib, i18n.t("town.layers", { done = p.done, total = p.total }), 0, -10, {
+	s:text(rib, i18n.t("town.layers", { done = p.done, total = p.total }), 0, -4, {
 		font = "small", size = 21, color = "#F1E6FF", max_width = rw - 64,
 	})
 	-- the track progress: one segment per layer
 	local n = math.max(1, p.total)
-	local bw = rw - 84
-	local seg = (bw - (n - 1) * 5) / n
+	local bw = rw - 150
+	local seg = (bw - (n - 1) * 8) / n
 	for i = 1, n do
-		local x = -bw / 2 + (i - 0.5) * seg + (i - 1) * 5
-		s:round(rib, x, -36, seg, 12, i <= p.done and "#FFDB1A" or "#7B3FE0", { radius = 5 })
+		local x = -bw / 2 + (i - 0.5) * seg + (i - 1) * 8
+		s:round(rib, x, -24, seg, 10, i <= p.done and "#FFDB1A" or "#6C32CF", { radius = 5 })
 	end
 	if paged then
 		arrow_button(self, parent, M.ARROW_PREV_X, -1, nav.prev ~= nil)
@@ -249,13 +249,13 @@ end
 
 -- The songbook (WP-9): a small button under the day / concert toggle (the art keeps its zone free: UI_ZONES in
 -- tools/art/gen_art.py). A dot says a finished song is waiting to be looked at.
-M.NOTEBOOK_X, M.NOTEBOOK_Y = 680, 1028
+M.NOTEBOOK_X, M.NOTEBOOK_Y = 652, 1028
 function Hud:build_notebook_button(parent)
 	local s, town = self.ui, self.town
 	-- the icon is in the UI atlas (a small copy of notebook/closed): a loose picture is a white square until it loads;
 	-- a gold button, because the lavender notebook does not show on a purple one
 	local has_icon = assets.has_image("ui/icons/notebook")
-	local b = s:button({ parent = parent, x = M.NOTEBOOK_X, y = M.NOTEBOOK_Y, w = 80, h = 80, style = "gold",
+	local b = s:button({ parent = parent, x = M.NOTEBOOK_X, y = M.NOTEBOOK_Y, w = 80, h = 80, style = "white",
 		icon = has_icon and "ui/icons/notebook" or "ui/icons/note_on", icon_size = 58, sfx = "button",
 		on_click = function() town:open_popup("notebook") end })
 	s:anchor(b.node, "top")
@@ -307,7 +307,7 @@ function Hud:build_task(parent)
 	s:anchor(card.node, "bottom")
 	self.card = card.node
 	self:target("task", self:bottom(x, y))
-	local thumb = s:round(card.node, -232, 4, 104, 104, "#FFE3EF", { radius = 28 })
+	local thumb = s:round(card.node, -232, 4, 104, 104, "#F1E8FF", { radius = 28 })
 	self.thumb = thumb
 	-- the picture of the item keeps its proportions inside the 92 px square (a double bass is tall, a banner is wide)
 	local info = assets.image(task.image)
@@ -317,31 +317,25 @@ function Hud:build_task(parent)
 		tw, th = info.w * k, info.h * k
 	end
 	if not s:image(thumb, task.image, 0, 0, { w = tw, h = th }) then s:circle(thumb, 0, 0, 70, "lavender") end
-	s:text(card.node, i18n.name(task.name), -168, 26, {
+	s:text(card.node, i18n.name(task.name), -168, 22, {
 		font = "button", size = 30, color = "text", pivot = gui.PIVOT_W, max_width = 300,
 	})
-	s:text(card.node, i18n.t("town.task_adds", { stem = i18n.t("stem." .. task.stem) }), -168, -14, {
+	s:text(card.node, i18n.t("town.task_adds", { stem = i18n.t("stem." .. task.stem) }), -168, -18, {
 		font = "small", size = 22, color = "purple", pivot = gui.PIVOT_W, max_width = 300,
 	})
-	if not task.affordable then
-		s:text(card.node, i18n.t("town.task_need", { n = task.need }), -168, -44, {
-			font = "small", size = 19, color = "text_soft", pivot = gui.PIVOT_W, max_width = 300,
-		})
-	end
 	local chip
 	if task.affordable then
 		chip = s:image(card.node, "ui/button_gold", 212, 4, { w = 124, h = 92, slice9 = true })
 			or s:round(card.node, 212, 4, 124, 92, "gold")
 	else
-		chip = s:round(card.node, 212, 4, 124, 92, "#EFE8FF", { radius = 30 })
+		chip = s:image(card.node, "ui/button_white", 212, 4, { w = 124, h = 92, slice9 = true })
+			or s:round(card.node, 212, 4, 124, 92, "#EFE8FF", { radius = 30 })
 	end
 	self.chip = chip
 	local st = icon(s, chip, "ui/icons/star", 28, 4, 50, "yellow")
 	self.chip_star = st
-	if not task.affordable then gui.set_color(st, vmath.vector4(1, 1, 1, 0.55)) end
 	s:text(chip, tostring(task.cost), -18, 6, {
-		font = "number", size = 42, color = task.affordable and "white" or "text_soft",
-		outline = task.affordable and "#C96A00" or false,
+		font = "number", size = 42, color = task.affordable and "#6B4300" or "text",
 	})
 	if task.affordable and not fx.reduced() then ui.pulse(card.node, 0.035, 0.7) end
 end
@@ -451,14 +445,15 @@ function Hud:build_level(parent)
 		return
 	end
 	local b = s:button({ parent = parent, x = x, y = y, w = M.LEVEL_W, h = 130, style = "green",
-		text = i18n.t("town.level", { n = v.level }), text_size = 54,
+		icon = "ui/icons/play_dark", icon_size = 56,
+		text = i18n.t("town.level", { n = v.level }), text_size = 48,
 		on_click = function() town:open_popup("start", { level = v.level }) end })
 	s:anchor(b.node, "bottom")
 	self.level_btn = b.node
 	self:target("level", self:bottom(x, y))
 	if b.label then
-		gui.set_position(b.label, vmath.vector3(-82, 6, 0))
-		b.label_info.max_width = 270
+		gui.set_position(b.label, vmath.vector3(-34, 6, 0))
+		b.label_info.max_width = 216
 		s:_fit_text(b.label, b.label_info)
 	end
 	-- hit streak: three notes inside the button. Once the streak runs (level 12 on) the note of a booster that
@@ -504,13 +499,15 @@ end
 
 function Hud:build_nav(parent)
 	local s, town = self.ui, self.town
-	local bar = s:round(parent, 360, M.NAV_Y, 744, 196, "white", { alpha = 0.97, radius = 40 })
+	local NAV_CY = 82 -- the plate floats 14 px above the bottom edge: 136 px high, 700 wide
+	local sh = s:round(parent, 360, NAV_CY - 6, 704, 140, "#CAB7DE", { alpha = 0.9, radius = 48 })
+	s:anchor(sh, "bottom")
+	local bar = s:round(parent, 360, NAV_CY, 700, 136, "#FAF6FF", { radius = 46 }) -- (not pure white: the window layout tests take a pure white box for a panel)
 	s:anchor(bar, "bottom")
-	s:round(bar, 0, 98, 744, 6, "#E7DDF2", { radius = 3 })
 	self.nav = {}
 	for i, item in ipairs(M.NAV) do
-		local x = -288 + (i - 1) * 144
-		local b = s:button({ parent = bar, x = x, y = 32, w = 134, h = 116, style = item.active and "purple" or "flat",
+		local x = -276 + (i - 1) * 138
+		local b = s:button({ parent = bar, x = x, y = 0, w = 132, h = 112, style = item.active and "purple" or "flat",
 			icon = item.icon, icon_size = 60, sfx = item.soon and "tap" or "button",
 			on_click = function() town:on_nav(item, self.nav[item.id]) end })
 		if b.icon then
@@ -525,7 +522,7 @@ function Hud:build_nav(parent)
 			s:text(badge, i18n.t("nav.soon"), 0, 1, { font = "small", size = 17, color = "white", max_width = 76 })
 		end
 		self.nav[item.id] = b.node
-		self:target("nav_" .. item.id, self:bottom(360 + x, M.NAV_Y + 32))
+		self:target("nav_" .. item.id, self:bottom(360 + x, NAV_CY))
 	end
 end
 

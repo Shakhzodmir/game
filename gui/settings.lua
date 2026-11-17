@@ -15,7 +15,7 @@ local account = require("client.account")
 
 local M = {}
 
-local W, H = 640, 1490
+local W, H = 640, 1330
 
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
 -- offers that has no label yet (a new language needs its strings first) is left out.
@@ -30,17 +30,33 @@ local function options(ids, labels)
 	return out
 end
 
+-- Layout (window coordinates, 0 at the centre): the cards of the UI pack hold the rows, the inner edge of a card is +-CARD_W / 2.
+local CARD_W = 584
+local LEFT = -CARD_W / 2
+
+local function card(e, body, y_top, h)
+	local s = e.ui
+	local cy = y_top - h / 2
+	s:round(body, 0, cy, CARD_W + 4, h + 4, "#E7DDF2", { radius = 38 })
+	s:round(body, 0, cy, CARD_W, h, "#F5EEFF", { radius = 36 })
+end
+
+-- a small purple caption at the left edge of a card or a block
+local function caption(e, body, text, y)
+	e.ui:text(body, text, LEFT + 34, y, { font = "button", size = 24, color = "purple", pivot = gui.PIVOT_W, max_width = 420 })
+end
+
 local function row_label(e, body, icon, text, y)
 	local s = e.ui
-	kit.icon(e, body, icon, -W / 2 + 76, y, 60, "lavender")
-	s:text(body, text, -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 230 })
+	kit.icon(e, body, icon, LEFT + 62, y, 56, "lavender")
+	s:text(body, text, LEFT + 104, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 280 })
 end
 
 local function volume_row(e, body, key, text_key, icon_on, icon_off, y, value)
 	local s = e.ui
-	local icon = kit.icon(e, body, value > 0 and icon_on or icon_off, -W / 2 + 76, y, 60, "lavender")
-	s:text(body, i18n.t(text_key), -W / 2 + 118, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 150 })
-	local sx, sw = 128, 300
+	local icon = kit.icon(e, body, value > 0 and icon_on or icon_off, LEFT + 62, y, 56, "lavender")
+	s:text(body, i18n.t(text_key), LEFT + 104, y, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 140 })
+	local sx, sw = 96, 270
 	kit.slider(e, body, sx, y, sw, value, function(v)
 		local st = views.settings(app.meta)
 		if key == "music" then audio.set_volumes(v, st.sfx) else audio.set_volumes(st.music, v) end
@@ -48,12 +64,25 @@ local function volume_row(e, body, key, text_key, icon_on, icon_off, y, value)
 		v = math.floor(v * 20 + 0.5) / 20
 		app.set_setting(key, v)
 		if key == "sfx" then kit.sfx("tap") end
-		local ic = s:image(body, v > 0 and icon_on or icon_off, -W / 2 + 76, y, { w = 60, h = 60 })
+		local ic = s:image(body, v > 0 and icon_on or icon_off, LEFT + 62, y, { w = 56, h = 56 })
 		if ic then
 			e.ui:clear(icon)
 			icon = ic
 		end
 	end, { color = "purple", target = "slider_" .. key })
+end
+
+-- a wide row button: the icon and the text on the left, a chevron on the right (the pack's "Guest" / "Copy the save code" rows)
+local function row_button(e, body, y, icon, text, on_click, target)
+	local s = e.ui
+	local b = s:button({ parent = body, x = 0, y = y, w = CARD_W, h = 84, style = "white", on_click = on_click })
+	local ic = icon and s:image(b.node, icon, LEFT + 54, 4, { w = 50, h = 50 })
+	s:text(b.node, text, LEFT + (ic and 98 or 36), 5, {
+		font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = CARD_W - 190,
+	})
+	s:image(b.node, "ui/icons/chevron", -LEFT - 44, 4, { w = 30, h = 30 })
+	if target then e:target(target, 0, y) end
+	return b
 end
 
 local function reset(e)
@@ -140,64 +169,65 @@ end
 function M.build(e)
 	local s = e.ui
 	local v = views.settings(app.meta)
-	local body, hh = kit.panel(e, W, H, { title = { key = "settings.title" }, fit = true })
-	local y = hh - 110
-	kit.section(e, body, i18n.t("settings.sound"), 0, y, W - 80)
-	volume_row(e, body, "music", "settings.music", "ui/icons/music_on", "ui/icons/music_off", y - 86, v.music)
-	volume_row(e, body, "sfx", "settings.sfx", "ui/icons/sound_on", "ui/icons/sound_off", y - 186, v.sfx)
+	local body, hh = kit.panel(e, W, H, { title = { key = "settings.title" }, title_icon = "ui/icons/settings", inline_title = true, fit = true })
+	local y = hh - 130
 
-	y = y - 270
-	kit.section(e, body, i18n.t("settings.game"), 0, y, W - 80)
-	row_label(e, body, "ui/icons/haptics", i18n.t("settings.haptics"), y - 84)
-	kit.toggle(e, body, W / 2 - 100, y - 84, v.haptics, function(on)
+	-- sound
+	card(e, body, y, 236)
+	caption(e, body, i18n.t("settings.sound"), y - 30)
+	volume_row(e, body, "music", "settings.music", "ui/icons/music_on", "ui/icons/music_off", y - 104, v.music)
+	volume_row(e, body, "sfx", "settings.sfx", "ui/icons/sound_on", "ui/icons/sound_off", y - 188, v.sfx)
+
+	-- game
+	y = y - 236 - 16
+	card(e, body, y, 322)
+	caption(e, body, i18n.t("settings.game"), y - 30)
+	row_label(e, body, "ui/icons/haptics", i18n.t("settings.haptics"), y - 102)
+	kit.toggle(e, body, 206, y - 102, v.haptics, function(on)
 		e.self_key = "haptics"
 		app.set_setting("haptics", on)
 		if on then pcall(platform.vibrate, 30) end
 	end, "haptics")
-	row_label(e, body, "ui/icons/city", i18n.t("settings.reduced_motion"), y - 180)
-	kit.toggle(e, body, W / 2 - 100, y - 180, v.reduced_motion, function(on)
+	row_label(e, body, "ui/icons/city", i18n.t("settings.reduced_motion"), y - 186)
+	kit.toggle(e, body, 206, y - 186, v.reduced_motion, function(on)
 		e.self_key = "reduced_motion"
 		app.set_setting("reduced_motion", on)
 	end, "reduced_motion")
-
-	-- controls
-	y = y - 270
-	s:text(body, i18n.t("settings.input_mode"), -W / 2 + 46, y + 4, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 186 })
-	kit.segmented(e, body, 110, y, 380, options(v.input_modes, INPUT_LABELS), v.input_mode, function(id)
+	s:text(body, i18n.t("settings.input_mode"), LEFT + 34, y - 272, { font = "button", size = 28, color = "text", pivot = gui.PIVOT_W, max_width = 200 })
+	kit.segmented(e, body, 112, y - 272, 300, options(v.input_modes, INPUT_LABELS), v.input_mode, function(id)
 		app.set_setting("input_mode", id)
 		e:rebuild()
-	end, { h = 84, text_size = 26, targets = "input" })
+	end, { h = 66, text_size = 26, targets = "input", track = "#E9DDFB" })
 
 	-- language
-	y = y - 130
-	s:text(body, i18n.t("settings.language"), 0, y + 4, { font = "button", size = 28, color = "text", max_width = 400 })
-	kit.segmented(e, body, 0, y - 84, W - 70, options(v.languages, LANGUAGE_LABELS), v.language, function(id)
+	y = y - 322 - 14
+	caption(e, body, i18n.t("settings.language"), y - 16)
+	kit.segmented(e, body, 0, y - 76, CARD_W, options(v.languages, LANGUAGE_LABELS), v.language, function(id)
 		app.set_setting("language", id) -- the host rebuilds every window on language_changed
 		e:rebuild()
-	end, { h = 84, text_size = 26, targets = "lang" })
+	end, { h = 72, text_size = 26, targets = "lang" })
 
 	-- account and cloud save (WP-10): one row, the window has the rest
-	y = y - 190 -- (clear of the language row above: the two overlapped)
-	s:button({ parent = body, x = 0, y = y, w = 520, h = 92, style = "white", icon = "ui/icons/team", icon_size = 46,
-		text = i18n.tr(account.who_spec()), text_size = 28, on_click = function() e:open("account") end })
-	e:target("account", 0, y)
+	y = y - 130
+	row_button(e, body, y - 42, "ui/icons/team", i18n.tr(account.who_spec()), function() e:open("account") end, "account")
 
 	-- save code
-	y = y - 110
-	kit.section(e, body, i18n.t("settings.code_section"), 0, y, W - 80)
-	s:button({ parent = body, x = 0, y = y - 90, w = 520, h = 92, style = "white", icon = "ui/icons/city", icon_size = 46,
-		text = i18n.t("settings.code_copy"), text_size = 28, on_click = function() M.copy_code() end })
-	e:target("code_copy", 0, y - 90)
-	s:button({ parent = body, x = 0, y = y - 196, w = 520, h = 92, style = "white", icon = "ui/icons/city", icon_size = 46,
-		text = i18n.t("settings.code_enter"), text_size = 28, on_click = function() M.enter_code(e) end })
-	e:target("code_enter", 0, y - 196)
+	y = y - 84 - 18
+	caption(e, body, i18n.t("settings.code_section"), y - 12)
+	row_button(e, body, y - 82, "ui/icons/copy", i18n.t("settings.code_copy"), function() M.copy_code() end, "code_copy")
+	row_button(e, body, y - 82 - 94, "ui/icons/import", i18n.t("settings.code_enter"), function() M.enter_code(e) end, "code_enter")
 
-	-- reset + version
-	local ry = -hh + 110
-	s:button({ parent = body, x = 0, y = ry, w = 400, h = 96, style = "pink", icon = "ui/icons/retry", icon_size = 50,
-		text = i18n.t("settings.reset"), text_size = 30, on_click = function() reset(e) end })
+	-- reset + version: a pale pink row, not a loud button
+	local ry = -hh + 92
+	s:round(body, 0, ry, CARD_W + 4, 84, "#F7C9D8", { radius = 40 })
+	local rb = s:button({ parent = body, x = 0, y = ry, w = CARD_W, h = 80, style = "flat", flat_color = "#FFF0F5",
+		on_click = function() reset(e) end })
+	local label = i18n.t("settings.reset")
+	local tw = math.min(kit.text_width("button", label, 28), 380)
+	s:image(rb.node, "ui/icons/reset", -tw / 2 - 30, 3, { w = 44, h = 44 })
+	s:text(rb.node, label, 22, 4, { font = "button", size = 28, color = "#E4527D", max_width = 400 })
 	e:target("reset", 0, ry)
-	s:text(body, i18n.t("settings.version", { v = app.VERSION }), 0, -hh + 36, { font = "small", size = 20, color = "text_soft" })
+	s:text(body, i18n.t("settings.version", { v = app.VERSION }), 0, -hh + 30, { font = "small", size = 20, color = "text_soft" })
 end
 
 function M.on_input(e, action_id, action)

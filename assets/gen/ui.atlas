@@ -245,6 +245,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "ui_icons_chevron"
+  images {
+    image: "/assets/images/ui/icons/chevron.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "ui_icons_city"
   images {
     image: "/assets/images/ui/icons/city.png"
@@ -269,6 +276,13 @@ animations {
   id: "ui_icons_col_light"
   images {
     image: "/assets/images/ui/icons/col_light.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_icons_copy"
+  images {
+    image: "/assets/images/ui/icons/copy.png"
   }
   playback: PLAYBACK_NONE
 }
@@ -318,6 +332,13 @@ animations {
   id: "ui_icons_home"
   images {
     image: "/assets/images/ui/icons/home.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_icons_import"
+  images {
+    image: "/assets/images/ui/icons/import.png"
   }
   playback: PLAYBACK_NONE
 }
@@ -392,6 +413,13 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "ui_icons_play_dark"
+  images {
+    image: "/assets/images/ui/icons/play_dark.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "ui_icons_plus"
   images {
     image: "/assets/images/ui/icons/plus.png"
@@ -402,6 +430,13 @@ animations {
   id: "ui_icons_remix"
   images {
     image: "/assets/images/ui/icons/remix.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "ui_icons_reset"
+  images {
+    image: "/assets/images/ui/icons/reset.png"
   }
   playback: PLAYBACK_NONE
 }

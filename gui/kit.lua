@@ -43,6 +43,25 @@ end
 -- soft shadow, a purple ribbon with the title, a close button.
 -- opts = {y = 0, title = text, close = true, border, ribbon_w, fit = false, up = 50}. Returns the
 -- body node (children relative to its centre) and its half height.
+-- The title row of a window in the style of the producer's UI pack: the icon and the title on the left, a small close
+-- button on the right (no ribbon). opts.title_icon = image key.
+local function kit_inline_title(e, body, w, h, opts)
+	local s = e.ui
+	local ty = h / 2 - 76
+	local ic = opts.title_icon and s:image(body, opts.title_icon, -w / 2 + 70, ty, { w = 64, h = 64 })
+	s:text(body, i18n.tr(opts.title), -w / 2 + (ic and 114 or 44), ty, {
+		font = "title", size = 46, color = "text", pivot = gui.PIVOT_W, max_width = w - 260,
+	})
+	if opts.close ~= false then
+		local cx, cy = w / 2 - 62, ty
+		local b = s:button({ parent = body, x = cx, y = cy, w = 72, h = 72, style = "white", icon = "ui/icons/close",
+			icon_size = 40, text = not assets.has_image("ui/icons/close") and "X" or nil,
+			on_click = function() e:close("close") end })
+		e:target("close", cx, (opts.y or 0) + cy)
+		e.close_btn = b
+	end
+end
+
 -- fit: the panel is put on the screen (e:fit): a tall window slides down and shrinks until its ribbon and
 -- whatever else sticks out `up` px above the panel (a mascot: more than the ribbon's 50) stay inside the design
 -- area; the content is drawn in the usual coordinates and e:target / e:abs follow the scale.
@@ -54,7 +73,10 @@ function M.panel(e, w, h, opts)
 	s:round(e.content, 0, y - 16, w + 8, h + 8, "#5A3FA0", { alpha = 0.22 })
 	local border = s:round(e.content, 0, y, w, h, opts.border or "#E3D9FF")
 	local body = s:round(border, 0, 0, w - 12, h - 12, "white")
-	if opts.title then
+	if opts.inline_title then
+		-- the window of the producer's UI pack: the title sits inside the panel with its icon, a small close button
+		kit_inline_title(e, body, w, h, opts)
+	elseif opts.title then
 		local rw = math.min(w + 40, opts.ribbon_w or 480)
 		local ribbon = s:image(body, "ui/ribbon", 0, h / 2 - 2, { w = rw, h = 104, slice9 = true })
 			or s:round(body, 0, h / 2 - 2, rw - 60, 86, "purple")
@@ -63,7 +85,7 @@ function M.panel(e, w, h, opts)
 		})
 		e.ribbon = ribbon
 	end
-	if opts.close ~= false then
+	if opts.close ~= false and not opts.inline_title then
 		local cx, cy = w / 2 - 40, h / 2 - 40
 		local b = s:button({ parent = body, x = cx, y = cy, w = 84, h = 84, style = "white", icon = "ui/icons/close",
 			icon_size = 56, text = not assets.has_image("ui/icons/close") and "X" or nil,
@@ -258,7 +280,7 @@ function M.segmented(e, parent, x, y, w, options, selected, on_select, opts)
 	opts = opts or {}
 	local s = e.ui
 	local h = opts.h or 88
-	s:round(parent, x, y, w, h + 12, "#EFE8FF", { radius = 30 })
+	s:round(parent, x, y, w, h + 12, opts.track or "#EFE8FF", { radius = 30 })
 	local n = #options
 	local bw = (w - 12) / n
 	local buttons = {}
