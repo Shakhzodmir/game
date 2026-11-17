@@ -985,5 +985,66 @@
         "h": 296
       }
     }
+  },
+  "midnight_cafe": {
+    "bg": "assets/images/districts/midnight_cafe/bg.png",
+    "bg_concert": "assets/images/districts/midnight_cafe/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "radio": {
+        "image": "assets/images/districts/midnight_cafe/radio.png",
+        "ghost": "assets/images/districts/midnight_cafe/radio_ghost.png",
+        "x": 370,
+        "y": 712,
+        "scale": 0.66,
+        "w": 223,
+        "h": 176
+      },
+      "string_lights": {
+        "image": "assets/images/districts/midnight_cafe/string_lights.png",
+        "ghost": "assets/images/districts/midnight_cafe/string_lights_ghost.png",
+        "x": 360,
+        "y": 348,
+        "scale": 0.66,
+        "w": 215,
+        "h": 262
+      },
+      "rhodes": {
+        "image": "assets/images/districts/midnight_cafe/rhodes.png",
+        "ghost": "assets/images/districts/midnight_cafe/rhodes_ghost.png",
+        "x": 160,
+        "y": 690,
+        "scale": 0.72,
+        "w": 265,
+        "h": 233
+      },
+      "umbrellas": {
+        "image": "assets/images/districts/midnight_cafe/umbrellas.png",
+        "ghost": "assets/images/districts/midnight_cafe/umbrellas_ghost.png",
+        "x": 578,
+        "y": 694,
+        "scale": 0.72,
+        "w": 221,
+        "h": 206
+      },
+      "night_cat": {
+        "image": "assets/images/districts/midnight_cafe/night_cat.png",
+        "ghost": "assets/images/districts/midnight_cafe/night_cat_ghost.png",
+        "x": 574,
+        "y": 418,
+        "scale": 0.66,
+        "w": 197,
+        "h": 149
+      },
+      "neon_sign": {
+        "image": "assets/images/districts/midnight_cafe/neon_sign.png",
+        "ghost": "assets/images/districts/midnight_cafe/neon_sign_ghost.png",
+        "x": 360,
+        "y": 540,
+        "scale": 0.56,
+        "w": 196,
+        "h": 208
+      }
+    }
   }
 }

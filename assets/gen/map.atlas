@@ -469,6 +469,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_midnight_cafe_1"
+  images {
+    image: "/assets/images/map/deco_midnight_cafe_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_midnight_cafe_2"
+  images {
+    image: "/assets/images/map/deco_midnight_cafe_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_midnight_cafe_3"
+  images {
+    image: "/assets/images/map/deco_midnight_cafe_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_midnight_cafe_4"
+  images {
+    image: "/assets/images/map/deco_midnight_cafe_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_midnight_cafe_5"
+  images {
+    image: "/assets/images/map/deco_midnight_cafe_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_midnight_cafe_6"
+  images {
+    image: "/assets/images/map/deco_midnight_cafe_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_ranch_1"
   images {
     image: "/assets/images/map/deco_ranch_1.png"

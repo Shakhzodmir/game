@@ -180,6 +180,18 @@
         { "kind": "notes", "item": "robot_dj", "x": 502, "y": 690, "count": 3, "layer": "over", "colors": ["#3CF2FF", "#FF8FBE", "#FFD84D"], "rise": 190, "period": 3.0 },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "midnight_cafe": {
+      "mood": "night",
+      "details": [
+        { "kind": "shaft", "x": 300, "y": 190, "w": 190, "h": 880, "angle": 16, "layer": "mid", "view": "day", "color": "#C9D6FF", "alpha": [0.1, 0.2], "period": 5.5 },
+        { "kind": "motes", "style": "dust", "rect": [150, 240, 380, 620], "count": 9, "layer": "mid", "view": "day", "color": "#FFE9A8" },
+        { "kind": "blink", "points": [[80, 52], [200, 58], [320, 52], [440, 58], [560, 52]], "r": 26, "layer": "mid", "colors": ["#FFD84D", "#FF8FBE", "#7BE8C0"], "period": 1.8 },
+        { "kind": "blink", "item": "string_lights", "points": [[300, 372], [420, 372]], "r": 70, "layer": "over", "colors": ["#FFE9A0"], "period": 2.6, "alpha": [0.25, 0.55] },
+        { "kind": "notes", "item": "radio", "x": 370, "y": 640, "count": 3, "layer": "over", "colors": ["#FF8FBE", "#7BE8C0", "#FFD84D"], "rise": 190, "period": 3.4 },
+        { "kind": "steam", "item": "rhodes", "x": 170, "y": 556, "count": 3, "size": 52, "rise": 120, "period": 3.2, "layer": "over", "color": "#FFFFFF" },
+        { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
+      ]
     }
   }
 }
