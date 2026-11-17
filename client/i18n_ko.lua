@@ -401,6 +401,7 @@ return {
 	["stem.tuba"] = "튜바",
 	["stem.vibes"] = "비브라폰",
 	["stem.vinyl"] = "LP 잡음",
+	["stem.rain"] = "유리창 빗소리",
 	["stem.whistle"] = "호루라기",
 
 	["time.hm"] = "{h}시간 {m}분",
