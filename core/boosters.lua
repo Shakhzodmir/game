@@ -21,8 +21,7 @@ function BO.has_effect(s, i)
 	local o = B.get(s, i)
 	if o then
 		local k = o.kind
-		if k == C.K_REGULAR then return o.chain == 0 end -- a chained piece ignores every effect (10.6)
-		return k == C.K_BLOCKER or k == C.K_SPECIAL
+		return k == C.K_REGULAR or k == C.K_BLOCKER or k == C.K_SPECIAL -- an effect takes a link off a chain (10.6)
 	end
 	return s.floor[i] > 0
 end

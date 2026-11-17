@@ -1,5 +1,6 @@
 -- The chain (10.6): a lock on a regular piece. The piece falls like any other, is never swapped, matches
--- where it lands; only a match takes a link off (hp 1..2), every effect passes over it (goal `chains`).
+-- where it lands; a match or an effect (Riff, Subwoofer, Bird, combos, boosters) takes a link off (hp 1..2), the Disco
+-- ball and a neighbour's match pass over it (goal `chains`).
 
 local core = require("core.game")
 local C = require("core.const")
@@ -328,7 +329,7 @@ describe("core chain: a match takes the chain, not the piece (6, 7.1)", function
 	end)
 end)
 
-describe("core chain: every effect passes over it (7, 8, 5.3)", function()
+describe("core chain: an effect takes a link off it, the piece stays (7, 8, 5.3)", function()
 	-- "" if nothing touched the chained piece `o` before the first match (a cascade of the refill may match it
 	-- by the rules, and that is not what these tests are about), else what did
 	local function untouched(ev, o)
@@ -341,16 +342,63 @@ describe("core chain: every effect passes over it (7, 8, 5.3)", function()
 		return ""
 	end
 
-	it("a Riff, a Sabwoofer, a Bird and a Disco ball leave the chain and the piece alone", function()
-		for _, sp in ipairs({ "R", "S", "B", "D" }) do
+	-- "" if the piece `o` was not cleared before the first match: an effect takes the chain, never the piece
+	local function not_cleared(ev, o)
+		for _, e in ipairs(ev) do
+			if e.type == "match" then break end
+			if e.id == o.id and (e.type == "clear" or e.type == "transform") then return e.type end
+		end
+		return ""
+	end
+
+	local function chain_hits(ev)
+		local n = 0
+		for _, e in ipairs(ev) do
+			if e.type == "match" then break end
+			if e.type == "hit" and e.layer == "chain" then n = n + 1 end
+		end
+		return n
+	end
+
+	it("a Riff, a Subwoofer and a Bird take a link off the chains they hit; the pieces stay", function()
+		-- chains: (2,4) hp 1, (4,4) hp 2, (3,3) hp 1; the special stands at (3,4)
+		local want = {
+			R = { chains = { 0, 1, 1 }, hits = 2, unchained = 1, goal = 3 }, -- the Riff's row: (2,4) breaks, (4,4) loses a link
+			S = { chains = { 0, 1, 0 }, hits = 3, unchained = 2, goal = 2 }, -- the 3x3 around it
+			B = { chains = { 0, 1, 0 }, hits = 3, unchained = 2, goal = 2 },
+		}
+		for _, sp in ipairs({ "R", "S", "B" }) do
 			local g = fresh(with(P0, 3, 4, sp), { { 2, 4 }, { 4, 4, 2 }, { 3, 3 } })
 			local a, b, c = H.obj_at(g, 2, 4), H.obj_at(g, 4, 4), H.obj_at(g, 3, 3)
 			assert_same({ g:input({ type = "tap", at = { 3, 4 } }) }, { true, "ok" })
 			local ev = rest(g)
+			local w = want[sp]
 			assert_true(#H.of_type(ev, "activate") >= 1, sp)
 			assert_true(#H.of_type(ev, "clear") >= 3, sp .. ": it fired")
-			for _, o in ipairs({ a, b, c }) do assert_eq(untouched(ev, o), "", sp) end
+			assert_same({ a.chain, b.chain, c.chain }, w.chains, sp)
+			assert_eq(chain_hits(ev), w.hits, sp)
+			local un = 0
+			for _, e in ipairs(ev) do
+				if e.type == "match" then break end
+				if e.type == "unchained" then un = un + 1 end
+			end
+			assert_eq(un, w.unchained, sp)
+			assert_eq(g:status().goals[1], w.goal, sp .. ": a broken chain counts for the goal")
+			for _, o in ipairs({ a, b, c }) do
+				assert_eq(not_cleared(ev, o), "", sp)
+				assert_eq(o.kind, C.K_REGULAR, sp)
+			end
 		end
+	end)
+
+	it("a Disco ball passes over the chains and the pieces", function()
+		local g = fresh(with(P0, 3, 4, "D"), { { 2, 4 }, { 4, 4, 2 }, { 3, 3 } })
+		local a, b, c = H.obj_at(g, 2, 4), H.obj_at(g, 4, 4), H.obj_at(g, 3, 3)
+		assert_same({ g:input({ type = "tap", at = { 3, 4 } }) }, { true, "ok" })
+		local ev = rest(g)
+		assert_true(#H.of_type(ev, "clear") >= 3, "it fired")
+		for _, o in ipairs({ a, b, c }) do assert_eq(untouched(ev, o), "") end
+		assert_same({ a.chain, b.chain, c.chain }, { 1, 2, 1 })
 	end)
 
 	it("a Disco ball does not choose or list chained pieces", function()
@@ -379,15 +427,17 @@ describe("core chain: every effect passes over it (7, 8, 5.3)", function()
 		end
 	end)
 
-	it("the Grand finale clears the board around them and lights the tile under them, the chains stay", function()
+	it("the Grand finale clears the board around them, takes a link off each chain and lights the tile under them", function()
 		local extra = chains(4)
 		extra.floor = { { at = { 1, 1 }, hp = 1 } }
 		local g = fresh(with(with(P0, 3, 4, "D"), 4, 4, "D"), { { 2, 2 }, { 5, 5, 2 } }, extra)
 		local a, b = H.obj_at(g, 2, 2), H.obj_at(g, 5, 5)
 		assert_same({ g:input({ type = "swap", from = { 3, 4 }, to = { 4, 4 } }) }, { true, "ok" })
 		local ev = rest(g, 600)
-		assert_eq(untouched(ev, a), "")
-		assert_eq(untouched(ev, b), "")
+		assert_eq(not_cleared(ev, a), "")
+		assert_eq(not_cleared(ev, b), "")
+		assert_same({ a.chain, b.chain }, { 0, 1 })
+		assert_eq(g:status().goals[1], 3)
 		assert_eq(#H.of_type(ev, "floor_lit"), 1, "all_layers reaches the floor under a chained piece")
 	end)
 
@@ -403,28 +453,60 @@ describe("core chain: every effect passes over it (7, 8, 5.3)", function()
 		assert_eq(o.chain, 1)
 	end)
 
-	it("boosters: the Stick refuses it, the lights pass over it, the Crossfader cannot take it", function()
+	it("boosters: the Stick takes a link off it, the Crossfader cannot take it", function()
 		local g = fresh(P0, { { 2, 4 }, { 5, 4, 2 } })
 		local a, b = H.obj_at(g, 2, 4), H.obj_at(g, 5, 4)
-		assert_same({ g:input({ type = "booster", booster = "stick", at = { 2, 4 } }) }, { false, "bad_cell" })
 		assert_same({ g:input({ type = "booster", booster = "swap", at = { 2, 4 }, to = { 6, 6 } }) }, { false, "not_movable" })
 		assert_same({ g:input({ type = "booster", booster = "swap", at = { 6, 6 }, to = { 5, 4 } }) }, { false, "not_movable" })
+		assert_same({ g:input({ type = "booster", booster = "stick", at = { 2, 4 } }) }, { true, "ok" })
+		local ev = rest(g)
+		assert_eq(chain_hits(ev), 1)
+		assert_eq(not_cleared(ev, a), "", "the Stick takes the chain, not the piece")
+		assert_eq(a.chain, 0)
+		assert_eq(g:status().goals[1], 3, "a broken chain counts for the goal")
+		assert_same({ g:input({ type = "booster", booster = "stick", at = { 5, 4 } }) }, { true, "ok" })
+		ev = rest(g)
+		assert_eq(b.chain, 1, "a chain of two links loses one")
+		assert_eq(not_cleared(ev, b), "")
+	end)
+
+	it("boosters: the lights take a link off the chains of their row or column", function()
+		local g = fresh(P0, { { 2, 4 }, { 5, 4, 2 } })
+		local a, b = H.obj_at(g, 2, 4), H.obj_at(g, 5, 4)
 		assert_same({ g:input({ type = "booster", booster = "row_light", row = 4 }) }, { true, "ok" })
 		local ev = rest(g)
 		assert_true(#H.of_type(ev, "clear") >= 4)
-		assert_eq(untouched(ev, a), "")
-		assert_eq(untouched(ev, b), "")
-		assert_same({ a.chain, b.chain, a.cell, b.cell }, { 1, 2, H.idx(g, 2, 4), H.idx(g, 5, 4) })
-		assert_same({ g:input({ type = "booster", booster = "col_light", col = 2 }) }, { true, "ok" })
-		ev = rest(g)
-		assert_eq(untouched(ev, a), "")
-		assert_eq(a.chain, 1)
-		assert_eq(a.cell, H.idx(g, 2, 6), "the column under it was cleared: it fell to the bottom")
+		assert_eq(chain_hits(ev), 2)
+		assert_eq(not_cleared(ev, a), "")
+		assert_eq(not_cleared(ev, b), "")
+		assert_same({ a.chain, b.chain }, { 0, 1 })
+		local g2 = fresh(P0, { { 2, 4 }, { 5, 4, 2 } })
+		local c = H.obj_at(g2, 2, 4)
+		assert_same({ g2:input({ type = "booster", booster = "col_light", col = 2 }) }, { true, "ok" })
+		ev = rest(g2)
+		assert_eq(chain_hits(ev), 1)
+		assert_eq(not_cleared(ev, c), "")
+		assert_eq(c.chain, 0)
 	end)
 
-	it("a row of nothing but chained pieces has no effect for the lights either", function()
+	it("a row of nothing but chained pieces is a fine target for the lights: every chain breaks", function()
 		local g = fresh(P0, { { 1, 6 }, { 2, 6 }, { 3, 6 }, { 4, 6 }, { 5, 6 }, { 6, 6 } })
-		assert_same({ g:input({ type = "booster", booster = "row_light", row = 6 }) }, { false, "bad_cell" })
+		assert_same({ g:input({ type = "booster", booster = "row_light", row = 6 }) }, { true, "ok" })
+		local ev = rest(g)
+		assert_eq(chain_hits(ev), 6)
+		assert_eq(#H.of_type(ev, "unchained"), 6)
+	end)
+
+	it("an effect that frees a piece searches the board again; a neighbour's match still does nothing to the chain", function()
+		-- the Stick frees the orange (2,6); the board is searched again and stays consistent (no chain left, nothing stuck)
+		local rows = { "byrgby", "yrgbyr", "rgbyrg", "gbyrgb", "byrgpy", "yoppgr" }
+		local g = fresh(rows, { { 2, 6 } })
+		local o = H.obj_at(g, 2, 6)
+		assert_same({ g:input({ type = "booster", booster = "stick", at = { 2, 6 } }) }, { true, "ok" })
+		local ev = rest(g)
+		assert_eq(o.chain, 0)
+		assert_true(#H.of_type(ev, "unchained") == 1)
+		assert_true(g:is_stable())
 	end)
 
 	it("the Bird never targets a chained piece, nor the tile under one", function()

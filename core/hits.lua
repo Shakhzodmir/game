@@ -150,7 +150,9 @@ local function fog_clear(s, cell, acc)
 	H.goal(s, acc, C.GOAL_FOG, 0, 1)
 end
 
--- Match hit on a chained piece (10.6): the chain loses one hp, the piece stays.
+-- Match or effect hit on a chained piece (10.6): the chain loses one hp, the piece stays. An `adjacent` hit does
+-- nothing. A match searches the survivors again (section 6); a freed piece struck by an effect may stand in a
+-- ready-made line, so the board is searched again as for the ice (inside a group resolution the search repeats itself).
 local function chain_hit(s, o, cell, src, acc)
 	local hp = o.chain - 1
 	o.chain = hp
@@ -162,7 +164,11 @@ local function chain_hit(s, o, cell, src, acc)
 		E.emit(s, "unchained", { id = o.id, x = x, y = y })
 		H.goal(s, acc, C.GOAL_CHAINS, 0, 1)
 	end
-	s.chain_hit = true -- the survivors are searched again (section 6)
+	if src.kind == SRC_MATCH then
+		s.chain_hit = true -- the survivors are searched again (section 6)
+	elseif hp == 0 then
+		if s.in_group then s.chain_hit = true else s.dirty = true end
+	end
 end
 
 -- Hit on a frozen piece (10.11): an `adjacent` or an `effect` hit takes one hp off the ice, the piece
@@ -325,8 +331,8 @@ function H.hit(s, cell, src, opt_instant)
 				-- a frozen piece is never in a group: the ice melts from outside, the piece stays (10.11)
 				if src.kind ~= SRC_MATCH then ice_hit(s, o, cell, src, acc) end
 			elseif o.chain > 0 then
-				-- only a match touches a chained piece, and it takes the chain, not the piece
-				if src.kind == SRC_MATCH then chain_hit(s, o, cell, src, acc) end
+				-- a match or an effect takes a link off the chain, never the piece (10.6); an adjacent hit does nothing
+				if src.kind ~= SRC_ADJ then chain_hit(s, o, cell, src, acc) end
 			elseif src.kind ~= SRC_ADJ then
 				destroy_regular(s, o, cell, src, acc, opt_instant)
 				destroyed = true
