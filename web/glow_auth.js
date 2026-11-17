@@ -200,6 +200,38 @@
 		});
 	}
 
+	// The game opens the Google window from its own frame loop, not inside the tap, so Safari (iPhone) and strict
+	// pop-up blockers refuse it (auth/popup-blocked). Then a real page button is shown: its click IS a user gesture,
+	// and the same call made inside it is allowed. Cancel resolves as a cancelled sign-in.
+	function withGesture(open) {
+		var test = window.glowAuth && window.glowAuth._test;
+		return open().catch(function (e) {
+			if (!e || e.code !== "auth/popup-blocked") throw e;
+			if (test && test.gesture) return test.gesture(open);
+			return new Promise(function (resolve, reject) {
+				var lang = (document.documentElement.lang || navigator.language || "en").slice(0, 2);
+				var T = { ru: ["Продолжить с Google", "Отмена"], ko: ["Google로 계속하기", "취소"] }[lang] || ["Continue with Google", "Cancel"];
+				var wrap = document.createElement("div");
+				wrap.style.cssText = "position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:rgba(40,20,90,.6);" +
+					"display:flex;align-items:center;justify-content:center;font-family:sans-serif;";
+				var box = document.createElement("div");
+				box.style.cssText = "background:#fff;border-radius:18px;padding:20px;width:min(86vw,340px);box-sizing:border-box;text-align:center;";
+				var go = document.createElement("button");
+				go.type = "button"; go.textContent = T[0];
+				go.style.cssText = "display:block;width:100%;padding:14px;font-size:18px;font-weight:bold;border:0;border-radius:12px;background:#2BC98A;color:#fff;";
+				var no = document.createElement("button");
+				no.type = "button"; no.textContent = T[1];
+				no.style.cssText = "display:block;width:100%;padding:12px;font-size:16px;border:0;border-radius:12px;background:#E3D9FF;color:#3A2470;margin-top:10px;";
+				box.appendChild(go); box.appendChild(no); wrap.appendChild(box);
+				formEl = wrap;
+				document.body.appendChild(wrap);
+				function close() { formEl = null; if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }
+				go.addEventListener("click", function () { var p = open(); close(); p.then(resolve, reject); });
+				no.addEventListener("click", function () { close(); var c = new Error("cancelled"); c.code = "auth/user-cancelled"; reject(c); });
+			});
+		});
+	}
+
 	// operations ------------------------------------------------------------------------------------------------
 
 	function needUser(s) {
@@ -218,7 +250,8 @@
 			});
 		},
 		sign_in_google: function (s) {
-			return s.m.signInWithPopup(s.auth, new s.m.GoogleAuthProvider()).then(function (r) { return userFields(r.user); });
+			return withGesture(function () { return s.m.signInWithPopup(s.auth, new s.m.GoogleAuthProvider()); })
+				.then(function (r) { return userFields(r.user); });
 		},
 		password_form: function (s, args) {
 			var mode = args[0] === "register" ? "register" : "login";
@@ -232,7 +265,8 @@
 		},
 		link_google: function (s) {
 			var u = needUser(s);
-			return s.m.linkWithPopup(u, new s.m.GoogleAuthProvider()).then(function () { return userFields(s.auth.currentUser); });
+			return withGesture(function () { return s.m.linkWithPopup(u, new s.m.GoogleAuthProvider()); })
+				.then(function () { return userFields(s.auth.currentUser); });
 		},
 		link_email_form: function (s, args) {
 			var u = needUser(s);

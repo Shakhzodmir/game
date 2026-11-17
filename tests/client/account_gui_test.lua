@@ -91,27 +91,23 @@ describe("account windows", function()
 		end)
 	end)
 
-	it("creates an ID account, warns that there is no e-mail, links one and signs out after a confirmation", function()
+	it("creates an ID account, asks to link Google (no e-mail linking), links it and signs out after a confirmation", function()
 		with_account({ welcomed = true }, function(c, m)
 			open(c, "account")
 			m.form_next = { id = "Anna_7", password = "secret123" }
 			wtap(c, "create")
 			c.run(0.6)
 			assert_eq(auth.user().id, "anna_7")
-			assert_true(has(c, "forgotten password cannot be restored"), G.dump(c.town))
-			m.form_next = { email = "anna@gmail.com" }
-			wtap(c, "link_email")
+			assert_true(has(c, "Link Google so you don't lose the account"), G.dump(c.town))
+			assert_true(c.app.ui.popup_targets.link_email == nil and c.app.ui.popup_targets.check_mail == nil, "Google only")
+			assert_true(c.app.ui.popup_targets.forgot == nil)
+			m.google_next = { sub = "g7", email = "anna@gmail.com" }
+			wtap(c, "link_google")
 			c.run(0.6)
-			assert_true(has(c, "Waiting for confirmation: anna@gmail.com"))
-			assert_true(c.app.ui.popup_targets.check_mail ~= nil)
-			wtap(c, "check_mail")
-			c.run(0.6)
-			assert_eq(#m.mails, 1)
-			m.confirm_mail(1)
-			wtap(c, "check_mail")
-			c.run(0.6)
-			assert_true(auth.can_recover(auth.user()))
-			assert_true(c.app.ui.popup_targets.link_email == nil)
+			assert_true(auth.user().google_linked)
+			assert_true(has(c, "Google is linked"), G.dump(c.town))
+			assert_false(has(c, "Link Google so you don't lose the account"))
+			assert_true(c.app.ui.popup_targets.link_google == nil, "nothing left to link")
 			wtap(c, "sign_out")
 			c.run(0.6)
 			assert_eq(c.app.ui.popup, "confirm")
@@ -175,110 +171,17 @@ local function as_web(fn, blocked)
 end
 
 describe("forgot password and the privacy link", function()
-	it("offers 'Forgot password?' in the first-launch window and sends the letter without closing it", function()
-		with_account({}, function(c, m)
+	it("has no 'Forgot password?' in any window: Google is the only recovery", function()
+		with_account({}, function(c)
 			c.run(3)
 			assert_eq(c.app.ui.popup, "account")
-			assert_true(c.app.ui.popup_targets.forgot ~= nil, "no 'forgot' button in the first-launch window")
-			assert_true(has(c, "Forgot password?"))
-			assert_true(has(c, "Forgot your ID?"), "the ID hint is in the window")
-			m.form_next = { email = "Anna@Gmail.com" }
-			wtap(c, "forgot")
-			c.run(0.6)
-			assert_eq(#m.resets, 1)
-			assert_eq(m.resets[1].email, "anna@gmail.com")
-			assert_eq(m.resets[1].lang, "en")
-			assert_true(toast_has(c, "If this e-mail is registered"), tostring(c.app.overlay.toast))
-			assert_eq(c.app.ui.popup, "account", "a reset is not a sign-in: the window stays")
-			assert_false(cloud.welcomed())
-			assert_eq(auth.user(), nil)
-		end)
-	end)
-
-	it("offers it in the account window of a guest too, and writes the letter in the game's language", function()
-		with_account({ welcomed = true, language = "ru" }, function(c, m)
-			open(c, "account")
-			assert_true(c.app.ui.popup_targets.forgot ~= nil)
-			assert_true(has(c, "Забыли пароль?"), G.dump(c.town))
-			m.form_next = { email = "anna@gmail.com" }
-			wtap(c, "forgot")
-			c.run(0.6)
-			assert_eq(m.resets[1].lang, "ru")
-			assert_true(toast_has(c, "Если такая почта есть, письмо отправлено"), tostring(c.app.overlay.toast))
-		end)
-	end)
-
-	it("answers the same for a known and an unknown address", function()
-		local seen = {}
-		with_account({ welcomed = true }, function(c, m)
-			m.accounts.u001 = { uid = "u001", kind = "password", id = "anna_7", email = "anna@gmail.com", verified = true, password = "secret123" }
-			for _, email in ipairs({ "anna@gmail.com", "nobody@example.com" }) do
-				open(c, "account")
-				m.form_next = { email = email }
-				wtap(c, "forgot")
-				c.run(0.7)
-				seen[#seen + 1] = c.app.overlay.toast
-				c.app.close_popup()
-				c.run(0.5)
-			end
-			assert_eq(#m.resets, 2)
-			assert_true(m.resets[1].sent and not m.resets[2].sent, "the mock sends a letter only to a real account")
-			assert_eq(seen[1], seen[2], "the player cannot tell whether the address has an account")
-		end)
-	end)
-
-	it("says so when there is no connection or the attempts are too frequent, and nothing when the form is cancelled", function()
-		with_account({ welcomed = true }, function(c, m)
-			open(c, "account")
-			m.online = false
-			m.form_next = { email = "anna@gmail.com" }
-			wtap(c, "forgot")
-			assert_true(toast_has(c, "No connection: the letter was not sent"), tostring(c.app.overlay.toast))
-			c.run(6) -- the first toast goes away before the next one is shown
-			m.online = true
-			m.too_many = true
-			m.form_next = { email = "anna@gmail.com" }
-			wtap(c, "forgot")
-			assert_true(toast_has(c, "Too many attempts. Wait a few minutes"), tostring(c.app.overlay.toast))
-			assert_eq(#m.resets, 0)
-			m.too_many = false
-			c.run(6)
-			m.form_next = nil -- the form is closed without an address
-			wtap(c, "forgot")
-			c.run(0.7)
-			assert_eq(c.app.overlay.toast, nil, "a cancelled form says nothing")
-			assert_eq(#m.resets, 0)
-		end)
-	end)
-
-	it("shows neither button to a signed-in player, nor without a provider", function()
-		with_account({ welcomed = true }, function(c, m)
-			m.google_next = { sub = "g1", email = "a@gmail.com" }
-			auth.sign_in_google(function() end)
-			open(c, "account")
-			assert_true(c.app.ui.popup_targets.forgot == nil)
-			assert_true(c.app.ui.popup_targets.privacy == nil)
-		end)
-		with_account({ unavailable = true }, function(c)
-			open(c, "account")
 			assert_true(c.app.ui.popup_targets.forgot == nil)
 			assert_false(has(c, "Forgot your ID?"))
 		end)
-	end)
-
-	it("tells an ID account without an e-mail how to fix it, and stops telling once an address is waiting", function()
-		with_account({ welcomed = true }, function(c, m)
+		with_account({ welcomed = true }, function(c)
 			open(c, "account")
-			m.form_next = { id = "anna_7", password = "secret123" }
-			wtap(c, "create")
-			c.run(0.6)
-			assert_true(has(c, "forgotten password cannot be restored"), G.dump(c.town))
-			assert_true(has(c, "Link e-mail"), "the hint names the button")
-			assert_true(has(c, "open the letter and tap its link"))
-			m.form_next = { email = "anna@gmail.com" }
-			wtap(c, "link_email")
-			c.run(0.6)
-			assert_false(has(c, "open the letter and tap its link. Then"), "the hint goes once an address is waiting")
+			assert_true(c.app.ui.popup_targets.forgot == nil)
+			assert_true(c.app.ui.popup_targets.google ~= nil)
 		end)
 	end)
 

@@ -93,8 +93,6 @@ local function build_items(e, choice)
 			button(items, "google", i18n.t("account.google"), "green", function() account.sign_in_google(done) end)
 			button(items, "id_login", i18n.t("account.id_login"), "blue", function() account.sign_in_id("login", done) end)
 			button(items, "create", i18n.t("account.create"), "blue", function() account.sign_in_id("register", done) end)
-			link(items, "forgot", i18n.t("account.forgot"), function() account.reset_password() end)
-			text_block(items, { key = "account.find_id" }, 22, "text_soft")
 		end
 		text_block(items, { key = "account.guest_note" }, 24, "text_soft")
 		if available then
@@ -113,8 +111,6 @@ local function build_items(e, choice)
 			button(items, "google", i18n.t("account.google"), "green", function() account.sign_in_google(done) end)
 			button(items, "id_login", i18n.t("account.id_login"), "blue", function() account.sign_in_id("login", done) end)
 			button(items, "create", i18n.t("account.create"), "blue", function() account.sign_in_id("register", done) end)
-			link(items, "forgot", i18n.t("account.forgot"), function() account.reset_password() end)
-			text_block(items, { key = "account.find_id" }, 22, "text_soft")
 		else
 			text_block(items, { key = "account.unavailable" }, 26, "text_soft")
 		end
@@ -123,22 +119,15 @@ local function build_items(e, choice)
 	text_block(items, { key = "account.signed_as", vars = { name = account.short(auth.label(user) or "?") } }, 30)
 	text_block(items, { key = user.kind == "google" and "account.kind_google" or "account.kind_id" }, 24, "text_soft")
 	text_block(items, account.status_spec(), 26, "purple")
-	if user.kind == "password" and not auth.can_recover(user) then
-		if user.pending_email then
-			text_block(items, { key = "account.pending_mail", vars = { email = account.short(user.pending_email, 22) } }, 24, "text_soft")
+	-- Google is the only way to recover an ID account (producer, 17.11.2026: no e-mail linking in the window):
+	-- a forgotten password is replaced by signing in with the linked Google account
+	if user.kind == "password" then
+		if user.google_linked then
+			text_block(items, { key = "account.google_ok" }, 24, "green")
 		else
-			text_block(items, { key = "account.no_mail_warn" }, 24, "pink")
-			text_block(items, { key = "account.no_mail_hint" }, 22, "text_soft")
+			text_block(items, { key = "account.no_google_warn" }, 24, "pink")
+			button(items, "link_google", i18n.t("account.link_google"), "green", function() account.link_google(done) end)
 		end
-	end
-	if not user.google_linked and user.kind == "password" then
-		button(items, "link_google", i18n.t("account.link_google"), "blue", function() account.link_google(done) end)
-	end
-	if user.kind == "password" and not auth.can_recover(user) then
-		if user.pending_email then
-			button(items, "check_mail", i18n.t("account.check_mail"), "green", function() account.check_mail(done) end)
-		end
-		button(items, "link_email", i18n.t("account.link_email"), "blue", function() account.link_email(done) end)
 	end
 	button(items, "sync", i18n.t("account.sync_now"), "blue", function()
 		cloud.sync_now()

@@ -538,6 +538,8 @@ return {
 	["account.signed_in"] = "로그인했어요",
 	["account.signed_out"] = "로그아웃했어요",
 	["account.deleted"] = "계정을 삭제했어요",
+	["account.google_ok"] = "Google이 연결되어 있어요. 언제든 Google로 로그인할 수 있어요.",
+	["account.no_google_warn"] = "비밀번호를 잊어도 계정을 잃지 않도록 Google을 연결하세요.",
 	["account.linked"] = "Google을 연결했어요",
 	["account.mail_sent"] = "{email}(으)로 메일을 보냈어요",
 	["account.mail_confirmed"] = "이메일을 확인했어요",
