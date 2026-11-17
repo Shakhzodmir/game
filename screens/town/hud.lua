@@ -225,6 +225,14 @@ function Hud:build_ribbon(parent)
 		local x = -bw / 2 + (i - 0.5) * seg + (i - 1) * 8
 		s:round(rib, x, -24, seg, 10, i <= p.done and "#FFDB1A" or "#6C32CF", { radius = 5 })
 	end
+	-- a district of Part 2 (content/districts.json "part": 2) wears a gold "Part 2" tag on the lower edge of the ribbon
+	self.part_tag = nil
+	if app.district_part and app.district_part(town.district) == 2 then
+		local tag = s:round(rib, 0, -62, 176, 40, "#FFC93C", { radius = 20 })
+		s:text(tag, i18n.t("part2.title"), 0, 0, { font = "button", size = 22, color = "white", shadow = "#C77A00",
+			max_width = 156 })
+		self.part_tag = tag
+	end
 	if paged then
 		arrow_button(self, parent, M.ARROW_PREV_X, -1, nav.prev ~= nil)
 		arrow_button(self, parent, M.ARROW_NEXT_X, 1, nav.next ~= nil)

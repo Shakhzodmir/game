@@ -401,6 +401,29 @@ function M.district(id)
 	return M.district_by_id and M.district_by_id[id] or nil
 end
 
+-- The part of the game a district belongs to: content/districts.json "part" (Part 2 = districts 16-30, the second
+-- round of the fifteen genres); 1 when the field is absent (districts 1-15) or the district is unknown.
+function M.district_part(id)
+	local d = M.district(id)
+	local p = d and tonumber(d.part)
+	return (p and p >= 1) and math.floor(p) or 1
+end
+
+-- The part a district opens: its part number when it is the first district of a part after Part 1 (district 16
+-- opens Part 2), else nil. The map gate and the town ribbon of such a district say "Part 2" (i18n part2.title).
+function M.part_opens(id)
+	local part = M.district_part(id)
+	if part < 2 then return nil end
+	for i, d in ipairs(M.district_list or {}) do
+		if d.id == id then
+			local prev = M.district_list[i - 1]
+			if not prev or M.district_part(prev.id) ~= part then return part end
+			return nil
+		end
+	end
+	return nil
+end
+
 -- The genre a song plays in the key of: a district (the five district genres) or an extra genre of
 -- content/genres.json (it has bpm / key / semitones_from_c like a district), or nil.
 function M.genre(id)

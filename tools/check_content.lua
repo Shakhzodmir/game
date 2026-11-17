@@ -6,7 +6,8 @@
 -- What is checked (the number N of levels is the last level of the last district of content/districts.json):
 --   * content/districts.json: every district has an id, `first` / `last` (the stretches follow each other from
 --     level 1, no gap, no overlap, at most C.songbook.pool levels each), names in ru / en / ko, a genre name in
---     ru / en / ko, tasks (names in ru / en / ko), a chest and its songs (the rules of meta/town.lua)
+--     ru / en / ko, tasks (names in ru / en / ko), a chest and its songs (the rules of meta/town.lua); `part`
+--     (optional, Part 2 = districts 16-30) is a whole number >= 1 and never goes down along the list
 --   * content/levels/level_NNNN.json exists for every level 1..N, its id is NNNN, and there is no file beyond N
 --   * content/levels/stars.json has the thresholds of every level 1..N and of no other, and the concert levels
 --     (`kind` = "concert") are exactly the last level of every district (WP-14)
@@ -73,6 +74,7 @@ function Check.run(fs)
 	local list = districts.districts
 	info.districts = #list
 	local stretches, ids = {}, {}
+	local part_before = 1
 	for i, d in ipairs(list) do
 		local id = type(d) == "table" and d.id or nil
 		local where = "content/districts.json district " .. i .. (type(id) == "string" and (" (" .. id .. ")") or "")
@@ -86,6 +88,15 @@ function Check.run(fs)
 			if type(d.bpm) ~= "number" or d.bpm < 40 or d.bpm > 220 then add(errors, where .. ": bpm must be 40..220") end
 			if d.map_tint ~= nil and (type(d.map_tint) ~= "string" or not d.map_tint:match("^#%x%x%x%x%x%x$")) then
 				add(errors, where .. ": map_tint must look like #RRGGBB")
+			end
+			if d.part ~= nil then
+				if not is_int(d.part) or d.part < 1 then
+					add(errors, where .. ": part must be a whole number >= 1")
+				elseif d.part < part_before then
+					add(errors, where .. ": part " .. d.part .. " comes after part " .. part_before .. " (the parts follow the list)")
+				else
+					part_before = d.part
+				end
 			end
 			for j, t in ipairs(type(d.tasks) == "table" and d.tasks or {}) do
 				if type(t) == "table" then localized(errors, where .. " task " .. j, t.name) end
