@@ -412,6 +412,14 @@ function View:make_gate(seg)
 	s:text(holder, name, 360 + sign.dx, sg.gate_y + sign.dy, {
 		font = "button", size = size, color = "text", outline = false, shadow = false, max_width = sign.w,
 	})
+	-- the first district of Part 2 (district 16) wears a gold "Part 2" tag above its signboard
+	if app.part_opens and app.part_opens(sg.district) == 2 then
+		local ty = sg.gate_y + sign.dy + math.floor((sign.h or 60) / 2) + 28
+		s:round(holder, 360 + sign.dx, ty, 196, 46, "#FFC93C", { radius = 23 })
+		s:text(holder, i18n.t("part2.title"), 360 + sign.dx, ty, {
+			font = "button", size = 26, color = "white", shadow = "#C77A00", max_width = 172,
+		})
+	end
 	return holder
 end
 

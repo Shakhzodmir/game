@@ -704,6 +704,7 @@ local S = {
 	["town.concert"] = { en = "Concert", ru = "Концерт" },
 	["town.lives_full"] = { en = "Full", ru = "Макс." },
 	["town.layers"] = { en = "Track layers: {done}/{total}", ru = "Слоёв трека: {done} из {total}" },
+	["part2.title"] = { en = "Part 2", ru = "Часть 2" }, -- districts 16-30 (content/districts.json "part": 2): the gate and the town ribbon
 	["town.task_adds"] = { en = "Adds {stem} to the track", ru = "Добавит в трек: {stem}" },
 	["town.layer_added"] = { en = "+ {stem}!", ru = "+ {stem}!" },
 	["town.stars_hint"] = { en = "Win levels to earn stars", ru = "Звёзды дают за победы в уровнях" },
