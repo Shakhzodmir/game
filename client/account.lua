@@ -107,7 +107,7 @@ M.PRIVACY_PAGE = "privacy.html"
 function M.open_privacy()
 	if not platform.is_html5() then return false end
 	local ok = platform.open_url(M.PRIVACY_PAGE)
-	if not ok then app.toast_key("privacy.blocked", nil, { color = "pink", duration = 4 }) end
+	if not ok then app.toast_key("account.privacy_blocked", nil, { color = "pink", duration = 4 }) end
 	return ok
 end
 

@@ -205,7 +205,7 @@ end)
 
 describe("strings of the password reset and the privacy link", function()
 	local KEYS = { "account.forgot", "account.find_id", "account.no_mail_hint", "account.form_reset_note", "account.reset_send",
-		"account.reset_sent", "account.reset_offline", "account.reset_too_many", "privacy.link", "privacy.blocked" }
+		"account.reset_sent", "account.reset_offline", "account.reset_too_many", "account.privacy_link", "account.privacy_blocked" }
 
 	it("exist in ru, en and ko, and none is empty", function()
 		for _, key in ipairs(KEYS) do

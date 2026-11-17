@@ -230,7 +230,7 @@ function M.build(e)
 	end
 
 	-- the privacy policy: a page of the site, opened in a new tab (web only; elsewhere nothing happens)
-	row_button(e, body, y - 52, "ui/icons/lock", i18n.t("privacy.link"), function() account.open_privacy() end, "privacy")
+	row_button(e, body, y - 52, "ui/icons/lock", i18n.t("account.privacy_link"), function() account.open_privacy() end, "privacy")
 	y = y - 94
 
 	-- save code: the progress lives in the cloud now, so the two rows are hidden (five taps on the version show them)

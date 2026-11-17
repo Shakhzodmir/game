@@ -99,7 +99,7 @@ local function build_items(e, choice)
 		text_block(items, { key = "account.guest_note" }, 24, "text_soft")
 		if available then
 			text_block(items, { key = "account.privacy" }, 22, "text_soft")
-			link(items, "privacy", i18n.t("privacy.link"), function() account.open_privacy() end)
+			link(items, "privacy", i18n.t("account.privacy_link"), function() account.open_privacy() end)
 		end
 		button(items, "guest", i18n.t("account.guest"), "pink", function()
 			cloud.set_welcomed()
