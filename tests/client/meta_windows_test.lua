@@ -600,7 +600,7 @@ describe("meta windows: settings", function()
 
 	it("resets the progress only after a confirmation, then goes back to the splash", function()
 		G.with_town({ setup = function(app) G.win(app, 3) end }, function(c)
-			open(c, "settings")
+			open(c, "settings", { codes = true })
 			wtap(c, "reset")
 			c.run(0.6)
 			assert_eq(c.app.ui.popup, "confirm")

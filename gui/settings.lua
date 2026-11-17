@@ -19,8 +19,11 @@ local auth = require("client.services.auth")
 local M = {}
 
 local W = 640
-local H_BASE = 1264            -- without the save code rows
-local H_CODES = H_BASE + 232   -- with them (a caption and two rows)
+-- the height of the window: a guest has the sign-in button and a note, a signed-in player one row; the hidden
+-- service rows (save codes, reset: five taps on the version) add their own
+local function height(guest, codes)
+	return 1154 - (guest and 0 or 72) + (codes and 232 + 110 or 0)
+end
 
 -- The choices come from the meta's config (views.settings); these are their labels. A choice the meta
 -- offers that has no label yet (a new language needs its strings first) is left out.
@@ -175,7 +178,7 @@ function M.build(e)
 	local s = e.ui
 	local v = views.settings(app.meta)
 	local codes = (e.params and e.params.codes) or e.state.codes
-	local body, hh = kit.panel(e, W, codes and H_CODES or H_BASE,
+	local body, hh = kit.panel(e, W, height(auth.user() == nil, codes),
 		{ title = { key = "settings.title" }, title_icon = "ui/icons/settings", inline_title = true, fit = true })
 	local y = hh - 130
 
@@ -241,8 +244,9 @@ function M.build(e)
 		row_button(e, body, y - 82 - 94, "ui/icons/import", i18n.t("settings.code_enter"), function() M.enter_code(e) end, "code_enter")
 	end
 
-	-- reset + version: a pale pink row, not a loud button
+	-- reset: a service row now (producer, 17.11.2026: no reset button for players), shown with the save codes
 	local ry = -hh + 92
+	if codes then
 	s:round(body, 0, ry, CARD_W + 4, 84, "#F7C9D8", { radius = 40 })
 	local rb = s:button({ parent = body, x = 0, y = ry, w = CARD_W, h = 80, style = "flat", flat_color = "#FFF0F5",
 		on_click = function() reset(e) end })
@@ -251,6 +255,7 @@ function M.build(e)
 	s:image(rb.node, "ui/icons/reset", -tw / 2 - 30, 3, { w = 44, h = 44 })
 	s:text(rb.node, label, 22, 4, { font = "button", size = 28, color = "#E4527D", max_width = 400 })
 	e:target("reset", 0, ry)
+	end
 	s:text(body, i18n.t("settings.version", { v = app.VERSION }), 0, -hh + 30, { font = "small", size = 20, color = "text_soft" })
 	-- five taps on the version show / hide the save code rows (for the producer's QA codes and for support)
 	local vb = s:button({ parent = body, x = 0, y = -hh + 34, w = 260, h = 66, style = "white", sfx = false, on_click = function()

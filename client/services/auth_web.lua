@@ -47,6 +47,7 @@ local function user_from(f)
 	return {
 		uid = f.uid, kind = f.kind == "google" and "google" or "password", id = opt(f.id), email = opt(f.email),
 		email_verified = f.verified == "1", google_linked = f.google == "1", pending_email = opt(f.pending), name = opt(f.name),
+		google_email = opt(f.gmail),
 	}
 end
 

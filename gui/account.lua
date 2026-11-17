@@ -123,16 +123,13 @@ local function build_items(e, choice)
 	-- a forgotten password is replaced by signing in with the linked Google account
 	if user.kind == "password" then
 		if user.google_linked then
-			text_block(items, { key = "account.google_ok" }, 24, "green")
+			text_block(items, { key = user.google_email and "account.google_as" or "account.google_ok",
+				vars = { email = account.short(user.google_email or "", 26) } }, 24, "green")
 		else
 			text_block(items, { key = "account.no_google_warn" }, 24, "pink")
 			button(items, "link_google", i18n.t("account.link_google"), "green", function() account.link_google(done) end)
 		end
 	end
-	button(items, "sync", i18n.t("account.sync_now"), "blue", function()
-		cloud.sync_now()
-		e:rebuild()
-	end)
 	button(items, "sign_out", i18n.t("account.sign_out"), "blue", function() confirm_sign_out(e) end)
 	button(items, "delete", i18n.t("account.delete"), "pink", function() confirm_delete(e) end)
 	return items

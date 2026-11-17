@@ -95,6 +95,7 @@
 			email: email,
 			verified: u.emailVerified ? 1 : 0,
 			google: providers.indexOf("google.com") >= 0 ? 1 : 0,
+			gmail: ((u.providerData || []).filter(function (p) { return p.providerId === "google.com"; })[0] || {}).email || "",
 			pending: pending,
 			name: u.displayName || ""
 		};

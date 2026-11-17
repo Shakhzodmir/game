@@ -460,6 +460,8 @@ describe("a session: the shop, the settings and the app", function()
 			s:tap_target("settings")
 			s:step_until(function() return s.app.ui.popup == "settings" end, 3, "the settings")
 			s:run(1)
+			for _ = 1, 5 do s:tap_target("version"); s:run(0.2) end -- the service rows are hidden behind five taps
+			s:run(0.5)
 			s:tap_target("reset")
 			s:step_until(function() return s.app.ui.popup == "confirm" end, 3, "the question")
 			s:run(1)

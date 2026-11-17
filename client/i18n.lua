@@ -562,6 +562,7 @@ local S = {
 	["account.signed_out"] = { en = "Signed out", ru = "Вы вышли из аккаунта" },
 	["account.deleted"] = { en = "Account deleted", ru = "Аккаунт удалён" },
 	["account.google_ok"] = { en = "Google is linked: you can always sign in with Google.", ru = "Google привязан: войти всегда можно через Google." },
+	["account.google_as"] = { en = "Google linked: {email}", ru = "Google привязан: {email}" },
 	["account.no_google_warn"] = { en = "Link Google so you don't lose the account if you forget the password.", ru = "Привяжите Google, чтобы не потерять аккаунт, если забудете пароль." },
 	["account.linked"] = { en = "Google linked", ru = "Google привязан" },
 	["account.mail_sent"] = { en = "Letter sent to {email}", ru = "Письмо отправлено на {email}" },

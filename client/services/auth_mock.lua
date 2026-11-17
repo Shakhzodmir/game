@@ -61,6 +61,7 @@ function M.new(opts)
 		return {
 			uid = a.uid, kind = a.kind, id = a.id, email = a.email, email_verified = a.verified and true or false,
 			google_linked = a.google_sub ~= nil, pending_email = a.pending_email, name = a.name,
+			google_email = a.google_email or (a.kind == "google" and a.email or nil),
 		}
 	end
 	local function find(pred)
