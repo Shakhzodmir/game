@@ -1,0 +1,38 @@
+{
+  "id": 352, "version": 1,
+  "size": [9, 10],
+  "moves": 26,
+  "difficulty": "hard",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "carpet"},
+    {"type": "break", "item": "record_box", "count": 4}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 5], "type": "record_box", "hp": 2},
+    {"at": [3, 5], "type": "record_box", "hp": 2},
+    {"at": [5, 5], "type": "record_box", "hp": 2},
+    {"at": [7, 5], "type": "record_box", "hp": 2},
+    {"at": [0, 2], "type": "noise"},
+    {"at": [4, 2], "type": "noise"},
+    {"at": [8, 2], "type": "noise"},
+    {"at": [2, 7], "type": "noise"},
+    {"at": [6, 7], "type": "noise"}
+  ],
+  "carpet": [
+    [3, 8], [4, 8], [5, 8],
+    [3, 9], [4, 9], [5, 9]
+  ]
+}

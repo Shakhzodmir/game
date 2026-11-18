@@ -1,0 +1,45 @@
+{
+  "id": 360, "version": 1,
+  "size": [9, 11],
+  "moves": 28,
+  "difficulty": "super_hard",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "carpet"},
+    {"type": "break", "item": "balloon", "count": 8},
+    {"type": "break", "item": "noise", "count": 6}
+  ],
+  "cells": [
+    "..#####..",
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 3], "type": "balloon", "color": "red"},
+    {"at": [3, 3], "type": "balloon", "color": "yellow"},
+    {"at": [5, 3], "type": "balloon", "color": "red"},
+    {"at": [7, 3], "type": "balloon", "color": "yellow"},
+    {"at": [2, 6], "type": "balloon", "color": "yellow"},
+    {"at": [4, 6], "type": "balloon", "color": "red"},
+    {"at": [6, 6], "type": "balloon", "color": "yellow"},
+    {"at": [4, 1], "type": "balloon", "color": "red"},
+    {"at": [0, 5], "type": "noise"},
+    {"at": [8, 5], "type": "noise"},
+    {"at": [1, 8], "type": "noise"},
+    {"at": [7, 8], "type": "noise"},
+    {"at": [0, 10], "type": "noise"},
+    {"at": [8, 10], "type": "noise"}
+  ],
+  "carpet": [
+    [3, 9], [4, 9], [5, 9],
+    [3, 10], [4, 10], [5, 10]
+  ]
+}

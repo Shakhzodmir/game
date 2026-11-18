@@ -1,0 +1,46 @@
+{
+  "id": 342, "version": 1,
+  "size": [9, 10],
+  "moves": 20,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "break", "item": "balloon", "count": 12},
+    {"type": "break", "item": "noise", "count": 8},
+    {"type": "collect", "color": "red", "count": 40}
+  ],
+  "cells": [
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 4], "type": "balloon", "color": "red"},
+    {"at": [3, 4], "type": "balloon", "color": "yellow"},
+    {"at": [5, 4], "type": "balloon", "color": "red"},
+    {"at": [7, 4], "type": "balloon", "color": "yellow"},
+    {"at": [2, 6], "type": "balloon", "color": "yellow"},
+    {"at": [4, 6], "type": "balloon", "color": "red"},
+    {"at": [6, 6], "type": "balloon", "color": "yellow"},
+    {"at": [4, 2], "type": "balloon", "color": "red"},
+    {"at": [2, 2], "type": "balloon", "color": "yellow"},
+    {"at": [6, 2], "type": "balloon", "color": "yellow"},
+    {"at": [0, 6], "type": "balloon", "color": "red"},
+    {"at": [8, 6], "type": "balloon", "color": "red"},
+    {"at": [0, 8], "type": "noise"},
+    {"at": [2, 9], "type": "noise"},
+    {"at": [6, 9], "type": "noise"},
+    {"at": [8, 8], "type": "noise"},
+    {"at": [1, 1], "type": "noise"},
+    {"at": [7, 1], "type": "noise"},
+    {"at": [4, 8], "type": "noise"},
+    {"at": [8, 3], "type": "noise"}
+  ]
+}
