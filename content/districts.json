@@ -2520,6 +2520,150 @@
           "stem_desc": "a breathy tenor sax: long harmony notes under the trumpet and short answers in its gaps"
         }
       ]
+    },
+    {
+      "id": "nations_fest",
+      "part": 2,
+      "first": 341,
+      "last": 360,
+      "map_tint": "#F0D9B5",
+      "name": {
+        "ru": "Фестиваль наций",
+        "en": "Festival of Nations",
+        "ko": "세계 음악 축제"
+      },
+      "genre": {
+        "ru": "Парад наций",
+        "en": "World Parade",
+        "ko": "월드 퍼레이드"
+      },
+      "bpm": 116,
+      "key": "D",
+      "semitones_from_c": 2,
+      "bars": 8,
+      "mood": "a sunny world-music parade: a brass band marching together with a steel pan, big taiko drums and a musette accordion, flags in the wind, a big friendly crowd",
+      "songs": [
+        {
+          "id": "dragon_parade",
+          "name": {
+            "ru": "Парад дракона",
+            "en": "Dragon Parade",
+            "ko": "용의 행진"
+          },
+          "bpm": 112,
+          "bars": 8,
+          "mood": "a dragon dance in the street: big drums and a cymbal crash on the ones, a bright pentatonic flute tune, a plucked zither answering"
+        },
+        {
+          "id": "harbor_jig",
+          "name": {
+            "ru": "Портовая джига",
+            "en": "Harbor Jig",
+            "ko": "항구의 지그"
+          },
+          "bpm": 116,
+          "bars": 8,
+          "mood": "a lively harbor jig in triplets: a fiddle and a tin whistle play the tune together, a frame drum and a strummed guitar keep it bouncing"
+        },
+        {
+          "id": "steel_sunrise",
+          "name": {
+            "ru": "Стальной рассвет",
+            "en": "Steel Sunrise",
+            "ko": "스틸팬 해돋이"
+          },
+          "bpm": 120,
+          "bars": 12,
+          "mood": "a sunny steel-band soca: a steel pan tune and chords, a rubbery bass, a busy kick and snare, cowbell and shakers"
+        },
+        {
+          "id": "drum_circle",
+          "name": {
+            "ru": "Круг барабанов",
+            "en": "Drum Circle",
+            "ko": "드럼 서클"
+          },
+          "bpm": 104,
+          "bars": 8,
+          "mood": "a joyful drum circle: congas and a bass drum in rolling patterns, a marimba riff, a bright guitar picking little arpeggios, a crowd that claps along"
+        }
+      ],
+      "chest": {
+        "coins": 3600,
+        "boosters": [
+          "disco",
+          "col_light",
+          "riff"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "taiko",
+          "name": {
+            "ru": "Барабаны тайко",
+            "en": "Taiko drums",
+            "ko": "타이코 북"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "the parade beat: big taiko drums on the downbeats, a snare cadence and a marching bass drum"
+        },
+        {
+          "id": "festival_tent",
+          "name": {
+            "ru": "Шатёр фестиваля",
+            "en": "Festival tent",
+            "ko": "축제 천막"
+          },
+          "cost": 4,
+          "stem": "bass",
+          "stem_desc": "a sousaphone bass line that marches between the root and the fifth"
+        },
+        {
+          "id": "steel_pan",
+          "name": {
+            "ru": "Стил-пэн",
+            "en": "Steel pan",
+            "ko": "스틸팬"
+          },
+          "cost": 5,
+          "stem": "steelpan",
+          "stem_desc": "bright steel pan chords on the off-beats and little runs into each bar"
+        },
+        {
+          "id": "flag_garland",
+          "name": {
+            "ru": "Гирлянда флагов",
+            "en": "Flag garland",
+            "ko": "만국기 가랜드"
+          },
+          "cost": 5,
+          "stem": "shaker",
+          "stem_desc": "shakers, a tambourine and the hand claps of the crowd"
+        },
+        {
+          "id": "accordion",
+          "name": {
+            "ru": "Аккордеон",
+            "en": "Accordion",
+            "ko": "아코디언"
+          },
+          "cost": 5,
+          "stem": "lead",
+          "stem_desc": "the parade tune on a bright musette accordion"
+        },
+        {
+          "id": "shell_stage",
+          "name": {
+            "ru": "Сцена-ракушка",
+            "en": "Shell stage",
+            "ko": "조개 무대"
+          },
+          "cost": 6,
+          "stem": "brass",
+          "stem_desc": "the brass band answers: trumpets and trombones in big friendly stabs and a fanfare into each half"
+        }
+      ]
     }
   ],
   "level_stems": {
