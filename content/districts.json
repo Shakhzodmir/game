@@ -2664,6 +2664,150 @@
           "stem_desc": "the brass band answers: trumpets and trombones in big friendly stabs and a fanfare into each half"
         }
       ]
+    },
+    {
+      "id": "fan_meeting",
+      "part": 2,
+      "first": 361,
+      "last": 380,
+      "map_tint": "#F2D3E4",
+      "name": {
+        "ru": "Фан-встреча",
+        "en": "Fan Meeting",
+        "ko": "팬미팅"
+      },
+      "genre": {
+        "ru": "K-pop: баллада и данс",
+        "en": "K-pop Ballad & Dance",
+        "ko": "발라드와 댄스"
+      },
+      "bpm": 102,
+      "key": "B",
+      "semitones_from_c": -1,
+      "bars": 8,
+      "mood": "a cosy fan meeting at sunset: a piano verse like a ballad, then a light dance chorus with claps, warm strings, a sparkling arpeggio and a soft bell-like hook, lightsticks swaying",
+      "songs": [
+        {
+          "id": "sunset_letter",
+          "name": {
+            "ru": "Письмо на закате",
+            "en": "Sunset Letter",
+            "ko": "노을 편지"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "a piano ballad: soft piano, warm strings, a gentle bell melody, a slow beat that comes in halfway"
+        },
+        {
+          "id": "photo_card_pop",
+          "name": {
+            "ru": "Фотокарточка",
+            "en": "Photo Card Pop",
+            "ko": "포토카드 팝"
+          },
+          "bpm": 118,
+          "bars": 12,
+          "mood": "bouncy dance-pop: four-on-the-floor, a plucky synth riff, claps, a bright chorus lead"
+        },
+        {
+          "id": "fan_chant",
+          "name": {
+            "ru": "Фанчант",
+            "en": "Fan Chant",
+            "ko": "팬 응원법"
+          },
+          "bpm": 110,
+          "bars": 8,
+          "mood": "a cheerful chant groove: a marching kick, crowd shouts of hey, brass-like synth stabs, a sing-along lead"
+        },
+        {
+          "id": "after_encore",
+          "name": {
+            "ru": "После биса",
+            "en": "After the Encore",
+            "ko": "앙코르 그 후"
+          },
+          "bpm": 88,
+          "bars": 8,
+          "mood": "a mellow R&B-pop goodbye: electric piano, a soft sub bass, finger snaps, a melody of vocal chops"
+        }
+      ],
+      "chest": {
+        "coins": 3800,
+        "boosters": [
+          "disco",
+          "remix",
+          "stick"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "small_stage",
+          "name": {
+            "ru": "Маленькая сцена",
+            "en": "Little stage",
+            "ko": "작은 무대"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "a light dance beat: a soft kick, claps on two and four, closed hats, a pause for the ballad bars"
+        },
+        {
+          "id": "piano",
+          "name": {
+            "ru": "Белый рояль",
+            "en": "White piano",
+            "ko": "하얀 피아노"
+          },
+          "cost": 4,
+          "stem": "piano",
+          "stem_desc": "ballad piano chords, broken in the verse and pulsing in the chorus"
+        },
+        {
+          "id": "photo_wall",
+          "name": {
+            "ru": "Стена фото",
+            "en": "Photo wall",
+            "ko": "포토 월"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "a warm synth bass, long notes in the verse and an octave bounce in the chorus"
+        },
+        {
+          "id": "lightsticks",
+          "name": {
+            "ru": "Лайтстики фанов",
+            "en": "Fans' lightsticks",
+            "ko": "팬들의 응원봉"
+          },
+          "cost": 5,
+          "stem": "strings",
+          "stem_desc": "warm strings that swell like lightsticks swaying"
+        },
+        {
+          "id": "gift_basket",
+          "name": {
+            "ru": "Корзина подарков",
+            "en": "Gift basket",
+            "ko": "선물 바구니"
+          },
+          "cost": 5,
+          "stem": "arp",
+          "stem_desc": "a sparkling synth arpeggio like a ribbon of lights"
+        },
+        {
+          "id": "mic_stand",
+          "name": {
+            "ru": "Микрофон-стойка",
+            "en": "Mic stand",
+            "ko": "마이크 스탠드"
+          },
+          "cost": 6,
+          "stem": "hook",
+          "stem_desc": "the chorus hook on a soft bell-like synth lead"
+        }
+      ]
     }
   ],
   "level_stems": {
