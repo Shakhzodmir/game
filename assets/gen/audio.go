@@ -324,6 +324,46 @@ embedded_components {
   data: "sound: \"/assets/music/cinema/timpani.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_fan_meeting_arp"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/arp.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_fan_meeting_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_fan_meeting_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_fan_meeting_hook"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/hook.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_fan_meeting_party"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_fan_meeting_piano"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/piano.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_fan_meeting_strings"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/strings.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_fan_meeting_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/fan_meeting/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_garage_bass"
   type: "sound"
   data: "sound: \"/assets/music/garage/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1299,6 +1339,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/adventure_overture.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_after_encore"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/after_encore.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_afterglow_lounge"
   type: "sound"
   data: "sound: \"/assets/music/songs/afterglow_lounge.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1499,6 +1544,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/epic_finale.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_fan_chant"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/fan_chant.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_festival_drop"
   type: "sound"
   data: "sound: \"/assets/music/songs/festival_drop.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1684,6 +1734,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/pancake_sunday.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_photo_card_pop"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/photo_card_pop.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_pixel_cafe"
   type: "sound"
   data: "sound: \"/assets/music/songs/pixel_cafe.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1852,6 +1907,11 @@ embedded_components {
   id: "song_sunset_hammock"
   type: "sound"
   data: "sound: \"/assets/music/songs/sunset_hammock.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_sunset_letter"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/sunset_letter.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_surf_splash"

@@ -343,6 +343,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_fan_meeting_1"
+  images {
+    image: "/assets/images/map/deco_fan_meeting_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_fan_meeting_2"
+  images {
+    image: "/assets/images/map/deco_fan_meeting_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_fan_meeting_3"
+  images {
+    image: "/assets/images/map/deco_fan_meeting_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_fan_meeting_4"
+  images {
+    image: "/assets/images/map/deco_fan_meeting_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_fan_meeting_5"
+  images {
+    image: "/assets/images/map/deco_fan_meeting_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_fan_meeting_6"
+  images {
+    image: "/assets/images/map/deco_fan_meeting_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_garage_1"
   images {
     image: "/assets/images/map/deco_garage_1.png"
