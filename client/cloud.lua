@@ -211,8 +211,19 @@ local function reconcile(u, doc, background)
 	elseif a == "upload" then
 		return upload(u, doc and doc.code or nil, loc_tbl)
 	end
-	return ask({ kind = a, local_sum = loc, cloud_sum = sum, cloud_tbl = tbl, recommend = plan.recommend, doc = doc,
+	ask({ kind = a, local_sum = loc, cloud_sum = sum, cloud_tbl = tbl, recommend = plan.recommend, doc = doc,
 		bound = bound, has_cloud = tbl ~= nil, damaged = damaged })
+	-- The account is the source of truth (producer, 18.11.2026): when its save is the one further along, it is
+	-- taken without a question. The device save is not lost: it stays in the "previous" slot and in the account's
+	-- own "previous" copy (resolve "download"). Branches where the device is ahead, and a save of another
+	-- account, still ask.
+	if tbl and not damaged and (a == "offer_download" or (a == "choose" and plan.recommend == "cloud")) then
+		if M.resolve("download") then
+			-- like the window's answer: the town restarts on the loaded save
+			pcall(S.app.toast_key, "cloud.loaded", nil, { color = "gold" })
+			pcall(S.app.show_screen, "splash", { from = "import" })
+		end
+	end
 end
 
 local function fetch(background)

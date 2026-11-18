@@ -234,17 +234,23 @@ describe("cloud choice window", function()
 		G.win(app, 1)
 	end
 
-	it("shows both saves, recommends the one further along and takes the cloud save into the town", function()
+	-- the device (a separate game) is ahead of the account: the one case that still asks
+	local function device_ahead(app, _, m)
+		G.win(app, 1)
+		local tbl1 = app.meta:serialize()
+		m.accounts.u001 = { uid = "u001", kind = "google", google_sub = "g1", verified = true, email = "a@gmail.com" }
+		m.docs.u001 = { code = savecode.encode(tbl1) }
+		app.reset_save(7, app.now())
+		G.win(app, 3)
+	end
+
+	it("takes the account's save into the town by itself when it is further along (no question)", function()
 		with_account({ welcomed = true, setup = other_branch, language = "ru" }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
 			c.run(3)
-			assert_eq(c.app.ui.popup, "cloud_choice")
-			assert_true(has(c, "Уровней 3"), G.dump(c.town))
-			assert_true(has(c, "Уровней 1"))
-			assert_true(has(c, "Прогресс больше"))
-			wtap(c, "download")
+			assert_true(c.app.ui.popup ~= "cloud_choice", "no window")
 			c.run(0.5)
 			assert_eq(c.app.meta:level_to_play(), 4)
 			local posts = c.E.posted("show_screen", "main:/app")
@@ -252,8 +258,20 @@ describe("cloud choice window", function()
 		end)
 	end)
 
+	it("asks when this device is ahead of the account: both saves, the one further along recommended", function()
+		with_account({ welcomed = true, setup = device_ahead, language = "ru" }, function(c, m)
+			m.google_next = { sub = "g1", email = "a@gmail.com" }
+			auth.sign_in_google(function() end)
+			cloud.on_signed_in()
+			c.run(3)
+			assert_eq(c.app.ui.popup, "cloud_choice")
+			assert_true(has(c, "Уровней 3"), G.dump(c.town))
+			assert_true(has(c, "Уровней 1"))
+		end)
+	end)
+
 	it("'not now' keeps playing and pauses the upload", function()
-		with_account({ welcomed = true, setup = other_branch }, function(c, m)
+		with_account({ welcomed = true, setup = device_ahead }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
@@ -263,13 +281,13 @@ describe("cloud choice window", function()
 			c.run(0.6)
 			assert_eq(c.app.ui.popup, nil)
 			assert_eq(cloud.status().status, "paused")
-			assert_eq(c.app.meta:level_to_play(), 2)
+			assert_eq(c.app.meta:level_to_play(), 4)
 			assert_eq(m.puts, 0)
 		end)
 	end)
 
 	it("closing with the corner button is the same as 'not now'", function()
-		with_account({ welcomed = true, setup = other_branch }, function(c, m)
+		with_account({ welcomed = true, setup = device_ahead }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
