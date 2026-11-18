@@ -2376,6 +2376,150 @@
           "stem_desc": "deep night pad with a slow filter sweep and a distant city hum"
         }
       ]
+    },
+    {
+      "id": "late_club",
+      "part": 2,
+      "first": 321,
+      "last": 340,
+      "map_tint": "#C9CBEC",
+      "name": {
+        "ru": "Поздний клуб",
+        "en": "Late-Night Club",
+        "ko": "심야 재즈 클럽"
+      },
+      "genre": {
+        "ru": "Кул-джаз",
+        "en": "Cool Jazz",
+        "ko": "쿨 재즈"
+      },
+      "bpm": 84,
+      "key": "Ab",
+      "semitones_from_c": -4,
+      "bars": 8,
+      "mood": "after-midnight cool jazz: relaxed and soft, brushes and a feathered kick, a walking double bass, sparse piano, a cool vibraphone, a muted trumpet and a breathy tenor sax far away, blue club light",
+      "songs": [
+        {
+          "id": "chairs_on_tables",
+          "name": {
+            "ru": "Стулья на столах",
+            "en": "Chairs on the Tables",
+            "ko": "테이블 위의 의자"
+          },
+          "bpm": 66,
+          "bars": 8,
+          "mood": "closing-time cool ballad: slow brush sweeps, a muted trumpet sings to the empty room, soft piano chords, a long bass note under each chord"
+        },
+        {
+          "id": "cool_cat_strut",
+          "name": {
+            "ru": "Прогулка крутого кота",
+            "en": "Cool Cat Strut",
+            "ko": "멋쟁이 고양이 산책"
+          },
+          "bpm": 126,
+          "bars": 12,
+          "mood": "medium-up swing: walking bass, ride cymbal, vibraphone and muted trumpet playing the tune together, short piano punches"
+        },
+        {
+          "id": "modal_drift",
+          "name": {
+            "ru": "Модальный дрейф",
+            "en": "Modal Drift",
+            "ko": "모달 드리프트"
+          },
+          "bpm": 100,
+          "bars": 8,
+          "mood": "modal cool jazz: a two-chord vamp over a bass figure, trumpet and tenor sax in soft thirds, sparse piano, ride and brushes"
+        },
+        {
+          "id": "neon_lullaby",
+          "name": {
+            "ru": "Неоновая колыбельная",
+            "en": "Neon Lullaby",
+            "ko": "네온 자장가"
+          },
+          "bpm": 60,
+          "bars": 8,
+          "mood": "a slow lullaby for the last guests: celesta and soft vibraphone, felt piano, brushes, a long low bass"
+        }
+      ],
+      "chest": {
+        "coins": 3400,
+        "boosters": [
+          "disco",
+          "sub",
+          "row_light"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "drums",
+          "name": {
+            "ru": "Барабаны со щётками",
+            "en": "Brush drums",
+            "ko": "브러시 드럼"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "brushes swirling on the snare, a soft feathered kick, a lazy ride cymbal, the hi-hat on two and four"
+        },
+        {
+          "id": "double_bass",
+          "name": {
+            "ru": "Контрабас у окна",
+            "en": "Bass by the window",
+            "ko": "창가의 베이스"
+          },
+          "cost": 4,
+          "stem": "bass",
+          "stem_desc": "a walking upright bass, round and woody"
+        },
+        {
+          "id": "piano",
+          "name": {
+            "ru": "Рояль в углу",
+            "en": "Corner piano",
+            "ko": "구석의 피아노"
+          },
+          "cost": 5,
+          "stem": "piano",
+          "stem_desc": "sparse rootless piano chords, a little behind the beat, quiet"
+        },
+        {
+          "id": "vibes",
+          "name": {
+            "ru": "Вибрафон",
+            "en": "Vibraphone",
+            "ko": "비브라폰"
+          },
+          "cost": 5,
+          "stem": "vibes",
+          "stem_desc": "a cool vibraphone counter-line with a slow motor"
+        },
+        {
+          "id": "muted_trumpet",
+          "name": {
+            "ru": "Тихая труба",
+            "en": "Quiet trumpet",
+            "ko": "조용한 트럼펫"
+          },
+          "cost": 5,
+          "stem": "trumpet",
+          "stem_desc": "the tune on a harmon-muted trumpet, breathy and far away"
+        },
+        {
+          "id": "note_sign",
+          "name": {
+            "ru": "Неоновая нота",
+            "en": "Neon note",
+            "ko": "네온 음표"
+          },
+          "cost": 6,
+          "stem": "sax",
+          "stem_desc": "a breathy tenor sax: long harmony notes under the trumpet and short answers in its gaps"
+        }
+      ]
     }
   ],
   "level_stems": {
