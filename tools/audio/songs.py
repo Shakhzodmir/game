@@ -4000,6 +4000,164 @@ def neon_lullaby(s):
 
 
 
+
+# =================================================== NATIONS FEST (D) - Part 2
+# The festival of nations, four bands of the parade, all original: dragon_parade is a dragon dance (big drums,
+# cymbals, a pentatonic flute, a plucked zither), harbor_jig a jig in triplets (fiddle and tin whistle together,
+# frame drum, strummed guitar), steel_sunrise a steel-band soca, drum_circle a joyful drum circle (congas, marimba
+# riff, picked guitar, the crowd clapping).
+
+
+def nf_pent(t, lo, hi):
+    """The notes of the major pentatonic of tonic t between lo and hi."""
+    return [m for m in range(lo, hi + 1) if (m - t) % 12 in (0, 2, 4, 7, 9)]
+
+
+def dragon_parade(s):
+    """112 BPM dragon dance: a big drum on one and three with a smaller one in between, little cymbals on the
+    8ths, a crash at the top of each half; a flute plays a pentatonic tune, a plucked zither answers with quick
+    runs at the end of every other bar, a low bass holds the roots."""
+    r = dsp.rng(s.id, "dragon")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "street")
+    d = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, m, v, big in ((0.0, 38, 1.0, True), (2.0, 38, 0.8, True), (1.5, 45, 0.5, False), (3.5, 45, 0.55, False)):
+            s.add(d, M.taiko_hit(s.sr, bar % 3, m, big), o + bt, v)
+    hits(s, d, k["hat"], "x.o.x.o.x.o.x.oo", r, gain=0.45)
+    hits(s, d, k["cym"], "....x.......x...", r, gain=0.35)
+    for bar in (0, 4):
+        s.add(d, k["crash"][0], bar * 4, 0.55)
+    d = room(s, d, 0.18, 1.2, "drums", damp=6000)
+    tn = tune("5:.5 6:.5 1+:1 6:.5 5:.5 3:1 | 2:1 3:.5 5:.5 6:2 | 1+:1 2+:.5 1+:.5 6:1 5:1 | 3:1.5 5:.5 2:2 |"
+              " 5:.5 6:.5 1+:1 2+:.5 3+:.5 2+:1 | 1+:1 6:1 5:2 | 6:.5 5:.5 3:.5 2:.5 3:1 5:1 | 1:3 r:1", t, 5)
+    flute = room(s, echo(s, mono(s, tn, "flute", key="dragon"), 0.75, 0.15, 0.3, 2, 6000), 0.2, 1.4, "lead",
+                 damp=7000)
+    pent = nf_pent(t, 62, 88)
+    runs = []
+    for bar in (1, 3, 5, 7):
+        start = pent.index(min(pent, key=lambda m: abs(m - (66 + 2 * bar))))
+        for q in range(6):
+            runs.append((bar * 4 + 2.5 + q * 0.25, 0.4, pent[min(start + q, len(pent) - 1)], 0.7))
+    zither = lay(s, lambda ss, m, du, v: ins.guitar(m, ss.sec(du) + 0.3, ss.sr, bright=0.85, t60=1.1, pick=0.08,
+                                                    mute=0.02, key=m % 3) * v, runs, r=r, jit=0.003)
+    zither = room(s, zither, 0.2, 1.3, "zither", damp=7000)
+    bass = room(s, loop_filter(s, line(s, ch, lambda c, n, i: [(0, c.dur * 0.9, root_of(c, 38, 33, 45), 0.85)],
+                                       v_sbass, r=r), "lp", 900), 0.08, 0.8, "bass", damp=2500)
+    return {"drums": d, "lead": flute, "guitar": zither, "bass": bass}
+
+
+def harbor_jig(s):
+    """116 BPM harbor jig, everything in triplets: a fiddle and a tin whistle play the tune together (the whistle
+    an octave up), a frame drum keeps the long-short beat, a guitar strums on it, the bass on one and three."""
+    r = dsp.rng(s.id, "jig")
+    t, ch = s.tonic, s.chords
+    d = s.zeros()
+    for bar in range(s.bars):
+        for q in range(4):
+            o = bar * 4 + q
+            s.add(d, M.frame_drum(s.sr, key=q % 2, midi=50), o, 0.8 if q % 2 == 0 else 0.6)
+            s.add(d, M.frame_drum(s.sr, key=2, midi=57), o + 2.0 / 3.0, 0.4)
+    d = room(s, d, 0.16, 1.0, "drums", damp=6000)
+    text = ("1:2/3 3:1/3 5:2/3 3:1/3 5:1/3 6:1/3 5:1/3 3:2/3 2:1/3 | 4:2/3 6:1/3 1+:2/3 6:1/3 4:2/3 6:1/3 1+:1 |"
+            " 5:2/3 3:1/3 1:2/3 3:1/3 5:1/3 6:1/3 7:1/3 1+:1 | 7:2/3 5:1/3 2:2/3 5:1/3 7:2/3 2+:1/3 1+:2/3 7:1/3 |"
+            " 3+:2/3 2+:1/3 1+:2/3 5:1/3 3:2/3 5:1/3 1+:1 | 6:2/3 4:1/3 1:2/3 4:1/3 6:1/3 7:1/3 1+:1/3 2+:1 |"
+            " 2+:2/3 1+:1/3 6:1 7:2/3 5:1/3 2:1 | 1+:1 5:1/3 3:1/3 2:1/3 1:2/3 r:4/3")
+    fid = lay(s, lambda ss, m, du, v: M.fiddle_note(m, ss.sec(du) * 0.95, ss.sr, v, key=m % 2, vib=0.3),
+              tune(text, t, 4), r=r, jit=0.003)
+    fid = room(s, fid, 0.18, 1.2, "fiddle", damp=6000)
+    whistle = room(s, mono(s, tune(text, t, 5), "flute", key="jigwhistle"), 0.18, 1.2, "whistle", damp=7000)
+    strum = []
+    for c in ch:
+        for q in range(int(c.dur)):
+            strum += [(c.start + q, 0.5, 0.8, False), (c.start + q + 2.0 / 3.0, 0.3, 0.55, True)]
+    vo = {id(c): chord_notes(c, 50, 64)[:4] for c in ch}
+    gtr = s.zeros()
+    for bt, du, v, up in strum:
+        c = s.chord_at(bt)
+        s.add(gtr, v_strum(s, vo[id(c)], du, v, up=up, bright=0.5, t60=0.6, mute=0.04, key=int(bt) % 3), bt, 1.0,
+              dt=float(r.normal(0, 0.003)))
+    gtr = room(s, loop_filter(s, gtr, "hp", 120), 0.15, 1.0, "gtr", damp=6000)
+    bass = line(s, ch, lambda c, n, i: [(q * 2.0, 1.2, root_of(c, 40, 33, 46) + (7 if q % 2 else 0), 0.8)
+                                        for q in range(int(c.dur // 2))], v_upright, r=r)
+    bass = room(s, loop_filter(s, bass, "lp", 1200), 0.08, 0.7, "bass", damp=2500)
+    return {"drums": d, "fiddle": fid, "flute2": whistle, "guitar": gtr, "bass": bass}
+
+
+def steel_sunrise(s):
+    """120 BPM steel-band soca: a kick on every beat, a snare and a cowbell pushing the off-beats, shakers in
+    16ths; one steel pan plays the tune, a second one strums the chords on the off-beats; a rubbery bass jumps
+    between the root and its octave."""
+    r = dsp.rng(s.id, "soca")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "street")
+    d = s.zeros()
+    hits(s, d, k["bass"], "x...x...x...x...", r, gain=0.8)
+    hits(s, d, k["snare"], "..o...x...o...x.", r, gain=0.6)
+    bell = [ins.cowbell(s.sr, key=i) for i in range(2)]
+    hits(s, d, bell, "..x..x.x..x..x.x", r, gain=0.3)
+    d = room(s, d, 0.14, 0.9, "drums", damp=6500)
+    shk = s.zeros()
+    hits(s, shk, [ins.shaker(s.sr, key=i) for i in range(3)], "oxoxoxoxoxoxoxox", r, gain=0.5)
+    shk = room(s, shk, 0.12, 0.8, "shk", damp=8000)
+    text = ("3:.5 5:.5 6:1 5:.5 3:.5 2:1 | 4:.5 6:.5 1+:1 6:1 4:1 | 5:.5 7:.5 2+:1 1+:.5 7:.5 5:1 | 3:3 r:1 |"
+            " 3:.5 5:.5 6:1 5:.5 3:.5 2:1 | 4:.5 6:.5 1+:1 2+:1 1+:1 | 7:.5 5:.5 2:1 4:.5 7:.5 6:1 | 5:3 r:1 |"
+            " 6:.5 1+:.5 3+:1 2+:.5 1+:.5 6:1 | 4:.5 6:.5 1+:1 6:1 4:1 | 5:.5 7:.5 2+:1 7:.5 5:.5 2:1 | 1:3 r:1")
+    pan = lay(s, lambda ss, m, du, v: M.steel_pan(m, ss.sr, v, min(ss.sec(du) + 0.2, 0.9), key=m % 2),
+              tune(text, t, 5), r=r, jit=0.003)
+    pan = room(s, pan, 0.16, 1.1, "pan", damp=7000)
+    chords = comp(s, ch, voicing(ch, 62, 76, 69), lambda c, i: [(q + 0.5, 0.3, 0.55) for q in range(int(c.dur))],
+                  lambda ss, m, du, v: M.steel_pan(m, ss.sr, v, 0.35, key=1), spread=0.005, r=r)
+    chords = room(s, chords, 0.16, 1.0, "panch", damp=7000)
+
+    def bounce(c, n, i):
+        R = root_of(c, 38, 33, 45)
+        return [(q * 1.0, 0.3, R, 0.9) for q in range(int(c.dur))] + [(q + 0.75, 0.2, R + 12, 0.6) for q in
+                                                                       range(int(c.dur))]
+    bass = loop_filter(s, line(s, ch, bounce, lambda ss, m, du, v: v_sbass(ss, m, du, v, 1100.0, 0.06), r=r), "lp",
+                       1400)
+    return {"drums": d, "tamb": shk, "lead": pan, "keys": chords, "bass": bass}
+
+
+def drum_circle(s):
+    """104 BPM drum circle: congas in a rolling pattern (open tones, slaps and the soft heel-toe in between) over a
+    bass drum, the crowd clapping on two and four; a marimba riff, a bright guitar picking little arpeggios and a
+    round bass."""
+    r = dsp.rng(s.id, "circle")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "carnival", "street")
+    d = s.zeros()
+    hits(s, d, k["open"], "x.....x...x.....", r, gain=0.7)
+    hits(s, d, k["slap"], "....x.......x.x.", r, gain=0.6)
+    hits(s, d, k["heel"], ".o.....o.o......", r, gain=0.5)
+    hits(s, d, k["toe"], "..o.o.....o...o.", r, gain=0.4)
+    hits(s, d, k["tumba"], "x..x....x..x..x.", r, gain=0.55)
+    hits(s, d, k["bass"], "x.......x.......", r, gain=0.7)
+    for bar in range(s.bars):
+        for bt in (1.0, 3.0):
+            for j in range(5):
+                hit(s, d, k["clap"], bar * 4 + bt, 0.3, r, 0.012)
+    d = room(s, d, 0.16, 1.0, "drums", damp=6500)
+    riff = [(0, 0.4, 0.8), (0.75, 0.25, 0.6), (1.5, 0.4, 0.7), (2.5, 0.4, 0.75), (3.0, 0.25, 0.6)]
+    mar = comp(s, ch, voicing(ch, 62, 79, 70, guide), lambda c, i: within(c, riff), v_marimba, spread=0.0, r=r)
+    mar = room(s, mar, 0.15, 1.0, "mar", damp=7000)
+    arp = []
+    for c in ch:
+        ns = chord_notes(c, 62, 81)
+        for q in range(int(c.dur * 4)):
+            if q % 4 != 3:
+                arp.append((c.start + q * 0.25, 0.3, ns[(q * 2) % len(ns)], 0.55 if q % 2 else 0.7))
+    gtr = room(s, lay(s, lambda ss, m, du, v: ins.guitar(m, ss.sec(du) + 0.2, ss.sr, bright=0.8, t60=0.7, pick=0.1,
+                                                         mute=0.03, key=m % 3) * v, arp, r=r, jit=0.003), 0.14,
+               0.9, "gtr", damp=7000)
+    bass = room(s, loop_filter(s, line(s, ch, lambda c, n, i: [(0, 0.9, root_of(c, 40, 33, 46), 0.9),
+                                                               (1.5, 0.4, root_of(c, 40, 33, 46) + 7, 0.65),
+                                                               (2.0, 0.9, root_of(c, 40, 33, 46), 0.8)][:3 if c.dur >= 4 else 2],
+                                       v_gbass, r=r), "lp", 1300), 0.08, 0.7, "bass", damp=2500)
+    return {"drums": d, "keys": mar, "guitar": gtr, "bass": bass}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -4153,6 +4311,15 @@ SONGS = {
                     {"drums": -19, "bass": -19, "keys": -23, "trumpet": -18.5, "sax": -20}),
     "neon_lullaby": ("Iadd9:4 IVmaj7:4 vi7:4 V7sus4:4 Iadd9:4 IVmaj7:4 ii7:2 V7sus4:2 I6:4", neon_lullaby,
                      {"drums": -25, "vibes": -22, "keys": -21, "bass": -23, "celesta": -19}),
+    # nations_fest (D major) - Part 2
+    "dragon_parade": ("I:4 IV:4 vi:4 V:4 I:4 vi:4 IV:2 V:2 I:4", dragon_parade,
+                      {"drums": -17, "lead": -18, "guitar": -21, "bass": -21}),
+    "harbor_jig": ("I:4 IV:4 I:4 V:4 I:4 IV:4 ii:2 V:2 I:4", harbor_jig,
+                   {"drums": -19, "fiddle": -18.5, "flute2": -21, "guitar": -21, "bass": -21}),
+    "steel_sunrise": ("I:4 IV:4 V:4 I:4 I:4 IV:4 V:4 I:4 vi:4 IV:4 V:4 I:4", steel_sunrise,
+                      {"drums": -17, "tamb": -24, "lead": -18, "keys": -21, "bass": -19}),
+    "drum_circle": ("I:4 IV:4 I:4 V:4 I:4 IV:4 V:4 I:4", drum_circle,
+                    {"drums": -16.5, "keys": -19, "guitar": -21, "bass": -20}),
 }
 
 

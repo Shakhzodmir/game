@@ -46,6 +46,7 @@ HI_RATE = {
     "arcade": set(),  # every stem at 22.05 kHz: the pulse waves are rounded off at 3-5 kHz, the noise ends at 9 kHz
     "midnight_cafe": set(),  # every stem at 22.05 kHz: dusty lo-fi, its hats, rain and chimes end below 9 kHz
     "late_club": set(),  # every stem at 22.05 kHz: soft brushes and a dark ride after midnight, little above 9 kHz
+    "nations_fest": {"shaker", "party"},  # the shakers and tambourines of the crowd keep their sparkle
 }
 
 
@@ -4682,13 +4683,200 @@ def late_club_sax(s):
     return room(s, b, 0.3, 2.0, "sax", damp=3800)
 
 
+# =========================== NATIONS FEST (D major) - Part 2
+
+def nations_fest_song(d):
+    # Part 2, district 18: the street band square of district 3 grown into a festival of nations. A sunny world
+    # parade at 116 BPM in D major, plain and bright: I - IV - vi - IV V7 | I - IV - ii7 V7 - I V7. Triads and
+    # dominant sevenths only (the square of the day swings G6 and C6 chords); every half starts on D, the tonic
+    # comes back on every odd bar, the taiko and the sousaphone lean on D.
+    D, G, B, A, E = 2, 7, 11, 9, 4
+    maj, mnr, dom7, m7 = [4, 7], [3, 7], [4, 7, 10], [3, 7, 10]
+    return Song(d, progression([
+        (4, D, maj, "D"), (4, G, maj, "G"), (4, B, mnr, "Bm"), (2, G, maj, "G"), (2, A, dom7, "A7"),
+        (4, D, maj, "D"), (4, G, maj, "G"), (2, E, m7, "Em7"), (2, A, dom7, "A7"), (2, D, maj, "D"),
+        (2, A, dom7, "A7"),
+    ]))
+
+
+def taiko_hit(sr, key=0, midi=38, big=True):
+    """A taiko: a deep skin tuned to D (a low tom with a long body), the slap of the stick and a little room."""
+    def mk():
+        x = ins.tom(sr, f0=float(midi_hz(midi)), t60=0.95 if big else 0.45, key=key)
+        n = len(x)
+        t = np.arange(n) / sr
+        slap = dsp.bandpass(dsp.rng("taiko", key).standard_normal(n), 300, 2500, sr) * np.exp(-t / 0.006)
+        y = x / dsp.peak(x) + (0.35 if big else 0.5) * slap / dsp.peak(slap)
+        return dsp.fade(y / dsp.peak(y), sr, 0.0005, 0.05)
+    return cached(("taiko", sr, key, midi, big), mk)
+
+
+def nations_fest_beat(s):
+    """Taiko drums: the parade beat. Two big taiko strokes on one and three (D2) with a smaller one (A2) on the
+    'and' of four, a marching snare in light 16ths with accents on two and four and a roll into each half, the
+    big bass drum of the band on every beat, a crash at the top of each half."""
+    k = kit("street", s.sr)
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, m, v, big in ((0.0, 38, 1.0, True), (2.0, 38, 0.85, True), (3.5, 45, 0.6, False)):
+            s.add(b, taiko_hit(s.sr, bar % 3, m, big), o + bt, v)
+        if bar % 2 == 1:
+            s.add(b, taiko_hit(s.sr, 5, 45, False), o + 1.5, 0.45)
+        for bt in range(4):
+            hit(s, b, k["bass"], o + bt, 0.55, r, 0.002)
+        for i in range(16):
+            bt = i * 0.25
+            if bar in (3, 7) and bt >= 3.0:
+                continue
+            v = 0.85 if i in (4, 12) else (0.35 if i % 2 == 0 else 0.22)
+            hit(s, b, k["snare"], o + bt, v, r, 0.002)
+        if bar in (3, 7):
+            for j in range(8):
+                hit(s, b, k["snare"], o + 3 + j * 0.125, 0.3 + 0.08 * j, r, 0.002)
+    for bar in (0, 4):
+        s.add(b, k["crash"][0], bar * 4, 0.5)
+    return room(s, b, 0.16, 1.1, "beat", damp=6000)
+
+
+def nations_fest_bass(s):
+    """The festival tent: a sousaphone that marches between the root and the fifth in straight 8ths and 16ths
+    (the square's tuba swings, this one strides), with a pick-up into every chord."""
+    ev = []
+    for c in s.chords:
+        R = nearest(c.root, 40, 33, 45)
+        nx = nearest(s.next_chord(c).root, R, 33, 47)
+        fifth = R + 7 if R + 7 <= 50 else R - 5
+        if c.dur == 4:
+            ev += [(c.start, 0.45, R, 0.95), (c.start + 1.0, 0.45, fifth, 0.8), (c.start + 1.75, 0.2, fifth, 0.5),
+                   (c.start + 2.0, 0.45, R, 0.9), (c.start + 3.0, 0.45, fifth, 0.8),
+                   (c.start + 3.5, 0.4, nx - 2 if nx - 2 not in (R, fifth) else nx + 2, 0.7)]
+        else:
+            ev += [(c.start, 0.45, R, 0.95), (c.start + 1.0, 0.45, fifth, 0.8), (c.start + 1.5, 0.4, fifth - 2, 0.6)]
+    src, env, onset = render_line(s, events(s, ev), osc="saw", glide=0.012, attack=0.012, release=0.05,
+                                  vib_depth=0.0, key="sousa", legato_gap=0.0)
+    x = src * env
+    x = dsp.sweep_filter(x, 220.0 + 1300.0 * onset + 400.0 * env, s.sr, q=0.9)
+    x = dsp.tube(x / dsp.peak(x) * 1.4, 1.6, s.sr, 0.1)
+    x = dsp.filt(x, "peak", 400, s.sr, q=0.8, gain_db=3.0)
+    return room(s, wrap(s, x), 0.12, 1.0, "bass", damp=3000)
+
+
+def nations_fest_steelpan(s):
+    """The steel pan: three-note chords on the off-beats (the 'and' of every beat, two notes struck together and
+    the top one a hair later), a quick run up the chord into the top of each half and a falling one in bar 6."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "pan")
+    vo = voice_lead([c.pcs([0] + c.tones[:2]) for c in s.chords], 62, 79, 70)
+    for i, c in enumerate(s.chords):
+        for q in range(int(c.dur)):
+            for j, m in enumerate(vo[i]):
+                s.add(b, steel_pan(m, s.sr, 0.65 if q % 2 else 0.55, 0.4, key=j % 2), c.start + q + 0.5, 0.7,
+                      dt=j * 0.006 + r.normal(0, 0.003))
+    for bar, notes in ((3, (74, 78, 81, 86)), (7, (69, 73, 76, 81)), (5, (86, 83, 79, 74))):
+        for j, m in enumerate(notes):
+            s.add(b, steel_pan(m, s.sr, 0.7, 0.35, key=j % 2), bar * 4 + 3 + j * 0.25, 0.8)
+    return room(s, b, 0.16, 1.1, "pan", damp=7000)
+
+
+def nations_fest_shaker(s):
+    """The flag garland: the crowd joins in. A shaker in 16ths (accents on the off-beats), a tambourine on two and
+    four with a jingle on the 'and' of four, and many hands clapping on two and four."""
+    r = dsp.rng(s.id, "shaker")
+    b = s.zeros()
+    shk = [ins.shaker(s.sr, key=i) for i in range(3)]
+    tmb = [ins.tambourine(s.sr, key=i) for i in range(2)]
+    cl = kit("street", s.sr)["clap"]
+    for bar in range(s.bars):
+        o = bar * 4
+        for i in range(16):
+            hit(s, b, shk, o + i * 0.25, 0.55 if i % 4 == 2 else 0.3, r, 0.003)
+        for bt, v in ((1.0, 0.7), (3.0, 0.7), (3.5, 0.4)):
+            hit(s, b, tmb, o + bt, v, r, 0.003)
+        for bt in (1.0, 3.0):
+            for j in range(4):
+                hit(s, b, cl, o + bt, 0.35, r, 0.012)
+    return room(s, b, 0.2, 1.2, "shaker", damp=8000)
+
+
+def accordion_note(midi, dur, sr):
+    """A musette accordion: two reeds tuned a little apart (the 'wet' musette beat) and one an octave up, through a
+    reedy body; a quick bellows attack."""
+    def mk():
+        n = nsamp(dur + 0.06, sr)
+        f = float(midi_hz(midi))
+        x = dsp.pulse(f * 2 ** (9 / 1200), n, sr, 0.3) + dsp.pulse(f * 2 ** (-9 / 1200), n, sr, 0.3, 0.2)
+        x += 0.35 * dsp.saw(f * 2, n, sr, 0.5)
+        x = dsp.lowpass(x, 4200, sr, 2)
+        x = dsp.filt(x, "peak", 1100, sr, q=1.2, gain_db=4.0)
+        x *= dsp.env_adsr(n, sr, 0.018, 0.2, 0.9, dur, 0.04)
+        return dsp.fade(x / (dsp.peak(x) + 1e-9), sr, 0.002, 0.012)
+    return cached(("accordion", midi, round(dur, 3), sr), mk)
+
+
+# The accordion's parade tune, A4-B5: up the D chord, a long G over the IV, a turn over the vi, then the same
+# higher in the second half, home on a long D. bar -> (beat, beats, midi)
+NF_TUNE = bars({
+    0: [(0.0, 0.5, 74), (0.5, 0.5, 76), (1.0, 1.0, 78), (2.0, 0.5, 81), (2.5, 0.5, 78), (3.0, 1.0, 74)],
+    1: [(0.0, 1.5, 79), (1.5, 0.5, 78), (2.0, 0.5, 76), (2.5, 0.5, 74), (3.0, 1.0, 71)],
+    2: [(0.0, 1.0, 74), (1.0, 0.5, 73), (1.5, 0.5, 74), (2.0, 1.5, 78), (3.5, 0.5, 76)],
+    3: [(0.0, 1.0, 74), (1.0, 1.0, 71), (2.0, 1.0, 73), (3.0, 1.0, 76)],
+    4: [(0.0, 0.5, 78), (0.5, 0.5, 79), (1.0, 1.0, 81), (2.0, 0.5, 83), (2.5, 0.5, 81), (3.0, 1.0, 78)],
+    5: [(0.0, 1.5, 83), (1.5, 0.5, 81), (2.0, 1.0, 79), (3.0, 1.0, 74)],
+    6: [(0.0, 1.0, 76), (1.0, 1.0, 79), (2.0, 1.0, 76), (3.0, 1.0, 73)],
+    7: [(0.0, 2.0, 74), (2.0, 0.5, 69), (2.5, 0.5, 73), (3.0, 1.0, 76)],
+})
+
+
+def nations_fest_lead(s):
+    """The accordion sings the parade tune, a little detached (the bellows breathe between the notes), with a
+    third below it in the second half of the loop, the way a street player fills out a chorus."""
+    b = s.zeros()
+    scale = [(s.tonic + i) % 12 for i in (0, 2, 4, 5, 7, 9, 11)]
+    for bt, du, m in NF_TUNE:
+        s.add(b, accordion_note(m, round(s.sec(du * 0.85), 4), s.sr), bt, 0.85)
+        if bt >= 16:
+            low, steps = m, 0
+            while steps < 2:  # two scale steps down: a third in the key
+                low -= 1
+                steps += low % 12 in scale
+            s.add(b, accordion_note(low, round(s.sec(du * 0.85), 4), s.sr), bt, 0.5)
+    b = b * (1.0 - 0.08 * (0.5 + 0.5 * s.lfo(6.0)))  # the bellows tremble
+    return room(s, b, 0.18, 1.2, "lead", damp=6000)
+
+
+def nations_fest_brass(s):
+    """The shell stage: the brass band answers the accordion. Big friendly stabs (on the 'and' of two and on four
+    in the long chords), a fanfare of repeated chords into the top of each half, a held chord under the high tune of
+    bar 5."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "brass")
+    vo = voice_lead([c.pcs([0] + c.tones) for c in s.chords], 57, 77, 67)
+    for i, c in enumerate(s.chords):
+        bar = int(c.start // 4)
+        if bar in (3, 7) and c.start % 4 == 2:
+            pat = [(0.0, 0.25, 0.8), (0.5, 0.25, 0.85), (1.0, 0.25, 0.9), (1.5, 0.45, 1.0)]
+        elif bar == 5:
+            pat = [(0.0, 3.5, 0.6)]
+        elif c.dur >= 4:
+            pat = [(1.5, 0.35, 0.85), (3.0, 0.45, 0.9)]
+        else:
+            pat = [(1.0, 0.45, 0.85)]
+        for bt, du, v in pat:
+            for j, m in enumerate(vo[i]):
+                s.add(b, ins.brass(m, s.sec(du), s.sr, vel=v, bright=1.0, key=j), c.start + bt, 1.0,
+                      dt=r.normal(0, 0.004))
+    return room(s, b, 0.2, 1.3, "brass", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 # The drum kit of every district (kit() names), used by its tension and party layers.
 KITS = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
         "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
         "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade",
-        "midnight_cafe": "midnight", "late_club": "jazz"}
+        "midnight_cafe": "midnight", "late_club": "jazz", "nations_fest": "street"}
 
 # Districts whose theme sounds in the relative minor of their key (the night versions of Part 2,
 # docs/design/part2-districts.md): the tension layer holds the fifth of that minor tonic.
@@ -4751,6 +4939,8 @@ def tension_stem(s, style):
             bt = sw8(bt, 1.0 / 3.0)
         elif style == "arcade":  # a pulse channel, staccato, on the chord roots
             x = chip_pulse(m, round(s.sec(0.25), 4), s.sr, 0.25, 0.8, dec=0.06, lp=3000.0)
+        elif style == "nations_fest":  # the steel pan, short, an octave above the chord roots
+            x = steel_pan(m + 12, s.sr, 0.7, 0.25, key=0)
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
@@ -4913,7 +5103,7 @@ def party_stem(s, style):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
             for bt in range(4):
                 hit(s, b, dk["ohat"], o + bt + 0.5, 0.35, r, 0.0)
-        if style in ("stadium", "garage", "square"):
+        if style in ("stadium", "garage", "square", "nations_fest"):
             for bt in range(4):
                 hit(s, b, dk["kick"], o + bt, 0.5, r, 0.0)
         if style == "carnival":  # the bongo bell of the mambo section: the beats, and the off-beats of 2 and 4
@@ -4985,8 +5175,8 @@ def party_stem(s, style):
                 x = ins.piano(m, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
             elif style == "bazaar":  # the top strings of the qanun
                 x = qanun(m, s.sr, key=i % 2, dur=0.6)
-            elif style == "island":  # a second steel pan runs up the chord, an octave under the glockenspiel's place
-                x = steel_pan(m - 12, s.sr, 0.8, 0.5, key=i % 2)
+            elif style in ("island", "nations_fest"):  # a second steel pan runs up the chord, an octave under the
+                x = steel_pan(m - 12, s.sr, 0.8, 0.5, key=i % 2)  # glockenspiel's place
             elif style == "ranch":  # a second banjo runs up the chord, an octave under the glockenspiel's place
                 x = banjo_note(m - 12, 0.3, s.sr, 0.9, key=i % 2)
             elif style == "bluesclub":  # the top of the old piano, an octave under the glockenspiel's place
@@ -5059,6 +5249,9 @@ DISTRICTS = {
     "late_club": dict(song=late_club_song, stems={
         "beat": late_club_beat, "bass": late_club_bass, "piano": late_club_piano, "vibes": late_club_vibes,
         "trumpet": late_club_trumpet, "sax": late_club_sax}),
+    "nations_fest": dict(song=nations_fest_song, stems={
+        "beat": nations_fest_beat, "bass": nations_fest_bass, "steelpan": nations_fest_steelpan,
+        "shaker": nations_fest_shaker, "lead": nations_fest_lead, "brass": nations_fest_brass}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -5103,6 +5296,8 @@ LOUDNESS = {
                       "tension": -18, "party": -16},
     "late_club": {"beat": -17, "bass": -19, "piano": -19.5, "vibes": -20.5, "trumpet": -18, "sax": -19.5,
                   "tension": -18, "party": -16},
+    "nations_fest": {"beat": -16, "bass": -19, "steelpan": -19.5, "shaker": -20, "lead": -18, "brass": -18.5,
+                     "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on
