@@ -42,6 +42,7 @@ local LAST = Levels.content_count(DIR) -- the last level of the last district of
 -- Part 2: where the hard and the super hard levels of a district stand (docs/design/part2-districts.md, "Кривая")
 local PART2_SAW = {
 	midnight_cafe = { hard = { 312, 315 }, super_hard = { 318, 320 } }, -- district 16: the first half without hard levels
+	late_club = { hard = { 333, 336 }, super_hard = { 338, 340 } }, -- district 17: the hard levels later than in 16
 }
 local TIMES = "\195\151" -- the multiplication sign of the "9×9" of the field column
 

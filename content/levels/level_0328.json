@@ -1,0 +1,36 @@
+{
+  "id": 328, "version": 1,
+  "size": [9, 10],
+  "moves": 23,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "concrete", "count": 4},
+    {"type": "collect", "color": "yellow", "count": 50}
+  ],
+  "cells": [
+    "..#####..",
+    "..#####..",
+    "..#####..",
+    "..#####..",
+    ".........",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 9], "type": "concrete", "hp": 1},
+    {"at": [3, 9], "type": "concrete", "hp": 1},
+    {"at": [5, 9], "type": "concrete", "hp": 1},
+    {"at": [7, 9], "type": "concrete", "hp": 1}
+  ],
+  "portals": [
+    {"in": [2, 3], "out": [2, 5]},
+    {"in": [3, 3], "out": [3, 5]},
+    {"in": [4, 3], "out": [4, 5]},
+    {"in": [5, 3], "out": [5, 5]},
+    {"in": [6, 3], "out": [6, 5]}
+  ]
+}

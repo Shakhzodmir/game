@@ -1,0 +1,32 @@
+{
+  "id": 331, "version": 1,
+  "size": [9, 9],
+  "moves": 27,
+  "difficulty": "medium",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 4},
+    {"type": "ice", "count": 7}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "overlay": [
+    {"at": [1, 4], "type": "ice", "hp": 2},
+    {"at": [3, 4], "type": "ice", "hp": 2},
+    {"at": [5, 4], "type": "ice", "hp": 2},
+    {"at": [7, 4], "type": "ice", "hp": 2},
+    {"at": [2, 5], "type": "ice", "hp": 2},
+    {"at": [4, 5], "type": "ice", "hp": 2},
+    {"at": [6, 5], "type": "ice", "hp": 2}
+  ],
+  "mic": {"total": 4, "on_board_max": 2, "gap_moves": 2}
+}

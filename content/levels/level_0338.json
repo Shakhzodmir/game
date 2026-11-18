@@ -1,0 +1,35 @@
+{
+  "id": 338, "version": 1,
+  "size": [9, 10],
+  "moves": 20,
+  "difficulty": "super_hard",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "concrete", "count": 6},
+    {"type": "deliver", "count": 5}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [0, 8], "type": "concrete", "hp": 2},
+    {"at": [2, 8], "type": "concrete", "hp": 2},
+    {"at": [6, 8], "type": "concrete", "hp": 2},
+    {"at": [8, 8], "type": "concrete", "hp": 2},
+    {"at": [3, 4], "type": "concrete", "hp": 2},
+    {"at": [5, 4], "type": "concrete", "hp": 2}
+  ],
+  "mic": {"total": 5, "on_board_max": 2, "gap_moves": 3},
+  "conveyor": [
+    {"path": [[1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6], [6, 6], [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [1, 5], [1, 4], [1, 3]]}
+  ]
+}
