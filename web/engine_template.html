@@ -6,6 +6,9 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, minimal-ui, shrink-to-fit=no, viewport-fit=cover">
 	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="default">
+	<meta name="apple-mobile-web-app-title" content="GLOW">
+	<meta name="theme-color" content="#7B5CE0">
 	<!-- The above 4 meta tags *must* come first in the head; any other head content must come *after* these tags -->
 
 	<title>{{project.title}} {{project.version}}</title>
@@ -20,7 +23,9 @@
 	{{/DEFOLD_SCALE_MODE_IS_NO_SCALE}}
 		margin:0;
 		padding:0;
+		background: #7B5CE0; /* the strip of the phone's status bar (a home-screen app) takes this colour */
 	}
+	html { background: #7B5CE0; }
 
 	.canvas-app-container {
 		width: 100%;

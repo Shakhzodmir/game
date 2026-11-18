@@ -22,7 +22,7 @@ end
 
 -- Stars the wallet shows: what the meta holds, less the rewards the town has not played yet.
 local function shown_stars()
-	return app.meta:stars() - rewards.held().stars
+	return math.max(0, app.meta:stars() - rewards.held().stars)
 end
 
 function Hud:build()

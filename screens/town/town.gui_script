@@ -79,8 +79,10 @@ Town.__index = Town
 
 function Town:sync_disp()
 	local held = rewards.held()
-	self.disp.coins = app.meta:coins() - held.coins - self.hold.coins
-	self.disp.stars = app.meta:stars() - held.stars - self.hold.stars
+	-- never below zero: a reward still waiting for its flight may already be spent (boosters bought in the next
+	-- level are paid from the real balance), and the wallet must not show a minus
+	self.disp.coins = math.max(0, app.meta:coins() - held.coins - self.hold.coins)
+	self.disp.stars = math.max(0, app.meta:stars() - held.stars - self.hold.stars)
 	self.hud:set_coins(self.disp.coins)
 	self.hud:set_stars(self.disp.stars)
 	-- the status for QA follows at once (publish() writes the rest)
