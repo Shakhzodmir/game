@@ -1,0 +1,39 @@
+{
+  "id": 370, "version": 1,
+  "size": [9, 10],
+  "moves": 24,
+  "difficulty": "medium",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "balloon", "count": 14},
+    {"type": "collect", "color": "blue", "count": 75}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [0, 3], "type": "balloon", "color": "green"},
+    {"at": [2, 3], "type": "balloon", "color": "orange"},
+    {"at": [4, 3], "type": "balloon", "color": "green"},
+    {"at": [6, 3], "type": "balloon", "color": "orange"},
+    {"at": [8, 3], "type": "balloon", "color": "green"},
+    {"at": [1, 5], "type": "balloon", "color": "orange"},
+    {"at": [3, 5], "type": "balloon", "color": "green"},
+    {"at": [5, 5], "type": "balloon", "color": "orange"},
+    {"at": [7, 5], "type": "balloon", "color": "green"},
+    {"at": [0, 7], "type": "balloon", "color": "orange"},
+    {"at": [2, 7], "type": "balloon", "color": "green"},
+    {"at": [4, 7], "type": "balloon", "color": "orange"},
+    {"at": [6, 7], "type": "balloon", "color": "green"},
+    {"at": [8, 7], "type": "balloon", "color": "orange"}
+  ]
+}

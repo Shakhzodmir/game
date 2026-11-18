@@ -1,0 +1,45 @@
+{
+  "id": 362, "version": 1,
+  "size": [9, 9],
+  "moves": 22,
+  "difficulty": "medium",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "break", "item": "balloon", "count": 10},
+    {"type": "ice", "count": 8},
+    {"type": "collect", "color": "red", "count": 50}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 2], "type": "balloon", "color": "red"},
+    {"at": [3, 2], "type": "balloon", "color": "purple"},
+    {"at": [5, 2], "type": "balloon", "color": "red"},
+    {"at": [7, 2], "type": "balloon", "color": "purple"},
+    {"at": [2, 4], "type": "balloon", "color": "red"},
+    {"at": [4, 4], "type": "balloon", "color": "purple"},
+    {"at": [6, 4], "type": "balloon", "color": "red"},
+    {"at": [0, 4], "type": "balloon", "color": "purple"},
+    {"at": [8, 4], "type": "balloon", "color": "red"},
+    {"at": [4, 0], "type": "balloon", "color": "purple"}
+  ],
+  "overlay": [
+    {"at": [1, 6], "type": "ice", "hp": 2},
+    {"at": [3, 6], "type": "ice", "hp": 2},
+    {"at": [5, 6], "type": "ice", "hp": 2},
+    {"at": [7, 6], "type": "ice", "hp": 2},
+    {"at": [2, 7], "type": "ice", "hp": 2},
+    {"at": [4, 7], "type": "ice", "hp": 2},
+    {"at": [6, 7], "type": "ice", "hp": 2},
+    {"at": [4, 8], "type": "ice", "hp": 2}
+  ]
+}

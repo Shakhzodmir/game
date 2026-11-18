@@ -1,0 +1,31 @@
+{
+  "id": 369, "version": 1,
+  "size": [9, 9],
+  "moves": 26,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "blue", "purple"],
+  "goals": [
+    {"type": "deliver", "count": 3},
+    {"type": "break", "item": "balloon", "count": 6}
+  ],
+  "cells": [
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 4], "type": "balloon", "color": "purple"},
+    {"at": [3, 4], "type": "balloon", "color": "yellow"},
+    {"at": [5, 4], "type": "balloon", "color": "purple"},
+    {"at": [7, 4], "type": "balloon", "color": "yellow"},
+    {"at": [2, 6], "type": "balloon", "color": "purple"},
+    {"at": [6, 6], "type": "balloon", "color": "yellow"}
+  ],
+  "mic": {"total": 3, "on_board_max": 2, "gap_moves": 2}
+}
