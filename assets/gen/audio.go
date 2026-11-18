@@ -464,6 +464,46 @@ embedded_components {
   data: "sound: \"/assets/music/jazz/vibes.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_late_club_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_late_club_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_late_club_party"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_late_club_piano"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/piano.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_late_club_sax"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/sax.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_late_club_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_late_club_trumpet"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/trumpet.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_late_club_vibes"
+  type: "sound"
+  data: "sound: \"/assets/music/late_club/vibes.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_midnight_cafe_bass"
   type: "sound"
   data: "sound: \"/assets/music/midnight_cafe/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1329,6 +1369,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/carnival_samba.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_chairs_on_tables"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/chairs_on_tables.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_city_lights_pop"
   type: "sound"
   data: "sound: \"/assets/music/songs/city_lights_pop.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1347,6 +1392,11 @@ embedded_components {
   id: "song_coconut_cha_cha"
   type: "sound"
   data: "sound: \"/assets/music/songs/coconut_cha_cha.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_cool_cat_strut"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/cool_cat_strut.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_crossroad_stomp"
@@ -1504,6 +1554,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/misty_glen_reel.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_modal_drift"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/modal_drift.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_moonlight_ballad"
   type: "sound"
   data: "sound: \"/assets/music/songs/moonlight_ballad.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1522,6 +1577,11 @@ embedded_components {
   id: "song_neon_heartbeat"
   type: "sound"
   data: "sound: \"/assets/music/songs/neon_heartbeat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_neon_lullaby"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/neon_lullaby.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_neon_puddles"
