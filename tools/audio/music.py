@@ -47,6 +47,7 @@ HI_RATE = {
     "midnight_cafe": set(),  # every stem at 22.05 kHz: dusty lo-fi, its hats, rain and chimes end below 9 kHz
     "late_club": set(),  # every stem at 22.05 kHz: soft brushes and a dark ride after midnight, little above 9 kHz
     "nations_fest": {"shaker", "party"},  # the shakers and tambourines of the crowd keep their sparkle
+    "fan_meeting": set(),  # every stem at 22.05 kHz: a soft ballad-and-dance mix, the arpeggio ends below 9 kHz
 }
 
 
@@ -4870,13 +4871,165 @@ def nations_fest_brass(s):
     return room(s, b, 0.2, 1.3, "brass", damp=5000)
 
 
+# =========================== FAN MEETING (B major) - Part 2
+
+def fan_meeting_song(d):
+    # Part 2, district 19: the K-pop stadium of district 4 as a small fan meeting at sunset. A ballad verse and a
+    # light dance chorus at 102 BPM in B major: Iadd9 - vi7 - IVmaj9 - V7sus4 V | IV V - iii7 vi7 - IV V - Iadd9.
+    # Every tone is in the scale; the verse starts on the tonic and the chorus comes home to it, and IV - V lead into
+    # it twice (the stadium of the day is a vi - IV - I - V dance loop in A): home is B major. The parts leave out
+    # most perfect fifths (F# is the fifth of the tonic and the root of the dominant: with them the loop read as F#).
+    B, Gs, E, Fs, Ds = 11, 8, 4, 6, 3
+    add9, m7, maj7, sus, maj = [4, 7, 14], [3, 7, 10], [4, 7, 11], [5, 7], [4, 7]
+    return Song(d, progression([
+        (4, B, add9, "Badd9"), (4, Gs, m7, "G#m7"), (4, E, maj7, "Emaj7"), (2, Fs, sus, "F#sus4"), (2, Fs, maj, "F#"),
+        (2, E, maj, "E"), (2, Fs, maj, "F#"), (2, Ds, m7, "D#m7"), (2, Gs, m7, "G#m7"), (2, E, maj, "E"),
+        (2, Fs, maj, "F#"), (4, B, add9, "Badd9"),
+    ]))
+
+
+def fan_meeting_beat(s):
+    """The little stage: the beat of a fan meeting. In the ballad verse (bars 1-4) only a soft kick on one and
+    three and finger snaps on two and four, with a small snare roll into the chorus; in the dance chorus (bars 5-8)
+    a soft four-on-the-floor kick, claps on two and four, 8th hats and an open hat into the top of the loop."""
+    k = kit("dance", s.sr)
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    snaps = [ins.snap(s.sr, key=i) for i in range(3)]
+    for bar in range(s.bars):
+        o = bar * 4
+        if bar < 4:
+            for bt in (0, 2):
+                hit(s, b, k["kick"], o + bt, 0.6, r, 0.002)
+            for bt in (1, 3):
+                hit(s, b, snaps, o + bt, 0.7, r, 0.004)
+            if bar == 3:
+                for j in range(8):
+                    hit(s, b, k["snare"], o + 2 + j * 0.25, 0.2 + 0.06 * j, r, 0.002)
+        else:
+            for bt in range(4):
+                hit(s, b, k["kick"], o + bt, 0.75, r, 0.002)
+            for bt in (1, 3):
+                for j in range(2):
+                    hit(s, b, k["clap"], o + bt, 0.6, r, 0.006)
+            for i in range(8):
+                hit(s, b, k["hat"], o + i * 0.5, 0.45 if i % 2 else 0.3, r, 0.003)
+            if bar == 7:
+                hit(s, b, k["ohat"], o + 3.5, 0.5, r, 0.0)
+    s.add(b, k["crash"][0], 16, 0.4)
+    b = loop_filter(s, b, "lp", 9500)
+    return room(s, b, 0.14, 1.0, "beat", damp=6500)
+
+
+def fan_meeting_piano(s):
+    """The white piano: in the verse a ballad, the chord broken in 8ths (root, fifth, the colour tones above) with
+    the root held low; in the chorus pop chords pulsing in 8ths an octave up, a little softer on the off-beats."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "piano")
+    vo = voice_lead([c.pcs([0] + [t for t in c.tones if t % 12 != 7]) for c in s.chords], 59, 76, 67)
+    for i, c in enumerate(s.chords):
+        lh = nearest(c.root, 47, 42, 53)
+        if c.start < 16:
+            s.add(b, ins.piano(lh, s.sec(c.dur * 0.95), s.sr, vel=0.55, bright=0.5, release=0.3), c.start, 0.8)
+            notes = [lh + 12] + vo[i]
+            walk = notes + notes[-2:0:-1]  # up the chord and back down
+            for q in range(int(c.dur * 2)):
+                m = walk[q % len(walk)]
+                s.add(b, ins.piano(m, s.sec(0.9), s.sr, vel=0.45 if q % 2 else 0.55, bright=0.55, release=0.3),
+                      c.start + q * 0.5, 0.8, dt=r.normal(0.004, 0.003))
+        else:
+            for q in range(int(c.dur * 2)):
+                for j, m in enumerate([lh] + vo[i]):
+                    s.add(b, ins.piano(m, s.sec(0.4), s.sr, vel=0.6 if q % 2 == 0 else 0.45, bright=0.7, release=0.1),
+                          c.start + q * 0.5, 0.75, dt=j * 0.004 + r.normal(0, 0.003))
+    b = loop_filter(s, b, "hp", 70)
+    return room(s, b, 0.2, 1.5, "piano", damp=5500)
+
+
+def fan_meeting_bass(s):
+    """The photo wall: a warm synth bass. Long roots in the verse (a step into the next chord at the end of each
+    long one), an octave bounce in 8ths in the chorus."""
+    b = s.zeros()
+    for c in s.chords:
+        R = nearest(c.root, 40, 35, 46)
+        if c.start < 16:
+            nxt = nearest(s.next_chord(c).root, R, 35, 47)
+            if c.dur >= 4:
+                s.add(b, synth_bass(R, s.sec(3.4), s.sr, cutoff=900.0, decay=0.3), c.start, 0.9)
+                s.add(b, synth_bass(nxt + (2 if nxt < R else -2), s.sec(0.45), s.sr, cutoff=900.0), c.start + 3.5, 0.6)
+            else:
+                s.add(b, synth_bass(R, s.sec(1.8), s.sr, cutoff=900.0, decay=0.3), c.start, 0.85)
+        else:
+            for q in range(int(c.dur * 2)):
+                m = R + 12 if q % 2 else R
+                s.add(b, synth_bass(m, s.sec(0.4), s.sr, cutoff=1300.0, decay=0.08), c.start + q * 0.5,
+                      0.85 if q % 2 == 0 else 0.6)
+    b = loop_filter(s, b, "lp", 2000)
+    return room(s, b, 0.06, 0.6, "bass", damp=2500)
+
+
+def fan_meeting_strings(s):
+    """The fans' lightsticks: warm strings. Held chords that swell up in the verse (the root, the 3rd and the colour
+    tone, no fifth), the same an octave up in the chorus with a long rising line on top."""
+    b = s.zeros()
+    vo = voice_lead([c.pcs([0] + [t for t in c.tones if t % 12 != 7]) for c in s.chords], 55, 74, 64)
+    for i, c in enumerate(s.chords):
+        up = 12 if c.start >= 16 else 0
+        for j, m in enumerate(vo[i]):
+            s.add(b, string_note(m + up, s.sec(c.dur) + 0.3, s.sr, key=j), c.start - 0.1, 0.8 if up else 0.65)
+    for bt, m in ((16, 83), (20, 85), (24, 87), (28, 86)):  # B5 C#6 D#6 D#6: the line climbs over the chorus
+        s.add(b, string_note(m, s.sec(4) + 0.3, s.sr, key=5), bt - 0.1, 0.45)
+    b = b * (0.85 + 0.15 * s.lfo(1.0 / (s.sec(8)), 0.25))  # the lightsticks sway: a slow swell every two bars
+    return room(s, b, 0.3, 2.0, "strings", damp=6000)
+
+
+def fan_meeting_arp(s):
+    """The gift basket: a sparkling plucked arpeggio, a ribbon of lights. 8ths up and down the chord in the verse,
+    16ths in the chorus, high and soft, with a quick echo."""
+    b = s.zeros()
+    for c in s.chords:
+        ns = [m for m in range(71, 92) if (m - c.root) % 12 in [0] + [t % 12 for t in c.tones]][:5]
+        ns = ns + ns[-2:0:-1]
+        step = 0.5 if c.start < 16 else 0.25
+        for q in range(int(c.dur / step)):
+            s.add(b, sky_pluck(ns[q % len(ns)], s.sr, dur=0.25, key=q % 2, cutoff=4500.0), c.start + q * step,
+                  0.7 if q % 2 == 0 else 0.5)
+    b = echo(s, b, 0.75, 0.2, 0.3, 2, 6000)
+    return room(s, b, 0.2, 1.3, "arp", damp=7000)
+
+
+# The chorus hook of the mic stand, C#5-C#6 (a pick-up into the chorus at the end of the verse), home on a long B.
+# bar -> (beat, beats, midi)
+FM_HOOK = bars({
+    3: [(2.0, 0.5, 73), (2.5, 0.5, 75), (3.0, 1.0, 78)],
+    4: [(0.0, 0.5, 80), (0.5, 0.5, 78), (1.0, 1.0, 76), (2.0, 0.5, 78), (2.5, 0.5, 80), (3.0, 1.0, 82)],
+    5: [(0.0, 1.5, 82), (1.5, 0.5, 80), (2.0, 1.0, 78), (3.0, 1.0, 75)],
+    6: [(0.0, 0.5, 76), (0.5, 0.5, 78), (1.0, 1.0, 80), (2.0, 1.0, 82), (3.0, 0.5, 83), (3.5, 0.5, 85)],
+    7: [(0.0, 2.5, 83), (3.0, 0.5, 78), (3.5, 0.5, 80)],
+})
+
+
+def fan_meeting_hook(s):
+    """The mic stand: the chorus hook on a soft bell-like synth lead (a triangle with a sine an octave up that
+    rings shorter, like a bell on the attack), a little vibrato on the long notes and a short echo."""
+    ev = [(b, d * 0.92, m, 0.85 if d >= 1 else 0.75, {}) for b, d, m in FM_HOOK]
+    src, env, onset = render_line(s, events(s, ev), osc="tri", glide=0.02, legato_gap=0.01, attack=0.008,
+                                  release=0.12, vib_rate=5.5, vib_depth=0.1, vib_delay=0.25, key="fmhook")
+    top, _, _ = render_line(s, events(s, [(b, d, m + 12, v, o) for b, d, m, v, o in ev]), osc="sine", glide=0.02,
+                            legato_gap=0.01, attack=0.004, release=0.08, vib_depth=0.0, key="fmhook2")
+    x = src * env + 0.35 * top * env * np.clip(onset, 0, 1) ** 2
+    b = wrap(s, dsp.highpass(x / dsp.peak(x), 200, s.sr, 2))
+    b = echo(s, b, 0.75, 0.18, 0.3, 2, 5000)
+    return room(s, b, 0.22, 1.5, "hook", damp=6500)
+
+
 # ============================================ tension / party (shared)
 
 # The drum kit of every district (kit() names), used by its tension and party layers.
 KITS = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
         "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
         "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade",
-        "midnight_cafe": "midnight", "late_club": "jazz", "nations_fest": "street"}
+        "midnight_cafe": "midnight", "late_club": "jazz", "nations_fest": "street", "fan_meeting": "dance"}
 
 # Districts whose theme sounds in the relative minor of their key (the night versions of Part 2,
 # docs/design/part2-districts.md): the tension layer holds the fifth of that minor tonic.
@@ -5103,7 +5256,7 @@ def party_stem(s, style):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
             for bt in range(4):
                 hit(s, b, dk["ohat"], o + bt + 0.5, 0.35, r, 0.0)
-        if style in ("stadium", "garage", "square", "nations_fest"):
+        if style in ("stadium", "garage", "square", "nations_fest", "fan_meeting"):
             for bt in range(4):
                 hit(s, b, dk["kick"], o + bt, 0.5, r, 0.0)
         if style == "carnival":  # the bongo bell of the mambo section: the beats, and the off-beats of 2 and 4
@@ -5144,7 +5297,7 @@ def party_stem(s, style):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
             for j, m in enumerate(vo[ci]):
-                if style == "stadium":
+                if style in ("stadium", "fan_meeting"):
                     x = ins.supersaw(m, s.sec(0.3), s.sr, attack=0.003, release=0.08, key=j)
                 elif style == "garage":
                     x = ins.organ(m, s.sec(0.3), s.sr, bars=(8, 0, 8, 8, 0, 6, 0, 0, 4), perc=0.3, click=0.3)
@@ -5252,6 +5405,9 @@ DISTRICTS = {
     "nations_fest": dict(song=nations_fest_song, stems={
         "beat": nations_fest_beat, "bass": nations_fest_bass, "steelpan": nations_fest_steelpan,
         "shaker": nations_fest_shaker, "lead": nations_fest_lead, "brass": nations_fest_brass}),
+    "fan_meeting": dict(song=fan_meeting_song, stems={
+        "beat": fan_meeting_beat, "piano": fan_meeting_piano, "bass": fan_meeting_bass,
+        "strings": fan_meeting_strings, "arp": fan_meeting_arp, "hook": fan_meeting_hook}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -5298,6 +5454,8 @@ LOUDNESS = {
                   "tension": -18, "party": -16},
     "nations_fest": {"beat": -16, "bass": -19, "steelpan": -19.5, "shaker": -20, "lead": -18, "brass": -18.5,
                      "tension": -18, "party": -16},
+    "fan_meeting": {"beat": -16.5, "piano": -18.5, "bass": -19, "strings": -20, "arp": -21, "hook": -18,
+                    "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on

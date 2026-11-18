@@ -63,11 +63,13 @@ M.BOOSTER_ICON = {
 -- club, more violet than the river blue of the blues club, far from the lavender of the jazz club), the
 -- seventeenth the walnut brown of the late club's double bass (the only brown: darker and less saturated than
 -- the oranges of the carnival and the block), the eighteenth the marigold of the festival flags (deeper than the
--- pale yellow of the square, yellower than the orange of the block). A district past the list starts it again.
+-- pale yellow of the square, yellower than the orange of the block), the nineteenth the sunset orchid of the fan
+-- meeting (darker than the café pink, redder and paler than the arcade magenta). A district past the list starts
+-- it again.
 M.DISTRICT_COLORS = {
 	"#FF9EC7", "#C9A7FF", "#FFD36E", "#7FC8FF", "#8BE39A", "#4FD1C5", "#FF8A5C", "#E0566F", "#2F9FB0",
 	"#A65CF2", "#F2741D", "#6FBF3A", "#B23A2E", "#2E5FB8", "#F02FC2",
-	"#4B3FA6", "#9C6B45", "#E8A317",
+	"#4B3FA6", "#9C6B45", "#E8A317", "#D45D9E",
 }
 
 -- Store products shown in the shop's coins tab, in display order, with

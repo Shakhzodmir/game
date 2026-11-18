@@ -4158,6 +4158,123 @@ def drum_circle(s):
     return {"drums": d, "keys": mar, "guitar": gtr, "bass": bass}
 
 
+
+# =================================================== FAN MEETING (B) - Part 2
+# The fan meeting at sunset, four songs of the evening: sunset_letter is a piano ballad (strings, a bell tune, the
+# beat only in the second half), photo_card_pop a bouncy dance-pop, fan_chant a sing-along chant groove with the
+# crowd shouting along, after_encore a mellow R&B-pop goodbye with vocal chops.
+
+
+def sunset_letter(s):
+    """72 BPM piano ballad: the piano breaks every chord in 8ths from the first bar, the strings come in on bar 3,
+    a bell sings the tune, and only in the second half a slow beat (kick, snap) and a deep bass join."""
+    r = dsp.rng(s.id, "letter")
+    t, ch = s.tonic, s.chords
+    arp = []
+    for c in ch:
+        ns = chord_notes(c, 54, 74)[:5]
+        walk = ns + ns[-2:0:-1]
+        arp.append((c.start, c.dur * 0.95, root_of(c, 47, 42, 53), 0.55))
+        for q in range(int(c.dur * 2)):
+            arp.append((c.start + q * 0.5, 0.9, walk[q % len(walk)], 0.45 if q % 2 else 0.52))
+    keys = room(s, lay(s, lambda ss, m, du, v: v_piano(ss, m, du, v, 0.55, 0.35), arp, r=r, jit=0.004), 0.25, 2.0,
+                "keys", damp=5000)
+    strings = comp(s, ch, voicing(ch, 57, 74, 65), lambda c, i: [(0, c.dur, 0.6)],
+                   lambda ss, m, du, v: v_strings(ss, m, du + 0.3, v, k=m % 3), r=r, mask=bs("3-8"))
+    strings = room(s, strings, 0.3, 2.2, "strings", damp=6000)
+    tn = tune("3:1 2:.5 1:.5 5-:2 | 3:1 4:.5 3:.5 2:2 | 1:1 7-:.5 1:.5 3:1 2:1 | 1:3 r:1 |"
+              " 5:1 4:.5 3:.5 2:2 | 4:1.5 3:.5 2:1 5:1 | 6:1 5:.5 4:.5 3:1 2:1 | 1:3 r:1", t, 5)
+    cel = room(s, echo(s, lay(s, lambda ss, m, du, v: v_celesta(ss, m, du, v, t60=1.1), tn, r=r, jit=0.004), 0.75,
+                       0.2, 0.3, 2, 5000), 0.3, 2.0, "celesta", damp=6500)
+    k = kits(s, "dance")
+    snaps = [ins.snap(s.sr, key=i) for i in range(2)]
+    d = s.zeros()
+    hits(s, d, k["kick"], "x.......x.....x.", r, gain=0.6, mask=bs("5-8"))
+    hits(s, d, snaps, "....x.......x...", r, gain=0.7, mask=bs("5-8"))
+    hits(s, d, k["hat"], "..o...o...o...o.", r, gain=0.35, mask=bs("5-8"))
+    d = room(s, d, 0.2, 1.4, "drums", damp=6000)
+    bass = line(s, ch, lambda c, n, i: [(0, c.dur * 0.95, root_of(c, 40, 35, 46), 0.8)], v_sub, r=r, mask=bs("5-8"))
+    return {"keys": keys, "strings": strings, "celesta": cel, "drums": d, "bass": bass}
+
+
+def photo_card_pop(s):
+    """118 BPM bouncy dance-pop: four-on-the-floor kick, claps on two and four, off-beat hats, a bass that
+    bounces in octaves, a plucky synth riff on the chords and a bright lead tune."""
+    r = dsp.rng(s.id, "card")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "dance")
+    d = s.zeros()
+    hits(s, d, k["kick"], "x...x...x...x...", r, gain=0.85)
+    hits(s, d, k["clap"], "....x.......x...", r, gain=0.7)
+    hits(s, d, k["hat"], "..x...x...x...x.", r, gain=0.5)
+    hits(s, d, k["snare"], {3: "............xxxx", 7: "............xxxx", 11: "........x.x.xxxx"}, r, gain=0.35)
+    d = room(s, d, 0.12, 0.9, "drums", damp=7000)
+    bass = line(s, ch, lambda c, n, i: [(q * 0.5, 0.35, root_of(c, 40, 35, 46) + (12 if q % 2 else 0),
+                                         0.9 if q % 2 == 0 else 0.6) for q in range(int(c.dur * 2))],
+                lambda ss, m, du, v: v_sbass(ss, m, du, v, 1500.0, 0.07), r=r)
+    riff = [(0, 0.3, 0.8), (0.75, 0.25, 0.6), (1.5, 0.3, 0.7), (2.5, 0.3, 0.75), (3.25, 0.3, 0.6)]
+    keys = comp(s, ch, voicing(ch, 62, 79, 70), lambda c, i: within(c, riff),
+                lambda ss, m, du, v: v_pluck(ss, m, du, v, 3800.0, 0.09), spread=0.003, r=r)
+    keys = room(s, keys, 0.14, 1.0, "keys", damp=7000)
+    tn = tune("5:.5 6:.5 1+:.5 6:.5 5:1 3:1 | 5:.5 6:.5 1+:.5 2+:.5 1+:2 | 7:1 6:.5 5:.5 3:2 | 3:.5 2:.5 1:1 6-:2 |"
+              " 5:.5 6:.5 1+:.5 6:.5 5:1 3:1 | 5:.5 6:.5 1+:.5 2+:.5 3+:2 | 3+:1 2+:.5 1+:.5 5:2 | 5:3 r:1 |"
+              " 1+:1 6:1 5:1 3:1 | 2:.5 3:.5 5:1 2+:2 | 1+:1 7:.5 6:.5 5:1 3:1 | 1:3 r:1", t, 4)
+    lead = room(s, echo(s, mono(s, tn, "lead", key="card"), 0.75, 0.15, 0.3, 2, 6000), 0.15, 1.1, "lead", damp=7000)
+    return {"drums": d, "bass": bass, "keys": keys, "lead": lead}
+
+
+def fan_chant(s):
+    """110 BPM chant groove: a marching kick on every beat with a snare on two and four, the crowd shouting 'hey'
+    at the end of every second bar, synth-brass stabs, a sing-along lead and a bass on the roots."""
+    r = dsp.rng(s.id, "chant")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "dance", "street")
+    d = s.zeros()
+    hits(s, d, k["kick"], "x...x...x...x...", r, gain=0.85)
+    hits(s, d, k["snare"], "....x.......x...", r, gain=0.7)
+    hits(s, d, k["hat"], "x.x.x.x.x.x.x.x.", r, gain=0.35)
+    d = room(s, d, 0.14, 0.9, "drums", damp=6500)
+    hey = s.zeros()
+    for bar in (1, 3, 5, 7):
+        s.add(hey, ins.crowd_hey(s.sr, key=bar), bar * 4 + 3.0, 0.8)
+    hey = room(s, hey, 0.25, 1.2, "hey", damp=5000)
+    stabs = comp(s, ch, voicing(ch, 60, 76, 67), lambda c, i: within(c, [(0, 0.3, 0.8), (1.5, 0.3, 0.7), (2.5, 0.3, 0.75)]),
+                 lambda ss, m, du, v: v_super(ss, m, du, v, att=0.005, rel=0.08, k=m % 3), spread=0.002, r=r)
+    stabs = room(s, stabs, 0.16, 1.0, "brass", damp=6500)
+    tn = tune("1:1 3:1 5:1 3:1 | 4:1 6:1 1+:2 | 7:1 6:1 5:1 2:1 | 1:3 r:1 | 6:1 1+:1 3+:1 1+:1 | 6:1 4:1 6:2 |"
+              " 5:1 2+:1 1+:1 7:1 | 1+:3 r:1", t, 4)
+    lead = room(s, mono(s, tn, "bell", key="chant"), 0.18, 1.2, "lead", damp=7000)
+    bass = line(s, ch, lambda c, n, i: [(q, 0.45, root_of(c, 40, 35, 46), 0.85) for q in range(int(c.dur))], v_sbass,
+                r=r)
+    return {"drums": d, "gang": hey, "brass": stabs, "lead": lead, "bass": bass}
+
+
+def after_encore(s):
+    """88 BPM R&B-pop goodbye: an electric piano on the chords, a soft sub bass, finger snaps on two and four with
+    a soft kick and swung hats, and a melody of short vocal chops."""
+    r = dsp.rng(s.id, "encore")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "dance")
+    snaps = [ins.snap(s.sr, key=i) for i in range(2)]
+    d = s.zeros()
+    hits(s, d, k["kick"], ["x......x..x.....", "x.........x....."], r, swing=0.25, gain=0.75)
+    hits(s, d, snaps, "....x.......x...", r, gain=0.8)
+    hits(s, d, k["hat"], "x.oxx.o.x.oxx.o.", r, swing=0.25, gain=0.35)
+    d = room(s, d, 0.14, 1.0, "drums", damp=6500)
+    keys = comp(s, ch, voicing(ch, 58, 76, 66, no_root), lambda c, i: [(0, 1.8, 0.6), (2.5, 1.2, 0.45)] if c.dur >= 4
+                else [(0, 1.8, 0.55)], lambda ss, m, du, v: v_epiano(ss, m, du, v, 0.8, 0.35), spread=0.012,
+                swing=0.25, r=r)
+    keys = room(s, tape(s, keys, 6.0, 0.4, 1.0), 0.2, 1.5, "keys", damp=5500)
+    bass = line(s, ch, lambda c, n, i: [(0, 1.5, root_of(c, 38, 35, 46), 0.85), (2.5, 1.0, root_of(c, 38, 35, 46), 0.6)]
+                if c.dur >= 4 else [(0, 1.5, root_of(c, 38, 35, 46), 0.85)], v_sub, r=r)
+    tn = tune("3:.5 5:.5 r:.5 3:.5 2:1 1:1 | 6-:.5 1:.5 r:.5 3:.5 2:2 | 4:.5 3:.5 r:.5 2:.5 1:1 6-:1 | 5-:3 r:1 |"
+              " 3:.5 5:.5 r:.5 6:.5 5:1 3:1 | 2:.5 3:.5 r:.5 5:.5 3:2 | 4:1 3:.5 2:.5 1:1 2:1 | 1:3 r:1", t, 5)
+    chops = lay(s, lambda ss, m, du, v: v_vox(ss, m, min(du, 0.6), v, "a_alto", key=m % 3), tn, swing=0.25, r=r,
+                jit=0.003)
+    chops = room(s, echo(s, chops, 0.75, 0.2, 0.3, 2, 5000), 0.2, 1.4, "chops", damp=6500)
+    return {"drums": d, "keys": keys, "bass": bass, "chops": chops}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -4320,6 +4437,15 @@ SONGS = {
                       {"drums": -17, "tamb": -24, "lead": -18, "keys": -21, "bass": -19}),
     "drum_circle": ("I:4 IV:4 I:4 V:4 I:4 IV:4 V:4 I:4", drum_circle,
                     {"drums": -16.5, "keys": -19, "guitar": -21, "bass": -20}),
+    # fan_meeting (B major) - Part 2
+    "sunset_letter": ("Iadd9:4 iii7:4 vi7:4 IVmaj7:4 Iadd9:4 ii7:2 V7sus4:2 IVmaj7:4 Iadd9:4", sunset_letter,
+                      {"keys": -19, "strings": -22, "celesta": -19, "drums": -22, "bass": -23}),
+    "photo_card_pop": ("IV:4 V:4 iii7:4 vi:4 IV:4 V:4 I:4 I:4 IV:4 V:4 vi:4 I:4", photo_card_pop,
+                       {"drums": -16.5, "bass": -19, "keys": -21, "lead": -18}),
+    "fan_chant": ("I:4 IV:4 V:4 I:4 vi:4 IV:4 V:4 I:4", fan_chant,
+                  {"drums": -17, "gang": -22, "brass": -21, "lead": -18, "bass": -20}),
+    "after_encore": ("Imaj7:4 vi7:4 ii7:4 V7sus4:4 Imaj7:4 iii7:4 IVmaj7:2 V7sus4:2 Iadd9:4", after_encore,
+                     {"drums": -18, "keys": -20, "bass": -20, "chops": -19}),
 }
 
 
