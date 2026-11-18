@@ -987,8 +987,8 @@
     }
   },
   "midnight_cafe": {
-    "bg": "assets/images/districts/midnight_cafe/bg.png",
-    "bg_concert": "assets/images/districts/midnight_cafe/bg_concert.png",
+    "bg": "assets/images/districts/midnight_cafe/bg.jpg",
+    "bg_concert": "assets/images/districts/midnight_cafe/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "radio": {
@@ -1048,8 +1048,8 @@
     }
   },
   "late_club": {
-    "bg": "assets/images/districts/late_club/bg.png",
-    "bg_concert": "assets/images/districts/late_club/bg_concert.png",
+    "bg": "assets/images/districts/late_club/bg.jpg",
+    "bg_concert": "assets/images/districts/late_club/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "drums": {
@@ -1109,8 +1109,8 @@
     }
   },
   "nations_fest": {
-    "bg": "assets/images/districts/nations_fest/bg.png",
-    "bg_concert": "assets/images/districts/nations_fest/bg_concert.png",
+    "bg": "assets/images/districts/nations_fest/bg.jpg",
+    "bg_concert": "assets/images/districts/nations_fest/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "taiko": {
@@ -1170,8 +1170,8 @@
     }
   },
   "fan_meeting": {
-    "bg": "assets/images/districts/fan_meeting/bg.png",
-    "bg_concert": "assets/images/districts/fan_meeting/bg_concert.png",
+    "bg": "assets/images/districts/fan_meeting/bg.jpg",
+    "bg_concert": "assets/images/districts/fan_meeting/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "small_stage": {
