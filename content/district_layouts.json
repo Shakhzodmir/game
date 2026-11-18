@@ -1168,5 +1168,66 @@
         "h": 170
       }
     }
+  },
+  "fan_meeting": {
+    "bg": "assets/images/districts/fan_meeting/bg.png",
+    "bg_concert": "assets/images/districts/fan_meeting/bg_concert.png",
+    "bg_scale": 1.0,
+    "items": {
+      "small_stage": {
+        "image": "assets/images/districts/fan_meeting/small_stage.png",
+        "ghost": "assets/images/districts/fan_meeting/small_stage_ghost.png",
+        "x": 360,
+        "y": 560,
+        "scale": 0.72,
+        "w": 251,
+        "h": 212
+      },
+      "piano": {
+        "image": "assets/images/districts/fan_meeting/piano.png",
+        "ghost": "assets/images/districts/fan_meeting/piano_ghost.png",
+        "x": 140,
+        "y": 540,
+        "scale": 0.62,
+        "w": 329,
+        "h": 176
+      },
+      "photo_wall": {
+        "image": "assets/images/districts/fan_meeting/photo_wall.png",
+        "ghost": "assets/images/districts/fan_meeting/photo_wall_ghost.png",
+        "x": 360,
+        "y": 330,
+        "scale": 0.6,
+        "w": 270,
+        "h": 191
+      },
+      "lightsticks": {
+        "image": "assets/images/districts/fan_meeting/lightsticks.png",
+        "ghost": "assets/images/districts/fan_meeting/lightsticks_ghost.png",
+        "x": 560,
+        "y": 710,
+        "scale": 0.64,
+        "w": 219,
+        "h": 205
+      },
+      "gift_basket": {
+        "image": "assets/images/districts/fan_meeting/gift_basket.png",
+        "ghost": "assets/images/districts/fan_meeting/gift_basket_ghost.png",
+        "x": 142,
+        "y": 330,
+        "scale": 0.62,
+        "w": 244,
+        "h": 219
+      },
+      "mic_stand": {
+        "image": "assets/images/districts/fan_meeting/mic_stand.png",
+        "ghost": "assets/images/districts/fan_meeting/mic_stand_ghost.png",
+        "x": 578,
+        "y": 326,
+        "scale": 0.6,
+        "w": 214,
+        "h": 222
+      }
+    }
   }
 }

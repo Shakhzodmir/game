@@ -55,6 +55,8 @@ TASK_FROM = {
                   "muted_trumpet": "trumpet", "note_sign": "neon"},
     "nations_fest": {"taiko": "fountain", "festival_tent": "truck_stage", "steel_pan": "tuba",
                      "flag_garland": "garlands", "accordion": "clarinet", "shell_stage": "trumpets"},
+    "fan_meeting": {"small_stage": "stage", "piano": "choir", "photo_wall": "screens", "lightsticks": "lightsticks",
+                    "gift_basket": "fireworks", "mic_stand": "lasers"},
 }
 
 # district id -> "night" (the default) or "day" (a sunny version of the genre: the festival look)

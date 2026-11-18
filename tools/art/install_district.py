@@ -140,6 +140,15 @@ ROOMS = {
         ("accordion", 560, 716, 62),
         ("shell_stage", 596, 432, 93),
     ]),
+    # district 19: the places of the K-pop stadium items its placeholders borrow (TASK_FROM)
+    "fan_meeting": ("3x2", [
+        ("small_stage", 360, 560, 181),
+        ("piano", 140, 540, 204),
+        ("photo_wall", 360, 330, 162),
+        ("lightsticks", 560, 710, 140),
+        ("gift_basket", 142, 330, 151),
+        ("mic_stand", 578, 326, 128),
+    ]),
 }
 
 

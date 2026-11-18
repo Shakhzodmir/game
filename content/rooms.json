@@ -213,6 +213,17 @@
         { "kind": "notes", "item": "steel_pan", "x": 600, "y": 470, "count": 3, "layer": "over", "colors": ["#FFDB1A", "#FF4D8D", "#3AA4FF"], "rise": 200, "period": 3.6 },
         { "kind": "blink", "points": [[60, 150], [180, 130], [300, 150], [420, 130], [540, 150], [660, 130]], "r": 28, "layer": "mid", "view": "concert", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "period": 1.4 }
       ]
+    },
+    "fan_meeting": {
+      "mood": "night",
+      "details": [
+        { "kind": "blink", "points": [[36, 100], [684, 100]], "r": 120, "layer": "mid", "colors": ["#FFFFFF"], "period": 2.2, "alpha": [0.2, 0.6] },
+        { "kind": "motes", "style": "sparkle", "rect": [40, 140, 640, 520], "count": 10, "layer": "mid", "color": "#FFFFFF" },
+        { "kind": "shaft", "item": "mic_stand", "x": 578, "y": 330, "w": 60, "h": 620, "angle": 28, "layer": "over", "color": "#C9D6FF", "alpha": [0.15, 0.4], "period": 2.3 },
+        { "kind": "blink", "item": "lightsticks", "points": [[520, 660], [560, 640], [600, 660]], "r": 60, "layer": "over", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "period": 0.55, "alpha": [0.3, 0.8] },
+        { "kind": "motes", "style": "sparkle", "item": "gift_basket", "rect": [60, 230, 230, 400], "count": 5, "layer": "over", "color": "#FFE066" },
+        { "kind": "bokeh", "count": 3, "layer": "fg", "view": "concert", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "size": [160, 260], "y": [850, 1200] }
+      ]
     }
   }
 }
