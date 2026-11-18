@@ -337,9 +337,14 @@ describe("the jukebox window with thirty genres", function()
 			assert_true(c.app.ui.popup_targets.tab_ranch ~= nil)
 			assert_true(c.app.ui.popup_targets.tab_bluesclub ~= nil, "the fourteenth district sits next to the thirteenth")
 			assert_true(c.app.ui.popup_targets.tab_arcade ~= nil, "the fifteenth district closes the fifth page")
-			assert_true(c.app.ui.popup_targets.tab_classical == nil, "the first extra genre opens the sixth page")
-			wtap(c, "tabs_next")
-			assert_eq(c.app.ui.jukebox.tab_page, 6)
+			assert_true(c.app.ui.popup_targets.tab_classical == nil, "the extra genres come after every district")
+			-- the districts of Part 2 fill pages 6, 7, ...: the first extra genre comes right after the last district
+			local classical_page = math.ceil((#H.districts().districts + 1) / 3)
+			for p = 6, classical_page do
+				wtap(c, "tabs_next")
+				assert_eq(c.app.ui.jukebox.tab_page, p)
+				if p < classical_page then assert_true(c.app.ui.popup_targets.tab_classical == nil, "page " .. p) end
+			end
 			assert_true(c.app.ui.popup_targets.tab_classical ~= nil)
 			wtap(c, "tab_classical")
 			assert_eq(c.app.ui.jukebox.tab, "classical")
@@ -351,7 +356,7 @@ describe("the jukebox window with thirty genres", function()
 			-- the last page is reachable and wraps round (thirty genres: ten pages)
 			local pages = math.ceil((#H.districts().districts + 15) / 3)
 			assert_eq(c.app.ui.jukebox.tab_pages, pages)
-			for _ = 1, pages - 5 do wtap(c, "tabs_next") end
+			for _ = 1, pages - classical_page + 1 do wtap(c, "tabs_next") end
 			assert_eq(c.app.ui.jukebox.tab_page, 1)
 			assert_same(c.E.audit(), {})
 		end)
