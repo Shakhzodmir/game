@@ -11,7 +11,6 @@ local app = require("client.app")
 local ui = require("client.ui")
 local i18n = require("client.i18n")
 local fx = require("client.fx")
-local bit = require("client.bit")
 local audio = require("client.audio")
 local flow = require("client.flow")
 
@@ -93,13 +92,7 @@ function init(self)
 		gui.animate(tag, "position.y", 580, gui.EASING_OUTBACK, 0.5, 0.55)
 	end
 
-	-- Bit hops in
-	local holder = s:layer(s.root)
-	s:anchor(holder, "bottom")
-	self.bit = bit.new(s, holder, 360, 380, 190)
-	if not reduced then
-		self.fx:after(0.7, function() self.bit:cheer(1.4, 2) end)
-	end
+	-- Bit is in the logo now (producer, 18.11.2026): no second Bit under it
 
 	-- three bouncing notes as a loading indicator
 	for i = 1, 3 do
@@ -125,7 +118,6 @@ end
 function update(self, dt)
 	self.ui:update(dt)
 	self.fx:update(dt)
-	self.bit:update(dt)
 	self.t = self.t + dt
 	if not self.done and self.t >= DURATION and not app.transitioning then go(self) end
 end
