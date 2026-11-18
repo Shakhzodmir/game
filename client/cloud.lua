@@ -219,7 +219,10 @@ local function reconcile(u, doc, background)
 	-- account, still ask.
 	-- Never in the middle of a level: replacing the save and restarting the town would throw the player out of the run.
 	-- The question then stays open and is answered in the town (the window), as before.
-	if tbl and not damaged and S.app.screen ~= "level" and (a == "offer_download" or (a == "choose" and plan.recommend == "cloud")) then
+	-- Only when the player signs in or starts the game, NEVER from the background check (once a minute): there it would
+	-- restart the town under the player's hands every time another device uploads progress (producer, 18.11.2026:
+	-- "the game reloads itself while I play"). The background check keeps the question for the window instead.
+	if tbl and not damaged and not background and S.app.screen ~= "level" and (a == "offer_download" or (a == "choose" and plan.recommend == "cloud")) then
 		if M.resolve("download") then
 			-- like the window's answer: the town restarts on the loaded save
 			pcall(S.app.toast_key, "cloud.loaded", nil, { color = "gold" })
