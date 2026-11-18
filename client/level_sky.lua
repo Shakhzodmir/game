@@ -19,7 +19,8 @@ M.W, M.H = 720, 1280
 M.MARGIN = 160 -- a cloud leaves and enters this far beyond the design area (a wider screen shows more of the sky)
 
 -- the evening / night districts: a bright dusk with stars instead of clouds
-M.NIGHT = { cinema = true, skyclub = true, bluesclub = true, arcade = true, midnight_cafe = true }
+M.NIGHT = { cinema = true, skyclub = true, bluesclub = true, arcade = true, midnight_cafe = true,
+	late_club = true }
 
 -- the clouds: y from the bottom of the design area, w = width on screen (the sprite is 2:1), speed in px/s (to the
 -- right), x0 = where it is at t = 0. Different speeds and sizes: the near ones are bigger and quicker.

@@ -192,6 +192,17 @@
         { "kind": "steam", "item": "rhodes", "x": 170, "y": 556, "count": 3, "size": 52, "rise": 120, "period": 3.2, "layer": "over", "color": "#FFFFFF" },
         { "kind": "motes", "style": "sparkle", "rect": [0, 700, 720, 1000], "count": 4, "layer": "fg", "view": "concert", "color": "#FFFFFF" }
       ]
+    },
+    "late_club": {
+      "mood": "night",
+      "details": [
+        { "kind": "shaft", "x": 190, "y": 60, "w": 150, "h": 760, "angle": 12, "layer": "mid", "color": "#C9D6FF", "alpha": [0.1, 0.22], "period": 4.6 },
+        { "kind": "shaft", "x": 530, "y": 60, "w": 150, "h": 760, "angle": -12, "layer": "mid", "color": "#C9D6FF", "alpha": [0.08, 0.18], "period": 5.4 },
+        { "kind": "blink", "points": [[40, 640], [140, 640], [240, 640], [340, 640], [440, 640], [540, 640], [640, 640]], "r": 30, "layer": "mid", "colors": ["#FFE98A", "#FFB347"], "period": 1.2 },
+        { "kind": "motes", "style": "sparkle", "rect": [60, 200, 600, 560], "count": 8, "layer": "mid", "color": "#FFF3B0" },
+        { "kind": "blink", "item": "note_sign", "points": [[160, 322]], "r": 150, "layer": "over", "colors": ["#FF4FD8"], "period": 1.5, "alpha": [0.2, 0.6] },
+        { "kind": "bokeh", "count": 2, "layer": "fg", "colors": ["#FFE9A8", "#FFB3D9"], "size": [150, 230], "y": [900, 1150] }
+      ]
     }
   }
 }

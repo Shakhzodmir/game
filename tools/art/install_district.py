@@ -122,6 +122,15 @@ ROOMS = {
         ("night_cat", 574, 418, 130),
         ("neon_sign", 360, 540, 110),
     ]),
+    # district 17: the places of the jazz bar items its placeholders borrow (TASK_FROM of make_part2_placeholders.py)
+    "late_club": ("3x2", [
+        ("drums", 382, 330, 121),
+        ("double_bass", 578, 560, 91),
+        ("piano", 240, 586, 166),
+        ("vibes", 160, 722, 154),
+        ("muted_trumpet", 568, 738, 121),
+        ("note_sign", 160, 322, 107),
+    ]),
 }
 
 

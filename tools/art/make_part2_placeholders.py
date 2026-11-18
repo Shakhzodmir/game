@@ -13,6 +13,7 @@ What it writes for a district <id> with parent <p> (the same sizes as the parent
   districts/<p>/<task>.png                    -> districts/<id>/<task>.png + <task>_ghost.png  the task items
   mapbg/bg_<p>.png, mapbg/gate_<p>.png        -> mapbg/bg_<id>.png, mapbg/gate_<id>.png    map tile and gate
   map/deco_<p>_1..6.png                       -> map/deco_<id>_1..6.png                     map decorations
+  districts/<p>/level_bg.png                  -> districts/<id>/level_bg.png               the sky behind the board
 and the data that points at them, copied from the parent with the task ids renamed:
   content/district_layouts.json  (item places of the room), content/rooms.json (the living details of the room),
   content/map_gates.json (where the name goes on the gate: the signboard keeps its pale colour, so it is the
@@ -26,7 +27,10 @@ table) and they stop being placeholders.
 
 The night look: the colours are pulled toward a blue-violet ramp of their own brightness, the whole picture is a
 little darker (rooms 0.78, concert 0.86, items 0.90: items must still stand out in the room), and bright warm spots
-(lamps, signs, candles) keep most of their warm colour, like lights that are on at night. Deterministic, numpy+PIL.
+(lamps, signs, candles) keep most of their warm colour, like lights that are on at night. The level background only
+gets a light lavender tint (LEVEL_TINT: the sky stays bright behind the board). A district of LOOK "day" (a sunny
+version of its genre) gets the festival look instead: warmer, more saturated colours, the same brightness, and its
+room keeps the parent's mood. Deterministic, numpy+PIL.
 """
 import argparse
 import json
@@ -42,10 +46,21 @@ import installed as inst  # noqa: E402
 ROOT = inst.ROOT
 IMAGES = os.path.join(ROOT, "assets", "images")
 CONTENT = os.path.join(ROOT, "content")
-PLACEHOLDER = "placeholder: night version of "   # the source of a placeholder file in installed.json
+PLACEHOLDER = "placeholder: "   # the source of a placeholder file in installed.json starts with it
+# ... and goes on: "night version of <parent>" (or "day version of <parent>", LOOK)
 
 # district id -> {its task id: the parent's task id} when the order of the tasks does not pair them well
-TASK_FROM = {}
+TASK_FROM = {
+    "late_club": {"drums": "stage_light", "double_bass": "double_bass", "piano": "grand_piano", "vibes": "vibes",
+                  "muted_trumpet": "trumpet", "note_sign": "neon"},
+}
+
+# district id -> "night" (the default) or "day" (a sunny version of the genre: the festival look)
+LOOK = {"nations_fest": "day"}
+
+# the level background (night look): rgb -> M @ rgb + offset, the light lavender sky of district 16
+LEVEL_TINT = np.array([[0.685, -0.057, -0.017], [-0.028, 0.697, -0.015], [-0.027, -0.053, 1.106]], np.float32)
+LEVEL_OFFSET = np.array([-0.006, -0.003, 0.073], np.float32)
 
 # the night ramp: brightness -> colour (dark navy, indigo, violet, lavender)
 RAMP_L = np.array([0.0, 0.35, 0.65, 1.0], np.float32)
@@ -62,6 +77,36 @@ def load_json(path):
 def write_json(path, data, indent):
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(json.dumps(data, indent=indent, ensure_ascii=False) + "\n")
+
+
+def festival(img, kind, keep_mask=None):
+    """The day version of a picture for a sunny district: more saturated (x1.3 around its grey) and a little warmer;
+    the signboard of a gate (keep_mask) keeps its colour. Alpha is kept."""
+    a = np.asarray(img.convert("RGBA")).astype(np.float32) / 255.0
+    rgb, alpha = a[..., :3], a[..., 3:]
+    grey = (rgb @ np.array([0.2126, 0.7152, 0.0722], np.float32))[..., None]
+    out = (grey + 1.3 * (rgb - grey)) * np.array([1.05, 1.0, 0.9], np.float32)
+    if keep_mask is not None:
+        m = keep_mask[..., None].astype(np.float32)
+        out = out * (1.0 - m) + rgb * m
+    res8 = (np.concatenate([np.clip(out, 0, 1), alpha], axis=-1) * 255.0 + 0.5).astype(np.uint8)
+    res8[res8[..., 3] == 0] = 0
+    return Image.fromarray(res8, "RGBA")
+
+
+def level_tint(img):
+    """The night level background: the light lavender tint of district 16 (an RGB picture, no alpha)."""
+    rgb = np.asarray(img.convert("RGB")).astype(np.float32) / 255.0
+    out = np.clip(rgb @ LEVEL_TINT.T + LEVEL_OFFSET, 0, 1)
+    return Image.fromarray((out * 255.0 + 0.5).astype(np.uint8), "RGB")
+
+
+def recolour(img, kind, look, keep_mask=None):
+    """The placeholder of one picture in the look of its district."""
+    if look == "day":
+        out = festival(img, kind, keep_mask)
+        return out.convert("RGB") if kind == "level" else out
+    return level_tint(img) if kind == "level" else night(img, kind, keep_mask)
 
 
 def night(img, kind, keep_mask=None):
@@ -118,6 +163,7 @@ def targets(d, parent):
         "districts/%s/bg_concert.png" % did: ("districts/%s/bg_concert.png" % pid, "concert"),
         "mapbg/bg_%s.png" % did: ("mapbg/bg_%s.png" % pid, "map"),
         "mapbg/gate_%s.png" % did: ("mapbg/gate_%s.png" % pid, "gate"),
+        "districts/%s/level_bg.png" % did: ("districts/%s/level_bg.png" % pid, "level"),
     }
     for i in range(1, 7):
         out["map/deco_%s_%d.png" % (did, i)] = ("map/deco_%s_%d.png" % (pid, i), "deco")
@@ -140,14 +186,15 @@ def make(d, parent, files, sources, force=False):
         return False
     from gen_art import ghost_image  # noqa: E402  (heavy import: only when something is drawn)
     from gate_signs import board_mask  # noqa: E402
-    note = PLACEHOLDER + pid
+    look = LOOK.get(did, "night")
+    note = PLACEHOLDER + "%s version of %s" % (look, pid)
     for rel, (src, kind) in sorted(todo.items()):
         path = os.path.join(IMAGES, src)
         if not os.path.isfile(path):
             sys.exit("%s: the parent picture %s is missing" % (did, src))
         with Image.open(path) as im:
             keep = board_mask(im) if kind == "gate" else None
-            out = night(im, kind, keep)
+            out = recolour(im, kind, look, keep)
         dst = os.path.join(IMAGES, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         out.save(dst, optimize=True)
@@ -187,10 +234,11 @@ def make(d, parent, files, sources, force=False):
             if det["item"] not in back:
                 continue            # the parent's item has no counterpart here: its detail goes too
             det["item"] = back[det["item"]]
-        if det.get("kind") == "shaft":
+        if det.get("kind") == "shaft" and look == "night":
             det["color"] = "#C9D6FF"
         details.append(det)
-    rooms["districts"][did] = {"mood": "night", "details": details}
+    mood = "night" if look == "night" else rooms["districts"].get(pid, {}).get("mood", look)
+    rooms["districts"][did] = {"mood": mood, "details": details}
     write_rooms(path, rooms)
 
     # where the name goes on the gate: the signboard kept its place and its pale colour

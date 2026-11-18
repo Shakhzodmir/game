@@ -809,7 +809,7 @@ return {
 	["sb.late_club.28"] = { en = "The taxi waits with the meter off", ru = "Такси ждёт с выключенным счётчиком" },
 	["sb.late_club.29"] = { en = "One more tune, then the lights go down", ru = "Ещё одна мелодия — и свет погаснет" },
 	["sb.late_club.30"] = { en = "Chairs go up on the tables", ru = "Стулья поднимаются на столы" },
-	["sb.late_club.31"] = { en = "The street hums our tune all the way home", ru = "Улица напевает нашу мелодию до самого дома" },
+	["sb.late_club.31"] = { en = "The street hums our tune going home", ru = "Улица напевает нашу мелодию до самого дома" },
 	["sb.late_club.32"] = { en = "Goodnight, night owls, same time tomorrow", ru = "Доброй ночи, полуночники, завтра в то же время" },
 	["sbt.late_club.1"] = { en = "The Last Set", ru = "Последний сет" },
 	["sbt.late_club.2"] = { en = "Fewer Notes", ru = "Меньше нот" },
