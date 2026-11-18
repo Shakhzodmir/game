@@ -48,7 +48,7 @@ function init(self)
 	local glow = s:circle(s.root, 360, 780, 700, "#FFF4C9", { alpha = 0.85, soft = true })
 	if not reduced then ui.pulse(glow, 0.06, 1.2) end
 
-	-- the producer's logo (tools/art/logo/glow_logo.svg, stored at 2x: drawn 680 wide)
+	-- the producer's logo (tools/art/logo/glow_logo_source.png with its ragged halo cleaned; stored at 2x: drawn 680 wide)
 	local logo = s:image(s.root, "logo/logo", 360, 800, { w = 680, h = 340 })
 	if not logo then
 		logo = s:text(s.root, i18n.t("app.title"), 360, 800, {
