@@ -217,7 +217,9 @@ local function reconcile(u, doc, background)
 	-- taken without a question. The device save is not lost: it stays in the "previous" slot and in the account's
 	-- own "previous" copy (resolve "download"). Branches where the device is ahead, and a save of another
 	-- account, still ask.
-	if tbl and not damaged and (a == "offer_download" or (a == "choose" and plan.recommend == "cloud")) then
+	-- Never in the middle of a level: replacing the save and restarting the town would throw the player out of the run.
+	-- The question then stays open and is answered in the town (the window), as before.
+	if tbl and not damaged and S.app.screen ~= "level" and (a == "offer_download" or (a == "choose" and plan.recommend == "cloud")) then
 		if M.resolve("download") then
 			-- like the window's answer: the town restarts on the loaded save
 			pcall(S.app.toast_key, "cloud.loaded", nil, { color = "gold" })

@@ -145,6 +145,23 @@ describe("client.cloud: scenarios", function()
 		return boot_device({ current = { glow_save = 1, data = tbl } }, 42)
 	end
 
+	it("does not take the cloud save by itself during a level: the question waits for the town", function()
+		local m, _, code3 = two_devices()
+		wins(2)
+		T = T + 5
+		cloud.tick(T)
+		m.session = nil
+		auth.sign_out()
+		device_from_code(code3)
+		local real = app.screen
+		app.screen = "level"
+		sign_in_google(m)
+		local d = cloud.decision()
+		app.screen = real
+		assert_true(d ~= nil and d.kind == "offer_download", "the question is kept")
+		assert_eq(app.meta:level_to_play(), 4, "the device save was not replaced")
+	end)
+
 	it("takes the cloud save by itself when the account is ahead (no question), the device save stays as a backup", function()
 		local m, uid, code3 = two_devices()
 		wins(2) -- A plays on
