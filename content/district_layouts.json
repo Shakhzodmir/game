@@ -1,7 +1,7 @@
 {
   "cafe": {
-    "bg": "assets/images/districts/cafe/bg.png",
-    "bg_concert": "assets/images/districts/cafe/bg_concert.png",
+    "bg": "assets/images/districts/cafe/bg.jpg",
+    "bg_concert": "assets/images/districts/cafe/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "turntable": {
@@ -61,8 +61,8 @@
     }
   },
   "jazz": {
-    "bg": "assets/images/districts/jazz/bg.png",
-    "bg_concert": "assets/images/districts/jazz/bg_concert.png",
+    "bg": "assets/images/districts/jazz/bg.jpg",
+    "bg_concert": "assets/images/districts/jazz/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "stage_light": {
@@ -131,8 +131,8 @@
     }
   },
   "square": {
-    "bg": "assets/images/districts/square/bg.png",
-    "bg_concert": "assets/images/districts/square/bg_concert.png",
+    "bg": "assets/images/districts/square/bg.jpg",
+    "bg_concert": "assets/images/districts/square/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "fountain": {
@@ -210,8 +210,8 @@
     }
   },
   "stadium": {
-    "bg": "assets/images/districts/stadium/bg.png",
-    "bg_concert": "assets/images/districts/stadium/bg_concert.png",
+    "bg": "assets/images/districts/stadium/bg.jpg",
+    "bg_concert": "assets/images/districts/stadium/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "stage": {
@@ -289,8 +289,8 @@
     }
   },
   "garage": {
-    "bg": "assets/images/districts/garage/bg.png",
-    "bg_concert": "assets/images/districts/garage/bg_concert.png",
+    "bg": "assets/images/districts/garage/bg.jpg",
+    "bg_concert": "assets/images/districts/garage/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "drum_kit": {
@@ -377,8 +377,8 @@
     }
   },
   "beach": {
-    "bg": "assets/images/districts/beach/bg.png",
-    "bg_concert": "assets/images/districts/beach/bg_concert.png",
+    "bg": "assets/images/districts/beach/bg.jpg",
+    "bg_concert": "assets/images/districts/beach/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "cajon": {
@@ -438,8 +438,8 @@
     }
   },
   "carnival": {
-    "bg": "assets/images/districts/carnival/bg.png",
-    "bg_concert": "assets/images/districts/carnival/bg_concert.png",
+    "bg": "assets/images/districts/carnival/bg.jpg",
+    "bg_concert": "assets/images/districts/carnival/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "congas": {
@@ -499,8 +499,8 @@
     }
   },
   "cinema": {
-    "bg": "assets/images/districts/cinema/bg.png",
-    "bg_concert": "assets/images/districts/cinema/bg_concert.png",
+    "bg": "assets/images/districts/cinema/bg.jpg",
+    "bg_concert": "assets/images/districts/cinema/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "timpani": {
@@ -560,8 +560,8 @@
     }
   },
   "bazaar": {
-    "bg": "assets/images/districts/bazaar/bg.png",
-    "bg_concert": "assets/images/districts/bazaar/bg_concert.png",
+    "bg": "assets/images/districts/bazaar/bg.jpg",
+    "bg_concert": "assets/images/districts/bazaar/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "darbuka": {
@@ -621,8 +621,8 @@
     }
   },
   "skyclub": {
-    "bg": "assets/images/districts/skyclub/bg.png",
-    "bg_concert": "assets/images/districts/skyclub/bg_concert.png",
+    "bg": "assets/images/districts/skyclub/bg.jpg",
+    "bg_concert": "assets/images/districts/skyclub/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "dj_deck": {
@@ -682,8 +682,8 @@
     }
   },
   "block": {
-    "bg": "assets/images/districts/block/bg.png",
-    "bg_concert": "assets/images/districts/block/bg_concert.png",
+    "bg": "assets/images/districts/block/bg.jpg",
+    "bg_concert": "assets/images/districts/block/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "turntables": {
@@ -743,8 +743,8 @@
     }
   },
   "island": {
-    "bg": "assets/images/districts/island/bg.png",
-    "bg_concert": "assets/images/districts/island/bg_concert.png",
+    "bg": "assets/images/districts/island/bg.jpg",
+    "bg_concert": "assets/images/districts/island/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "bongos": {
@@ -804,8 +804,8 @@
     }
   },
   "ranch": {
-    "bg": "assets/images/districts/ranch/bg.png",
-    "bg_concert": "assets/images/districts/ranch/bg_concert.png",
+    "bg": "assets/images/districts/ranch/bg.jpg",
+    "bg_concert": "assets/images/districts/ranch/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "washboard_tub": {
@@ -865,8 +865,8 @@
     }
   },
   "bluesclub": {
-    "bg": "assets/images/districts/bluesclub/bg.png",
-    "bg_concert": "assets/images/districts/bluesclub/bg_concert.png",
+    "bg": "assets/images/districts/bluesclub/bg.jpg",
+    "bg_concert": "assets/images/districts/bluesclub/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "piano": {
@@ -926,8 +926,8 @@
     }
   },
   "arcade": {
-    "bg": "assets/images/districts/arcade/bg.png",
-    "bg_concert": "assets/images/districts/arcade/bg_concert.png",
+    "bg": "assets/images/districts/arcade/bg.jpg",
+    "bg_concert": "assets/images/districts/arcade/bg_concert.jpg",
     "bg_scale": 1.0,
     "items": {
       "joystick": {

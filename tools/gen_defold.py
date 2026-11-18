@@ -190,6 +190,32 @@ def png_size(path):
     return w, h
 
 
+def jpg_size(path):
+    """(w, h) of a baseline / progressive JPEG from its SOF marker, None if it is no JPEG."""
+    with open(path, "rb") as f:
+        data = f.read(1 << 16)
+    if data[:2] != b"\xff\xd8":
+        return None
+    i = 2
+    while i + 9 < len(data):
+        if data[i] != 0xFF:
+            i += 1
+            continue
+        m = data[i + 1]
+        if m == 0xFF:
+            i += 1
+            continue
+        if m in (0xD8, 0x01) or 0xD0 <= m <= 0xD7:
+            i += 2
+            continue
+        seg = struct.unpack(">H", data[i + 2:i + 4])[0]
+        if 0xC0 <= m <= 0xCF and m not in (0xC4, 0xC8, 0xCC):
+            h, w = struct.unpack(">HH", data[i + 5:i + 9])
+            return w, h
+        i += 2 + seg
+    return None
+
+
 def white_png(size=8):
     raw = b"".join(b"\x00" + b"\xff\xff\xff\xff" * size for _ in range(size))
 
@@ -257,11 +283,18 @@ def collect_images(warnings):
     if not isinstance(mfiles, dict):
         mfiles = {}
     images = {}
-    for p in list_files(IMAGES, ".png"):
+    seen = {}
+    for p in sorted(list_files(IMAGES, ".png") + list_files(IMAGES, ".jpg")):
         key = p[len(IMAGES) + 1:-4]
-        size = png_size(rel(p))
+        jpg = p.endswith(".jpg")
+        if jpg and not is_loose(key):
+            raise SystemExit("a .jpg is only allowed for loose images (opaque backgrounds): " + p)
+        if key in seen:
+            raise SystemExit("%s and %s are the same image key: keep one" % (seen[key], p))
+        seen[key] = p
+        size = jpg_size(rel(p)) if jpg else png_size(rel(p))
         if not size or size[0] <= 0 or size[1] <= 0:
-            warnings.append("skip (not a png): " + p)
+            warnings.append("skip (not a %s): %s" % ("jpg" if jpg else "png", p))
             continue
         e = {"path": p, "w": size[0], "h": size[1]}
         m = mfiles.get(key + ".png")

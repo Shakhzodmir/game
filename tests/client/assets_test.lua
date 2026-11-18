@@ -20,7 +20,7 @@ describe("client.assets and the generated index", function()
 			if e.file then
 				-- loose images: districts, backgrounds, the backgrounds of the map and the songbook, shipped as custom resources
 				assert_eq(e.atlas, nil, key)
-				assert_eq(e.file, "/assets/images/" .. key .. ".png")
+				assert_true(e.file == "/assets/images/" .. key .. ".png" or e.file == "/assets/images/" .. key .. ".jpg", key .. " -> " .. e.file)
 				local top = string.match(key, "^([^/]+)/")
 				assert_true(top == "districts" or top == "backgrounds" or top == "bit" or top == "logo" or top == "mapbg" or top == "notebook", key)
 			else

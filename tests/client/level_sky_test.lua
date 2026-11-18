@@ -78,6 +78,21 @@ describe("the picture behind the board", function()
 	end)
 end)
 
+describe("the opaque backgrounds are JPEG files (the archive the browser downloads must stay small)", function()
+	it("room, concert and level backgrounds of every district are .jpg, 720x1280", function()
+		local images = assets.index.images
+		for _, d in ipairs(districts) do
+			for _, name in ipairs({ "bg", "bg_concert", "level_bg" }) do
+				local e = images["districts/" .. d.id .. "/" .. name]
+				if e then -- a district without a concert picture falls back to the day one
+					assert_true(e.file:sub(-4) == ".jpg", d.id .. "/" .. name .. " is " .. e.file .. ": run tools/art/to_jpeg_backgrounds.py")
+					assert_true(e.w == 720 and e.h == 1280, d.id .. "/" .. name)
+				end
+			end
+		end
+	end)
+end)
+
 describe("the clouds", function()
 	it("are drawn by day, over the common picture and over a district's own day picture", function()
 		assert_eq(sky.kind("bazaar", true), "clouds")
