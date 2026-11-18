@@ -45,6 +45,7 @@ HI_RATE = {
     "bluesclub": set(),  # every stem at 22.05 kHz: brushes, a dark ride and warm amps, nothing lives above 10 kHz
     "arcade": set(),  # every stem at 22.05 kHz: the pulse waves are rounded off at 3-5 kHz, the noise ends at 9 kHz
     "midnight_cafe": set(),  # every stem at 22.05 kHz: dusty lo-fi, its hats, rain and chimes end below 9 kHz
+    "late_club": set(),  # every stem at 22.05 kHz: soft brushes and a dark ride after midnight, little above 9 kHz
 }
 
 
@@ -4487,13 +4488,207 @@ def midnight_cafe_pad(s):
     return room(s, x, 0.32, 2.4, "pad", damp=4000)
 
 
+# =========================== LATE CLUB (Ab major) - Part 2
+
+def late_club_song(d):
+    # Part 2, district 17: the jazz bar of district 2 after midnight. Cool jazz at 84 BPM in Ab major, soft and
+    # roomy: Iadd9 - IVmaj9 - ii9 V13 - Iadd9 | vi9 - IVmaj9 - ii9 V13 - Iadd9 V7sus4. Every tone is in the scale
+    # (the dominant is diatonic, nothing altered: the jazz bar of the day leans on G7(#9,b13) instead). The tonic
+    # is an add9 without the major 7th (Abmaj9 without its root is a C minor seventh, and the rootless piano and
+    # vibes would make the club read as C minor); both halves start on it or come back to it, the bass and the low
+    # tone under the beat lean on Ab: home is Ab major.
+    Ab, Db, F, Bb, Eb = 8, 1, 5, 10, 3
+    add9, maj9, m9, thirteen, sus = [4, 7, 14], [4, 7, 11, 14], [3, 7, 10, 14], [4, 10, 14, 21], [5, 7, 10]
+    return Song(d, progression([
+        (4, Ab, add9, "Abadd9"), (4, Db, maj9, "Dbmaj9"), (2, Bb, m9, "Bbm9"), (2, Eb, thirteen, "Eb13"),
+        (4, Ab, add9, "Abadd9"),
+        (4, F, m9, "Fm9"), (4, Db, maj9, "Dbmaj9"), (2, Bb, m9, "Bbm9"), (2, Eb, thirteen, "Eb13"),
+        (2, Ab, add9, "Abadd9"), (2, Eb, sus, "Eb7sus4"),
+    ]))
+
+
+def late_club_beat(s):
+    """Brush drums after midnight: the brushes swirl on the snare (a swish on every beat), a soft tap on two and
+    four with the hi-hat foot, a lazy ride (ding, ding-da-ding, quieter than the jazz bar's), a feathered kick on
+    every beat and a round low Ab under the one of every bar whose chord holds it (the first layer alone already
+    says Ab), a tap on the swung 'and' of three every other bar and a little triplet fill into each half."""
+    k = kit("jazz", s.sr)
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, v in ((0, 0.55), (1, 0.7), (1 + T, 0.35), (2, 0.55), (3, 0.7), (3 + T, 0.35)):
+            hit(s, b, k["ride"], o + bt, v * 0.7, r, 0.005)
+        for bt in (1, 3):
+            hit(s, b, k["chick"], o + bt, 0.5, r, 0.003)
+            hit(s, b, k["tap"], o + bt, 0.75, r, 0.004)
+        for bt in range(4):
+            s.add(b, ins.brush_swish(s.sr, s.sec(0.95), key=(bar * 4 + bt) % 5), o + bt, 0.2)
+            hit(s, b, k["feather"], o + bt, 0.45 if bt in (0, 2) else 0.3, r, 0.003)
+        if bar % 2 == 1:
+            hit(s, b, k["tap"], o + 2 + T, 0.3, r)
+        if bar in (3, 7):
+            for j, v in enumerate((0.3, 0.4, 0.5)):
+                hit(s, b, k["tap"], o + 3 + j / 3.0, v, r, 0.003)
+    b = room(s, loop_filter(s, b, "lp", 9000), 0.16, 1.2, "beat", damp=6000)
+    tone = s.zeros()
+    n = nsamp(0.6, s.sr)
+    t = np.arange(n) / s.sr
+    f = float(midi_hz(nearest(s.tonic, 44, 40, 51)))  # Ab2
+    x = (np.sin(TAU * f * t) + 0.25 * np.sin(2 * TAU * f * t)) * np.exp(-t / 0.16) * (1.0 - np.exp(-t / 0.006))
+    for bar in range(s.bars):
+        c = s.chord_at(bar * 4)
+        if s.tonic in [c.root] + c.pcs():
+            s.add(tone, dsp.fade(x, s.sr, 0.001, 0.08), bar * 4, 0.8)
+    rms = lambda z: float(np.sqrt(np.mean(z ** 2)))  # noqa: E731
+    return b + 0.4 * tone * rms(b) / rms(tone)
+
+
+def late_club_bass(s):
+    """Bass by the window: a 'two feel' in the first half (the root on one, the fifth on three, two swung skip
+    notes), then a walking line in the second half; round and woody, close to the window."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "bass")
+    line = []
+    for c in s.chords:
+        if c.start >= 16:
+            continue
+        R = nearest(c.root, 40, 32, 46)
+        line.append((c.start, R, 0.85))
+        if c.dur >= 4:
+            line.append((c.start + 2, R + 7 if R + 7 <= 48 else R - 5, 0.72))
+    line += [e for e in walking_line(s, 31, 51, 44, "lcwalk") if e[0] >= 16]
+    line.sort()
+    for j, (bt, m, v) in enumerate(line):
+        nxt = line[(j + 1) % len(line)][0]
+        du = ((nxt - bt) % s.beats) * 0.9
+        s.add(b, upright(m, s.sec(du), s.sr, key=j % 3), bt, v, dt=r.normal(0.004, 0.004))
+    for bt, m in ((6 + T, nearest(1, 41, 36, 46)), (14 + T, nearest(10, 41, 36, 46))):  # Db, Bb: into the next root
+        s.add(b, upright(m, s.sec(0.3), s.sr, key=2), bt, 0.35)
+    b = loop_filter(s, b, "lp", 1600)
+    return room(s, b, 0.08, 0.8, "bass", damp=2500)
+
+
+def late_club_piano(s):
+    """The corner piano: rootless chords (the colour tones of each chord, close together in the middle of the
+    keyboard), few and soft, a little behind the beat: a long chord on one and a short one on the swung 'and' of
+    two, or both pushed a triplet late; the short chords sometimes come a triplet early."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "piano")
+    vo = voice_lead([c.pcs() + ([c.root] if c.root == s.tonic else []) for c in s.chords], 53, 72, 62)
+    for i, c in enumerate(s.chords):
+        if c.dur >= 4:
+            pat = [(0.0, 1.6, 0.5), (1 + T, 0.5, 0.42)] if i % 2 == 0 else [(T, 1.2, 0.45), (2 + T, 0.9, 0.4)]
+        else:
+            pat = [(0.0, 1.2, 0.48)] if i % 2 == 0 else [(-1.0 / 3.0, 1.0, 0.44)]
+        lh = nearest(c.root, 46, 41, 52)  # the left hand: the root under every chord, so the rootless top never
+        for bt, du, v in pat:             # turns the IV and the ii into F minor
+            for j, m in enumerate([lh] + vo[i]):
+                x = ins.piano(m, s.sec(du), s.sr, vel=round(v + 0.02 * j, 2), bright=0.5, release=0.2)
+                s.add(b, x, c.start + bt, 0.8, dt=0.012 + j * 0.008 + r.normal(0, 0.004))
+    b = loop_eq(s, loop_filter(s, b, "hp", 90), "peak", 2500, 1.0, 0.8)
+    return room(s, b, 0.24, 1.8, "piano", damp=4500)
+
+
+def late_club_vibes(s):
+    """The vibraphone: the two guide tones of every chord (its 3rd and 7th, voice-led high in the middle), struck
+    softly and left to ring with a slow motor, the upper one again on the swung 'and' of three in the long chords,
+    and a short falling triplet at the end of bars 2, 4 and 6."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "vibes")
+    guide = lambda c: [t for t in c.tones if t % 12 in (3, 4, 10, 11, 9, 5)][:2]  # noqa: E731
+    vo = voice_lead([c.pcs(guide(c)) for c in s.chords], 65, 80, 72)
+    for i, c in enumerate(s.chords):
+        for j, m in enumerate(vo[i]):
+            s.add(b, ins.vibes(m, s.sr, vel=0.55, dur=2.6, trem=2.6, release=s.sec(min(c.dur, 3.0))), c.start, 0.8,
+                  dt=j * 0.01 + r.normal(0, 0.004))
+        if c.dur >= 4:
+            s.add(b, ins.vibes(vo[i][-1], s.sr, vel=0.4, dur=1.6, trem=2.6, release=s.sec(1.0)), c.start + 2 + T, 0.6)
+    for bar, notes in ((1, (77, 75, 72)), (3, (75, 72, 68)), (5, (77, 73, 68))):
+        for j, m in enumerate(notes):
+            s.add(b, ins.vibes(m, s.sr, vel=0.45, dur=1.2, trem=2.6, release=s.sec(0.5)), bar * 4 + 3 + j / 3.0, 0.6)
+    return room(s, b, 0.28, 2.0, "vibes", damp=5500)
+
+
+# The quiet trumpet's tune, G4-Ab5, sparse and cool, swung: it starts after a breath from the Ab, sings a long F
+# over the IV, leans on Ab and Eb, reaches the high Ab over the vi in the second half and comes home on a long Ab.
+# bar -> (beat, beats, midi)
+LC_TUNE = bars({
+    0: [(1.0, T, 68), (1 + T, 1 / 3, 70), (2.0, 1.5, 72), (3 + T, 1 / 3, 75)],
+    1: [(0.0, 2.0, 77), (2 + T, 1 / 3, 75), (3.0, 1.0, 73)],
+    2: [(0.0, 1.5, 72), (1 + T, 1 / 3, 73), (2.0, 1.5, 70), (3 + T, 1 / 3, 68)],
+    3: [(0.0, 1.0, 72), (1.0, T, 70), (1 + T, 1 / 3, 68), (2.0, 1.8, 75)],
+    4: [(1.0, T, 72), (1 + T, 1 / 3, 75), (2.0, 1.5, 80), (3 + T, 1 / 3, 77)],
+    5: [(0.0, T, 77), (T, 1 / 3, 75), (1.0, 1.0, 73), (2.0, T, 72), (2 + T, 1 / 3, 68), (3.0, 1.0, 73)],
+    6: [(0.0, 1.5, 73), (2.0, T, 72), (2 + T, 1 / 3, 70), (3.0, 1.0, 67)],
+    7: [(0.0, 2.4, 68)],
+})
+
+
+def late_club_trumpet(s):
+    """The quiet trumpet: a harmon mute (thin, nasal, close to a whisper) sings the tune a hair behind the beat,
+    scooping into the long notes, with a soft breath on every note and a long, dark room around it."""
+    ev = [(b + 0.02, d * 0.94, m, 0.85 if d >= 1.5 else 0.72, {"scoop": 0.5} if d >= 1.5 else {})
+          for b, d, m in LC_TUNE]
+    src, env, _ = render_line(s, events(s, ev), osc="saw", glide=0.015, legato_gap=0.006, attack=0.035,
+                              release=0.08, vib_rate=5.2, vib_depth=0.07, vib_delay=0.3, key="lctpt")
+    x = src * env
+    x = dsp.highpass(x, 600, s.sr, 2)
+    x = dsp.filt(x, "peak", 1600, s.sr, q=1.8, gain_db=10.0)
+    x = dsp.filt(x, "peak", 3000, s.sr, q=2.2, gain_db=3.0)
+    x = dsp.lowpass(x, 4200, s.sr, 2)
+    x += 0.06 * ins.breath(len(x), s.sr, "lctpt", 1500, 4500) * env
+    b = wrap(s, x / dsp.peak(x))
+    b = echo(s, b, 0.75, 0.12, 0.3, 2, 3000)
+    return room(s, b, 0.32, 2.2, "trumpet", damp=4000, predelay=0.03)
+
+
+# where the trumpet breathes, the sax answers: bar -> (beat, beats, midi)
+LC_SAX_ANSWERS = {
+    0: [(0.0, T, 63), (T, 1 / 3, 60)],
+    3: [(3.0, T, 60), (3 + T, 1 / 3, 63)],
+    4: [(0.0, T, 65), (T, 1 / 3, 68)],
+    7: [(2.0 + T, 1 / 3, 63), (3.0, T, 65), (3 + T, 1 / 3, 68)],
+}
+
+
+def late_club_sax(s):
+    """The neon note: a breathy tenor sax. Under the trumpet it holds one long note per chord (the root of the I and
+    the IV, else the 3rd or the 7th nearest to the last one, low and soft: a horn section of one voice); where the trumpet breathes (the first
+    beat of each half, the end of bar 4 and of the last bar) it answers with a short swung phrase."""
+    spans = [(bar * 4 + ns[0][0], bar * 4 + ns[-1][0] + ns[-1][1]) for bar, ns in LC_SAX_ANSWERS.items()]
+    ev = []
+    prev = 61
+    for c in s.chords:
+        want = [0] if c.root in (s.tonic, (s.tonic + 5) % 12) else [t % 12 for t in c.tones if t % 12 in (3, 4, 10, 11)]
+        cand = [m for m in range(55, 67) if (m - c.root) % 12 in want]  # the I and the IV: their root
+        g = min(cand, key=lambda m: (abs(m - prev), m))
+        prev = g
+        st, end = c.start, c.start + c.dur * 0.94
+        for a, z in spans:  # the long note makes room for an answer: it starts after it or stops before it
+            if a <= st < z:
+                st = z + 0.05
+            elif st < a < end:
+                end = a - 0.1
+        if end - st > 0.4:
+            ev.append((st, end - st, g, 0.55))
+    for bar, notes in LC_SAX_ANSWERS.items():
+        for bt, d, m in notes:
+            ev.append((bar * 4 + bt, d * 0.92, m, 0.72))
+    ev.sort()
+    x = sax_voice(s, events(s, ev), key="lcsax")
+    b = wrap(s, dsp.lowpass(x, 3800, s.sr, 2))
+    b = echo(s, b, 1.0 + 1 / 3, 0.08, 0.25, 2, 2500)
+    return room(s, b, 0.3, 2.0, "sax", damp=3800)
+
+
 # ============================================ tension / party (shared)
 
 # The drum kit of every district (kit() names), used by its tension and party layers.
 KITS = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
         "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
         "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade",
-        "midnight_cafe": "midnight"}
+        "midnight_cafe": "midnight", "late_club": "jazz"}
 
 # Districts whose theme sounds in the relative minor of their key (the night versions of Part 2,
 # docs/design/part2-districts.md): the tension layer holds the fifth of that minor tonic.
@@ -4516,7 +4711,7 @@ def tension_stem(s, style):
     b = s.zeros()
     k = kit(KITS[style], s.sr)
     hats = k["hat"] if "hat" in k else k["chick"]
-    if style in ("jazz", "bluesclub"):
+    if style in ("jazz", "bluesclub", "late_club"):
         for i in range(s.beats * 3):
             hit(s, b, hats, i / 3.0, 0.5 if i % 3 == 0 else 0.3, r, 0.003)
     else:
@@ -4530,7 +4725,7 @@ def tension_stem(s, style):
             bt = sw8(bt, 0.2)
         elif style == "garage":
             x = power_chord(m - 12 if m > 52 else m, s.sec(0.3), s.sr, muted=True, key=0)
-        elif style == "jazz":
+        elif style in ("jazz", "late_club"):
             x = upright(m - 12, s.sec(0.4), s.sr)
         elif style == "cafe":  # bright e-piano pulse in the middle register (no low-mid mud)
             x = ins.epiano(m, s.sec(0.25), s.sr, vel=0.6, bright=1.0, release=0.08)
@@ -4698,6 +4893,14 @@ def party_stem(s, style):
             for bt in range(4):
                 hit(s, b, k["ohat"], o + bt + 0.5, 0.26, r, 0.0)
                 hit(s, b, k["kick"], o + bt, 0.5, r, 0.0)
+        elif style == "late_club":  # the club swings harder: the ride on every beat and its skip, brush taps on two
+            # and four, the feathered kick on every beat
+            for bt in range(4):
+                hit(s, b, k["ride"], o + bt, 0.35, r, 0.003)
+                if bt % 2:
+                    hit(s, b, k["ride"], o + bt + T, 0.22, r, 0.003)
+                    hit(s, b, k["tap"], o + bt, 0.4, r, 0.003)
+                hit(s, b, k["feather"], o + bt, 0.5, r, 0.0)
         elif style == "midnight_cafe":  # the café wakes up: lazy 16th hats and a shaker, the kick on one and three
             for i in range(16):
                 hit(s, b, k["hat"], o + mc(i * 0.25), 0.3 if i % 2 == 0 else 0.2, r, 0.003)
@@ -4721,7 +4924,7 @@ def party_stem(s, style):
                 hit(s, b, k["zill"], o + bt, 0.4 * v, r, 0.002)
             for i in range(8):
                 hit(s, b, k["riq"], o + i * 0.5, 0.4 if i % 2 else 0.25, r, 0.003)
-        if bar in (3, 7) and style == "bluesclub":  # the roll into each half in triplets, as everything here
+        if bar in (3, 7) and style in ("bluesclub", "late_club"):  # the roll into each half in triplets
             for j in range(6):
                 hit(s, b, dk["snare"], o + 2 + j / 3.0, 0.3 + 0.08 * j, r, 0.002)
         elif bar in (3, 7) and style == "arcade":  # the roll on the noise channel
@@ -4745,7 +4948,8 @@ def party_stem(s, style):
                    "arcade": (0.0, 0.5, 1.5, 2.0, 3.0, 3.5),  # a fanfare of pulse waves: 'ta-ta, ta-ta, ta-ta'
                    # the night café: on one, the swung 16th before two, the 'and's of two and three, the swung
                    # 'e' of four
-                   "midnight_cafe": (0.0, mc(0.75), 1.5, 2.5, mc(3.25))}.get(
+                   "midnight_cafe": (0.0, mc(0.75), 1.5, 2.5, mc(3.25)),
+                   "late_club": (0.0, 1 + T, 3 + T)}.get(  # the late club: a cool Charleston and a push into one
                        style, (0.5, 1.5, 2.5, 3.5)):
             beat = bar * 4 + bt
             ci = s.chords.index(s.chord_at(beat))
@@ -4773,7 +4977,7 @@ def party_stem(s, style):
         tones = sorted({m for m in range(76, 100) if (m - c.root) % 12 in pcs})[:4]
         for i in range(int(c.dur * 2)):
             m = tones[i % len(tones)]
-            if style == "jazz":
+            if style in ("jazz", "late_club"):
                 x = ins.vibes(m, s.sr, vel=0.6, dur=0.8, release=0.3)
             elif style == "beach":  # a marimba on the beach instead of the glockenspiel
                 x = ins.marimba(m, s.sr, vel=0.8, dur=0.8)
@@ -4852,6 +5056,9 @@ DISTRICTS = {
     "midnight_cafe": dict(song=midnight_cafe_song, stems={
         "beat": midnight_cafe_beat, "rain": midnight_cafe_rain, "keys": midnight_cafe_keys,
         "bass": midnight_cafe_bass, "lead": midnight_cafe_lead, "pad": midnight_cafe_pad}),
+    "late_club": dict(song=late_club_song, stems={
+        "beat": late_club_beat, "bass": late_club_bass, "piano": late_club_piano, "vibes": late_club_vibes,
+        "trumpet": late_club_trumpet, "sax": late_club_sax}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -4894,6 +5101,8 @@ LOUDNESS = {
     # the rain is the quietest layer (rain on the glass is a background), but its chimes still have to be heard
     "midnight_cafe": {"beat": -16, "rain": -23, "keys": -18, "bass": -20, "lead": -18.5, "pad": -21,
                       "tension": -18, "party": -16},
+    "late_club": {"beat": -17, "bass": -19, "piano": -19.5, "vibes": -20.5, "trumpet": -18, "sax": -19.5,
+                  "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on

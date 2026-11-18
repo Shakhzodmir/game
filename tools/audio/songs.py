@@ -3847,6 +3847,159 @@ def rooftop_stars(s):
     return {"drums": d, "keys": pno, "bass": bass, "lead": whistle, "celesta": stars}
 
 
+# =================================================== LATE CLUB (Ab) - Part 2
+# Cool jazz after midnight, four other moods of the late club: chairs_on_tables is the closing-time ballad (slow
+# brush sweeps, a muted trumpet to the empty room), cool_cat_strut a medium-up swing (vibraphone and muted trumpet
+# play the tune together over a walking bass), modal_drift a modal vamp (trumpet and tenor sax in thirds over a
+# bass ostinato), neon_lullaby a slow lullaby for the last guests (celesta, vibraphone, felt piano).
+
+LC_T = 2.0 / 3.0  # the swung off-beat (a triplet late)
+
+
+def lc_brushes(s, r, ride=0.0, swish=0.2, taps=0.7, kick=0.35):
+    """Brushes for the late club songs: a swish on every beat, taps with the hi-hat foot on two and four, a
+    feathered kick, and (ride > 0) a ride cymbal 'ding, ding-da-ding' in triplets."""
+    k = kits(s, "jazz")
+    d = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt in range(4):
+            s.add(d, ins.brush_swish(s.sr, s.sec(0.95), key=(bar * 4 + bt) % 5), o + bt, swish)
+            hit(s, d, k["feather"], o + bt, kick if bt in (0, 2) else kick * 0.7, r, 0.003)
+        for bt in (1, 3):
+            hit(s, d, k["tap"], o + bt, taps, r, 0.004)
+            hit(s, d, k["chick"], o + bt, 0.45, r, 0.003)
+        if ride:
+            for bt, v in ((0, 0.8), (1, 1.0), (1 + LC_T, 0.5), (2, 0.8), (3, 1.0), (3 + LC_T, 0.5)):
+                hit(s, d, k["ride"], o + bt, v * ride, r, 0.004)
+    return d
+
+
+def lc_mute(s, x, key):
+    """A harmon-muted trumpet far away: nasal, thin, a short echo and a dark room."""
+    x = loop_filter(s, loop_eq(s, x, "peak", 1600, 7.0, 2.0), "lp", 3200)
+    return room(s, echo(s, x, 0.75, 0.15, 0.3, 2, 2800), 0.35, 2.2, key, damp=3800, predelay=0.03)
+
+
+def lc_rooted(s, ch, lo=55, hi=72, center=63):
+    """Voicings with the root at the bottom (left hand) and the colour tones above it."""
+    top = voicing(ch, lo, hi, center, no_root)
+    return [[nearest(c.root, 46, 41, 52)] + v for c, v in zip(ch, top)]
+
+
+def chairs_on_tables(s):
+    """66 BPM, closing time: the chairs go up on the tables, the brushes sweep slowly, a soft piano holds long
+    chords (a second, softer touch on three), the bass rings one long note under each chord and a muted trumpet
+    sings to the empty room."""
+    r = dsp.rng(s.id, "chairs")
+    t, ch = s.tonic, s.chords
+    d = room(s, loop_filter(s, lc_brushes(s, r, ride=0.0, swish=0.25, taps=0.5, kick=0.3), "lp", 8000), 0.25, 1.6,
+             "drums", damp=5000)
+    rhy = lambda c, i: [(0, 2.6, 0.5), (2 + LC_T, 1.2, 0.36)] if c.dur >= 4 else [(0, 1.8, 0.48)]  # noqa: E731
+    keys = comp(s, ch, lc_rooted(s, ch), rhy, lambda ss, m, du, v: v_piano(ss, m, du, v, 0.45, 0.4), spread=0.012,
+                r=r)
+    keys = room(s, keys, 0.25, 2.0, "keys", damp=4500)
+    bass = line(s, ch, lambda c, n, i: [(0, c.dur * 0.95, root_of(c, 40, 32, 46), 0.85)], v_upright, r=r)
+    bass = room(s, loop_filter(s, bass, "lp", 1500), 0.08, 0.8, "bass", damp=2500)
+    tn = tune("r:1 3:.5 5:.5 1+:1.5 7:.5 | 6:2 5:1 3:1 | 2:1.5 3:.5 4:1 6:1 | 5:3 r:1 |"
+              " 1+:1.5 7:.5 6:1 5:1 | 4:2 6:1 1+:1 | 2+:1 1+:.5 6:.5 5:1 2:1 | 1:3 r:1", t, 4)
+    trp = lc_mute(s, mono(s, tn, "trumpet", swing=1.0 / 3.0, key="chairs"), "trumpet")
+    return {"drums": d, "keys": keys, "bass": bass, "trumpet": trp}
+
+
+def cool_cat_strut(s):
+    """126 BPM medium-up swing: the ride cymbal and the hi-hat on two and four, a walking bass, short piano
+    punches (on one and on the swung 'and' of two), and the tune played together by a vibraphone and, an
+    octave lower, a muted trumpet."""
+    r = dsp.rng(s.id, "strut")
+    t, ch = s.tonic, s.chords
+    d = room(s, lc_brushes(s, r, ride=0.6, swish=0.12, taps=0.55, kick=0.3), 0.14, 1.0, "drums", damp=6500)
+    w = walk(s, 31, 52, 44, "strut")
+    bass = lay(s, v_upright, [(b, 0.9, m, v) for b, m, v in w], r=r, jit=0.004)
+    bass = room(s, loop_filter(s, bass, "lp", 1600), 0.06, 0.6, "bass", damp=2500)
+    punch = [(0, 0.35, 0.6), (1.5, 0.3, 0.5)]
+    keys = comp(s, ch, lc_rooted(s, ch, 56, 74, 65), lambda c, i: within(c, punch) if c.dur < 4 else punch + [
+        (2 + 1.5, 0.3, 0.45)], lambda ss, m, du, v: v_piano(ss, m, du, v, 0.6, 0.12), swing=1.0 / 3.0, grid=0.5,
+        spread=0.006, r=r)
+    keys = room(s, keys, 0.16, 1.2, "keys", damp=5500)
+    text = ("5:.5 6:.5 1+:1 3+:.5 2+:.5 1+:1 | 6:1.5 5:.5 3:2 | 4:.5 5:.5 6:1 1+:.5 6:.5 4:1 | 5:3 r:1 |"
+            " 5:.5 6:.5 1+:1 3+:.5 2+:.5 1+:1 | 6:1.5 1+:.5 2+:2 | 1+:.5 7:.5 6:1 5:.5 4:.5 2:1 | 3:3 r:1 |"
+            " 6:1 1+:1 3+:1.5 2+:.5 | 1+:1 7:1 6:1 5:1 | 4:.5 6:.5 1+:1 7:1 5:1 | 1+:3 r:1")
+    vib = room(s, lay(s, v_vibes, tune(text, t, 5), swing=1.0 / 3.0, grid=0.5, r=r, jit=0.003), 0.2, 1.4, "vib",
+               damp=6000)
+    trp = lc_mute(s, mono(s, tune(text, t, 4), "trumpet", swing=1.0 / 3.0, key="strut"), "trumpet")
+    return {"drums": d, "bass": bass, "keys": keys, "vibes": vib, "trumpet": trp}
+
+
+def lc_third_below(t, m):
+    """The note of the major scale of tonic t two scale steps under m (a third below, in the key)."""
+    pcs = {(t + i) % 12 for i in MAJOR}
+    steps, x = 0, m
+    while steps < 2:
+        x -= 1
+        if x % 12 in pcs:
+            steps += 1
+    return x
+
+
+def modal_drift(s):
+    """100 BPM modal cool jazz: two long chords that take turns (ii and I, then IV and the sus dominant), a bass
+    figure that rocks between root and fifth with a swung pick-up, a ride and brushes, sparse piano chords, and a
+    slow tune played by a muted trumpet with a tenor sax a third below."""
+    r = dsp.rng(s.id, "drift")
+    t, ch = s.tonic, s.chords
+    d = room(s, lc_brushes(s, r, ride=0.45, swish=0.15, taps=0.5, kick=0.3), 0.16, 1.2, "drums", damp=6000)
+
+    def rock(c, n, i):
+        R = root_of(c, 39, 33, 45)
+        out = []
+        for q in range(int(c.dur // 2)):
+            out += [(q * 2.0, 1.3, R, 0.85), (q * 2.0 + 1.0 + LC_T, 0.3, R + 7, 0.6)]
+        return out
+    bass = room(s, loop_filter(s, line(s, ch, rock, v_upright, r=r), "lp", 1500), 0.08, 0.7, "bass", damp=2500)
+    keys = comp(s, ch, lc_rooted(s, ch), lambda c, i: [(0, 1.5, 0.45), (2 + LC_T, 0.8, 0.38)],
+                lambda ss, m, du, v: v_piano(ss, m, du, v, 0.5, 0.25), spread=0.01, r=r)
+    keys = room(s, keys, 0.22, 1.8, "keys", damp=4500)
+    tn = tune("1+:2 6:1 5:1 | 4:3 r:1 | 3:1.5 5:.5 6:1 1+:1 | 7:3 r:1 | 1+:2 2+:1 1+:1 | 6:3 r:1 |"
+              " 5:1.5 6:.5 4:1 2:1 | 3:3 r:1", t, 4)
+    trp = lc_mute(s, mono(s, tn, "trumpet", swing=1.0 / 3.0, key="drift"), "trumpet")
+    low = [(b, du, lc_third_below(t, m), v * 0.85) for b, du, m, v in tn]
+    sax = room(s, echo(s, mono(s, low, "sax", swing=1.0 / 3.0, key="driftsax"), 1.0, 0.1, 0.25, 2, 2500), 0.28,
+               2.0, "sax", damp=3800)
+    return {"drums": d, "bass": bass, "keys": keys, "trumpet": trp, "sax": sax}
+
+
+def neon_lullaby(s):
+    """60 BPM, a lullaby for the last guests: a celesta sings the tune, the vibraphone holds the chords with a
+    slow motor, a felt piano plays a soft broken chord in each bar, the brushes only sweep, the bass holds one
+    long low note per chord."""
+    r = dsp.rng(s.id, "lullaby")
+    t, ch = s.tonic, s.chords
+    d = s.zeros()
+    for bar in range(s.bars):
+        for bt in (0.0, 2.0):
+            s.add(d, ins.brush_swish(s.sr, s.sec(1.8), key=bar * 2 + int(bt)), bar * 4 + bt, 0.6)
+    d = room(s, loop_filter(s, d, "lp", 7000), 0.3, 1.8, "drums", damp=5000)
+    vib = comp(s, ch, voicing(ch, 60, 76, 68, guide), lambda c, i: [(0, c.dur * 0.95, 0.45)],
+               lambda ss, m, du, v: v_vibes(ss, m, du, v, trem=2.2), spread=0.02, r=r)
+    vib = room(s, vib, 0.3, 2.2, "vib", damp=5500)
+    arp = []
+    for c in ch:
+        ns = chord_notes(c, 50, 70)
+        for q in range(int(c.dur)):
+            arp.append((c.start + q, 1.6, ns[(q * 2) % len(ns)], 0.42))
+    keys = room(s, loop_filter(s, lay(s, lambda ss, m, du, v: v_piano(ss, m, du, v, 0.3, 0.6), arp, r=r, jit=0.006),
+                               "lp", 3500), 0.3, 2.2, "keys", damp=4000)
+    bass = line(s, ch, lambda c, n, i: [(0, c.dur * 0.97, root_of(c, 37, 32, 44), 0.8)], v_upright, r=r)
+    bass = room(s, loop_filter(s, bass, "lp", 900), 0.1, 1.0, "bass", damp=2000)
+    tn = tune("3:1 5:1 1+:2 | 7:1 6:1 5:2 | 1:1 3:1 6:2 | 5:3 r:1 | 3:1 5:1 2+:1.5 1+:.5 | 7:2 6:1 4:1 |"
+              " 6:1 5:1 4:1 2:1 | 1:3 r:1", t, 5)
+    cel = room(s, echo(s, lay(s, lambda ss, m, du, v: v_celesta(ss, m, du, v * 0.85, t60=1.2), tn, r=r, jit=0.005),
+                       1.0, 0.2, 0.35, 3, 5000), 0.32, 2.2, "celesta", damp=6000)
+    return {"drums": d, "vibes": vib, "keys": keys, "bass": bass, "celesta": cel}
+
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -3991,6 +4144,15 @@ SONGS = {
                      {"drums": -25, "pad": -21, "bass": -25, "box": -18, "fx": -30}),
     "rooftop_stars": ("Iadd9:4 iii7:4 IVmaj7:4 V6:4 Iadd9:4 iii7:4 IVmaj7:2 V7sus4:2 Iadd9:4", rooftop_stars,
                       {"drums": -17, "keys": -20, "bass": -20, "lead": -18, "celesta": -25}),
+    # late_club (Ab major) - Part 2
+    "chairs_on_tables": ("Iadd9:4 vi7:4 ii9:4 V7sus4:2 V7:2 Iadd9:4 IVmaj7:4 ii9:2 V9:2 Iadd9:4", chairs_on_tables,
+                         {"drums": -21, "keys": -19, "bass": -21, "trumpet": -18}),
+    "cool_cat_strut": ("I6:4 vi7:4 ii7:4 V7:4 I6:4 vi7:4 ii7:4 V7:4 IVmaj7:4 iii7:2 vi7:2 ii7:2 V7:2 Iadd9:4",
+                       cool_cat_strut, {"drums": -18, "bass": -19, "keys": -22, "vibes": -20, "trumpet": -18.5}),
+    "modal_drift": ("ii9:4 ii9:4 Imaj9:4 Imaj9:4 ii9:4 ii9:4 IVmaj7:4 V7sus4:4", modal_drift,
+                    {"drums": -19, "bass": -19, "keys": -23, "trumpet": -18.5, "sax": -20}),
+    "neon_lullaby": ("Iadd9:4 IVmaj7:4 vi7:4 V7sus4:4 Iadd9:4 IVmaj7:4 ii7:2 V7sus4:2 I6:4", neon_lullaby,
+                     {"drums": -25, "vibes": -22, "keys": -21, "bass": -23, "celesta": -19}),
 }
 
 
