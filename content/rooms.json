@@ -203,6 +203,16 @@
         { "kind": "blink", "item": "note_sign", "points": [[160, 322]], "r": 150, "layer": "over", "colors": ["#FF4FD8"], "period": 1.5, "alpha": [0.2, 0.6] },
         { "kind": "bokeh", "count": 2, "layer": "fg", "colors": ["#FFE9A8", "#FFB3D9"], "size": [150, 230], "y": [900, 1150] }
       ]
+    },
+    "nations_fest": {
+      "mood": "festive",
+      "details": [
+        { "kind": "motes", "style": "confetti", "rect": [0, 80, 720, 520], "count": 10, "layer": "fg", "colors": ["#FF4D8D", "#FFDB1A", "#3AA4FF", "#2BE38F", "#9B52FF"] },
+        { "kind": "shaft", "x": 120, "y": 40, "w": 200, "h": 700, "angle": -20, "layer": "mid", "view": "day", "color": "#FFF6C8", "alpha": [0.08, 0.16], "period": 6.0 },
+        { "kind": "steam", "item": "taiko", "x": 330, "y": 600, "count": 4, "size": 46, "rise": 150, "period": 2.4, "layer": "over", "color": "#BFE8FF" },
+        { "kind": "notes", "item": "steel_pan", "x": 600, "y": 470, "count": 3, "layer": "over", "colors": ["#FFDB1A", "#FF4D8D", "#3AA4FF"], "rise": 200, "period": 3.6 },
+        { "kind": "blink", "points": [[60, 150], [180, 130], [300, 150], [420, 130], [540, 150], [660, 130]], "r": 28, "layer": "mid", "view": "concert", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "period": 1.4 }
+      ]
     }
   }
 }

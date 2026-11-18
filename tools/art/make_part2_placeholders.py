@@ -53,6 +53,8 @@ PLACEHOLDER = "placeholder: "   # the source of a placeholder file in installed.
 TASK_FROM = {
     "late_club": {"drums": "stage_light", "double_bass": "double_bass", "piano": "grand_piano", "vibes": "vibes",
                   "muted_trumpet": "trumpet", "note_sign": "neon"},
+    "nations_fest": {"taiko": "fountain", "festival_tent": "truck_stage", "steel_pan": "tuba",
+                     "flag_garland": "garlands", "accordion": "clarinet", "shell_stage": "trumpets"},
 }
 
 # district id -> "night" (the default) or "day" (a sunny version of the genre: the festival look)

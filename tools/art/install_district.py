@@ -131,6 +131,15 @@ ROOMS = {
         ("muted_trumpet", 568, 738, 121),
         ("note_sign", 160, 322, 107),
     ]),
+    # district 18: the places of the street band square items its placeholders borrow (TASK_FROM)
+    "nations_fest": ("3x2", [
+        ("taiko", 330, 700, 158),
+        ("festival_tent", 380, 520, 173),
+        ("steel_pan", 600, 580, 118),
+        ("flag_garland", 360, 322, 456),
+        ("accordion", 560, 716, 62),
+        ("shell_stage", 596, 432, 93),
+    ]),
 }
 
 
