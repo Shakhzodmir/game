@@ -384,7 +384,7 @@ return {
 		["fx/shock"] = { atlas = "game", anim = "fx_shock", w = 256, h = 256 },
 		["fx/spark"] = { atlas = "game", anim = "fx_spark", w = 32, h = 32, also = { "meta" } },
 		["fx/star_particle"] = { atlas = "game", anim = "fx_star_particle", w = 48, h = 48, also = { "meta" } },
-		["logo/logo"] = { file = "/assets/images/logo/logo.png", w = 640, h = 320 },
+		["logo/logo"] = { file = "/assets/images/logo/logo.png", w = 1280, h = 640 },
 		["map/deco_arcade_1"] = { atlas = "map", anim = "map_deco_arcade_1", w = 160, h = 160 },
 		["map/deco_arcade_2"] = { atlas = "map", anim = "map_deco_arcade_2", w = 160, h = 160 },
 		["map/deco_arcade_3"] = { atlas = "map", anim = "map_deco_arcade_3", w = 160, h = 160 },

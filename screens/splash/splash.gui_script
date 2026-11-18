@@ -48,7 +48,8 @@ function init(self)
 	local glow = s:circle(s.root, 360, 780, 700, "#FFF4C9", { alpha = 0.85, soft = true })
 	if not reduced then ui.pulse(glow, 0.06, 1.2) end
 
-	local logo = s:image(s.root, "logo/logo", 360, 800, { scale = 1.0 })
+	-- the producer's logo (tools/art/logo/glow_logo.svg, stored at 2x: drawn 680 wide)
+	local logo = s:image(s.root, "logo/logo", 360, 800, { w = 680, h = 340 })
 	if not logo then
 		logo = s:text(s.root, i18n.t("app.title"), 360, 800, {
 			font = "title", size = 200, color = "pink", outline = "white", shadow = "shadow",
@@ -59,10 +60,22 @@ function init(self)
 		local sc = gui.get_scale(logo)
 		gui.set_scale(logo, sc * 0.01)
 		gui.animate(logo, "scale", sc * 1.12, gui.EASING_OUTBACK, 0.45, 0.1, function()
-			gui.animate(logo, "scale", sc, gui.EASING_OUTELASTIC, 0.6)
+			gui.animate(logo, "scale", sc, gui.EASING_OUTELASTIC, 0.6, 0, function()
+				-- it breathes to the beat: a soft squash and stretch, and a slow float
+				gui.animate(logo, "scale.x", sc.x * 1.035, gui.EASING_INOUTSINE, 0.55, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+				gui.animate(logo, "scale.y", sc.y * 0.97, gui.EASING_INOUTSINE, 0.55, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+			end)
 			local p = gui.get_position(logo)
 			gui.animate(logo, "position.y", p.y + 10, gui.EASING_INOUTSINE, 1.2, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
 		end)
+		-- glints on the two stars of the logo and on the letters
+		for i, g in ipairs({ { -228, 34, 46 }, { 228, 36, 46 }, { -150, -70, 34 }, { 40, -40, 38 }, { 250, -60, 32 } }) do
+			local spark = s:image(logo, "fx/spark", g[1], g[2], { w = g[3], h = g[3], alpha = 0 })
+			if spark then
+				gui.animate(spark, "color.w", 0.95, gui.EASING_INOUTSINE, 0.5, 0.9 + i * 0.23, nil, gui.PLAYBACK_LOOP_PINGPONG)
+				gui.animate(spark, "euler.z", 90, gui.EASING_LINEAR, 2.0, 0, nil, gui.PLAYBACK_LOOP_FORWARD)
+			end
+		end
 		self.fx:after(0.4, function()
 			self.fx:flash(360, 800, { size = 900, dur = 0.5 })
 			self.fx:burst(360, 800, { count = 22, radius = 340, size = 42 })
