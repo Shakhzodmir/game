@@ -544,6 +544,46 @@ embedded_components {
   data: "sound: \"/assets/music/midnight_cafe/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_nations_fest_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_nations_fest_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_nations_fest_brass"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/brass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_nations_fest_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_nations_fest_party"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_nations_fest_shaker"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/shaker.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_nations_fest_steelpan"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/steelpan.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_nations_fest_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/nations_fest/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_ranch_banjo"
   type: "sound"
   data: "sound: \"/assets/music/ranch/banjo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1429,6 +1469,16 @@ embedded_components {
   data: "sound: \"/assets/music/songs/desert_starlight.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_dragon_parade"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/dragon_parade.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_drum_circle"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/drum_circle.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_dub_lagoon"
   type: "sound"
   data: "sound: \"/assets/music/songs/dub_lagoon.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1467,6 +1517,11 @@ embedded_components {
   id: "song_green_hill_jig"
   type: "sound"
   data: "sound: \"/assets/music/songs/green_hill_jig.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_harbor_jig"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/harbor_jig.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_harpsichord_garden"
@@ -1747,6 +1802,11 @@ embedded_components {
   id: "song_stardust_drift"
   type: "sound"
   data: "sound: \"/assets/music/songs/stardust_drift.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_steel_sunrise"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/steel_sunrise.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_steelpan_parade"

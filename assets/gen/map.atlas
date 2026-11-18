@@ -553,6 +553,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_nations_fest_1"
+  images {
+    image: "/assets/images/map/deco_nations_fest_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_nations_fest_2"
+  images {
+    image: "/assets/images/map/deco_nations_fest_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_nations_fest_3"
+  images {
+    image: "/assets/images/map/deco_nations_fest_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_nations_fest_4"
+  images {
+    image: "/assets/images/map/deco_nations_fest_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_nations_fest_5"
+  images {
+    image: "/assets/images/map/deco_nations_fest_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_nations_fest_6"
+  images {
+    image: "/assets/images/map/deco_nations_fest_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_ranch_1"
   images {
     image: "/assets/images/map/deco_ranch_1.png"
