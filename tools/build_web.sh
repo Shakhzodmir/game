@@ -32,6 +32,8 @@ cp web/auth_config.js web/glow_auth.js "$out/"
 # the site's own pages (WP-18): the privacy policy (the game links it as ./privacy.html) and the 404 page that
 # GitHub Pages serves for any address the site does not have
 cp web/privacy.html web/404.html "$out/"
+# the app icon (tools/art/make_app_icon.py) and the web app manifest
+cp web/apple-touch-icon.png web/icon-192.png web/icon-512.png web/favicon.png web/manifest.webmanifest "$out/"
 rm -f "$out/DEBUG_BUILD_DO_NOT_PUBLISH"
 if [ "$VARIANT" = "debug" ]; then
 	echo "debug bundle: cheat keys and the QA bridge are in it. Never publish it." > "$out/DEBUG_BUILD_DO_NOT_PUBLISH"
