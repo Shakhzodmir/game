@@ -225,7 +225,7 @@ end
 function Town:account_prompts()
 	if self.show:busy() or self.sliding or app.ui.popup or self.leaving then return end
 	local d = cloud.decision()
-	if d and self.asked ~= d then
+	if d and not d.auto and self.asked ~= d then -- d.auto: client/cloud.lua settles it itself, no window
 		self.asked = d
 		self:open_popup("cloud_choice")
 		return

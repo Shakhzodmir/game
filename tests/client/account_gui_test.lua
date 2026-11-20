@@ -234,7 +234,7 @@ describe("cloud choice window", function()
 		G.win(app, 1)
 	end
 
-	-- the device (a separate game) is ahead of the account: the one case that still asks
+	-- the device (a separate game) is ahead of the account: settled without a question too (the device save is uploaded)
 	local function device_ahead(app, _, m)
 		G.win(app, 1)
 		local tbl1 = app.meta:serialize()
@@ -242,6 +242,20 @@ describe("cloud choice window", function()
 		m.docs.u001 = { code = savecode.encode(tbl1) }
 		app.reset_save(7, app.now())
 		G.win(app, 3)
+	end
+
+	-- what still asks: the account's save is unreadable (here its older copy can be read, so both saves are shown)
+	local function damaged_account(app, c, m)
+		device_ahead(app, c, m)
+		m.docs.u001 = { code = "GLOW1-garbage", previous = m.docs.u001.code }
+	end
+
+	local function splashes(c)
+		local n = 0
+		for _, p in ipairs(c.E.posted("show_screen", "main:/app")) do
+			if p.message.name == "splash" then n = n + 1 end
+		end
+		return n
 	end
 
 	it("takes the account's save into the town by itself when it is further along (no question)", function()
@@ -258,8 +272,27 @@ describe("cloud choice window", function()
 		end)
 	end)
 
-	it("asks when this device is ahead of the account: both saves, the one further along recommended", function()
+	it("uploads this device's save by itself when it is ahead of the account: no window, the town goes on", function()
 		with_account({ welcomed = true, setup = device_ahead, language = "ru" }, function(c, m)
+			local old = m.docs.u001.code
+			local before = splashes(c)
+			m.google_next = { sub = "g1", email = "a@gmail.com" }
+			auth.sign_in_google(function() end)
+			cloud.on_signed_in()
+			c.run(3)
+			assert_true(c.app.ui.popup ~= "cloud_choice", "no window")
+			assert_eq(cloud.decision(), nil)
+			assert_eq(cloud.status().status, "synced")
+			assert_eq(m.puts, 1)
+			assert_eq(m.docs.u001.code, savecode.encode(c.app.store.last), "the account holds the device save")
+			assert_eq(m.docs.u001.previous, old, "and keeps its old one")
+			assert_eq(c.app.meta:level_to_play(), 4)
+			assert_eq(splashes(c), before, "the town was not restarted")
+		end)
+	end)
+
+	it("still asks when the account's save is damaged: both saves, the one further along recommended", function()
+		with_account({ welcomed = true, setup = damaged_account, language = "ru" }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
@@ -267,11 +300,34 @@ describe("cloud choice window", function()
 			assert_eq(c.app.ui.popup, "cloud_choice")
 			assert_true(has(c, "Уровней 3"), G.dump(c.town))
 			assert_true(has(c, "Уровней 1"))
+			assert_true(c.app.ui.popup_targets.upload ~= nil and c.app.ui.popup_targets.download ~= nil
+				and c.app.ui.popup_targets.cancel ~= nil, "keep this one, take the account's, not now")
+			assert_eq(m.puts, 0, "nothing is written before the answer")
+			assert_eq(c.app.meta:level_to_play(), 4)
+		end)
+	end)
+
+	it("the player's answer in the window is carried out: the device save goes to the account", function()
+		with_account({ welcomed = true, setup = damaged_account }, function(c, m)
+			m.google_next = { sub = "g1", email = "a@gmail.com" }
+			auth.sign_in_google(function() end)
+			cloud.on_signed_in()
+			c.run(3)
+			assert_eq(c.app.ui.popup, "cloud_choice")
+			wtap(c, "upload")
+			c.run(0.6)
+			assert_eq(c.app.ui.popup, nil)
+			assert_eq(cloud.decision(), nil)
+			assert_eq(m.puts, 1)
+			assert_eq(m.docs.u001.code, savecode.encode(c.app.store.last))
+			assert_eq(c.app.meta:level_to_play(), 4)
+			c.run(3)
+			assert_eq(c.app.ui.popup, nil, "and it is not asked again")
 		end)
 	end)
 
 	it("'not now' keeps playing and pauses the upload", function()
-		with_account({ welcomed = true, setup = device_ahead }, function(c, m)
+		with_account({ welcomed = true, setup = damaged_account }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
@@ -287,7 +343,7 @@ describe("cloud choice window", function()
 	end)
 
 	it("closing with the corner button is the same as 'not now'", function()
-		with_account({ welcomed = true, setup = device_ahead }, function(c, m)
+		with_account({ welcomed = true, setup = damaged_account }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
@@ -295,6 +351,8 @@ describe("cloud choice window", function()
 			wtap(c, "close")
 			c.run(0.6)
 			assert_eq(cloud.status().status, "paused")
+			assert_eq(m.puts, 0)
+			assert_eq(c.app.meta:level_to_play(), 4)
 		end)
 	end)
 end)

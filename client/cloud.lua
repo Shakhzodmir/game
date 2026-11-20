@@ -12,8 +12,9 @@
 --   * The device save is never deleted or overwritten by a network result. A cloud save replaces it only
 --     through app.replace_save, which moves the device save to the "previous" slot first; a failed call changes
 --     nothing and is retried later (15 s, 30 s, 1 min ... 5 min). The game does not wait for any of it.
---   * Progress decides, never time (meta/cloudsync.lua). A save with less progress never replaces one with more
---     without the player's choice; the loser is kept ("previous" slot on the device, "previous" field in the cloud).
+--   * Progress decides, never time (meta/cloudsync.lua). The save that is further along wins by itself, on a tie
+--     the account's one (producer, 20.11.2026: one account = one game, no question); the loser is kept ("previous"
+--     slot on the device, "previous" field in the cloud).
 --   * The cloud save is the same save code as the settings window's (meta/savecode.lua), checked completely
 --     (code checksum, save checksum, restore) before it is used; a damaged one is never applied.
 --   * The device save remembers which account it was synced with (the binding file, outside the save). A save
@@ -21,8 +22,10 @@
 --
 -- Decisions (cloud.decision().kind): "offer_upload" (this device is ahead), "offer_download" (the account is
 -- ahead), "choose" (different branches: both summaries are shown, `recommend` is the one further along),
--- "foreign" (the save here belongs to another account). Until the player answers, nothing is uploaded; a
--- decision never opens during a level (the town asks for it).
+-- "foreign" (the save here belongs to another account). A decision with `auto` ("download" | "upload") is settled
+-- without a question, never during a level (after it the two are compared again). Without `auto` (a damaged
+-- account save; another account's save here and no cloud save) the town asks, and until the player answers
+-- nothing is uploaded.
 --
 -- Status: "off" (guest, or no provider), "syncing", "synced", "offline", "error", "decision", "paused".
 -- Bus: "cloud_status" {status}, "cloud_decision" {kind}.
@@ -164,19 +167,54 @@ local function read_doc(doc)
 	return nil, nil, damaged
 end
 
-local function upload(u, previous_code, loc_tbl)
+-- `again`: a failed upload is followed by a full comparison with the account (a device that is not tied to the
+-- account yet is not retried by the background upload of cloud.tick).
+local function upload(u, previous_code, loc_tbl, again)
 	local ok, code = pcall(savecode.encode, loc_tbl)
 	if not ok then return fail("error") end
 	S.auth.cloud_put(code, previous_code, function(good, why)
-		if not good then return fail(why or "error") end
+		if not good then return fail(why or "error", again) end
 		mark_synced(u, loc_tbl.checksum)
 		success()
 	end)
 	return true
 end
 
+-- What a decision is settled with when nobody is asked (producer, 20.11.2026: "one account, it takes from the
+-- cloud by itself; the same login on two devices must be the same game"). The account's save wins whenever it is
+-- further along or the device save belongs to another account; a device that is further along uploads. The loser
+-- is kept as before (the "previous" slot here and in the account). Only what cannot be decided safely still asks:
+-- an unreadable account save, and another account's save on the device when this account has none.
+local function auto_choice(d)
+	if d.damaged then return nil end
+	if d.kind == "offer_download" then return "download" end
+	if d.kind == "offer_upload" then return "upload" end
+	if d.kind == "choose" then return d.recommend == "local" and "upload" or "download" end
+	if d.kind == "foreign" and d.has_cloud then return "download" end
+	return nil
+end
+
+-- Settles the open decision without a question. Never in the middle of a level (replacing the save restarts the
+-- town and would throw the player out of the run): it then waits, and after the level cloud.tick() compares the
+-- device with the account again and settles what it finds then (the level just won and whatever another device
+-- saved meanwhile count; what was read before the level is not applied).
+function M.auto_resolve()
+	local d = S and S.decision
+	if not d or not d.auto then return false end
+	if S.app.screen == "level" then return false end
+	local choice = d.auto
+	if choice == "download" and not d.cloud_tbl then d.auto = nil; return false end
+	if not M.resolve(choice) then d.auto = nil; bus.publish("cloud_decision", { kind = d.kind }); return false end
+	if choice == "download" then
+		pcall(S.app.toast_key, "cloud.loaded", nil, { color = "gold" })
+		pcall(S.app.show_screen, "splash", { from = "import" })
+	end
+	return true
+end
+
 local function ask(d)
 	S.busy = false
+	d.auto = auto_choice(d)
 	S.decision = d
 	set_status("decision")
 	bus.publish("cloud_decision", { kind = d.kind })
@@ -209,26 +247,11 @@ local function reconcile(u, doc, background)
 		mark_synced(u, loc.checksum)
 		return success()
 	elseif a == "upload" then
-		return upload(u, doc and doc.code or nil, loc_tbl)
+		return upload(u, doc and doc.code or nil, loc_tbl, bound ~= "same")
 	end
 	ask({ kind = a, local_sum = loc, cloud_sum = sum, cloud_tbl = tbl, recommend = plan.recommend, doc = doc,
 		bound = bound, has_cloud = tbl ~= nil, damaged = damaged })
-	-- The account is the source of truth (producer, 18.11.2026): when its save is the one further along, it is
-	-- taken without a question. The device save is not lost: it stays in the "previous" slot and in the account's
-	-- own "previous" copy (resolve "download"). Branches where the device is ahead, and a save of another
-	-- account, still ask.
-	-- Never in the middle of a level: replacing the save and restarting the town would throw the player out of the run.
-	-- The question then stays open and is answered in the town (the window), as before.
-	-- Only when the player signs in or starts the game, NEVER from the background check (once a minute): there it would
-	-- restart the town under the player's hands every time another device uploads progress (producer, 18.11.2026:
-	-- "the game reloads itself while I play"). The background check keeps the question for the window instead.
-	if tbl and not damaged and not background and S.app.screen ~= "level" and (a == "offer_download" or (a == "choose" and plan.recommend == "cloud")) then
-		if M.resolve("download") then
-			-- like the window's answer: the town restarts on the loaded save
-			pcall(S.app.toast_key, "cloud.loaded", nil, { color = "gold" })
-			pcall(S.app.show_screen, "splash", { from = "import" })
-		end
-	end
+	M.auto_resolve()
 end
 
 local function fetch(background)
@@ -320,7 +343,7 @@ function M.resolve(choice)
 		S.decision, S.paused = nil, false
 		set_status("syncing")
 		S.busy = true
-		upload(u, d.doc and d.doc.code or nil, loc_tbl)
+		upload(u, d.doc and d.doc.code or nil, loc_tbl, d.auto ~= nil and S.binding.uid ~= u.uid) -- an automatic upload is tried again
 		return true
 	elseif choice == "fresh" then
 		if d.kind ~= "foreign" or d.has_cloud then return false, "refused" end
@@ -339,6 +362,13 @@ end
 function M.tick(t)
 	if not S or not S.app.meta then return end
 	local u = user()
+	if u and S.decision and S.decision.auto and not S.busy then
+		-- It waited for the end of a level. What was read then is old by now (the player may have won the level,
+		-- another device may have saved to the account): it is not applied, the two are compared again.
+		if S.app.screen == "level" then return end
+		S.decision = nil
+		return fetch(false)
+	end
 	if not u or S.busy or S.decision or S.paused then return end
 	t = t or now()
 	if t < S.next_try then return end

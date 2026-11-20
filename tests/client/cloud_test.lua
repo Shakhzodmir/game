@@ -58,6 +58,31 @@ local function previous_summary(dev)
 	return prev and cloudsync.summarize(prev, H.districts())
 end
 
+local function previous_in_account(m, uid)
+	local d = m.docs[uid or m.session]
+	if not d or not d.previous then return nil end
+	return cloudsync.summarize(assert(savecode.decode(d.previous)), H.districts())
+end
+
+-- Runs fn in the middle of a level (the screen is put back even when fn fails).
+local function during_level(fn)
+	local real = app.screen
+	app.screen = "level"
+	local ok, err = pcall(fn)
+	app.screen = real
+	if not ok then error(err, 0) end
+end
+
+-- Runs fn and returns the screens the cloud asked for meanwhile (a loaded save restarts the town from "splash").
+local function screens_shown(fn)
+	local shown, real = {}, app.show_screen
+	app.show_screen = function(name) shown[#shown + 1] = name end
+	local ok, err = pcall(fn)
+	app.show_screen = real
+	if not ok then error(err, 0) end
+	return shown
+end
+
 describe("cloudsync rules", function()
 	local function sum(beaten, stars, wins_, salt)
 		return { beaten = beaten, stars = stars, wins = wins_ or beaten, coins = 0, salt = salt or 1, checksum = "c" .. beaten .. stars }
@@ -145,21 +170,113 @@ describe("client.cloud: scenarios", function()
 		return boot_device({ current = { glow_save = 1, data = tbl } }, 42)
 	end
 
-	it("does not take the cloud save by itself during a level: the question waits for the town", function()
-		local m, _, code3 = two_devices()
+	it("does not take the cloud save in the middle of a level: cloud.tick() takes it once the level is over", function()
+		local m, uid, code3 = two_devices()
 		wins(2)
 		T = T + 5
 		cloud.tick(T)
 		m.session = nil
 		auth.sign_out()
 		device_from_code(code3)
-		local real = app.screen
-		app.screen = "level"
-		sign_in_google(m)
-		local d = cloud.decision()
-		app.screen = real
-		assert_true(d ~= nil and d.kind == "offer_download", "the question is kept")
-		assert_eq(app.meta:level_to_play(), 4, "the device save was not replaced")
+		local shown = screens_shown(function()
+			during_level(function()
+				sign_in_google(m)
+				T = T + 1
+				cloud.tick(T)
+				local d = cloud.decision()
+				assert_true(d ~= nil and d.kind == "offer_download" and d.auto == "download", "it waits for the end of the level")
+				assert_eq(app.meta:level_to_play(), 4, "the device save was not replaced")
+				assert_eq(m.puts, 2, "and nothing was uploaded")
+			end)
+		end)
+		assert_eq(#shown, 0, "the run was not interrupted")
+		shown = screens_shown(function()
+			T = T + 1
+			cloud.tick(T)
+		end)
+		assert_eq(cloud.decision(), nil, "nothing stays open")
+		assert_eq(app.meta:level_to_play(), 6)
+		assert_same(shown, { "splash" })
+		assert_eq(previous_summary().beaten, 3, "the device save is the backup")
+		assert_eq(previous_in_account(m, uid).beaten, 3, "and the account keeps a copy of it")
+		assert_eq(cloud_summary(m).beaten, 5)
+		assert_eq(cloud.status().status, "synced")
+	end)
+
+	it("a level won while the account's save waited is not rolled back: the device is compared again after the level", function()
+		local m, uid, code3 = two_devices()
+		wins(2)
+		T = T + 5
+		cloud.tick(T)
+		local code5 = m.docs[uid].code
+		m.session = nil
+		auth.sign_out()
+		device_from_code(code3)
+		local shown = screens_shown(function()
+			during_level(function()
+				sign_in_google(m)
+				assert_eq(cloud.decision().auto, "download")
+				wins(3) -- the device passes the account: 6 against 5
+				T = T + 1
+				cloud.tick(T)
+				assert_eq(m.docs[uid].code, code5)
+			end)
+			T = T + 1
+			cloud.tick(T)
+		end)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(app.meta:level_to_play(), 7, "the device keeps what was just won")
+		assert_eq(#shown, 0, "nothing was loaded")
+		assert_eq(cloud_summary(m).beaten, 6, "the device save is uploaded instead")
+		assert_eq(m.docs[uid].previous, code5)
+		assert_eq(cloud.status().status, "synced")
+	end)
+
+	it("an upload that waited for the end of a level never overwrites what another device saved meanwhile", function()
+		local m, uid = two_devices() -- the account: 3
+		auth.sign_out(); m.session = nil
+		cloud.sign_out()
+		wins(2)
+		local code5 = app.export_code()
+		wins(1)
+		local code6 = app.export_code()
+		device_from_code(code5)
+		during_level(function()
+			sign_in_google(m)
+			local d = cloud.decision()
+			assert_true(d ~= nil and d.kind == "offer_upload" and d.auto == "upload", "the upload waits for the end of the level")
+			assert_eq(m.puts, 1)
+		end)
+		m.docs[uid] = { code = code6 } -- the other device got further meanwhile
+		T = T + 1
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(cloud_summary(m).beaten, 6, "the account keeps the save that is further along")
+		assert_eq(app.meta:level_to_play(), 7, "and this device takes it")
+		assert_eq(previous_summary().beaten, 5)
+		assert_eq(previous_in_account(m, uid).beaten, 5)
+	end)
+
+	it("a save that waited for the end of a level is taken later when the network is down at that moment", function()
+		local m, uid, code3 = two_devices()
+		wins(2)
+		T = T + 5
+		cloud.tick(T)
+		m.session = nil
+		auth.sign_out()
+		device_from_code(code3)
+		during_level(function() sign_in_google(m) end)
+		m.online = false
+		T = T + 1
+		cloud.tick(T)
+		assert_eq(app.meta:level_to_play(), 4, "nothing changed on the device")
+		assert_eq(cloud.status().status, "offline")
+		m.online = true
+		T = T + 20
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(app.meta:level_to_play(), 6)
+		assert_eq(previous_summary().beaten, 3)
 	end)
 
 	it("takes the cloud save by itself when the account is ahead (no question), the device save stays as a backup", function()
@@ -181,7 +298,35 @@ describe("client.cloud: scenarios", function()
 		assert_eq(cloud_summary(m).beaten, 5)
 	end)
 
-	it("offers to upload when the device is ahead and keeps the old cloud save as previous", function()
+	it("keeps asking when the account's save could not be written to the device, and does not try again by itself", function()
+		local m, uid, code3 = two_devices()
+		wins(2)
+		T = T + 5
+		cloud.tick(T)
+		local code5 = m.docs[uid].code
+		m.session = nil
+		auth.sign_out()
+		device_from_code(code3)
+		local real, tries = app.replace_save, 0
+		app.replace_save = function() tries = tries + 1; return false, "write" end
+		local ok, err = pcall(function()
+			sign_in_google(m)
+			T = T + 5
+			cloud.tick(T)
+		end)
+		app.replace_save = real
+		assert_true(ok, tostring(err))
+		assert_eq(tries, 1)
+		local d = cloud.decision()
+		assert_true(d ~= nil and d.kind == "offer_download" and d.auto == nil, "the window asks now")
+		assert_eq(app.meta:level_to_play(), 4)
+		assert_eq(m.docs[uid].code, code5)
+		assert_eq(m.docs[uid].previous, code3, "the account was not touched")
+		assert_true(cloud.resolve("download"))
+		assert_eq(app.meta:level_to_play(), 6)
+	end)
+
+	it("uploads by itself when the device is ahead (no question) and keeps the old cloud save as previous", function()
 		local m, uid, code3 = two_devices()
 		wins(2)
 		local d_before = m.docs[uid].code
@@ -189,62 +334,114 @@ describe("client.cloud: scenarios", function()
 		m.session = nil
 		cloud.sign_out()
 		-- offline play on A: the binding stays, the device has 5 wins
-		sign_in_google(m)
-		local d = cloud.decision()
-		assert_eq(d.kind, "offer_upload")
-		assert_eq(m.docs[uid].code, d_before, "still the old save")
-		assert_true(cloud.resolve("upload"))
+		local shown = screens_shown(function() sign_in_google(m) end)
+		assert_eq(cloud.decision(), nil, "no question: the device is further along")
+		assert_eq(cloud.status().status, "synced")
 		assert_eq(cloud_summary(m).beaten, 5)
 		assert_eq(m.docs[uid].previous, d_before)
+		assert_eq(app.meta:level_to_play(), 6, "the device save was not touched")
+		assert_eq(#shown, 0, "and the town was not restarted")
+		assert_false(cloud.status().dirty)
 	end)
 
-	it("lets the player choose between branches and keeps the loser on both sides", function()
+	it("of two branches the device's one is uploaded by itself when it is further along, the loser is kept on both sides", function()
 		local m, uid, code3 = two_devices() -- cloud: salt of seed 42, 3 wins
 		auth.sign_out(); m.session = nil
 		boot_device(nil, 7) -- another game, started independently
 		wins(6)
-		sign_in_google(m)
-		local d = cloud.decision()
-		assert_eq(d.kind, "choose")
-		assert_eq(d.recommend, "local")
-		assert_eq(d.local_sum.beaten, 6)
-		assert_eq(d.cloud_sum.beaten, 3)
-		assert_true(cloud.resolve("upload"))
+		local shown = screens_shown(function() sign_in_google(m) end)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(cloud.status().status, "synced")
 		assert_eq(cloud_summary(m).beaten, 6)
 		assert_eq(m.docs[uid].previous, code3, "the account's old save is kept in the cloud")
 		assert_eq(previous_summary().beaten, 3, "and on the device")
 		assert_eq(app.meta:level_to_play(), 7, "the device save was not touched")
+		assert_eq(#shown, 0)
+		assert_eq(cloud.binding().uid, uid)
 	end)
 
-	it("takes the cloud branch when the player says so, device save goes to previous", function()
+	it("of two branches the account's one is taken by itself when it is further along, device save goes to previous", function()
+		local m, uid, code3 = two_devices()
+		auth.sign_out(); m.session = nil
+		boot_device(nil, 7)
+		wins(2)
+		local shown = screens_shown(function() sign_in_google(m) end)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(cloud.status().status, "synced")
+		assert_eq(app.meta:level_to_play(), 4)
+		assert_same(shown, { "splash" })
+		assert_eq(previous_summary().beaten, 2)
+		assert_eq(m.docs[uid].code, code3, "the cloud keeps its save")
+		assert_eq(previous_in_account(m, uid).beaten, 2)
+	end)
+
+	it("two branches that are level: the account's one is taken, on whichever device signs in", function()
+		local m, uid, code3 = two_devices()
+		auth.sign_out(); m.session = nil
+		boot_device(nil, 7)
+		wins(3)
+		during_level(function()
+			sign_in_google(m)
+			local d = cloud.decision()
+			assert_eq(d.kind, "choose")
+			assert_eq(d.recommend, nil, "neither is further along")
+			assert_eq(d.auto, "download")
+		end)
+		T = T + 1
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(m.docs[uid].code, code3)
+		assert_eq(savecode.encode(app.store.last), code3, "this device plays the account's game now")
+		assert_eq(previous_in_account(m, uid).beaten, 3, "the device's own game is kept in the account")
+	end)
+
+	it("an upload that failed right after the sign-in is tried again, and the account ends up with the device save", function()
 		local m, uid, code3 = two_devices()
 		auth.sign_out(); m.session = nil
 		boot_device(nil, 7)
 		wins(6)
-		sign_in_google(m)
-		assert_eq(cloud.decision().kind, "choose")
-		assert_true(cloud.resolve("download"))
-		assert_eq(app.meta:level_to_play(), 4)
-		assert_eq(previous_summary().beaten, 6)
-		assert_eq(m.docs[uid].code, code3, "the cloud keeps its save")
-		assert_eq(cloudsync.summarize(savecode.decode(m.docs[uid].previous), H.districts()).beaten, 6)
+		local real = m.cloud_put
+		m.cloud_put = function(code, prev, cb) cb(false, "offline") end
+		local ok, err = pcall(sign_in_google, m)
+		m.cloud_put = real
+		assert_true(ok, tostring(err))
+		assert_eq(m.docs[uid].code, code3)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(cloud.status().status, "offline")
+		T = T + 20
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(cloud.status().status, "synced")
+		assert_eq(cloud_summary(m).beaten, 6)
+		assert_eq(m.docs[uid].previous, code3)
+		assert_eq(app.meta:level_to_play(), 7)
 	end)
 
 	it("a postponed question pauses uploads without losing anything, sync_now asks again", function()
+		-- a case that still asks: the save here belongs to another account and the one signing in has none
 		local m, uid, code3 = two_devices()
-		auth.sign_out(); m.session = nil
-		boot_device(nil, 7)
-		wins(6)
-		sign_in_google(m)
+		cloud.sign_out()
+		wins(1)
+		sign_in_google(m, "g2", "two@gmail.com")
+		local uid2 = m.session
+		local d = cloud.decision()
+		assert_eq(d.kind, "foreign")
+		assert_eq(d.auto, nil)
+		T = T + 5
+		cloud.tick(T)
+		assert_true(cloud.decision() == d, "it waits for the player")
 		assert_true(cloud.resolve("cancel"))
 		assert_eq(cloud.status().status, "paused")
+		assert_eq(cloud.decision(), nil)
 		wins(1)
 		T = T + 500
 		cloud.tick(T)
 		assert_eq(m.docs[uid].code, code3)
+		assert_eq(m.docs[uid2], nil)
 		assert_eq(m.puts, 1)
+		assert_eq(app.meta:level_to_play(), 6, "the game goes on with the save on the device")
 		assert_true(cloud.sync_now())
-		assert_eq(cloud.decision().kind, "choose")
+		assert_eq(cloud.decision().kind, "foreign")
 	end)
 end)
 
@@ -320,6 +517,22 @@ describe("client.cloud: background sync", function()
 		assert_eq(m.puts, 1)
 	end)
 
+	it("the first upload to an empty account is tried again when it fails", function()
+		local m = new_server()
+		boot_device()
+		wins(2)
+		local real = m.cloud_put
+		m.cloud_put = function(code, prev, cb) cb(false, "offline") end
+		local ok, err = pcall(sign_in_google, m)
+		m.cloud_put = real
+		assert_true(ok, tostring(err))
+		assert_eq(m.docs[m.session], nil)
+		T = T + 20
+		cloud.tick(T)
+		assert_eq(cloud.status().status, "synced")
+		assert_eq(cloud_summary(m).beaten, 2)
+	end)
+
 	it("a failed upload is not marked as synced", function()
 		local m = new_server()
 		boot_device()
@@ -338,7 +551,7 @@ describe("client.cloud: background sync", function()
 		assert_eq(cloud_summary(m).beaten, 2)
 	end)
 
-	it("another device that got further stops the upload and asks, no overwrite", function()
+	it("another device that got further: its save is taken once, nothing is overwritten and the checks after it do nothing", function()
 		local m = new_server()
 		boot_device()
 		wins(3)
@@ -354,12 +567,81 @@ describe("client.cloud: background sync", function()
 		wins(2)
 		local cloud_code = m.docs[uid].code
 		auth.restore(function() end)
-		T = T + 70
-		cloud.tick(T)
-		local d = cloud.decision()
-		assert_true(d ~= nil and d.kind == "offer_download", "the background check never restarts the game: it asks")
-		assert_eq(m.docs[uid].code, cloud_code, "the cloud keeps its progress (nothing of the device overwrote it)")
-		assert_eq(cloud_summary(m).beaten, 6)
+		local puts
+		local shown = screens_shown(function()
+			T = T + 70
+			cloud.tick(T)
+			assert_eq(cloud.decision(), nil, "no question")
+			assert_eq(app.meta:level_to_play(), 7, "the account's save is on the device")
+			assert_eq(previous_summary().beaten, 5, "the device save is the backup")
+			assert_eq(m.docs[uid].code, cloud_code, "the cloud keeps its progress (nothing of the device overwrote it)")
+			assert_eq(previous_in_account(m, uid).beaten, 5, "and has a copy of the device save")
+			assert_eq(cloud.status().status, "synced")
+			-- the checks after it: nothing to do, whatever the time
+			puts = m.puts
+			for _ = 1, 3 do
+				T = T + 70
+				cloud.tick(T)
+			end
+			-- a check that does reach the account ("sync now": the same background comparison) changes nothing
+			local account_previous, gets = m.docs[uid].previous, #m.calls
+			T = T + 70
+			assert_true(cloud.sync_now())
+			assert_eq(#m.calls, gets + 1, "one read of the account")
+			assert_eq(m.calls[#m.calls], "cloud_get")
+			assert_eq(m.puts, puts, "and no write")
+			assert_eq(cloud.decision(), nil)
+			assert_eq(cloud.status().status, "synced")
+			assert_eq(m.docs[uid].code, cloud_code)
+			assert_eq(m.docs[uid].previous, account_previous)
+			assert_eq(app.meta:level_to_play(), 7)
+			assert_eq(previous_summary().beaten, 5, "the backup on the device is still the old device save")
+			local calls = #m.calls
+			for _ = 1, 3 do
+				T = T + 70
+				cloud.tick(T)
+				cloud.flush()
+			end
+			assert_eq(#m.calls, calls, "no request at all once the two are level")
+			assert_eq(m.puts, puts, "nothing is uploaded again")
+			assert_eq(cloud.decision(), nil)
+			assert_eq(m.docs[uid].code, cloud_code)
+			assert_eq(previous_in_account(m, uid).beaten, 5)
+			-- and the game goes on from the account's save as an ordinary upload
+			wins(1)
+			T = T + 5
+			cloud.tick(T)
+			assert_eq(cloud.decision(), nil)
+			assert_eq(m.puts, puts + 1)
+			assert_eq(cloud_summary(m).beaten, 7)
+			assert_eq(app.meta:level_to_play(), 8)
+		end)
+		assert_same(shown, { "splash" }, "the town restarted once, on the loaded save")
+	end)
+
+	it("a second device that took the account's save holds the same save and does not answer with an upload of its own", function()
+		local m = new_server()
+		boot_device()
+		wins(3)
+		sign_in_google(m)
+		local uid = m.session
+		local code3 = app.export_code()
+		wins(1)
+		T = T + 5
+		cloud.tick(T) -- device A: 4 in the account
+		local code4 = m.docs[uid].code
+		boot_device({ current = { glow_save = 1, data = savecode.decode(code3) } }, 42, { data = { v = 1, uid = uid, synced = "x" } })
+		auth.restore(function() end)
+		local shown = screens_shown(function()
+			T = T + 70
+			cloud.tick(T) -- device B (3, not in sync): takes 4
+			T = T + 70
+			cloud.tick(T)
+		end)
+		assert_same(shown, { "splash" })
+		assert_eq(m.docs[uid].code, code4)
+		assert_eq(savecode.encode(app.store.last), code4, "both devices hold the same save")
+		assert_eq(cloud.decision(), nil)
 	end)
 end)
 
@@ -386,8 +668,23 @@ describe("client.cloud: damaged and forged data", function()
 		local d = cloud.decision()
 		assert_eq(d.kind, "offer_upload")
 		assert_true(d.damaged)
+		assert_eq(d.auto, nil, "this one is for the player")
+		T = T + 100
+		cloud.tick(T)
+		assert_true(cloud.decision() == d, "the question stays until the player answers")
 		assert_eq(app.meta:level_to_play(), level)
 		assert_eq(m.puts, 1 , "nothing was written")
+		assert_true(cloud.resolve("cancel"))
+		assert_eq(cloud.status().status, "paused")
+		T = T + 500
+		cloud.tick(T)
+		assert_eq(m.puts, 1, "'not now': still nothing written")
+		assert_true(cloud.sync_now())
+		assert_true(cloud.decision().damaged, "asked again")
+		assert_true(cloud.resolve("upload"))
+		assert_eq(cloud_summary(m).beaten, 1, "the player's word replaces the unreadable save")
+		assert_eq(cloud.decision(), nil)
+		assert_eq(cloud.status().status, "synced")
 	end)
 
 	it("falls back to the previous cloud save when the current one is damaged", function()
@@ -401,6 +698,13 @@ describe("client.cloud: damaged and forged data", function()
 		local d = cloud.decision()
 		assert_eq(d.cloud_sum.beaten, 3)
 		assert_true(d.damaged)
+		assert_eq(d.kind, "choose")
+		assert_eq(d.auto, nil, "a damaged account save is never settled without the player")
+		T = T + 100
+		cloud.tick(T)
+		assert_true(cloud.decision() == d)
+		assert_eq(app.meta:level_to_play(), 2)
+		assert_eq(m.docs[uid].code, "GLOW1-garbage", "nothing was written")
 	end)
 
 	it("refuses a code that parses but fails the save checks (a forged number)", function()
@@ -447,6 +751,11 @@ describe("client.cloud: another account on the same device", function()
 		local d = cloud.decision()
 		assert_eq(d.kind, "foreign")
 		assert_false(d.has_cloud)
+		assert_eq(d.auto, nil, "the player is asked")
+		T = T + 100
+		cloud.tick(T)
+		assert_true(cloud.decision() == d, "and the question waits")
+		assert_eq(app.meta:level_to_play(), 5)
 		assert_eq(m.docs[m.session], nil, "nothing uploaded to the new account")
 		assert_eq(m.puts, 1)
 		assert_false((cloud.resolve("download")))
@@ -464,6 +773,7 @@ describe("client.cloud: another account on the same device", function()
 		wins(2)
 		sign_in_google(m, "g2", "two@gmail.com")
 		local uid2 = m.session
+		local doc2 = m.docs[uid2].code
 		cloud.sign_out()
 		-- back on the first player's device
 		boot_device({ current = { glow_save = 1, data = savecode.decode(doc1) } }, 42, nil)
@@ -471,18 +781,45 @@ describe("client.cloud: another account on the same device", function()
 		T = T + 1
 		local binding = { data = { v = 1, uid = uid1, signed_out = true } }
 		boot_device({ current = { glow_save = 1, data = savecode.decode(doc1) } }, 42, binding)
-		sign_in_google(m, "g2", "two@gmail.com")
-		local d = cloud.decision()
-		assert_eq(d.kind, "foreign")
-		assert_true(d.has_cloud)
-		local doc2 = m.docs[uid2].code
-		assert_false((cloud.resolve("upload")))
+		local shown = screens_shown(function() sign_in_google(m, "g2", "two@gmail.com") end)
+		assert_eq(cloud.decision(), nil, "no question: the account's own save is taken")
+		assert_same(shown, { "splash" })
+		assert_eq(cloud.status().status, "synced")
 		assert_eq(m.docs[uid2].code, doc2)
-		assert_true(cloud.resolve("download"))
 		assert_eq(app.meta:level_to_play(), 3)
 		assert_eq(previous_summary().beaten, 4)
 		assert_eq(m.docs[uid1].code, doc1)
 		assert_eq(m.docs[uid2].previous, nil, "the first player's save never enters the second account")
+	end)
+
+	it("the device save of another account cannot be uploaded over the account's own, even while it waits for a level to end", function()
+		local m, uid1, doc1 = player_one()
+		boot_device(nil, 11)
+		wins(2)
+		sign_in_google(m, "g2", "two@gmail.com")
+		local uid2 = m.session
+		local doc2 = m.docs[uid2].code
+		cloud.sign_out()
+		local binding = { data = { v = 1, uid = uid1, signed_out = true } }
+		boot_device({ current = { glow_save = 1, data = savecode.decode(doc1) } }, 42, binding)
+		during_level(function()
+			sign_in_google(m, "g2", "two@gmail.com")
+			local d = cloud.decision()
+			assert_eq(d.kind, "foreign")
+			assert_true(d.has_cloud)
+			assert_eq(d.auto, "download")
+			assert_false((cloud.resolve("upload")))
+			assert_eq(m.docs[uid2].code, doc2)
+			assert_eq(app.meta:level_to_play(), 5, "the level goes on with the save that was here")
+		end)
+		T = T + 1
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(app.meta:level_to_play(), 3)
+		assert_eq(previous_summary().beaten, 4)
+		assert_eq(m.docs[uid2].code, doc2)
+		assert_eq(m.docs[uid2].previous, nil, "the first player's save never enters the second account")
+		assert_eq(m.docs[uid1].code, doc1)
 	end)
 
 	it("the same account signing in again is a plain sync", function()
