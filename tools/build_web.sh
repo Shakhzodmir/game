@@ -23,10 +23,24 @@ else
 	echo "error: python3 is needed to run tools/gen_defold.py (or set SKIP_GEN=1)" >&2
 	exit 1
 fi
+# assets/gen/web.settings (tools/gen_defold.py): the web archive leaves out the pictures of every district but the
+# first one; they ship below as plain files in packs/ and the game downloads them when the player gets there
 "$JAVA" -jar "$BOB" --platform wasm-web --architectures wasm-web \
-	--variant "$VARIANT" --archive --bundle-output dist \
+	--variant "$VARIANT" --archive --settings assets/gen/web.settings --bundle-output dist \
 	resolve distclean build bundle
 out="$(dirname "$(find dist -name index.html | head -1)")"
+# the remote pictures (assets/gen/web_packs.txt lists them): packs/<path under assets/images>, next to index.html
+rm -rf "$out/packs"
+packs=0
+while IFS= read -r src || [ -n "$src" ]; do
+	src="$(printf '%s' "$src" | tr -d '\r')"
+	[ -n "$src" ] || continue
+	dst="$out/packs/${src#assets/images/}"
+	mkdir -p "$(dirname "$dst")"
+	cp "$src" "$dst"
+	packs=$((packs + 1))
+done < assets/gen/web_packs.txt
+echo "remote pictures: $packs files in $out/packs"
 # accounts (WP-10): the browser bridge and the public provider configuration sit next to index.html
 cp web/auth_config.js web/glow_auth.js "$out/"
 # the site's own pages (WP-18): the privacy policy (the game links it as ./privacy.html) and the 404 page that
