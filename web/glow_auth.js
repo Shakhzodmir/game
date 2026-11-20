@@ -33,6 +33,8 @@
 		var c = (e && e.code) || "";
 		if (c === "auth/popup-closed-by-user" || c === "auth/cancelled-popup-request" || c === "auth/user-cancelled") return "cancelled";
 		if (c === "auth/popup-blocked") return "popup_blocked";
+		if (c === "glow/inapp-browser") return "inapp_browser";
+		if (c === "auth/web-storage-unsupported" || c === "auth/operation-not-supported-in-this-environment") return "browser_unsupported";
 		if (c === "auth/network-request-failed" || c === "unavailable" || c === "firestore/unavailable") return "offline";
 		if (c === "auth/user-not-found" || c === "auth/wrong-password" || c === "auth/invalid-credential" ||
 			c === "auth/invalid-login-credentials") return "bad_credentials";
@@ -204,8 +206,24 @@
 	// The game opens the Google window from its own frame loop, not inside the tap, so Safari (iPhone) and strict
 	// pop-up blockers refuse it (auth/popup-blocked). Then a real page button is shown: its click IS a user gesture,
 	// and the same call made inside it is allowed. Cancel resolves as a cancelled sign-in.
+	// Google refuses its sign-in page inside the built-in browsers of messengers and social apps (Telegram, Instagram,
+	// KakaoTalk, ...: "403 disallowed_useragent"), and the pop-up cannot report back from them. Such a browser is
+	// recognised before the window opens, and the game says to open the link in Safari or Chrome instead.
+	function inAppBrowser() {
+		var test = window.glowAuth && window.glowAuth._test;
+		if (test && test.inapp != null) return !!test.inapp;
+		var ua = navigator.userAgent || "";
+		if (/FBAN|FBAV|FB_IAB|Instagram|KAKAOTALK|NAVER\(|Line\/|MicroMessenger|Telegram|TikTok|musical_ly|Snapchat|Twitter|; wv\)/i.test(ua)) return true;
+		if (window.TelegramWebviewProxy || window.TelegramWebview) return true;
+		// an iPhone / iPad page that is not Safari, Chrome, Firefox or Edge and not a Home Screen app: a web view of an app
+		var ios = /iPhone|iPad|iPod/.test(ua);
+		if (ios && !navigator.standalone && !/Safari\//.test(ua)) return true;
+		return false;
+	}
+
 	function withGesture(open) {
 		var test = window.glowAuth && window.glowAuth._test;
+		if (inAppBrowser()) { var ia = new Error("in-app browser"); ia.code = "glow/inapp-browser"; return Promise.reject(ia); }
 		return open().catch(function (e) {
 			if (!e || e.code !== "auth/popup-blocked") throw e;
 			if (test && test.gesture) return test.gesture(open);
@@ -345,9 +363,24 @@
 			done(id, true, "", fields);
 		}, function (e) {
 			if (window.console && console.warn) console.warn("glowAuth " + op + ":", e && (e.code || e.message));
-			done(id, false, reasonOf(e, op === "link_email_form" ? "link_email" : op), {});
+			var why = reasonOf(e, op === "link_email_form" ? "link_email" : op);
+			if (why === "error") note(op + ": " + String((e && (e.code || e.message)) || "?").slice(0, 80));
+			done(id, false, why, {});
 		});
 		return "ok";
+	}
+
+	// An error the game has no text for: its code is shown small at the bottom for 8 seconds, so that a player can
+	// tell the developer what exactly failed (a phone has no console).
+	function note(text) {
+		try {
+			var n = document.createElement("div");
+			n.textContent = text;
+			n.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483001;padding:8px 10px;border-radius:10px;" +
+				"background:rgba(43,35,69,.9);color:#fff;font:12px sans-serif;text-align:center;pointer-events:none;";
+			document.body.appendChild(n);
+			setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, 8000);
+		} catch (x) { /* no page: tests */ }
 	}
 
 	function poll() {

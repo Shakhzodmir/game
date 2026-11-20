@@ -594,6 +594,8 @@ local S = {
 	["auth.err.offline"] = { en = "No connection. Try again later", ru = "Нет соединения. Попробуйте позже" },
 	["auth.err.timeout"] = { en = "The server did not answer. Try again later", ru = "Сервер не ответил. Попробуйте позже" },
 	["auth.err.popup_blocked"] = { en = "The browser blocked the sign-in window. Allow pop-ups", ru = "Браузер заблокировал окно входа. Разрешите всплывающие окна" },
+	["auth.err.inapp_browser"] = { en = "Google sign-in does not work inside this app. Open the game in Safari or Chrome", ru = "Вход через Google не работает внутри этого приложения. Откройте игру в Safari или Chrome" },
+	["auth.err.browser_unsupported"] = { en = "This browser blocks sign-in. Turn off private mode or use Safari or Chrome", ru = "Этот браузер не даёт войти. Выключите приватный режим или откройте Safari или Chrome" },
 	["auth.err.bad_credentials"] = { en = "Wrong ID or password", ru = "Неверный ID или пароль" },
 	["auth.err.id_taken"] = { en = "This ID is taken. Choose another", ru = "Этот ID занят. Выберите другой" },
 	["auth.err.email_in_use"] = { en = "This e-mail belongs to another account", ru = "Эта почта принадлежит другому аккаунту" },
