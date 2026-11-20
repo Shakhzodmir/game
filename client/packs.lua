@@ -20,6 +20,7 @@
 --   packs.focus(did, order)         -- the player's district and the district order: what is far goes first
 --   packs.update()                  -- starts queued requests, ends the ones past their deadline (every frame)
 --   packs.progress(did)             --> got, total (bytes), pending (files queued or loading), failed (files)
+--   packs.offline()                 --> true while the link looks down (the requests pause)
 --   packs.version                   -- grows by one whenever a picture arrives
 --   packs.status()                  --> plain table for QA
 
@@ -82,6 +83,11 @@ local function entry(key)
 	local e = st.images[key]
 	if e and e.remote then return e end
 	return nil
+end
+
+-- True while the link looks down (many failures in a row, no success since): the requests pause.
+function M.offline()
+	return st.streak >= M.STREAK
 end
 
 -- "queued" | "loading" | "ready" | "failed" | nil (never asked for, or released)
