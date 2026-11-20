@@ -4,7 +4,7 @@ local packs = require("client.packs")
 -- a fake web: requests wait in a list until the test answers them
 local function web()
 	local w = { calls = {}, t = 0 }
-	w.request = function(url, done) w.calls[#w.calls + 1] = { url = url, done = done } end
+	w.request = function(url, done, seconds) w.calls[#w.calls + 1] = { url = url, done = done, seconds = seconds } end
 	w.clock = function() return w.t end
 	w.answer = function(i, status, body) w.calls[i].done(status, body) end
 	return w
@@ -31,7 +31,7 @@ local ORDER = { "cafe", "jazz", "square", "stadium" }
 describe("client.packs", function()
 	local w
 	local saved = {}
-	for _, k in ipairs({ "PARALLEL", "TRIES", "PAUSE", "RETRY_AFTER", "TIMEOUT", "BUDGET", "RECENT" }) do saved[k] = packs[k] end
+	for _, k in ipairs({ "PARALLEL", "TRIES", "PAUSE", "RETRY_AFTER", "TIMEOUT", "MIN_RATE", "BUDGET", "RECENT", "STREAK", "HOLD", "HOLD_MAX" }) do saved[k] = packs[k] end
 	before_each(function()
 		for k, v in pairs(saved) do packs[k] = v end -- a test may change the knobs
 		w = web()
@@ -160,6 +160,19 @@ describe("client.packs", function()
 		assert_eq(packs.bytes("districts/jazz/bg"), "JPEG")
 	end)
 
+	it("gives a big file more time: the limit grows with its size (a slow link must not time out a map tile)", function()
+		packs.TIMEOUT, packs.MIN_RATE, packs.PAUSE = 10, 1, 1
+		packs.want("districts/stadium/bg", packs.NOW) -- 6 bytes at 1 byte a second: 16 s
+		packs.update()
+		assert_eq(w.calls[1].seconds, 16, "the HTTP request gets the same limit")
+		w.t = 15.9
+		packs.update()
+		local _, _, pending = packs.progress("stadium")
+		assert_eq(pending, 1)
+		w.answer(1, 200, "STADIU")
+		assert_eq(packs.bytes("districts/stadium/bg"), "STADIU", "in time")
+	end)
+
 	it("never raises: a request function that throws, an answer callback with garbage", function()
 		packs.init({ request = function() error("boom") end, clock = w.clock, base = "b/", images = images(), groups = GROUPS })
 		packs.want("districts/jazz/bg")
@@ -184,6 +197,7 @@ describe("client.packs", function()
 		assert_eq(failed, 0)
 		assert_false(packs.complete("jazz"))
 		w.answer(2, 200, "SAX")
+		packs.update() -- (at most PARALLEL requests at once: the third starts now)
 		w.answer(3, 200, "MB")
 		assert_true(packs.complete("jazz"))
 		assert_true(packs.complete("cafe"), "no remote pictures: complete")

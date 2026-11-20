@@ -10,8 +10,8 @@
 -- every frame, so every request is made from that one script, which lives as long as the app (an answer to a
 -- request made by a screen would be lost with the screen). Nothing here raises; nothing is allocated while idle.
 --
---   packs.init({request = fn(url, done), base = "https://host/game/", clock = fn() -> seconds,
---               images = index.images, groups = index.packs})   -- done(status, body)
+--   packs.init({request = fn(url, done, seconds), base = "https://host/game/", clock = fn() -> seconds,
+--               images = index.images, groups = index.packs})   -- done(status, body); seconds: its time limit
 --   packs.enabled()                 --> true when remote pictures are fetched (the web build)
 --   packs.remote(key)               --> true for a picture that is fetched, not read from the archive
 --   packs.bytes(key)                --> its bytes | nil (not here yet)
@@ -27,11 +27,12 @@
 local M = {}
 
 M.NOW, M.FOCUS, M.NEXT, M.LATER = 1, 2, 3, 4
-M.PARALLEL = 3                 -- requests at once
+M.PARALLEL = 2                 -- requests at once (a slow link shares its speed among them)
 M.TRIES = 3                    -- attempts in a row before a file counts as failed
 M.PAUSE = 1.5                  -- seconds before the second attempt (doubles each time)
 M.RETRY_AFTER = 20             -- a failed file may be asked for again after this (doubles up to 16x)
-M.TIMEOUT = 60                 -- seconds a request may take
+M.TIMEOUT = 30                 -- seconds any request may take, plus the time its file takes at MIN_RATE:
+M.MIN_RATE = 6 * 1024          -- bytes a second (a 1 MB map tile gets about 200 s: a slow link must not time it out)
 M.BUDGET = 16 * 1024 * 1024    -- bytes held before files of far districts are released
 M.RECENT = 30                  -- a file read in the last seconds is not released
 M.LOG_MAX = 300                -- QA: the order of the first requests
@@ -227,15 +228,17 @@ end
 local function start(key, f)
 	st.req = st.req + 1
 	local id = st.req
-	f.state, f.req, f.at = "loading", id, now() + M.TIMEOUT
+	local e = st.images[key]
+	local limit = M.TIMEOUT + (e.bytes or 0) / M.MIN_RATE
+	f.state, f.req, f.at = "loading", id, now() + limit
 	st.queued = st.queued - 1
 	st.loading = st.loading + 1
 	st.started = st.started + 1
 	if #st.log < M.LOG_MAX then st.log[#st.log + 1] = key end
-	local url = st.base .. st.images[key].remote
+	local url = st.base .. e.remote
 	local ok = pcall(st.request, url, function(status, body)
 		pcall(arrived, key, id, status, body)
-	end)
+	end, limit)
 	if not ok and f.req == id then failed_attempt(f) end
 end
 

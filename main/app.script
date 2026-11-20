@@ -78,10 +78,10 @@ local function init_packs(self)
 		clock = socket.gettime,
 		images = assets.index.images,
 		groups = assets.index.packs,
-		request = function(url, done)
+		request = function(url, done, seconds)
 			http.request(url, "GET", function(_, _, res)
 				done(res and res.status, res and res.response)
-			end, nil, nil, { timeout = packs.TIMEOUT })
+			end, nil, nil, { timeout = seconds or packs.TIMEOUT })
 		end,
 	})
 	self.pack_order = {}
