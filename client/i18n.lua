@@ -696,6 +696,9 @@ local S = {
 	["town.hard"] = { en = "Hard", ru = "Сложный" },
 	["town.super_hard"] = { en = "Super Hard", ru = "Суперсложный" },
 	["town.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
+	-- the web build downloads the pictures of a district when the player gets there (client/packs.lua)
+	["town.room_loading"] = { en = "Loading the district… {pct}%", ru = "Загружаем район… {pct}%" },
+	["town.room_offline"] = { en = "No connection: pictures will come later", ru = "Нет связи: картинки появятся позже" },
 	["town.task_need"] = {
 		en = { one = "Need {n} more star", other = "Need {n} more stars" },
 		ru = { one = "Нужна ещё {n} звезда", few = "Нужно ещё {n} звезды", many = "Нужно ещё {n} звёзд" },

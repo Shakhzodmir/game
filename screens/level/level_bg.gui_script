@@ -26,6 +26,7 @@ local level_carpet = require("client.level_carpet")
 local level_conveyor = require("client.level_conveyor")
 local level_portal = require("client.level_portal")
 local level_sky = require("client.level_sky")
+local packs = require("client.packs")
 
 local GUI = "/screens/level/level_bg.gui"
 local FRAME_PAD = 20 -- board/board_frame: 14 px frame + 6 px backing around the cells
@@ -202,6 +203,13 @@ local function apply_theme(self, level)
 	local s = self.ui
 	local district = level_sky.district_of(app.district_list, level)
 	local key, own = assets.level_bg_key(district)
+	self.waiting_bg = nil
+	if own and not s:loose_texture(key) then
+		-- the web build has not downloaded the district's picture yet (client/packs.lua; loose_texture asked for
+		-- it): the common backdrop, as for a district without a picture of its own, until it arrives (update)
+		self.waiting_bg = key
+		key, own = assets.level_bg_key(nil)
+	end
 	local kind = level_sky.kind(district, own)
 	local id = key .. "|" .. kind .. "|" .. (district or "")
 	self.level_seen = level
@@ -210,6 +218,7 @@ local function apply_theme(self, level)
 	if self.l_theme then s:clear(self.l_theme) end
 	self.l_theme = s:layer(self.c_theme, "theme")
 	s:backdrop(self.l_theme, key)
+	s:release_images({ [key] = true }) -- the common backdrop leaves the GPU when the district's own came
 	self.sky_nodes, self.sky_t = {}, 0
 	for _, it in ipairs(level_sky.items(kind, district or "")) do
 		local n = s:image(self.l_theme, it.key, it.x, it.y, { w = it.w, h = it.h, alpha = it.alpha })
@@ -255,7 +264,12 @@ end
 function update(self, dt)
 	self.ui:update(dt)
 	local level = level_now()
-	if level and level ~= self.level_seen then apply_theme(self, level) end
+	if level and level ~= self.level_seen then
+		apply_theme(self, level)
+	elseif self.waiting_bg and packs.version ~= self.packs_seen then
+		self.packs_seen = packs.version
+		if packs.bytes(self.waiting_bg) then apply_theme(self, self.level_seen) end -- the district's picture came
+	end
 	update_sky(self, dt)
 	local v = link.view()
 	if not v or not v.geom then return end

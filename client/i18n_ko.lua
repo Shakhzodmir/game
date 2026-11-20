@@ -416,6 +416,8 @@ return {
 	["toast.saved_failed"] = "진행도를 저장하지 못했어요. 다시 시도해요...",
 
 	["town.all_done"] = "새 레벨이 곧 나와요!",
+	["town.room_loading"] = "동네를 불러오는 중... {pct}%",
+	["town.room_offline"] = "연결이 없어요. 그림은 나중에 받아요",
 	["town.back_to"] = "{name}(으)로 돌아가기",
 	["town.concert"] = "콘서트",
 	["town.day"] = "낮",

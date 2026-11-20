@@ -41,6 +41,7 @@ local flow = require("client.flow")
 local analytics = require("client.services.analytics")
 local auth = require("client.services.auth")
 local cloud = require("client.cloud")
+local packs = require("client.packs")
 local scene_mod = require("screens.town.scene")
 local hud_mod = require("screens.town.hud")
 local show_mod = require("screens.town.show")
@@ -69,6 +70,7 @@ local REGISTRY = {
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
+local ROOM_NOTE_Y = 990 -- the "loading the district" note, under the ribbon
 local SWIPE_MIN = 90   -- logical px of a horizontal swipe that pages the districts
 local TAP_SLOP = 26    -- a press and release further apart than this is a drag, not a tap
 
@@ -119,6 +121,56 @@ function Town:keep_images()
 	if c then REGISTRY.concert.images(c.params.district or self.district, keep) end
 	if self.popups and self.popups:find("notebook") then REGISTRY.notebook.images(keep) end
 	return keep
+end
+
+-- the room's pictures in the web build ------------------------------------------------------------
+-- The web build downloads the pictures of every district but the first one (client/packs.lua). While pictures of the
+-- room on display are on their way, a note says so with the progress (after failures: that they come later; the
+-- downloads go on by themselves); when they came, the room is drawn again, once. The town works meanwhile.
+
+function Town:room_note(missing, pending, got, total)
+	local text
+	if missing > 0 then
+		if pending > 0 then
+			text = i18n.t("town.room_loading", { pct = total > 0 and math.floor(100 * got / total) or 0 })
+		else
+			text = i18n.t("town.room_offline")
+		end
+	end
+	if text == self.note_text then return end
+	self.note_text = text
+	local s = self.ui
+	if self.note then
+		s:clear(self.note)
+		self.note = nil
+	end
+	if not text then return end
+	self.note = s:layer(self.c_note)
+	s:round(self.note, 360, ROOM_NOTE_Y, 580, 76, "white", { alpha = 0.92 })
+	s:text(self.note, text, 360, ROOM_NOTE_Y + 2, { font = "body", size = 28, color = "text", max_width = 540 })
+end
+
+function Town:room_check(dt)
+	if not packs.enabled() then return end
+	self.room_t = (self.room_t or 1) + dt
+	local arrived = packs.version ~= self.packs_seen
+	if not arrived and self.room_t < 0.5 then return end
+	self.room_t = 0
+	self.packs_seen = packs.version
+	local did = self.district
+	local view = app.meta:view(did)
+	local missing, pending, got, total = scene_mod.waiting(did, view)
+	if missing > 0 then
+		-- first in line; a picture that failed comes back into the queue after its pause
+		for k in pairs(scene_mod.images(did, view)) do packs.want(k, packs.NOW) end -- order-free: a set
+	end
+	local room = self.scene.room
+	if room and room.did == did and room.waiting > 0 and missing < room.waiting and (missing == 0 or pending == 0)
+		and not self.sliding and not self.scene.fading then
+		self.dirty_scene = true
+	end
+	app.ui.room_waiting = missing
+	self:room_note(missing, pending, got, total)
 end
 
 -- popups ----------------------------------------------------------------------------------------
@@ -427,6 +479,7 @@ local function new_town()
 	if stale then app.push_reward(stale) end
 
 	t.c_scene = t.ui:layer(t.ui.root, "scene")
+	t.c_note = t.ui:layer(t.ui.root, "room_note")
 	t.c_bit = t.ui:layer(t.ui.root, "bit")
 	t.ui:anchor(t.c_bit, "bottom")
 	t.c_ui = t.ui:layer(t.ui.root, "ui")
@@ -509,6 +562,7 @@ function Town:update(dt)
 			self:publish()
 		end
 	end
+	self:room_check(dt)
 	self.show:update()
 	if self.ui.pressed then self.press_age = (self.press_age or 0) + dt end
 	self.popups:update(dt)
