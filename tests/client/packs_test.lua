@@ -221,6 +221,35 @@ describe("client.packs", function()
 		assert_eq(w.calls[#w.calls].url, "https://host/game/packs/districts/jazz/bg.jpg?v=aa")
 	end)
 
+	it("pauses every request after many failures in a row (the link is down), and goes on after a success", function()
+		packs.STREAK, packs.HOLD, packs.HOLD_MAX, packs.PARALLEL, packs.PAUSE = 2, 5, 60, 1, 0
+		packs.want_district("jazz", packs.FOCUS)
+		packs.update()
+		w.answer(1, 0, nil)
+		packs.update()
+		assert_eq(#w.calls, 2, "one failure: the next file goes at once")
+		w.answer(2, 0, nil)
+		packs.update()
+		assert_eq(#w.calls, 2, "two in a row: everything waits HOLD seconds")
+		w.t = 4.9
+		packs.update()
+		assert_eq(#w.calls, 2)
+		w.t = 5
+		packs.update()
+		assert_eq(#w.calls, 3)
+		w.answer(3, 0, nil)
+		w.t = 14.9
+		packs.update()
+		assert_eq(#w.calls, 3, "a third failure: twice as long")
+		w.t = 15
+		packs.update()
+		assert_eq(#w.calls, 4)
+		local body = { ["districts/jazz/bg"] = "JPEG", ["districts/jazz/sax"] = "SAX", ["mapbg/bg_jazz"] = "MB" }
+		w.answer(4, 200, body[w.calls[4].url:match("packs/(.-)%.%a+%?")])
+		packs.update()
+		assert_eq(#w.calls, 5, "a success ends the pause")
+	end)
+
 	-- (last: the tests of other files share this Lua state and expect the module off, as in a native build)
 	it("is off again after _reset()", function()
 		packs._reset()

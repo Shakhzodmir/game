@@ -406,13 +406,19 @@ function View:make_gate(seg)
 	local sg = m.segments[seg]
 	local holder = s:layer(self.seg_layers[seg].gate)
 	local node = s:image(holder, sg.gate, 360, sg.gate_y, { w = 720, h = 480 })
-	if not node then
-		node = s:round(holder, 360, sg.gate_y, 520, 160, "#9B5CFF", { radius = 40 })
-		if packs.remote(sg.gate) then self.gate_standins[seg] = sg.gate end
-	end
 	local sign = sg.sign or { dx = 0, dy = 116, w = 280 }
 	local d = app.district_by_id and app.district_by_id[sg.district]
 	local name = d and i18n.name(d.name) or sg.district
+	if not node then
+		-- no picture (or the web build is still downloading it, client/packs.lua): the name on a plain sign where
+		-- the board of the gate would be
+		if packs.remote(sg.gate) then self.gate_standins[seg] = sg.gate end
+		s:round(holder, 360, sg.gate_y + 116, 560, 96, "#9B5CFF", { radius = 40 })
+		s:text(holder, name, 360, sg.gate_y + 118, {
+			font = "button", size = 38, color = "white", outline = false, shadow = "#6C32CF", max_width = 500,
+		})
+		return holder
+	end
 	-- the name sits in the middle of the blank signboard of the gate picture (content/map.json `sign`, found by
 	-- tools/art/gate_signs.py) and is no taller than the board
 	local size = sign.h and math.max(22, math.min(38, math.floor(sign.h * 0.6))) or 38

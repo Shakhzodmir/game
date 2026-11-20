@@ -169,6 +169,17 @@ function Town:room_check(dt)
 		and not self.sliding and not self.scene.fading then
 		self.dirty_scene = true
 	end
+	-- the picture of the next task on the card (the district being built, maybe not the one on display) came:
+	-- the card is drawn again
+	local task = views.task(app.meta)
+	local card_key = task and packs.remote(task.image) and task.image or nil
+	local have = card_key ~= nil and packs.bytes(card_key) ~= nil
+	if card_key ~= self.card_key then
+		self.card_key, self.card_have = card_key, have
+	elseif have and not self.card_have then
+		self.card_have = true
+		self.dirty_ui = true
+	end
 	app.ui.room_waiting = missing
 	self:room_note(missing, pending, got, total)
 end

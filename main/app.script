@@ -31,6 +31,7 @@ local auth = require("client.services.auth")
 local cloud = require("client.cloud")
 local packs = require("client.packs")
 local assets = require("client.assets")
+local level_sky = require("client.level_sky")
 
 local FADE = 0.25
 local FADE_WATCHDOG = FADE + 1.5  -- seconds a fade may take before the manager moves on
@@ -87,18 +88,21 @@ local function init_packs(self)
 	for i, d in ipairs(app.district_list or {}) do self.pack_order[i] = d.id end
 end
 
+-- The district the town builds and the district of the level to play (they differ while the player is ahead with
+-- the levels or behind with the stars) come first, then the district after the farther of the two.
 local function prefetch(self)
 	if not packs.enabled() then return end
 	local focus = app.focus_district()
+	local playing = level_sky.district_of(app.district_list, app.meta:level_to_play()) or focus
 	packs.focus(focus, self.pack_order)
 	packs.want_district(focus, packs.FOCUS)
+	packs.want_district(playing, packs.FOCUS)
+	local last
 	for i, id in ipairs(self.pack_order) do
-		if id == focus then
-			local nxt = self.pack_order[i + 1]
-			if nxt then packs.want_district(nxt, packs.NEXT) end
-			break
-		end
+		if id == focus or id == playing then last = i end
 	end
+	local nxt = last and self.pack_order[last + 1]
+	if nxt then packs.want_district(nxt, packs.NEXT) end
 end
 
 -- screen state machine -------------------------------------------------------------------

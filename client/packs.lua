@@ -34,6 +34,9 @@ M.TIMEOUT = 60                 -- seconds a request may take
 M.BUDGET = 16 * 1024 * 1024    -- bytes held before files of far districts are released
 M.RECENT = 30                  -- a file read in the last seconds is not released
 M.LOG_MAX = 300                -- QA: the order of the first requests
+M.STREAK = 6                   -- failed attempts in a row (any files) that mean the link is down...
+M.HOLD = 4                     -- ...and no request starts for this long (doubles with each further failure)
+M.HOLD_MAX = 60
 
 local st
 
@@ -41,7 +44,7 @@ function M._reset()
 	st = {
 		request = nil, base = nil, clock = os.clock, images = {}, groups = {},
 		files = {},        -- key -> {state = "queued"|"loading"|"ready"|"failed", prio, seq, tries, rounds, at, req, data, used}
-		queued = 0, loading = 0, held = 0, seq = 0, req = 0,
+		queued = 0, loading = 0, held = 0, seq = 0, req = 0, streak = 0, hold = 0,
 		focus = nil, order = {}, rank = {},
 		started = 0, done = 0, errors = 0, released = 0,
 		log = {},
@@ -181,6 +184,11 @@ local function failed_attempt(f)
 	f.req = nil
 	st.loading = st.loading - 1
 	st.errors = st.errors + 1
+	-- many failures in a row, whatever the file: the link is down, nobody gains from more requests for a while
+	st.streak = st.streak + 1
+	if st.streak >= M.STREAK then
+		st.hold = now() + math.min(M.HOLD_MAX, M.HOLD * 2 ^ (st.streak - M.STREAK))
+	end
 	f.tries = f.tries + 1
 	if f.tries < M.TRIES then
 		f.state = "queued"
@@ -202,6 +210,7 @@ local function arrived(key, id, status, body)
 		f.state, f.data, f.used, f.tries, f.rounds = "ready", body, now(), 0, 0
 		st.held = st.held + #body
 		st.done = st.done + 1
+		st.streak, st.hold = 0, 0
 		M.version = M.version + 1
 		trim(key)
 	else
@@ -243,7 +252,7 @@ function M.update()
 			if f.state == "loading" and t > f.at then failed_attempt(f) end
 		end
 	end
-	while st.loading < M.PARALLEL and st.queued > 0 do
+	while st.loading < M.PARALLEL and st.queued > 0 and t >= st.hold do
 		local key, f = pick(t)
 		if not key then break end
 		start(key, f)
