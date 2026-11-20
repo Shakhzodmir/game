@@ -436,6 +436,25 @@ def pack_district(key, dids):
     return None
 
 
+def pack_order(key):
+    """Sort key of a remote image within its district: what the player sees first comes first (the room, the grey
+    ghosts of the items not restored yet, the level background), then the restored items, the concert look, the map."""
+    name = key.split("/")[-1]
+    if key.startswith("mapbg/"):
+        rank = 5
+    elif name == "bg":
+        rank = 0
+    elif name.endswith("_ghost"):
+        rank = 1
+    elif name == "level_bg":
+        rank = 2
+    elif name.startswith("bg_"):
+        rank = 4
+    else:
+        rank = 3
+    return (rank, key)
+
+
 def plan_remote(images, dids):
     """{image_key: {district, url, bytes}} of the loose images that are not in the web archive."""
     first = dids[0] if dids else None
@@ -838,10 +857,10 @@ def index_text(images, atlases, anims, fonts, sounds, guis, remote=None):
             L.append("\t\t[%s] = { atlas = %s, anim = %s, w = %d, h = %d%s }," % (
                 lua_string(key), lua_string(a), lua_string(anims[key]), e["w"], e["h"], extra))
     L.append("\t},")
-    L.append("\t-- the remote images of each district (keys, sorted)")
+    L.append("\t-- the remote images of each district, in the order they are fetched (pack_order)")
     L.append("\tpacks = {")
     groups = {}
-    for key in sorted(remote):
+    for key in sorted(remote, key=pack_order):
         groups.setdefault(remote[key]["district"], []).append(key)
     for did in sorted(groups):
         L.append("\t\t[%s] = { %s }," % (lua_string(did), ", ".join(lua_string(k) for k in groups[did])))
