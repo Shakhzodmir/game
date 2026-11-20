@@ -307,7 +307,8 @@ function M.status(with_log)
 	return {
 		enabled = M.enabled(), base = st.base, ready = ready, queued = st.queued, loading = st.loading, failed = failed,
 		held = st.held, budget = M.BUDGET, started = st.started, done = st.done, errors = st.errors,
-		released = st.released, version = M.version, focus = st.focus, log = with_log and st.log or nil,
+		released = st.released, version = M.version, focus = st.focus, offline = M.offline(),
+		log = with_log and st.log or nil,
 	}
 end
 

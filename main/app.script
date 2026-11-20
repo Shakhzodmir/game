@@ -355,9 +355,10 @@ local function qa_handlers(self)
 			return { ok = true }
 		end,
 		-- the downloads of the remote pictures (client/packs.lua): counters and the order of the requests
-		packs = function()
+		packs = function(args)
 			local st = packs.status(true)
 			st.ok = true
+			if args[1] then st.key_state = packs.state(args[1]) end -- packs <image key>: where that picture is
 			return st
 		end,
 		layer = function(args)
