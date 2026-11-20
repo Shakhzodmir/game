@@ -34,6 +34,7 @@ local gfx = require("client.gfx")
 local assets = require("client.assets")
 local gui_qa = require("client.gui_qa")
 local i18n = require("client.i18n")
+local packs = require("client.packs")
 
 local M = {}
 
@@ -412,15 +413,29 @@ local function image_type(t)
 	return IMAGE_TYPES[t]
 end
 
+-- The bytes of a loose image: from the archive (custom resources), or, for a picture the web build fetches
+-- (client/packs.lua), the downloaded copy. nil while it is on its way: the download is asked for (on screen now:
+-- first in line) and the caller draws its stand-in; the screen redraws when packs.version moves.
+local function loose_bytes(key, e)
+	if e.remote and packs.enabled() then
+		local data = packs.bytes(key)
+		if not data then packs.want(key, packs.NOW) end
+		return data
+	end
+	local ok, data = pcall(sys.load_resource, e.file)
+	return ok and data or nil
+end
+
 -- Texture id of a loose image (districts/*, backgrounds/*), loaded on first
--- use from the custom resources. nil when the file is missing or unreadable.
+-- use from the custom resources. nil when the file is missing or unreadable,
+-- or (the web build) not downloaded yet.
 function Scene:loose_texture(key, e)
 	local img = self.images[key]
 	if img then return img.id, img end
 	e = e or assets.image(key)
 	if not e or not e.file then return nil end
-	local ok, data = pcall(sys.load_resource, e.file)
-	if not ok or not data then return nil end
+	local data = loose_bytes(key, e)
+	if not data then return nil end
 	local ok2, im = pcall(image.load, data, { premultiply_alpha = true })
 	if not ok2 or not im then
 		print("WARNING: ui: cannot decode " .. e.file)

@@ -81,6 +81,12 @@ local function entry(key)
 	return nil
 end
 
+-- "queued" | "loading" | "ready" | "failed" | nil (never asked for, or released)
+function M.state(key)
+	local f = st.files[key]
+	return f and f.state or nil
+end
+
 function M.bytes(key)
 	local f = st.files[key]
 	if f and f.data then
@@ -274,15 +280,16 @@ function M.complete(did)
 	return got >= total
 end
 
-function M.status()
-	local ready = 0
+-- with_log: also the keys of the first requests in the order they were made (QA)
+function M.status(with_log)
+	local ready, failed = 0, 0
 	for _, f in pairs(st.files) do
-		if f.data then ready = ready + 1 end
+		if f.data then ready = ready + 1 elseif f.state == "failed" then failed = failed + 1 end
 	end
 	return {
-		enabled = M.enabled(), base = st.base, ready = ready, queued = st.queued, loading = st.loading,
+		enabled = M.enabled(), base = st.base, ready = ready, queued = st.queued, loading = st.loading, failed = failed,
 		held = st.held, budget = M.BUDGET, started = st.started, done = st.done, errors = st.errors,
-		released = st.released, version = M.version, focus = st.focus, log = st.log,
+		released = st.released, version = M.version, focus = st.focus, log = with_log and st.log or nil,
 	}
 end
 

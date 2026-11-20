@@ -89,7 +89,7 @@ describe("client.packs", function()
 		w.answer(3, 200, "STADIU")
 		packs.update()
 		assert_true(w.calls[4].url:find("jazz/sax", 1, true) ~= nil, w.calls[4].url)
-		local log = packs.status().log
+		local log = packs.status(true).log
 		assert_same(log, { "districts/square/bg", "districts/jazz/bg", "districts/stadium/bg", "districts/jazz/sax" })
 	end)
 

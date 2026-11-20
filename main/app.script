@@ -29,6 +29,8 @@ local iap = require("client.services.iap")
 local ads = require("client.services.ads")
 local auth = require("client.services.auth")
 local cloud = require("client.cloud")
+local packs = require("client.packs")
+local assets = require("client.assets")
 
 local FADE = 0.25
 local FADE_WATCHDOG = FADE + 1.5  -- seconds a fade may take before the manager moves on
@@ -52,6 +54,51 @@ local function load_districts()
 	local gdata = sys.load_resource("/content/genres.json")
 	if gdata then districts.genres = json.decode(gdata).genres end
 	return districts
+end
+
+-- remote pictures (client/packs.lua) -----------------------------------------------------------
+-- The web build leaves the pictures of every district but the first one out of its archive (assets/gen/web.settings
+-- sets glow.packs = 1) and ships them next to index.html. This script owns the downloads: it makes every request
+-- (an answer goes to the script that asked, and this one lives as long as the app) and, once a second, asks for
+-- the player's district first and the next one after it. The splash does not wait for anything.
+
+local function config_on(key)
+	local ok, v = pcall(sys.get_config_string, key, "0")
+	return ok and v == "1"
+end
+
+local function init_packs(self)
+	if not (platform.is_html5() and html5 and html5.run and http and config_on("glow.packs")) then return end
+	-- the folder of the page (the site lives at /game/): the remote addresses are relative to it
+	local ok, base = pcall(html5.run, "new URL('.', document.baseURI).href")
+	if not ok or type(base) ~= "string" or base == "" then return end
+	packs.init({
+		base = base,
+		clock = socket.gettime,
+		images = assets.index.images,
+		groups = assets.index.packs,
+		request = function(url, done)
+			http.request(url, "GET", function(_, _, res)
+				done(res and res.status, res and res.response)
+			end, nil, nil, { timeout = packs.TIMEOUT })
+		end,
+	})
+	self.pack_order = {}
+	for i, d in ipairs(app.district_list or {}) do self.pack_order[i] = d.id end
+end
+
+local function prefetch(self)
+	if not packs.enabled() then return end
+	local focus = app.focus_district()
+	packs.focus(focus, self.pack_order)
+	packs.want_district(focus, packs.FOCUS)
+	for i, id in ipairs(self.pack_order) do
+		if id == focus then
+			local nxt = self.pack_order[i + 1]
+			if nxt then packs.want_district(nxt, packs.NEXT) end
+			break
+		end
+	end
 end
 
 -- screen state machine -------------------------------------------------------------------
@@ -303,6 +350,12 @@ local function qa_handlers(self)
 			audio.stop_music()
 			return { ok = true }
 		end,
+		-- the downloads of the remote pictures (client/packs.lua): counters and the order of the requests
+		packs = function()
+			local st = packs.status(true)
+			st.ok = true
+			return st
+		end,
 		layer = function(args)
 			audio.layer(args[1] or "tension", args[2] ~= "0")
 			return { ok = true }
@@ -362,6 +415,9 @@ function init(self)
 	if platform.is_html5() then auth.set_provider(require("client.services.auth_web").new()) end
 	cloud.init({ app = app, auth = auth, binding = save_io.account_backend() })
 	cloud.start()
+	-- the pictures of the player's district start coming during the splash
+	init_packs(self)
+	prefetch(self)
 
 	self.busy = false
 	self.current = nil
@@ -417,7 +473,9 @@ function update(self, dt)
 		self.tick = self.tick - 1
 		app.tick(app.now()) -- lives regenerate; a failed save is retried here
 		cloud.tick(app.now()) -- background cloud save and its retries (client/cloud.lua)
+		prefetch(self) -- the player may have reached the next district; a failed picture is asked for again
 	end
+	packs.update()
 	watchdog(self, dt)
 	qa_bridge.update()
 end
