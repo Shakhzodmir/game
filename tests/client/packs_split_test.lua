@@ -158,6 +158,14 @@ describe("web build split of the loose images (tools/gen_defold.py)", function()
 		assert_true(sh:find("--settings assets/gen/web.settings", 1, true) ~= nil, "bob gets the web settings")
 		assert_true(sh:find("assets/gen/web_packs.txt", 1, true) ~= nil, "the remote files are copied")
 		assert_true(sh:find('$out/packs/', 1, true) ~= nil, "into packs/ next to index.html")
+		-- the service worker that keeps them across releases: copied, registered by the page, and it stores only a
+		-- versioned packs/ address whose content matches its hash
+		assert_true(sh:find("web/packs_sw.js", 1, true) ~= nil, "build_web.sh copies web/packs_sw.js")
+		local page = assert(read("web/engine_template.html"))
+		assert_true(page:find("serviceWorker.register('packs_sw.js')", 1, true) ~= nil, "the page registers it")
+		local sw = assert(read("web/packs_sw.js"))
+		assert_true(sw:find("'/packs/'", 1, true) ~= nil and sw:find("searchParams.get('v')", 1, true) ~= nil, "packs/ with v= only")
+		assert_true(sw:find("digest('SHA-1'", 1, true) ~= nil, "checks the content hash before storing")
 	end)
 
 	it("game.project keeps whole folders: other platforms and the tests read every picture from the archive", function()

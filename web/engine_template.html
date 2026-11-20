@@ -168,6 +168,13 @@
 			EngineLoader.load("canvas", "{{exe-name}}");
 			runningFromFileWarning.parentNode.removeChild(runningFromFileWarning);
 		}
+		// GLOW: the district pictures downloaded on demand (packs/...?v=<hash>) stay in the browser across releases
+		// (web/packs_sw.js, copied next to index.html by tools/build_web.sh). Without it the game works the same.
+		try {
+			if ('serviceWorker' in navigator && window.isSecureContext) {
+				navigator.serviceWorker.register('packs_sw.js').catch(function () {});
+			}
+		} catch (e) {}
 	</script>
 </body>
 </html>

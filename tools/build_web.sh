@@ -41,6 +41,8 @@ while IFS= read -r src || [ -n "$src" ]; do
 	packs=$((packs + 1))
 done < assets/gen/web_packs.txt
 echo "remote pictures: $packs files in $out/packs"
+# the service worker that keeps them in the browser across releases (registered by web/engine_template.html)
+cp web/packs_sw.js "$out/"
 # accounts (WP-10): the browser bridge and the public provider configuration sit next to index.html
 cp web/auth_config.js web/glow_auth.js "$out/"
 # the site's own pages (WP-18): the privacy policy (the game links it as ./privacy.html) and the 404 page that
