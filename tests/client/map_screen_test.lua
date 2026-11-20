@@ -359,6 +359,48 @@ describe("screens/map/map.gui_script", function()
 			assert_same(c.E.audit(), {})
 		end)
 	end)
+
+	-- the web build downloads the pictures of every district but the first one (client/packs.lua)
+	it("in the web build draws a plain tile and gate sign until the district's map pictures come, then the pictures", function()
+		local calls = {}
+		with_map({ setup = function(app)
+			G.win(app, 40)
+			local assets = require("client.assets")
+			require("client.packs").init({
+				base = "https://host/game/", clock = function() return 0 end,
+				images = assets.index.images, groups = assets.index.packs,
+				request = function(url, done) calls[#calls + 1] = { url = url, done = done } end,
+			})
+		end }, function(c)
+			local packs = require("client.packs")
+			local assets = require("client.assets")
+			local v = c.map.self.m.view
+			local tile, gate = "mapbg/bg_square", "mapbg/gate_square"
+			assert_true(assets.image(tile).remote ~= nil and assets.image(gate).remote ~= nil)
+			local function standins(key)
+				local n = 0
+				for _, k in pairs(v.standins) do if k == key then n = n + 1 end end -- order-free: a count
+				for _, k in pairs(v.gate_standins) do if k == key then n = n + 1 end end
+				return n
+			end
+			assert_true(standins(tile) > 0, "the tiles of the player's district are plain while they download")
+			assert_eq(standins(gate), 1, "and its gate is a sign")
+			assert_true(c.map:has_text("Street Band Square", true), "the sign has the district's name")
+			packs.update()
+			for _, call in ipairs(calls) do
+				for _, key in ipairs({ tile, gate }) do
+					local e = assets.image(key)
+					if call.url == "https://host/game/" .. e.remote then call.done(200, string.rep("x", e.bytes)) end
+				end
+			end
+			c.step(3)
+			assert_eq(standins(tile), 0, "the tiles came: drawn again with the picture")
+			assert_eq(standins(gate), 0)
+			assert_true(v.ui.images[tile] ~= nil, "the tile picture is decoded and on the GPU")
+			assert_same(c.E.audit(), {})
+		end)
+		require("client.packs")._reset()
+	end)
 end)
 
 -- A map of a long game (WP-13): the screen is built from content/map.json, whatever the number of levels.

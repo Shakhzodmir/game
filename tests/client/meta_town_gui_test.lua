@@ -897,3 +897,85 @@ describe("the strict stub's audit of texts", function()
 		end)
 	end)
 end)
+
+-- the web build downloads the pictures of every district but the first one (client/packs.lua)
+describe("screens/town: the room while its pictures download (the web build)", function()
+	it("shows a note with the progress, then draws the room once when the pictures came", function()
+		local calls = {}
+		G.with_town({ setup = function(app)
+			G.build_tasks(app, "cafe") -- the player is in the second district now
+			local assets = require("client.assets")
+			require("client.packs").init({
+				base = "https://host/game/", clock = function() return 0 end,
+				images = assets.index.images, groups = assets.index.packs,
+				request = function(url, done) calls[#calls + 1] = { url = url, done = done } end,
+			})
+		end }, function(c)
+			local packs = require("client.packs")
+			local assets = require("client.assets")
+			local scene_mod = require("screens.town.scene")
+			local t = c.town.self.t
+			local did = t.district
+			assert_true(did ~= "cafe" and assets.index.packs[did] ~= nil, "a district the web build downloads: " .. tostring(did))
+			local view = c.app.meta:view(did)
+			c.run(1)
+			assert_true(c.town:find("Loading the district", true) ~= nil, "the note says the room is loading")
+			assert_true((scene_mod.waiting(did, view)) > 0)
+			local room = t.scene.room
+			assert_true(room.waiting > 0)
+			-- the downloads answer, a few at a time (at most PARALLEL requests run)
+			local size = {}
+			for _, e in pairs(assets.index.images) do -- order-free: a lookup
+				if e.remote then size["https://host/game/" .. e.remote] = e.bytes end
+			end
+			local answered = 0
+			for _ = 1, 200 do
+				packs.update()
+				local more = false
+				for i = answered + 1, #calls do
+					calls[i].done(200, string.rep("x", size[calls[i].url]))
+					answered = i
+					more = true
+				end
+				if not more then break end
+			end
+			c.run(2)
+			assert_eq((scene_mod.waiting(did, view)), 0, "every picture of the room is here")
+			assert_true(t.scene.room ~= room, "the room was drawn again")
+			assert_eq(t.scene.room.waiting, 0)
+			assert_eq(c.town:find("Loading the district", true), nil, "the note is gone")
+			assert_same(c.E.audit(), {})
+		end)
+		require("client.packs")._reset()
+	end)
+
+	it("says 'no connection' when the downloads keep failing, and the town keeps working", function()
+		local calls = {}
+		G.with_town({ setup = function(app)
+			G.build_tasks(app, "cafe")
+			local assets = require("client.assets")
+			require("client.packs").init({
+				base = "https://host/game/", clock = function() return 0 end,
+				images = assets.index.images, groups = assets.index.packs,
+				request = function(url, done) calls[#calls + 1] = { url = url, done = done } end,
+			})
+		end }, function(c)
+			local packs = require("client.packs")
+			for _ = 1, 20 do
+				packs.update()
+				for i = 1, #calls do
+					if not calls[i].seen then
+						calls[i].seen = true
+						calls[i].done(0, nil)
+					end
+				end
+			end
+			c.run(1)
+			assert_true(packs.offline())
+			assert_true(c.town:find("No connection", true) ~= nil, "the note says the pictures come later")
+			assert_true(c.app.ui.targets and c.app.ui.targets.level ~= nil, "the level button is still there")
+			assert_same(c.E.audit(), {})
+		end)
+		require("client.packs")._reset()
+	end)
+end)

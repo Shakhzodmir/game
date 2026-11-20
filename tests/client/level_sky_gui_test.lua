@@ -137,6 +137,37 @@ describe("screens/level/level_bg.gui_script: the sky", function()
 		end)
 	end)
 
+	it("in the web build shows the common backdrop until the district's picture is downloaded, then its own", function()
+		local packs = require("client.packs")
+		local key = "districts/bazaar/level_bg"
+		local e = assets.image(key)
+		assert_true(e and e.remote ~= nil, "bazaar's level picture is one the web build downloads")
+		local calls = {}
+		packs.init({
+			base = "https://host/game/", clock = function() return 0 end,
+			images = assets.index.images, groups = assets.index.packs,
+			request = function(url, done) calls[#calls + 1] = { url = url, done = done } end,
+		})
+		local ok, err = pcall(with_sky, 161, function(c)
+			c.step(1)
+			assert_eq(c.self.theme_id, "backgrounds/level_bg|clouds|bazaar", "the common backdrop meanwhile")
+			assert_eq(#c.clouds(), #sky.CLOUDS)
+			packs.update()
+			local mine
+			for _, call in ipairs(calls) do
+				if call.url == "https://host/game/" .. e.remote then mine = call end
+			end
+			assert_true(mine ~= nil, "the screen asked for the district's picture")
+			c.step(3)
+			assert_eq(c.self.theme_id, "backgrounds/level_bg|clouds|bazaar", "nothing changes before it comes")
+			mine.done(200, string.rep("x", e.bytes))
+			c.step(1)
+			assert_eq(c.self.theme_id, "districts/bazaar/level_bg|clouds|bazaar", "its own picture once it came")
+		end)
+		packs._reset()
+		if not ok then error(err, 0) end
+	end)
+
 	it("keeps the registry honest: the sprites of the sky exist and the common picture is a loose file", function()
 		assert_true(assets.has_image("fx/cloud"))
 		local e = assets.image("backgrounds/level_bg")
