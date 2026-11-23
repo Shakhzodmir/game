@@ -279,7 +279,7 @@ function Hud:on_goal(p)
 end
 
 -- the hint of a goal -------------------------------------------------------------------------------------------
--- A press on a goal tile (screens/level/level.gui_script asks tap_goal) shows a pill under the panel for a few seconds: the
+-- A press on a goal tile (screens/level/level.gui_script asks goal_at) shows a pill under the panel for a few seconds: the
 -- picture of the goal, one line (client/level_hud.lua GOAL_HINT: the tutorial's line for an element, "what and how many"
 -- for a colour) and a pointer under the tile. It is only drawn: nothing in the game hears of it (no pause, no move, no
 -- tutorial), there is one at a time, it never takes a press, and reduced motion draws it without a movement. The pill

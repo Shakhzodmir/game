@@ -524,8 +524,11 @@ function Level:on_input(action_id, action)
 	-- is not touched, it goes where it was meant. A press on a tile is taken below, and only that one.
 	local tile = nil
 	if action.pressed then
-		tile = self:can_explain() and self.hud:goal_at(action) or nil
-		if not tile then self.hud:hide_goal_hint() end
+		if self:can_explain() then
+			local ok, k = pcall(self.hud.goal_at, self.hud, action) -- (cosmetic code never stops a touch)
+			tile = ok and k or nil
+		end
+		if not tile then guard(self, "goal hint", self.hud.hide_goal_hint, self.hud) end
 	end
 	if self.ui:on_input(action_id, action) then return true end
 	if action.pressed then
@@ -543,7 +546,7 @@ function Level:on_input(action_id, action)
 		end
 		if tile then
 			-- the tile explains itself; the board never hears of this touch (no selection lost, no booster disarmed)
-			self.hud:show_goal_hint(tile)
+			guard(self, "goal hint", self.hud.show_goal_hint, self.hud, tile)
 			self.swallow = not action.released
 			return true
 		end
