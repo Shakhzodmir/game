@@ -426,12 +426,14 @@ function View:make_gate(seg)
 		-- no picture (or the web build is still downloading it, client/packs.lua): the name on a plain sign where
 		-- the board of the gate would be
 		if packs.remote(sg.gate) then self.gate_standins[seg] = sg.gate end
-		s:round(holder, 360, sg.gate_y + 116, 560, 96, "#9B5CFF", { radius = 40 })
-		s:text(holder, name, 360, sg.gate_y + 118, {
+		local plate_y, plate_h = sg.gate_y + 116, 96
+		s:round(holder, 360, plate_y, 560, plate_h, "#9B5CFF", { radius = 40 })
+		s:text(holder, name, 360, plate_y + 2, {
 			font = "button", size = 38, color = "white", outline = false, shadow = "#6C32CF", max_width = 500,
 		})
-		-- (the "Part 2" tag does not wait for the picture: it sits over the plain sign just as it sits over the board)
-		self:part_tag(holder, sg, 360, sg.gate_y + 116 + 48 + 28)
+		-- the "Part 2" tag does not wait for the picture: it sits 28 px over the top edge of the plain sign, as it sits over
+		-- the top edge of the board of the picture
+		self:part_tag(holder, sg, 360, plate_y + plate_h / 2 + 28)
 		return holder
 	end
 	-- the name sits in the middle of the blank signboard of the gate picture (content/map.json `sign`, found by
