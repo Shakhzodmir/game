@@ -4421,6 +4421,135 @@ def unplugged_garage(s):
     return {"drums": d, "guitar": gtr, "bass": bass, "lead": lead}
 
 
+# =================================================== SUNSET BOSSA (C) - Part 2
+# Four songs of the golden hour: golden_hour_walk is a relaxed bossa stroll, last_ferry_home a slow sunset ballad,
+# sea_salt_samba a light samba, lantern_tide a quiet bossa for the first lanterns.
+
+
+def golden_hour_walk(s):
+    """104 BPM bossa stroll: a soft kick and the clave on the rim, brushed 8ths, a nylon guitar on the bossa figure, a warm
+    upright bass and a breezy flute tune that sings over the chords."""
+    r = dsp.rng(s.id, "walk")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "jazz", "latin")
+    d = s.zeros()
+    hits(s, d, k["feather"], "X.....x.X.....x.", r, gain=0.75)
+    hits(s, d, k["rim"], ["x..x..x...x..x..", "..x..x...x..x..."], r, gain=0.65)
+    hits(s, d, k["cabasa"], "x.o.x.o.x.o.x.o.", r, gain=0.5)
+    d = room(s, d, 0.14, 0.9, "drums", damp=6000)
+    vo = voicing(ch, 52, 72, 62)
+
+    def clave(c, i):
+        base = [(0, 0.9, 0.75), (1.5, 0.45, 0.62)]
+        return base + ([(2.5, 0.45, 0.62), (3.5, 0.45, 0.62)] if c.dur >= 4 else [])
+    gtr = strum_comp(s, ch, vo, clave, r=r, bright=0.3, t60=1.1, mute=0.1, spread=0.012)
+    gtr = room(s, loop_eq(s, loop_filter(s, gtr, "hp", 130), "peak", 2200, 2.0, 0.9), 0.16, 1.0, "gtr", damp=5000)
+
+    def bass(c, n, i):
+        R = root_of(c, 40, 33, 47)
+        F = R + 7 if R + 7 <= 50 else R - 5
+        base = [(0, 1.4, R, 0.9), (1.5, 0.9, F, 0.75)]
+        return base + ([(2.5, 0.9, R, 0.8), (3.5, 0.45, F, 0.6)] if c.dur >= 4 else [])
+    bs_ = room(s, loop_filter(s, line(s, ch, bass, v_upright, r=r), "lp", 1200), 0.06, 0.6, "bass", damp=2500)
+    tn = tune("r:.5 3:.5 5:1 7:.5 5:.5 3:1 | 6:1 4:.5 2:.5 7:1 5:1 | 1+:1.5 7:.5 5:1 3:1 | 4:.5 6:.5 1+:1 3+:1 1+:1 |"
+              " r:.5 5:.5 7:1 1+:.5 7:.5 5:1 | 6:.5 1+:.5 2+:1 4+:1 2+:1 | 3+:1.5 1+:.5 7:1 5:1 | 6:1 4:1 6:1 1+:1 |"
+              " 2+:1 1+:.5 6:.5 5:1 7:1 | 1+:2 7:1 5:1 | 6:1 4:1 5:.5 7:.5 2+:1 | 1+:2 5:1 7:1", t, 5)
+    fl = mono(s, tn, "flute", key="walk")
+    fl = room(s, echo(s, fl, 0.75, 0.15, 0.35, 2, 4000), 0.25, 1.4, "flute", damp=5000)
+    return {"drums": d, "guitar": gtr, "bass": bs_, "lead": fl}
+
+
+def last_ferry_home(s):
+    """76 BPM sunset ballad: a soft electric piano on the chords, a long upright bass, brushes that come in on the
+    second phrase and a wistful flute with an echo."""
+    r = dsp.rng(s.id, "ferry")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "jazz")
+    d = s.zeros()
+    hits(s, d, k["feather"], "x.......o.......", r, gain=0.6, mask=bs("5-8"))
+    hits(s, d, k["tap"], "....x.......x...", r, gain=0.55, mask=bs("5-8"))
+    for bar in range(4, s.bars):
+        for bt in range(4):
+            s.add(d, ins.brush_swish(s.sr, s.sec(0.95), key=(bar * 4 + bt) % 5), bar * 4 + bt, 0.15)
+    d = room(s, d, 0.18, 1.2, "drums", damp=5500)
+    vo = voicing(ch, 55, 76, 65)
+    keys = comp(s, ch, vo, lambda c, i: [(0, 1.9, 0.6), (2.5, 1.2, 0.45)] if c.dur >= 4 else [(0, 1.8, 0.55)],
+                lambda ss, m, du, v: v_epiano(ss, m, du, v, 0.8, 0.4), spread=0.012, r=r)
+    keys = room(s, tape(s, keys, 5.0, 0.35, 1.0), 0.22, 1.5, "keys", damp=5500)
+    bass = line(s, ch, lambda c, n, i: [(0, 3.5, root_of(c, 40, 35, 46), 0.85)] if c.dur >= 4
+                else [(0, 1.8, root_of(c, 40, 35, 46), 0.85)], v_upright, r=r)
+    bass = room(s, loop_filter(s, bass, "lp", 1000), 0.08, 0.8, "bass", damp=2500)
+    tn = tune("r:1 5:1 3:1 1:1 | 6-:1 1:1 3:2 | 4:1 6:1 1+:2 | 7-:1 2:1 5:2 | 3:1.5 5:.5 1+:2 | 6:1 3:1 1:2 |"
+              " 4:1 2:1 7:1 5:1 | 1:3 r:1", t, 5)
+    fl = mono(s, tn, "flute", key="ferry")
+    fl = room(s, echo(s, fl, 0.75, 0.2, 0.35, 3, 3500), 0.28, 1.6, "lead", damp=4500)
+    return {"drums": d, "keys": keys, "bass": bass, "lead": fl}
+
+
+def sea_salt_samba(s):
+    """118 BPM light samba: a surdo, a tamborim pattern and shakers, bright cavaquinho-style strums, a bouncing bass and
+    a flute tune."""
+    r = dsp.rng(s.id, "salt")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "latin")
+    d = s.zeros()
+    hits(s, d, k["surdo"], "o...X...o...X...", r, gain=0.95)
+    hits(s, d, k["tamborim"], "x.xx.x.xx.xx.x.x", r, gain=0.6)
+    hits(s, d, k["shaker"], "xoxoxoxoxoxoxoxo", r, swing=0.1, gain=0.5)
+    hits(s, d, k["rim"], "..g...g...g...g.", r, gain=0.45)
+    d = room(s, d, 0.14, 0.8, "drums", damp=6000)
+    vo = voicing(ch, 62, 80, 70)
+    gtr = strum_comp(s, ch, vo, lambda c, i: [(q * 0.25, 0.2, 0.8 if q % 4 in (0, 3) else 0.55)
+                                              for q in range(16) if q in (0, 2, 3, 5, 7, 8, 10, 11, 13, 15)
+                                              and q * 0.25 < c.dur], r=r, bright=0.85, t60=0.5, mute=0.02,
+                     spread=0.006, swing=0.1)
+    gtr = room(s, loop_filter(s, gtr, "hp", 220), 0.12, 0.8, "gtr", damp=6000)
+    bass = line(s, ch, lambda c, n, i: [(0, 1.0, root_of(c, 40, 33, 47), 0.9), (1.5, 0.45, root_of(c, 40, 33, 47) + 7, 0.7),
+                                        (2.0, 1.0, root_of(c, 40, 33, 47), 0.85), (3.5, 0.45, root_of(c, 40, 33, 47) + 7, 0.7)],
+                v_gbass, r=r)
+    bass = loop_filter(s, bass, "lp", 2500)
+    tn = tune("r:.5 1:.5 3:.5 5:.5 3:1 1:1 | 4:.5 6:.5 1+:.5 6:.5 4:1 2:1 | 5:.5 7:.5 2+:.5 4+:.5 2+:1 7:1 |"
+              " 1+:1 3+:.5 1+:.5 5:1 3:1 | r:.5 1:.5 3:.5 5:.5 3:1 1:1 | 4:.5 6:.5 1+:.5 6:.5 4:1 2:1 |"
+              " 5:.5 7:.5 2+:.5 4+:.5 2+:1 7:1 | 1+:1 3+:.5 1+:.5 5:1 3:1 | 2:.5 4:.5 6:.5 1+:.5 6:1 4:1 |"
+              " 7:.5 5:.5 4:1 2:1 5:1 | 1+:1 5:1 3:1 1:1 | 7:.5 5:.5 4:1 2:1 5:1", t, 5)
+    fl = mono(s, tn, "flute", swing=0.1, key="salt", grid=0.25)
+    fl = room(s, fl, 0.18, 1.0, "lead", damp=5000)
+    return {"drums": d, "guitar": gtr, "bass": bass, "lead": fl}
+
+
+def lantern_tide(s):
+    """88 BPM quiet bossa for the first lanterns: an arpeggiated nylon guitar, soft vibes on the chords, a round bass, a
+    brushed shaker and a bell tune."""
+    r = dsp.rng(s.id, "lantern")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "jazz", "latin")
+    d = s.zeros()
+    hits(s, d, k["cabasa"], "x.o.x.o.x.o.x.o.", r, gain=0.45)
+    hits(s, d, k["rim"], ["x..x..x...x..x..", "..x..x...x..x..."], r, gain=0.45)
+    hits(s, d, k["feather"], "X.......o.......", r, gain=0.5)
+    d = room(s, d, 0.16, 1.0, "drums", damp=6000)
+    arp = s.zeros()
+    vo = voicing(ch, 52, 72, 62)
+    seq = [0, 1, 2, 1, 2, 1, 0, 1]
+    for i, c in enumerate(ch):
+        v = vo[i]
+        for q in range(int(c.dur * 2)):
+            m = v[seq[q % 8] % len(v)]
+            x = ins.guitar(m, s.sec(1.3), s.sr, bright=0.4, t60=1.5, pick=0.15, mute=0.1, key=q % 3, attack=0.002)
+            s.add(arp, x, c.start + q * 0.5, 0.85 if q % 4 == 0 else 0.62, dt=float(r.normal(0, 0.004)))
+    arp = room(s, loop_eq(s, arp, "peak", 2400, 2.0, 0.9), 0.2, 1.3, "gtr", damp=5000)
+    vib = comp(s, ch, voicing(ch, 62, 82, 72, guide), lambda c, i: [(0, 3.4 if c.dur >= 4 else 1.8, 0.45)], v_vibes, r=r)
+    vib = room(s, vib, 0.28, 1.8, "vibes", damp=5000)
+    bass = line(s, ch, lambda c, n, i: [(0, 1.8, root_of(c, 40, 35, 46), 0.85), (2, 1.8, root_of(c, 40, 35, 46) + 7, 0.7)]
+                if c.dur >= 4 else [(0, 1.8, root_of(c, 40, 35, 46), 0.85)], v_upright, r=r)
+    bass = room(s, loop_filter(s, bass, "lp", 1100), 0.07, 0.7, "bass", damp=2500)
+    tn = tune("5:1 3:1 5:1 1+:1 | 7:1 5:1 3:1 5:1 | 6:1 4:1 6:1 1+:1 | 5:1 7:1 2+:2 | 1+:2 5:1 3:1 | 6:1 1+:1 3+:2 |"
+              " 4:1 6:1 2+:1 7:1 | 1+:3 r:1", t, 5)
+    bell = mono(s, tn, "bell", key="lantern")
+    bell = room(s, echo(s, bell, 0.75, 0.2, 0.3, 2, 4500), 0.22, 1.4, "lead", damp=5500)
+    return {"drums": d, "guitar": arp, "vibes": vib, "bass": bass, "lead": bell}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -4600,6 +4729,15 @@ SONGS = {
     "loud_neighbours": ("I:4 I:4 IV:4 V:4 I:4 I:4 IV:4 V:4 I:4 I:4 IV:4 V:4", loud_neighbours, {"drums": -15}),
     "unplugged_garage": ("I:4 IV:4 V:4 I:4 I:4 IV:4 V:4 I:4", unplugged_garage,
                          {"drums": -22, "guitar": -18, "bass": -22, "lead": -20}),
+    # sunset_bossa (C major) - Part 2
+    "golden_hour_walk": ("Imaj7:4 ii7:2 V7:2 Imaj7:4 IVmaj7:4 Imaj7:4 ii7:2 V7:2 Imaj7:4 IVmaj7:4 ii7:2 V7:2 Imaj7:4 "
+                         "IVmaj7:2 V7:2 Imaj7:2 V7:2", golden_hour_walk, {"drums": -20, "guitar": -20, "bass": -19, "lead": -18}),
+    "last_ferry_home": ("Imaj7:4 vi7:4 IVmaj7:4 V7:4 Imaj7:4 vi7:4 ii7:2 V7:2 Imaj7:4", last_ferry_home,
+                        {"drums": -24, "keys": -19, "bass": -22, "lead": -18}),
+    "sea_salt_samba": ("I:4 IV:4 V7:4 I:4 I:4 IV:4 V7:4 I:4 ii7:4 V7:4 I:4 V7:4", sea_salt_samba,
+                       {"drums": -18, "guitar": -21, "bass": -20, "lead": -18}),
+    "lantern_tide": ("Imaj7:4 iii7:4 IVmaj7:4 V7:4 Imaj7:4 vi7:4 ii7:2 V7:2 Imaj7:4", lantern_tide,
+                     {"drums": -24, "guitar": -20, "vibes": -21, "bass": -22, "lead": -19}),
 }
 
 

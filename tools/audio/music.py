@@ -49,6 +49,7 @@ HI_RATE = {
     "nations_fest": {"shaker", "party"},  # the shakers and tambourines of the crowd keep their sparkle
     "fan_meeting": set(),  # every stem at 22.05 kHz: a soft ballad-and-dance mix, the arpeggio ends below 9 kHz
     "punk_garage": set(),  # every stem at 22.05 kHz: distorted guitars, a rock kit and claps, little lives above 10 kHz
+    "sunset_bossa": {"shaker"},  # the brushed shaker keeps its sparkle, the rest is warm and soft
 }
 
 
@@ -5160,6 +5161,180 @@ def punk_garage_lead(s):
     return room(s, b, 0.18, 1.2, "lead", damp=4000)
 
 
+# =========================== SUNSET BOSSA (C major) - Part 2
+
+def sunset_bossa_song(d):
+    # Part 2, district 21: the bossa of district 6 at golden hour, slower (96 BPM) and in C major:
+    # Cmaj7 | Fmaj7 | Cmaj7 | Dm7 G7 | Cmaj7 | Fmaj7 | Cmaj7 | Dm7 G7. The tonic chord keeps its root in every voicing
+    # (rootless it would be Em7 and the loop would read as E minor) and fills half of the bars; the G7 (whose notes
+    # would pull the loop toward G major) lasts only two beats at the end of each phrase; the loop ends on G7 and
+    # comes home to Cmaj7. There is no 6th chord on the tonic (C6 is Am7).
+    C, D, F, G = 0, 2, 5, 7
+    return Song(d, progression([
+        (4, C, [4, 7, 11, 12], "Cmaj7"), (4, F, [4, 7, 11, 12], "Fmaj7"), (4, C, [4, 7, 11, 12], "Cmaj7"),
+        (2, D, [3, 7, 10, 12], "Dm7"), (2, G, [4, 7, 10, 14], "G7"),
+        (4, C, [4, 7, 11, 12], "Cmaj7"), (4, F, [4, 7, 11, 12], "Fmaj7"), (4, C, [4, 7, 11, 12], "Cmaj7"),
+        (2, D, [3, 7, 10, 12], "Dm7"), (2, G, [4, 7, 10, 14], "G7"),
+    ]))
+
+
+SB_CLAVE = ((0.0, 1.5, 3.0), (1.0, 2.5))  # the same 3-2 bossa clave as the beach, over two bars (beats)
+
+
+def sunset_bossa_perc(s):
+    """The sunset cajon: a soft kick on 1 and the and of 2 ('heartbeat'), the clave on the rim and a ghost shaker of
+    taps; a slap pickup into every fourth bar. The first layer: it has to groove alone."""
+    k = kit("beach", s.sr)
+    r = dsp.rng(s.id, "perc")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, v in ((0, 0.9), (1.5, 0.5), (2, 0.8), (3.5, 0.5)):
+            hit(s, b, k["cajon"], o + bt, v, r, 0.003)
+        for bt in SB_CLAVE[bar % 2]:
+            hit(s, b, k["rim"], o + bt, 0.75, r, 0.003)
+        for i in range(8):
+            hit(s, b, k["tap"], o + i * 0.5, 0.3 if i % 2 else 0.2, r, 0.005)
+        if bar in (3, 7):
+            for bt, v in ((3.0, 0.4), (3.5, 0.55)):
+                hit(s, b, k["slap"], o + bt, v, r, 0.003)
+    b = dsp.drive(b / dsp.peak(b) * 1.3, 1.4)
+    b = loop_eq(s, b, "highshelf", 4500, 2.0)
+    return room(s, b, 0.14, 0.8, "perc", damp=6000)
+
+
+# What the fingers hold (the thumb has the root): the tonic grip is a plain C-E-G-G shape, no B (G-B-E on its own is Em).
+SB_GRIPS = {
+    "Cmaj7": [55, 60, 64, 67], "Dm7": [57, 60, 65], "G7": [53, 59, 62], "Fmaj7": [57, 60, 64],
+}
+
+
+def sunset_bossa_guitar(s):
+    """The veranda guitar: the thumb keeps root and fifth on beats 1 and 3, the fingers pluck chords on the two-bar
+    bossa figure and anticipate the next bar with the last 8th."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "guitar")
+    vo = [SB_GRIPS[c.name] for c in s.chords]
+    pats = (((0.0, 0.9, 0.8), (1.5, 0.4, 0.6), (2.5, 0.4, 0.64), (3.5, 1.2, 0.72)),
+            ((1.0, 0.4, 0.62), (2.5, 0.9, 0.72), (3.5, 0.45, 0.66)))
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, du, v in pats[bar % 2]:
+            c = s.chord_at(o + bt + (0.5 if bt == 3.5 else 0.0))
+            x = ins.strum(vo[s.chords.index(c)], s.sec(du), s.sr, spread=0.007, bright=0.34, t60=1.3, pick=0.2,
+                          mute=0.09, key=bar % 2, attack=0.003)
+            s.add(b, x, o + bt, v, dt=0.007 + r.normal(0, 0.002))
+        c0, c2 = s.chord_at(o), s.chord_at(o + 2)
+        R = nearest(c0.root, 47, 40, 52)
+        second = nearest(c2.root, 47, 40, 52) if c2 is not c0 else (R + 7 if R + 7 <= 54 else R - 5)
+        for bt, m, v in ((0, R, 0.75), (2, second, 0.62)):
+            x = ins.guitar(m, s.sec(1.5), s.sr, bright=0.22, t60=1.6, pick=0.25, mute=0.12, key=5, attack=0.004)
+            s.add(b, x, o + bt, v, dt=r.normal(0, 0.001))
+    b = loop_filter(s, b, "hp", 95)
+    b = loop_eq(s, b, "peak", 2300, 2.5, 0.9)
+    return room(s, b, 0.16, 1.0, "guitar", damp=5000)
+
+
+def sunset_bossa_bass(s):
+    """The tide speaker: a round upright on the root on 1, a soft pickup on the and of 2, the fifth (or the next
+    chord) on 3 and the next bar's root pushed on the and of 4."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "bass")
+    root = lambda c: nearest(c.root, 40, 35, 46)  # noqa: E731
+    j = 0
+    for bar in range(s.bars):
+        o = bar * 4
+        c0, c2, nx = s.chord_at(o), s.chord_at(o + 2), s.chord_at(o + 4)
+        R = root(c0)
+        F = R + 7 if R + 7 <= 47 else R - 5
+        mid = root(c2) if c2 is not c0 else F
+        for bt, du, m, v in ((0, 1.35, R, 0.9), (1.5, 0.42, R if c2 is c0 else mid, 0.55), (2, 1.35, mid, 0.82),
+                             (3.5, 0.45, root(nx), 0.62)):
+            s.add(b, upright(m, s.sec(du), s.sr, key=j % 3), o + bt, v, dt=r.normal(0.003, 0.003))
+            j += 1
+    b = loop_filter(s, b, "lp", 1300)
+    return room(s, b, 0.07, 0.7, "bass", damp=2500)
+
+
+def sunset_bossa_shaker(s):
+    """The sunset bar: a brushed shaker on the 16ths leaning on the off-beat 8ths, maracas on two and four."""
+    k = kit("beach", s.sr)
+    r = dsp.rng(s.id, "shaker")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for i in range(16):
+            v = 0.85 if i % 4 == 2 else (0.45 if i % 4 == 0 else 0.28)
+            hit(s, b, k["shaker"], o + i * 0.25, v, r, 0.004)
+        for bt in (1, 3):
+            hit(s, b, k["maraca"], o + bt, 0.65, r, 0.004)
+        if bar in (3, 7):
+            for bt, v in ((3.5, 0.55), (3.75, 0.75)):
+                hit(s, b, k["maraca"], o + bt, v, r, 0.003)
+    return room(s, b, 0.1, 0.8, "shaker", damp=7000)
+
+
+# The warm electric piano an octave above the guitar; the tonic chord has its root and no 7th (the B would read as Em).
+SB_KEYS = {
+    "Cmaj7": [60, 64, 67, 72], "Dm7": [65, 69, 72], "G7": [65, 71, 74], "Fmaj7": [64, 69, 72],
+}
+SB_FILLS = {  # answers where the flute breathes: bar -> (beat, beats, midi)
+    3: [(2.0, 0.5, 76), (2.5, 0.5, 74), (3.0, 0.5, 72), (3.5, 0.5, 69)],
+    7: [(2.0, 0.5, 81), (2.5, 0.5, 79), (3.0, 0.5, 77), (3.5, 0.5, 74)],
+}
+
+
+def sunset_bossa_keys(s):
+    """The dune hammock: a soft electric piano, a held chord on every change, a light answer on beat 4 and a falling
+    fill at the end of each four-bar phrase; slow tremolo."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "keys")
+    for c in s.chords:
+        v = SB_KEYS[c.name]
+        bar = int(c.start // 4)
+        ht = [(0.0, c.dur * 0.6, 0.55)]
+        if c.dur == 4 and bar not in SB_FILLS:
+            ht.append((3.0, 0.9, 0.42))
+        for bt, du, vel in ht:
+            for j, m in enumerate(v):
+                x = ins.epiano(m, round(s.sec(du), 4), s.sr, vel=vel, bright=0.7, release=0.3)
+                s.add(b, x, c.start + bt, 0.8, dt=0.006 + j * 0.009 + r.normal(0, 0.003))
+    for bar, notes in SB_FILLS.items():
+        for i, (bt, du, m) in enumerate(notes):
+            x = ins.epiano(m, round(s.sec(du * 1.6), 4), s.sr, vel=0.6, bright=0.8, release=0.3)
+            s.add(b, x, bar * 4 + bt, 0.75 + 0.05 * i, dt=r.normal(0.004, 0.003))
+    b = b * (1.0 - 0.16 * (0.5 + 0.5 * s.lfo(4.6)))
+    b = loop_filter(s, b, "hp", 150)
+    b = loop_filter(s, b, "lp", 6000)
+    return room(s, b, 0.22, 1.5, "keys", damp=5000)
+
+
+SB_FLUTE = bars({  # two four-bar phrases; the long notes are pushed an 8th early and tied over the bar line
+    0: [(0.5, 0.5, 76), (1.0, 0.5, 72), (1.5, 1.0, 79), (2.5, 0.5, 76), (3.0, 0.5, 72), (3.5, 1.5, 76)],
+    1: [(1.5, 0.5, 77), (2.0, 0.5, 81), (2.5, 1.5, 84)],
+    2: [(0.5, 0.5, 79), (1.0, 0.5, 76), (1.5, 1.0, 72), (2.5, 0.5, 76), (3.0, 0.5, 79), (3.5, 1.0, 76)],
+    3: [(1.0, 1.0, 74), (2.0, 0.5, 77), (2.5, 1.5, 71)],
+    4: [(0.5, 0.5, 84), (1.0, 0.5, 79), (1.5, 1.0, 76), (2.5, 0.5, 72), (3.0, 0.5, 76), (3.5, 1.5, 79)],
+    5: [(1.5, 0.5, 81), (2.0, 0.5, 77), (2.5, 1.5, 72)],
+    6: [(0.5, 0.5, 76), (1.0, 0.5, 79), (1.5, 1.0, 84), (2.5, 0.5, 79), (3.0, 0.5, 76), (3.5, 1.0, 72)],
+    7: [(1.0, 0.5, 77), (1.5, 0.5, 74), (2.0, 0.5, 74), (2.5, 0.5, 77), (3.0, 1.0, 71)],
+})
+
+
+def sunset_bossa_flute(s):
+    """The lantern palm: a breathy flute, a sine with a little 2nd and 3rd harmonic, air that follows the note and a
+    chiff on every attack; the tune climbs to C6 in the second phrase and comes home to C over the last bar."""
+    src, env, onset = render_line(s, events(s, SB_FLUTE), osc="sine", glide=0.018, legato_gap=0.01, attack=0.045,
+                                  release=0.08, vib_rate=5.1, vib_depth=0.11, vib_delay=0.28, key="sbflute")
+    tone = src + 0.2 * (2.0 * src ** 2 - 1.0) + 0.07 * (4.0 * src ** 3 - 3.0 * src)
+    air = ins.breath(len(src), s.sr, "sbflute", 1800, 6500)
+    x = tone * env + 0.24 * air * env + 0.3 * air * onset * np.clip(env * 4.0, 0, 1)
+    x = dsp.highpass(x, 250, s.sr, 2)
+    b = wrap(s, x / dsp.peak(x))
+    b = echo(s, b, 0.75, 0.14, 0.35, 2, 4000)
+    return room(s, b, 0.25, 1.5, "flute", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 # The drum kit of every district (kit() names), used by its tension and party layers.
@@ -5167,7 +5342,7 @@ KITS = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", 
         "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
         "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade",
         "midnight_cafe": "midnight", "late_club": "jazz", "nations_fest": "street", "fan_meeting": "dance",
-        "punk_garage": "rock"}
+        "punk_garage": "rock", "sunset_bossa": "beach"}
 
 # Districts whose theme sounds in the relative minor of their key (the night versions of Part 2,
 # docs/design/part2-districts.md): the tension layer holds the fifth of that minor tonic.
@@ -5208,7 +5383,7 @@ def tension_stem(s, style):
             x = upright(m - 12, s.sec(0.4), s.sr)
         elif style == "cafe":  # bright e-piano pulse in the middle register (no low-mid mud)
             x = ins.epiano(m, s.sec(0.25), s.sr, vel=0.6, bright=1.0, release=0.08)
-        elif style == "beach":  # palm-muted nylon string on the chord roots
+        elif style in ("beach", "sunset_bossa"):  # palm-muted nylon string on the chord roots
             x = ins.guitar(m, s.sec(0.3), s.sr, bright=0.45, t60=0.55, pick=0.18, mute=0.04, key=7)
         elif style == "carnival":  # the left hand of the piano, staccato
             x = ins.piano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.8, release=0.06)
@@ -5242,7 +5417,7 @@ def tension_stem(s, style):
     b = b / dsp.peak(b) * 0.55 + pb / dsp.peak(pb)
     # the fifth of the tonic the district sounds in (a night version of Part 2 sounds in the relative minor)
     home = mc_home(s) if style in RELATIVE_MINOR else s.tonic
-    fifth = nearest((home + (4 if style == "punk_garage" else 7)) % 12, 76, 70, 82)  # the pop-punk garage holds the
+    fifth = nearest((home + {"punk_garage": 4, "sunset_bossa": 0}.get(style, 7)) % 12, 76, 70, 82)  # the pop-punk garage holds the
     # major third instead: the power chords already sound its fifth, E, all the time
     tr = s.zeros()
     if style == "ranch":  # no synthesizer in the barn: a fiddle shivers on two strings, the fifth and the root above it
@@ -5440,7 +5615,7 @@ def party_stem(s, style):
                     x = ins.supersaw(m, s.sec(0.3), s.sr, attack=0.003, release=0.08, key=j)
                 elif style in ("garage", "punk_garage"):
                     x = ins.organ(m, s.sec(0.3), s.sr, bars=(8, 0, 8, 8, 0, 6, 0, 0, 4), perc=0.3, click=0.3)
-                elif style in ("cafe", "beach"):
+                elif style in ("cafe", "beach", "sunset_bossa"):
                     x = ins.epiano(m, s.sec(0.3), s.sr, vel=0.8, bright=1.0, release=0.1)
                 elif style == "midnight_cafe":  # the electric piano of the night, warmer and a little longer
                     x = ins.epiano(m, round(s.sec(0.4), 4), s.sr, vel=0.8, bright=0.85, release=0.15)
@@ -5461,7 +5636,7 @@ def party_stem(s, style):
             m = tones[i % len(tones)]
             if style in ("jazz", "late_club"):
                 x = ins.vibes(m, s.sr, vel=0.6, dur=0.8, release=0.3)
-            elif style == "beach":  # a marimba on the beach instead of the glockenspiel
+            elif style in ("beach", "sunset_bossa"):  # a marimba on the beach instead of the glockenspiel
                 x = ins.marimba(m, s.sr, vel=0.8, dur=0.8)
             elif style == "carnival":  # the top of the piano
                 x = ins.piano(m, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
@@ -5550,6 +5725,9 @@ DISTRICTS = {
     "punk_garage": dict(song=punk_garage_song, stems={
         "beat": punk_garage_beat, "rhythm": punk_garage_rhythm, "bass": punk_garage_bass,
         "claps": punk_garage_claps, "gang": punk_garage_gang, "lead": punk_garage_lead}),
+    "sunset_bossa": dict(song=sunset_bossa_song, stems={
+        "perc": sunset_bossa_perc, "guitar": sunset_bossa_guitar, "bass": sunset_bossa_bass,
+        "shaker": sunset_bossa_shaker, "keys": sunset_bossa_keys, "flute": sunset_bossa_flute}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -5600,6 +5778,8 @@ LOUDNESS = {
                     "tension": -18, "party": -16},
     "punk_garage": {"beat": -15, "rhythm": -18, "bass": -19, "claps": -19, "gang": -16, "lead": -18,
                     "tension": -18, "party": -16},
+    "sunset_bossa": {"perc": -17, "guitar": -18, "bass": -19, "shaker": -20, "keys": -20, "flute": -18,
+                     "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on
