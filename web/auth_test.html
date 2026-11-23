@@ -13,7 +13,7 @@
 	https://shakhzodmir.github.io/game/auth_test.html
 	It runs the same Firebase calls as the game in a separate Firebase app instance ("diag"), so it never touches the
 	player's real session, and shows step by step what the phone's browser does. Nothing is stored or sent anywhere
-	except to Google and Firebase themselves (test 6 also visits httpbin.org and comes straight back); the e-mail on
+	except to Google and Firebase themselves (test 6 also visits tinyurl.com and comes straight back); the e-mail on
 	the screen is masked. The page signs out at once.
 	Tests 4-6 are experiments for the iPhone Home Screen app (standalone): can a window opened from the page talk back,
 	does the Firebase pop-up work when the SDK is not told it runs standalone, and does a trip to another site and back
@@ -94,6 +94,7 @@
 		return (e && e.code ? e.code : "?") + (e && e.message ? " | " + String(e.message).slice(0, 160) : "");
 	}
 	function getFlag(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+	function freshFlag(k) { var v = Number(getFlag(k)); return v > 0 && Date.now() - v < 10 * 60 * 1000 ? String(v) : ""; } // set by a test in the last ten minutes
 	function setFlag(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
 
 	// the environment ------------------------------------------------------------------------------------------
@@ -142,7 +143,7 @@
 
 	// the way back from test 6 (a trip to another site) -----------------------------------------------------------
 	if (/[?&]ret=1(&|$)/.test(location.search)) {
-		var left = getFlag("glow_diag_ext");
+		var left = freshFlag("glow_diag_ext");
 		log("Тест 6: вернулись с другого сайта. Адрес: …" + location.pathname.slice(-20) + location.search + location.hash +
 			". Страница открыта как " + (standalone ? "приложение «Домой» (standalone)" : "обычная вкладка (или окно «Готово» поверх приложения)") +
 			". Хранилище то же, что до ухода: " + (left ? "ДА" : "НЕТ") + ". История переходов: " + history.length + ". Откуда: " + (document.referrer || "не указано") + ".", "ok");
@@ -166,7 +167,7 @@
 				log("Вернулись со страницы Google: вход выполнен (" + mask(r.user.email) + ", провайдер " + ((r.providerId) || "google.com") + ")", "ok");
 				return m.signOut(auth);
 			}
-			if (getFlag("glow_diag_redirect")) {
+			if (freshFlag("glow_diag_redirect")) {
 				log("Вернулись на страницу, но результата входа нет. Либо вы отменили вход, либо браузер потерял результат (так бывает на iPhone). Если вы выбрали аккаунт и дошли до конца, этот способ здесь не работает.", "bad");
 			}
 		}, function (e) {
@@ -297,10 +298,11 @@
 
 	// 6. a trip to another site and back ------------------------------------------------------------------------------
 	document.getElementById("b6").addEventListener("click", function () {
-		var back = location.origin + location.pathname + "?ret=1#probe=" + Date.now();
-		log("Тест 6: ухожу на другой сайт (httpbin.org) и сразу возвращаюсь сюда. Если страница не вернулась сама, нажмите «Готово» или «Назад».");
+		// https://tinyurl.com/2dk8w6jp is a plain 301 to https://shakhzodmir.github.io/game/auth_test.html?ret=1 (httpbin.org's
+		// redirect-to answers 403 now); the #probe fragment is carried through the redirect by the browser itself
+		log("Тест 6: ухожу на другой сайт (tinyurl.com) и сразу возвращаюсь сюда. Если страница не вернулась сама, нажмите «Готово» или «Назад».");
 		setFlag("glow_diag_ext", String(Date.now()));
-		location.href = "https://httpbin.org/redirect-to?status_code=302&url=" + encodeURIComponent(back);
+		location.href = "https://tinyurl.com/2dk8w6jp#probe=" + Date.now();
 	});
 
 	// the report ---------------------------------------------------------------------------------------------------
