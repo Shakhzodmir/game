@@ -210,6 +210,8 @@ function M.task(town, task, res)
 	step.after = function()
 		town:sync_disp()
 		town:publish()
+		-- (the first-launch sign-in window waits for the layer to be heard: Town:layer_heard)
+		town.built_t = town.enter_t
 	end
 	return step
 end

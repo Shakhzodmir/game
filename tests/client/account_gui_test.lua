@@ -26,6 +26,25 @@ local function toast_has(c, text)
 	return type(c.app.overlay.toast) == "string" and c.app.overlay.toast:find(text, 1, true) ~= nil
 end
 
+local function wait_for(c, pred, seconds, what)
+	for _ = 1, math.ceil((seconds or 5) * 60) do
+		if pred() then return end
+		c.step(1)
+	end
+	assert_true(pred(), "timed out waiting for " .. tostring(what))
+end
+
+-- a tap on the card of the next task of the town
+local function tap_card(c)
+	local t = c.app.ui.targets and c.app.ui.targets.task
+	assert_true(t ~= nil, "no task card on the town")
+	c.tap(t.x, t.y)
+end
+
+-- a save with the first layer built: the first-launch window is due from the start of the visit (the window waits
+-- for a purchase, so a test that wants it on the screen starts from here)
+local function built_first(app) G.build_tasks(app, "cafe", 1) end
+
 -- Boots the town with the mock provider (available unless `unavailable`), a fresh binding file.
 local function with_account(opts, fn)
 	opts = opts or {}
@@ -60,10 +79,25 @@ describe("account windows", function()
 		end)
 	end)
 
-	it("asks once on the first launch: guest closes it for good", function()
-		with_account({}, function(c, m, bfile)
-			c.run(3)
-			assert_eq(c.app.ui.popup, "account")
+	-- The first-launch window is not for the first star: it waits until the player has built a layer (producer, 23.11.2026).
+	it("waits for the first purchase, lets the first layer be heard, then asks once: guest closes it for good", function()
+		local steps = require("screens.town.steps")
+		with_account({ setup = function(app) G.win(app, 1) end }, function(c, m, bfile)
+			c.run(6) -- the town, the reward of level 1 landing, the hint over the card
+			assert_eq(c.app.ui.hint, "town_first_task")
+			assert_eq(c.app.ui.popup, nil, "not over the first star")
+			assert_false(cloud.welcomed())
+			tap_card(c)
+			wait_for(c, function() return c.app.ui.busy end, 1, "the purchase")
+			wait_for(c, function() return not c.app.ui.busy end, 6, "the purchase to end")
+			local t_end = c.E.clock
+			assert_eq(c.app.meta:district("cafe").done, 1)
+			c.run(1)
+			assert_eq(c.app.ui.popup, nil, "not over the first music: Bit is listening to the new layer")
+			wait_for(c, function() return c.app.ui.popup == "account" end, 8, "the first-launch window")
+			local waited = c.E.clock - t_end
+			assert_true(waited >= steps.LISTEN_FOR and waited <= steps.LISTEN_FOR + 1.5, "it came " .. string.format("%.1f", waited) .. " s after the show")
+			c.run(0.6) -- the window has come in
 			assert_true(c.app.ui.popup_targets.google ~= nil)
 			assert_true(c.app.ui.popup_targets.id_login ~= nil)
 			assert_true(c.app.ui.popup_targets.create ~= nil)
@@ -72,11 +106,79 @@ describe("account windows", function()
 			assert_eq(c.app.ui.popup, nil)
 			assert_true(cloud.welcomed())
 			assert_true(bfile.data.welcomed)
+			-- never twice: not again in this visit, not with the next layer
+			c.run(8)
+			assert_eq(c.app.ui.popup, nil)
+			G.give_stars(c.app, 1)
+			c.step(5)
+			tap_card(c)
+			wait_for(c, function() return c.app.ui.busy end, 1, "the second purchase")
+			wait_for(c, function() return not c.app.ui.busy end, 6, "the second purchase to end")
+			assert_eq(c.app.meta:district("cafe").done, 2)
+			c.run(10)
+			assert_eq(c.app.ui.popup, nil, "asked once")
+		end)
+	end)
+
+	it("asks as soon as the town opens when a layer was built before (a return visit): the first visit had no window", function()
+		with_account({ setup = built_first }, function(c)
+			local t = c.town.self.t
+			assert_eq(c.app.ui.popup, nil, "the town has just opened") -- (the helper has run half a second of it)
+			wait_for(c, function() return c.app.ui.popup == "account" end, 2, "the first-launch window")
+			assert_true(t.enter_t <= 1.2, "no wait for a layer built in an earlier visit: it came " .. string.format("%.2f", t.enter_t) .. " s in")
+			c.run(0.6)
+			assert_true(c.app.ui.popup_targets.guest ~= nil)
+		end)
+	end)
+
+	it("a window closed with the corner button counts as 'guest' too, and a skipped purchase waits like the others", function()
+		local steps = require("screens.town.steps")
+		with_account({ setup = function(app) G.win(app, 1) end }, function(c)
+			tap_card(c)
+			c.run(0.25)
+			assert_true(c.app.ui.busy)
+			c.tap(360, 800) -- a tap skips the show: Bit listens from this moment
+			c.step(3)
+			assert_false(c.app.ui.busy)
+			local t0 = c.E.clock
+			c.run(steps.LISTEN_FOR - 0.2)
+			assert_eq(c.app.ui.popup, nil, "Bit is still listening")
+			wait_for(c, function() return c.app.ui.popup == "account" end, 3, "the window")
+			c.run(0.6)
+			wtap(c, "close")
+			c.run(0.6)
+			assert_eq(c.app.ui.popup, nil)
+			assert_true(cloud.welcomed())
+			c.run(5)
+			assert_eq(c.app.ui.popup, nil)
+			assert_true(c.E.clock - t0 > steps.LISTEN_FOR)
+		end)
+	end)
+
+	it("does not hold the soft guest reminder back: ten levels without a purchase still hear about the account", function()
+		with_account({ setup = function(app) G.win(app, 10) end }, function(c)
+			c.run(5)
+			assert_eq(c.app.ui.popup, nil, "no window: nothing was built")
+			assert_true(toast_has(c, "Playing as a guest"), tostring(c.app.overlay.toast))
+			assert_eq(cloud.binding().reminded, 10)
+			assert_false(cloud.welcomed())
+			-- the window is still to come with the first layer
+			tap_card(c)
+			wait_for(c, function() return c.app.ui.busy end, 1, "the purchase")
+			wait_for(c, function() return not c.app.ui.busy end, 6, "the purchase to end")
+			wait_for(c, function() return c.app.ui.popup == "account" end, 8, "the first-launch window")
+		end)
+	end)
+
+	it("is not asked at all without a provider, however much is built", function()
+		with_account({ unavailable = true, setup = built_first }, function(c)
+			c.run(6)
+			assert_eq(c.app.ui.popup, nil)
 		end)
 	end)
 
 	it("signs in with Google from the first window, uploads the progress and shows who is in", function()
-		with_account({ welcomed = false, setup = function(app) G.win(app, 4) end }, function(c, m)
+		with_account({ welcomed = false, setup = function(app) G.win(app, 4); built_first(app) end }, function(c, m)
 			c.run(3)
 			m.google_next = { sub = "g1", email = "anna@gmail.com", name = "Anna" }
 			wtap(c, "google")
@@ -281,7 +383,7 @@ end
 
 describe("forgot password and the privacy link", function()
 	it("has no 'Forgot password?' in any window: Google is the only recovery", function()
-		with_account({}, function(c)
+		with_account({ setup = built_first }, function(c)
 			c.run(3)
 			assert_eq(c.app.ui.popup, "account")
 			assert_true(c.app.ui.popup_targets.forgot == nil)
@@ -296,7 +398,7 @@ describe("forgot password and the privacy link", function()
 
 	it("opens the privacy page from the first-launch window and from the settings, on the web only", function()
 		as_web(function(tabs)
-			with_account({}, function(c)
+			with_account({ setup = built_first }, function(c)
 				c.run(3)
 				assert_true(c.app.ui.popup_targets.privacy ~= nil)
 				wtap(c, "privacy")
