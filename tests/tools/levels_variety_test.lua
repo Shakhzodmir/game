@@ -384,6 +384,11 @@ describe("level variety: near copies of boards", function()
 		local padded = { "........", "........", "..#.....", ".###....", "#####...", "#...#...", "........", "........", "........" }
 		assert_eq(board_distance(b(shape), b(padded), 5), 0, "a copy padded with empty rows and columns")
 		assert_eq(board_distance(b({ "###", "###" }), b({ "....", "###.", "###.", "...." , "...."}), 5), 0, "empty rows above and below")
+		-- four empty rows on one side moved the old centring by 2 canvas rows, out of the shifts -1..1
+		local lower = { "###", "###", "...", "...", "...", "..." }
+		assert_eq(board_distance(b({ "###", "###" }), b(lower), 5), 0, "four empty rows below")
+		assert_eq(board_distance(b({ "###", "###" }), b({ "...", "...", "...", "...", "###", "###" }), 5), 0, "four empty rows above")
+		assert_eq(board_distance(b({ "###", "###" }), b({ "###....", "###...." }), 5), 0, "empty columns on the right")
 	end)
 
 	it("gives every board of a level from 301 up its own shape, not even a copy with one cell more or less", function()
