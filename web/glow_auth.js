@@ -715,8 +715,9 @@
 				var w = null;
 				try { w = window.open(url, "glow_oidc_" + rec.s.slice(-6)); } catch (e) { w = null; }
 				G.markOwn("g", rec.s, {}); // right AFTER window.open: a window opened from here has a copy of this storage made before this line
-				if (!w) { // refused: nothing was shown to Google, the attempt is dropped, and the card keeps one more tap
+				if (!w) { // refused: nothing was shown to Google; the attempt is dropped, its secrets are kept for the one more tap
 					h.stop(); G.clearFlow("g", rec.s, {});
+					if (!prep[mode]) prep[mode] = rec; // (the next attempt is being prepared, but a quick second tap must not find nothing ready)
 					return reject(codeError("auth/popup-blocked", "window.open gave nothing"));
 				}
 				tr.win = w;
