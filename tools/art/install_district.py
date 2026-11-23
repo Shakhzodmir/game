@@ -22,6 +22,7 @@ import sys
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import feather_mapbg as fm  # noqa: E402
 import import_incoming as imp  # noqa: E402
 import installed as inst  # noqa: E402
 from gen_art import ghost_image  # noqa: E402
@@ -187,22 +188,27 @@ def centred(im, size):
 
 def main():
     did, folder, name = sys.argv[1], sys.argv[2], sys.argv[3]
-    files = inst.load()
+    files, sources = inst.load(), inst.load_sources()
 
     def save(im, rel):
         path = os.path.join(IMAGES, rel)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         im.save(path, optimize=True)
-        files.add(rel)
+        inst.record(files, sources, rel, IMAGES)      # listed, no longer a placeholder, no JPEG of the same key left
         print("installed", rel, im.size)
 
-    def src(n):
+    def src(n):             # a PNG or a JPEG, as the producer saved it
+        for ext in (".png", ".jpg", ".jpeg"):
+            if os.path.isfile(os.path.join(folder, n + ext)):
+                return os.path.join(folder, n + ext)
         return os.path.join(folder, n + ".png")
 
     for view, key in (("day", "bg"), ("concert", "bg_concert")):
         save(Image.open(src("room_%s_%s" % (name, view))).convert("RGB").resize((720, 1280), Image.LANCZOS),
              "districts/%s/%s.png" % (did, key))
-    save(Image.open(src("map_bg_" + name)).convert("RGB").resize((720, 1080), Image.LANCZOS), "mapbg/bg_%s.png" % did)
+    # the map tile: 720x1080 RGBA with the bottom 110 rows faded out (the map overlaps the tiles of a district: an opaque
+    # tile shows a hard seam every 740 px), whatever the picture was: tools/art/feather_mapbg.py
+    save(fm.feather(Image.open(src("map_bg_" + name))), "mapbg/bg_%s.png" % did)
 
     color, alpha = keyed(src("gate_" + name))
     h, w = alpha.shape
@@ -236,7 +242,7 @@ def main():
                     "items": {t: items[t] for t in tasks}}
     with open(LAYOUTS, "w", encoding="utf-8", newline="") as f:
         f.write(json.dumps(layouts, indent=2, ensure_ascii=False) + "\n")
-    inst.save(files)
+    inst.save(files, sources)
 
 
 if __name__ == "__main__":

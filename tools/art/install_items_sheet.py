@@ -37,7 +37,8 @@ def main():
     else:
         color = rgb.astype("float32")
     h, w = alpha.shape
-    files = inst.load()
+    files, sources = inst.load(), inst.load_sources()
+    images = os.path.join(inst.ROOT, "assets", "images")
     for name, (x0, y0, x1, y1) in zip(names, imp.cell_boxes(w, h, cols, rows)):
         if name == "-":
             continue
@@ -61,11 +62,11 @@ def main():
         out = os.path.join(inst.ROOT, "assets", "images", rel)
         im.save(out, optimize=True)
         ghost_image(im).save(out[:-4] + "_ghost.png", optimize=True)
-        files.add(rel)
-        files.add(rel[:-4] + "_ghost.png")
+        inst.record(files, sources, rel, images)      # listed, no longer a placeholder
+        inst.record(files, sources, rel[:-4] + "_ghost.png", images)
         print("installed %s %dx%d (was %dx%d)" % (rel, size[0], size[1], it["w"], it["h"]))
         it["w"], it["h"] = size
-    inst.save(files)
+    inst.save(files, sources)
     with open(LAYOUTS, "w", encoding="utf-8", newline="") as f:
         f.write(TEXT(layouts))
 

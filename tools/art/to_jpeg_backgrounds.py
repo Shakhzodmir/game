@@ -9,26 +9,33 @@ Why: the whole game is one archive that the browser downloads before the first f
 "districts/<id>/bg", not for a file name); tools/gen_defold.py accepts .jpg for loose images. Pictures with
 transparency (items, gates, the mascot) stay PNG. Baseline, 4:4:4 chroma, quality 90: flat coloured outlines
 stay clean. A file is converted only when the JPEG is at least 3x smaller. The paths written in
-assets/art_ready/installed.json and content/district_layouts.json follow.
+assets/art_ready/installed.json (the list and the notes of its "sources", each file once) and
+content/district_layouts.json follow.
+
+The map tiles (mapbg/) are never converted: a tile has the feathered bottom (an alpha channel, see
+tools/art/feather_mapbg.py) and a JPEG has none. Converting an opaque tile of the group would hide the missing feather
+(it did for districts 16 and 17); tools/art/tile_check.py reports such a tile.
 """
 import io
-import json
 import os
 import sys
 
 from PIL import Image
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import installed as inst  # noqa: E402
+
+ROOT = inst.ROOT
 IMAGES = os.path.join(ROOT, "assets", "images")
-LOOSE = ("districts", "backgrounds", "mapbg")
+LOOSE = ("districts", "backgrounds")     # not mapbg: the tiles need their alpha
 MIN_BYTES = 200 * 1024
 QUALITY = 90
 
 
-def candidates():
+def candidates(images=IMAGES):
     out = []
     for g in LOOSE:
-        for dp, _, fns in os.walk(os.path.join(IMAGES, g)):
+        for dp, _, fns in os.walk(os.path.join(images, g)):
             for fn in sorted(fns):
                 if fn.lower().endswith(".png") and os.path.getsize(os.path.join(dp, fn)) >= MIN_BYTES:
                     out.append(os.path.join(dp, fn))
@@ -50,10 +57,11 @@ def to_jpeg_bytes(im):
 
 
 def rewrite_paths(renamed):
-    for rel in ("assets/art_ready/installed.json", "content/district_layouts.json"):
-        p = os.path.join(ROOT, rel)
-        if not os.path.isfile(p):
-            continue
+    if not renamed:
+        return
+    inst.rename(renamed)                 # the list and its notes, as data: a text replace listed a file twice
+    p = os.path.join(ROOT, "content", "district_layouts.json")
+    if os.path.isfile(p):
         with open(p, encoding="utf-8", newline="") as f:
             text = f.read()
         new = text
