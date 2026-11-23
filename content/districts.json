@@ -2952,6 +2952,150 @@
           "stem_desc": "a bright lead-guitar hook over the chords"
         }
       ]
+    },
+    {
+      "id": "sunset_bossa",
+      "part": 2,
+      "first": 401,
+      "last": 420,
+      "map_tint": "#F8D7AE",
+      "name": {
+        "ru": "Закатная босса",
+        "en": "Sunset Bossa",
+        "ko": "노을 보사노바"
+      },
+      "genre": {
+        "ru": "Босса на закате",
+        "en": "Sunset Bossa",
+        "ko": "노을빛 보사노바"
+      },
+      "bpm": 96,
+      "key": "C",
+      "semitones_from_c": 0,
+      "bars": 8,
+      "mood": "golden hour on the beach: a nylon guitar with the bossa nova pattern, a soft flute, a brushed shaker, an electric piano and the sound of waves",
+      "songs": [
+        {
+          "id": "golden_hour_walk",
+          "name": {
+            "ru": "Прогулка в золотой час",
+            "en": "Golden Hour Walk",
+            "ko": "골든아워 산책"
+          },
+          "bpm": 104,
+          "bars": 12,
+          "mood": "a relaxed bossa stroll: nylon guitar, rim clicks, a warm bass and a breezy flute tune"
+        },
+        {
+          "id": "last_ferry_home",
+          "name": {
+            "ru": "Последний паром домой",
+            "en": "Last Ferry Home",
+            "ko": "마지막 배를 타고"
+          },
+          "bpm": 76,
+          "bars": 8,
+          "mood": "a slow sunset ballad: a soft electric piano, a long bass, brushes and a wistful flute"
+        },
+        {
+          "id": "sea_salt_samba",
+          "name": {
+            "ru": "Солёный самба",
+            "en": "Sea Salt Samba",
+            "ko": "바다 소금 삼바"
+          },
+          "bpm": 118,
+          "bars": 12,
+          "mood": "a light samba: a tamborim and shaker groove, a bright guitar and a bouncing bass"
+        },
+        {
+          "id": "lantern_tide",
+          "name": {
+            "ru": "Фонарики и прилив",
+            "en": "Lantern Tide",
+            "ko": "등불과 밀물"
+          },
+          "bpm": 88,
+          "bars": 8,
+          "mood": "a quiet bossa for the first lanterns: a nylon guitar, a vibraphone, a gentle tide of shaker"
+        }
+      ],
+      "chest": {
+        "coins": 4200,
+        "boosters": [
+          "disco",
+          "row_light",
+          "col_light"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "sunset_cajon",
+          "name": {
+            "ru": "Кахон на закате",
+            "en": "Sunset cajon",
+            "ko": "노을 카혼"
+          },
+          "cost": 1,
+          "stem": "perc",
+          "stem_desc": "a bossa beat: a soft kick, rim clicks in the clave pattern and a ghost shaker"
+        },
+        {
+          "id": "veranda_guitar",
+          "name": {
+            "ru": "Гитара на веранде",
+            "en": "Veranda guitar",
+            "ko": "베란다 기타"
+          },
+          "cost": 4,
+          "stem": "guitar",
+          "stem_desc": "a nylon guitar with the bossa nova pattern on the chords"
+        },
+        {
+          "id": "tide_speaker",
+          "name": {
+            "ru": "Колонка у прибоя",
+            "en": "Tide speaker",
+            "ko": "파도 스피커"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "a round bass walking from the root to the fifth, two beats to a chord"
+        },
+        {
+          "id": "sunset_bar",
+          "name": {
+            "ru": "Бар на закате",
+            "en": "Sunset bar",
+            "ko": "노을 바"
+          },
+          "cost": 5,
+          "stem": "shaker",
+          "stem_desc": "a brushed shaker on the 8ths with a sleepy swing"
+        },
+        {
+          "id": "dune_hammock",
+          "name": {
+            "ru": "Гамак у дюн",
+            "en": "Dune hammock",
+            "ko": "모래언덕 해먹"
+          },
+          "cost": 5,
+          "stem": "keys",
+          "stem_desc": "a warm electric piano with the chords spread over the bar"
+        },
+        {
+          "id": "lantern_palm",
+          "name": {
+            "ru": "Пальма с фонариками",
+            "en": "Lantern palm",
+            "ko": "등불 야자수"
+          },
+          "cost": 6,
+          "stem": "flute",
+          "stem_desc": "a soft flute tune that floats over the chords"
+        }
+      ]
     }
   ],
   "level_stems": {
