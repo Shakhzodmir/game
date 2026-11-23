@@ -51,7 +51,7 @@ local function with_account(opts, fn)
 	local m = mock_mod.new({ configured = not opts.unavailable })
 	local bfile = {}
 	G.with_town({
-		language = opts.language or "en", window = opts.window,
+		language = opts.language or "en", window = opts.window, town = opts.town,
 		setup = function(app, c)
 			auth.set_provider(m)
 			cloud.init({ app = app, auth = auth, now = function() return app.now() end, seed = function() return 5 end,
@@ -128,6 +128,94 @@ describe("account windows", function()
 			assert_true(t.enter_t <= 1.2, "no wait for a layer built in an earlier visit: it came " .. string.format("%.2f", t.enter_t) .. " s in")
 			c.run(0.6)
 			assert_true(c.app.ui.popup_targets.guest ~= nil)
+		end)
+	end)
+
+	-- The glow of the item the next star buys (screens/town/scene.lua, Town:sync_glow) waits for the windows the town opens
+	-- by itself in the first second of a visit, as it waits for the rewards and the chests of a win: lit at the first frame,
+	-- it would go out again when the window comes at 1 s, a blink in front of the player's eyes.
+	describe("the glow of the next item and the windows of the first second", function()
+		local SCENE = "/screens/town/town.gui"
+
+		-- the town built by hand (with_account { town = false }), so that every frame of the visit can be looked at
+		local function visit(c)
+			c.town = c.E.script("screens/town/town.gui_script", "/screens/town/town.gui")
+			c.town:init()
+			c.app.set_screen("town", {})
+			return c.town.self.t
+		end
+
+		local function glows(c)
+			local n = 0
+			for _, node in ipairs(c.E.alive_nodes(c.E.scene(SCENE))) do
+				if node.id == "aura" then n = n + 1 end
+			end
+			return n
+		end
+
+		-- the first layer is built and one star is in the purse: the lamps are in reach, the next purchase
+		local function layer_and_a_star(app)
+			built_first(app)
+			G.give_stars(app, 1)
+		end
+
+		it("stays out while the first-launch window of a return visit is due, and grows in when the window is closed", function()
+			with_account({ town = false, setup = layer_and_a_star }, function(c)
+				visit(c)
+				assert_true(c.app.meta:next_task().affordable, "the lamps are within reach")
+				local opened
+				for frame = 1, 60 * 4 do
+					c.step(1)
+					assert_eq(glows(c), 0, "no glow (frame " .. frame .. ", and not on the one the window opens on either)")
+					if c.app.ui.popup == "account" then
+						opened = frame
+						break
+					end
+				end
+				assert_true(opened ~= nil, "the window comes")
+				assert_true(opened >= 55 and opened <= 75, "at 1 s: frame " .. tostring(opened))
+				c.run(0.6)
+				assert_eq(glows(c), 0, "none under the window")
+				assert_eq(c.app.ui.glow, nil)
+				wtap(c, "guest")
+				c.run(1)
+				assert_eq(c.app.ui.popup, nil)
+				assert_eq(glows(c), 1, "the window is gone: the glow comes in")
+				assert_eq(c.app.ui.glow, "lamps")
+			end)
+		end)
+
+		it("is there from the first frame when no window is due: signed in, welcomed before, or no provider", function()
+			local function lit_at_once(opts, why)
+				opts.town = false
+				opts.setup = opts.setup or layer_and_a_star
+				with_account(opts, function(c)
+					visit(c)
+					c.step(2)
+					assert_eq(glows(c), 1, why)
+					assert_eq(c.app.ui.glow, "lamps", why)
+					c.run(2) -- and it stays through the second where a window would have come
+					assert_eq(glows(c), 1, why)
+					assert_eq(c.app.ui.popup, nil, why)
+				end)
+			end
+			lit_at_once({ welcomed = true }, "welcomed before")
+			lit_at_once({ unavailable = true }, "no provider")
+			lit_at_once({ setup = function(app, c, m)
+				layer_and_a_star(app)
+				m.google_next = { sub = "g7", email = "me@gmail.com" }
+				auth.sign_in_google(function() end)
+			end }, "signed in")
+		end)
+
+		it("does not wait for a window that has to wait for the first layer to be heard: the first purchase of the game", function()
+			-- the window of a first purchase comes LISTEN_FOR seconds after the show; until then the item is the next purchase
+			with_account({ town = false, setup = function(app) G.win(app, 1); G.give_stars(app, 1) end }, function(c)
+				visit(c)
+				c.step(2)
+				assert_eq(glows(c), 1, "nothing is built yet: no window is due, the first silhouette glows")
+				assert_eq(c.app.ui.glow, "turntable")
+			end)
 		end)
 	end)
 
@@ -556,6 +644,48 @@ describe("cloud choice window", function()
 				and c.app.ui.popup_targets.cancel ~= nil, "keep this one, take the account's, not now")
 			assert_eq(m.puts, 0, "nothing is written before the answer")
 			assert_eq(c.app.meta:level_to_play(), 4)
+		end)
+	end)
+
+	-- The question is opened by the town at 1 s of a visit, like the first-launch window: the glow of the item the next star
+	-- buys (screens/town/scene.lua) is held back for it, or it would grow in at the first frame and go out again (a blink).
+	it("holds the glow of the next item back for a question that is waiting at the start of the visit", function()
+		with_account({ town = false, welcomed = true, setup = function(app, c, m)
+			damaged_account(app, c, m) -- the device is three levels ahead: its first silhouette is within reach
+			m.google_next = { sub = "g1", email = "a@gmail.com" }
+			auth.sign_in_google(function() end)
+			cloud.on_signed_in() -- the account's save is unreadable: the sync leaves a question for the player
+		end }, function(c)
+			local d = cloud.decision()
+			assert_true(d ~= nil and not d.auto, "a question is waiting")
+			c.town = c.E.script("screens/town/town.gui_script", "/screens/town/town.gui")
+			c.town:init()
+			c.app.set_screen("town", {})
+			assert_true(c.app.meta:next_task().affordable)
+			local function glows()
+				local n = 0
+				for _, node in ipairs(c.E.alive_nodes(c.E.scene("/screens/town/town.gui"))) do
+					if node.id == "aura" then n = n + 1 end
+				end
+				return n
+			end
+			local opened
+			for frame = 1, 60 * 4 do
+				c.step(1)
+				assert_eq(glows(), 0, "no glow (frame " .. frame .. ", and not on the one the question opens on either)")
+				if c.app.ui.popup == "cloud_choice" then
+					opened = frame
+					break
+				end
+			end
+			assert_true(opened ~= nil and opened >= 55 and opened <= 75, "the question comes at 1 s: frame " .. tostring(opened))
+			c.run(0.6)
+			assert_eq(glows(), 0, "none under the window")
+			wtap(c, "cancel") -- not now
+			c.run(1)
+			assert_eq(c.app.ui.popup, nil)
+			assert_eq(glows(), 1, "the window is gone: the glow comes in")
+			assert_eq(c.app.ui.glow, "turntable")
 		end)
 	end)
 

@@ -269,6 +269,17 @@ function Town:account_prompts()
 	end
 end
 
+-- Will account_prompts open a window of its own when the first second of the visit is over? It asks what account_prompts
+-- asks (keep the two in step), and opens nothing: the sync question nobody has answered yet, or the first-launch sign-in
+-- window with its first layer heard. Town:entry_pending reads it, so that the glow of the next item does not light up for a
+-- moment before the window covers it.
+function Town:account_due()
+	local d = cloud.decision()
+	if d and not d.auto and self.asked ~= d then return true end
+	if self.prompted then return false end
+	return auth.available() and not cloud.welcomed() and auth.user() == nil and self:layer_heard()
+end
+
 -- actions -----------------------------------------------------------------------------------------
 
 function Town:toggle_view()
@@ -350,14 +361,16 @@ function Town:finger_down()
 end
 
 -- Is something about to cover the town or run a show on it, in the first second of the visit? The rewards and the chests a
--- level brought back are queued 0.45 s after the entry (the stars are in the meta long before), and the song the notebook
--- offers opens its window at 1 s: the glow waits for them, or it would light up and go out again at once. (Only the offers
--- of the entry: a window that comes later simply covers the town, and the glow goes out under it.)
+-- level brought back are queued 0.45 s after the entry (the stars are in the meta long before), and the windows the town
+-- opens by itself at 1 s (the song the notebook offers, the sync question, the first-launch sign-in window of a return
+-- visit: account_due) come when that second is over: the glow waits for them, or it would light up and go out again at
+-- once. (Only the offers of the entry: a window that comes later simply covers the town, and the glow goes out under it.)
 function Town:entry_pending()
 	if self.enter_t > 1.0 then return false end
 	if not self.rewards_started and (rewards.count() > 0 or #app.meta:pending_chests() > 0) then return true end
 	local song = app.meta:songbook_pending()
-	return song ~= nil and self.offered_song ~= song
+	if song ~= nil and self.offered_song ~= song then return true end
+	return self:account_due()
 end
 
 -- The soft glow of the item the next star buys (views.item_glow: the stars suffice, the district and the look on display
