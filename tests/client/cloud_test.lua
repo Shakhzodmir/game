@@ -1053,6 +1053,106 @@ describe("client.cloud: stars spent on the town", function()
 	end)
 end)
 
+describe("client.cloud: a rolled-back build and the districts it does not know", function()
+	before_each(function() T = H.T0 end)
+
+	-- The live site was rolled back to an older build while the account (and this device) hold the save of a newer
+	-- one: a player who bought every task of districts the older build has never heard of. The older build must
+	-- carry those entries through its own saves and uploads (meta/town.lua restore), or the newer build, when it
+	-- comes back, finds the tasks at 0 while the stars they cost are gone.
+	local Meta = require("meta.meta")
+	local newer = H.newer_districts(4)
+	local NEW_IDS = { newer.districts[16].id, newer.districts[17].id, newer.districts[18].id, newer.districts[19].id }
+
+	-- the save of a player of the newer build (the seed of boot_device: the same player on every device)
+	local function newer_save()
+		return H.as_build(newer, function()
+			local m = Meta.new(newer, 42)
+			H.advance_to(m, 6)
+			H.build_everything(m)
+			return H.json_round_trip(m:serialize())
+		end)
+	end
+
+	local function keeps_every_entry(tbl, saved, where)
+		for _, id in ipairs(NEW_IDS) do
+			assert_true(tbl.town[id] ~= nil, where .. ": " .. id .. " is gone")
+			assert_same(tbl.town[id], saved.town[id], where .. ": " .. id)
+		end
+	end
+
+	it("uploads its own save after a win and the account keeps every entry of the newer build", function()
+		local m = new_server()
+		local saved = newer_save()
+		boot_device({ current = { glow_save = 1, data = saved } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		assert_eq(cloud.status().status, "synced")
+		assert_eq(m.docs[uid].code, savecode.encode(saved), "the account holds the save as the newer build wrote it")
+		wins(1)
+		T = T + 5
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(cloud.status().status, "synced")
+		local uploaded = assert(savecode.decode(m.docs[uid].code))
+		assert_eq(uploaded.progress.beaten, saved.progress.beaten + 1, "this is the older build's save")
+		keeps_every_entry(uploaded, saved, "account")
+		keeps_every_entry(assert(savecode.decode(m.docs[uid].previous)), saved, "account, previous")
+		keeps_every_entry(app.store.last, saved, "device")
+		-- the update comes back and reads what the account holds
+		H.as_build(newer, function()
+			local again = Meta.load(newer, uploaded, nil, 42, T)
+			for _, id in ipairs(NEW_IDS) do
+				local view = again:district(id)
+				assert_eq(view.done, view.total, id)
+				assert_true(view.chest_claimed, id)
+			end
+		end)
+	end)
+
+	it("takes the account's save of the newer build and keeps its entries through its own next saves", function()
+		local m = new_server()
+		local saved = newer_save()
+		boot_device({ current = { glow_save = 1, data = saved } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		auth.sign_out(); m.session = nil
+		boot_device(nil, 42) -- another device of the player, on the older build, a few levels behind
+		wins(2)
+		sign_in_google(m)
+		assert_eq(cloud.decision(), nil, "no question: the account is ahead")
+		assert_eq(app.meta:level_to_play(), saved.progress.beaten + 1, "the account's save is taken")
+		keeps_every_entry(app.meta:serialize(), saved, "meta")
+		keeps_every_entry(app.store.last, saved, "device")
+		wins(1)
+		T = T + 5
+		cloud.tick(T)
+		keeps_every_entry(app.store.last, saved, "device after a win")
+		keeps_every_entry(assert(savecode.decode(m.docs[uid].code)), saved, "account after a win")
+		local _, prev = app.store:load()
+		keeps_every_entry(prev, saved, "previous slot")
+	end)
+
+	it("sends the save quietly when only a setting changed (equal progress, other checksum) and it carries the entries", function()
+		local m = new_server()
+		local saved = newer_save()
+		boot_device({ current = { glow_save = 1, data = saved } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		local before = m.docs[uid].code
+		assert_eq(m.puts, 1)
+		assert_true(app.set_setting("music", 0.5))
+		T = T + 70 -- the once-a-minute check
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(m.puts, 2, "the changed save went up")
+		assert_true(m.docs[uid].code ~= before)
+		local uploaded = assert(savecode.decode(m.docs[uid].code))
+		assert_eq(uploaded.prefs.settings.music, 0.5)
+		keeps_every_entry(uploaded, saved, "account")
+	end)
+end)
+
 describe("cloud cleanup", function()
 	it("leaves no provider and no cloud state behind for the next test file", function()
 		require("client.cloud").reset()
