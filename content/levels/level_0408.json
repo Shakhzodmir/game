@@ -1,30 +1,28 @@
 {
   "id": 408, "version": 1,
-  "size": [7, 7],
-  "moves": 27,
+  "size": [8, 8],
+  "moves": 25,
   "difficulty": "easy",
   "colors": ["red", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "carpet"},
-    {"type": "ice", "count": 5}
+    {"type": "ice", "count": 5},
+    {"type": "collect", "color": "yellow", "count": 30}
   ],
   "cells": [
-    ".#####.",
-    "#######",
-    "#######",
-    "#######",
-    "#######",
-    "#######",
-    ".#####."
+    "#.......",
+    "##......",
+    "####....",
+    "####....",
+    "#####...",
+    "#######.",
+    "#######.",
+    "########"
   ],
   "overlay": [
-    {"at": [3, 2], "type": "ice", "hp": 2},
-    {"at": [1, 3], "type": "ice", "hp": 1},
-    {"at": [5, 3], "type": "ice", "hp": 1},
-    {"at": [1, 5], "type": "ice", "hp": 1},
-    {"at": [5, 5], "type": "ice", "hp": 1}
-  ],
-  "carpet": [
-    [2, 4], [3, 4], [4, 4]
+    {"at": [3, 2], "type": "ice", "hp": 1},
+    {"at": [2, 3], "type": "ice", "hp": 1},
+    {"at": [1, 4], "type": "ice", "hp": 1},
+    {"at": [6, 5], "type": "ice", "hp": 1},
+    {"at": [5, 6], "type": "ice", "hp": 1}
   ]
 }

@@ -1,30 +1,21 @@
 {
   "id": 427, "version": 1,
   "size": [9, 8],
-  "moves": 30,
+  "moves": 29,
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [
-    {"type": "chains", "count": 6},
     {"type": "collect", "color": "orange", "count": 44}
   ],
   "cells": [
+    "#########",
+    "#########",
     ".#######.",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    ".#######."
+    ".#######.",
+    "..#####..",
+    "..#####..",
+    "...###...",
+    "...###..."
   ],
-  "overlay": [
-    {"at": [2, 2], "type": "chain", "hp": 2},
-    {"at": [6, 2], "type": "chain", "hp": 2},
-    {"at": [1, 4], "type": "chain", "hp": 2},
-    {"at": [7, 4], "type": "chain", "hp": 2},
-    {"at": [3, 5], "type": "chain", "hp": 2},
-    {"at": [5, 5], "type": "chain", "hp": 2}
-  ],
-  "curtain": {"covers": [[2, 3], [3, 3], [4, 3], [5, 3], [2, 4], [3, 4], [4, 4], [5, 4]], "closed_moves": 2, "open_moves": 3, "start": "open"}
+  "curtain": {"covers": [[3, 3], [4, 3], [5, 3], [3, 4], [4, 4], [5, 4]], "closed_moves": 2, "open_moves": 3, "start": "open"}
 }

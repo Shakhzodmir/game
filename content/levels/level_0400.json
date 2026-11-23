@@ -5,44 +5,31 @@
   "difficulty": "super_hard",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [
+    {"type": "fog"},
     {"type": "break", "item": "column", "count": 2},
-    {"type": "chains", "count": 12},
-    {"type": "collect", "color": "blue", "count": 60}
+    {"type": "collect", "color": "blue", "count": 100}
   ],
   "cells": [
+    "##.###.##",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
     ".#######.",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    ".#######."
+    "..#####..",
+    "...###..."
   ],
   "slots": [
-    {"at": [4, 3], "type": "boombox", "hp": 3},
-    {"at": [1, 4], "type": "column", "hp": 12},
-    {"at": [6, 4], "type": "column", "hp": 12},
-    {"at": [4, 7], "type": "boombox", "hp": 3},
-    {"at": [2, 8], "type": "boombox", "hp": 3},
-    {"at": [6, 8], "type": "boombox", "hp": 3},
-    {"at": [4, 9], "type": "boombox", "hp": 3}
+    {"at": [3, 1], "type": "boombox", "hp": 3},
+    {"at": [5, 1], "type": "boombox", "hp": 3},
+    {"at": [1, 3], "type": "column", "hp": 12},
+    {"at": [6, 3], "type": "column", "hp": 12},
+    {"at": [2, 6], "type": "boombox", "hp": 3},
+    {"at": [6, 6], "type": "boombox", "hp": 3},
+    {"at": [4, 7], "type": "boombox", "hp": 3}
   ],
-  "overlay": [
-    {"at": [3, 2], "type": "chain", "hp": 2},
-    {"at": [5, 2], "type": "chain", "hp": 2},
-    {"at": [3, 4], "type": "chain", "hp": 2},
-    {"at": [5, 4], "type": "chain", "hp": 2},
-    {"at": [3, 5], "type": "chain", "hp": 2},
-    {"at": [5, 5], "type": "chain", "hp": 2},
-    {"at": [3, 6], "type": "chain", "hp": 2},
-    {"at": [5, 6], "type": "chain", "hp": 2},
-    {"at": [1, 8], "type": "chain", "hp": 2},
-    {"at": [7, 8], "type": "chain", "hp": 2},
-    {"at": [3, 9], "type": "chain", "hp": 2},
-    {"at": [5, 9], "type": "chain", "hp": 2}
-  ]
+  "fog": [[3, 3], [4, 3], [5, 3], [3, 4], [4, 4], [5, 4]]
 }

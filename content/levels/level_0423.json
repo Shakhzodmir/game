@@ -1,33 +1,33 @@
 {
   "id": 423, "version": 1,
   "size": [9, 9],
-  "moves": 27,
+  "moves": 23,
   "difficulty": "medium",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [
-    {"type": "chains", "count": 8},
-    {"type": "collect", "color": "orange", "count": 44}
+    {"type": "chains", "count": 6},
+    {"type": "collect", "color": "orange", "count": 38}
   ],
   "cells": [
+    "..#####..",
     ".#######.",
     "#########",
     "#########",
     "#########",
     "#########",
     "#########",
-    "#########",
-    "#########",
-    ".#######."
+    "##.....##",
+    "##.....##"
   ],
   "overlay": [
-    {"at": [4, 1], "type": "chain", "hp": 2},
-    {"at": [2, 2], "type": "chain", "hp": 2},
-    {"at": [6, 2], "type": "chain", "hp": 2},
+    {"at": [1, 2], "type": "chain", "hp": 2},
+    {"at": [7, 2], "type": "chain", "hp": 2},
+    {"at": [1, 3], "type": "chain", "hp": 2},
+    {"at": [7, 3], "type": "chain", "hp": 2},
     {"at": [1, 4], "type": "chain", "hp": 2},
     {"at": [7, 4], "type": "chain", "hp": 2},
-    {"at": [2, 6], "type": "chain", "hp": 2},
-    {"at": [6, 6], "type": "chain", "hp": 2},
-    {"at": [4, 7], "type": "chain", "hp": 2}
+    {"at": [1, 5], "type": "chain", "hp": 2},
+    {"at": [7, 5], "type": "chain", "hp": 2}
   ],
   "curtain": {"covers": [[3, 3], [4, 3], [5, 3], [3, 4], [4, 4], [5, 4]], "closed_moves": 2, "open_moves": 3, "start": "closed"}
 }
