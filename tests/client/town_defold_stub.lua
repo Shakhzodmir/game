@@ -578,31 +578,8 @@ function M.install(opts)
 			if n.parent ~= ref.parent then error("gui." .. what .. ": the nodes must have the same parent", 3) end
 		end
 	end
-	-- The draw order among siblings (later children are drawn over earlier ones): move_below puts n right under ref, move_above
-	-- right over it; without a reference n goes to the bottom / the top of its parent's children. A node without a parent
-	-- keeps its creation order.
-	local function reorder(n, ref, above)
-		local sib = n.parent and n.parent.children
-		if not sib or ref == n then return end
-		for i = #sib, 1, -1 do
-			if sib[i] == n then table.remove(sib, i) end
-		end
-		local at = above and #sib + 1 or 1
-		if ref ~= nil then
-			for i, s in ipairs(sib) do
-				if s == ref then at = above and i + 1 or i end
-			end
-		end
-		table.insert(sib, at, n)
-	end
-	function gui.move_below(n, ref)
-		move_check(n, ref, "move_below")
-		reorder(n, ref, false)
-	end
-	function gui.move_above(n, ref)
-		move_check(n, ref, "move_above")
-		reorder(n, ref, true)
-	end
+	function gui.move_below(n, ref) move_check(n, ref, "move_below") end
+	function gui.move_above(n, ref) move_check(n, ref, "move_above") end
 
 	local TEXTURE_BYTES = { rgb = 3, rgba = 4, l = 1 }
 	function gui.new_texture(name, w, h, kind, buf, flip)
