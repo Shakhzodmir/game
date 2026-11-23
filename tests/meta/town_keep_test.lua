@@ -363,7 +363,15 @@ describe("a rollback: the older build meets the save of a newer one", function()
 
 	it("still fits the save code when every kept entry is as heavy as it may be", function()
 		assert_true(KEEP ~= nil, "meta/config.lua has the bounds (town_keep)")
-		local t = H.json_round_trip(H.new(3):serialize())
+		-- The worst case of the bounds: the most entries, each of exactly the most bytes, under the longest ids, of
+		-- data that does not compress, on top of the save of a player far into the levels: about 103,000 characters
+		-- here, 106,000 on the save of the release candidate (docs/design/meta-economy.md). The filler text of the
+		-- first version of this test compressed, and the figure in the document came from it: a fifth too low.
+		local t = H.as_build(newer, function()
+			local m = Meta.new(newer, 7)
+			H.advance_to(m, LAST_LEVEL + 50)
+			return H.json_round_trip(m:serialize())
+		end)
 		local x = 12345
 		local function noise(n) -- text that does not compress (every product stays below 2^53: the same on every VM)
 			local out = {}
@@ -373,16 +381,20 @@ describe("a rollback: the older build meets the save of a newer one", function()
 			end
 			return table.concat(out)
 		end
-		for i = 1, KEEP.districts do t.town[string.format("d%03d", i)] = { blob = noise(KEEP.bytes - 100) } end
+		local blob_bytes = KEEP.bytes -- the longest blob of an entry { blob = ... } that fits the cap
+		while #savecode.pack({ blob = string.rep("x", blob_bytes) }) > KEEP.bytes do blob_bytes = blob_bytes - 1 end
+		local ids = {}
+		for i = 1, KEEP.districts do
+			ids[i] = string.rep("d", KEEP.id_bytes - 3) .. string.format("%03d", i)
+			t.town[ids[i]] = { blob = noise(blob_bytes) }
+		end
+		assert_eq(#savecode.pack(t.town[ids[1]]), KEEP.bytes, "every entry weighs the most it may")
 		resign(t)
 		local m = Meta.load(H.districts(), t, nil, 1, T)
 		local s = m:serialize()
-		local count = 0
-		for id in pairs(s.town) do -- order-free: a count
-			if id:match("^d%d%d%d$") then count = count + 1 end
-		end
-		assert_eq(count, KEEP.districts, "all of them are kept")
+		for _, id in ipairs(ids) do assert_true(s.town[id] ~= nil, "kept: " .. id) end
 		local code = savecode.encode(s)
+		assert_true(#code > 90000, "the worst case is a big one: " .. #code)
 		assert_true(#code < savecode.MAX_CODE * 0.6, "the code is " .. #code .. " of " .. savecode.MAX_CODE)
 		assert_true(savecode.read(code, H.districts()) ~= nil)
 	end)
