@@ -1,7 +1,7 @@
 {
   "id": 354, "version": 1,
   "size": [9, 10],
-  "moves": 23,
+  "moves": 22,
   "difficulty": "medium",
   "colors": ["red", "orange", "yellow", "green", "purple"],
   "goals": [
@@ -9,6 +9,7 @@
     {"type": "break", "item": "noise", "count": 6}
   ],
   "cells": [
+    "...####..",
     "..#####..",
     ".#######.",
     "#########",
@@ -17,8 +18,7 @@
     "#########",
     "#########",
     "#########",
-    ".#######.",
-    "..#####.."
+    "#########"
   ],
   "slots": [
     {"at": [1, 4], "type": "noise"}, {"at": [4, 4], "type": "noise"}, {"at": [7, 4], "type": "noise"},
