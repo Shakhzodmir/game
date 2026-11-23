@@ -26,6 +26,7 @@ local assets = require("client.assets")
 local life_mod = require("screens.town.life")
 local anim = require("client.anim")
 local bit_mod = require("client.bit")
+local packs = require("client.packs")
 
 local M = {}
 
@@ -64,6 +65,28 @@ function M.images(did, view, keep)
 		keep[item_key(did, tid) .. "_ghost"] = true
 	end
 	return keep
+end
+
+-- The pictures of the room the web build has not downloaded yet (client/packs.lua): how many, how many of them are
+-- still on their way (the others failed and wait for their next round), the bytes of the room here and in all.
+-- 0, 0, 0, 0 on other platforms (the archive holds every picture).
+function M.waiting(did, view)
+	if not packs.enabled() then return 0, 0, 0, 0 end
+	local missing, pending, got, total = 0, 0, 0, 0
+	for k in pairs(M.images(did, view)) do -- order-free: sums
+		if packs.remote(k) then
+			local size = assets.image(k).bytes or 0
+			total = total + size
+			if packs.bytes(k) then
+				got = got + size
+			else
+				missing = missing + 1
+				local state = packs.state(k)
+				if state == "queued" or state == "loading" then pending = pending + 1 end
+			end
+		end
+	end
+	return missing, pending, got, total
 end
 
 function Scene:keep(keep)
@@ -137,6 +160,7 @@ local function build_layer(self, did, opts)
 	local layer = s:layer(self.container)
 	local view = app.meta:view(did)
 	local R = { layer = layer, view = view, did = did, parts = {} }
+	R.waiting = M.waiting(did, view) -- pictures still downloading (the web build): the town draws the room again later
 	local bg = s:layer(layer, "bg")
 	R.parts.mid = s:layer(layer, "mid")
 	R.items_layer = s:layer(layer, "items")

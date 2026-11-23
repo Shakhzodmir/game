@@ -9,3 +9,4 @@
 /.firebaserc
 /firestore.rules
 /firestore.indexes.json
+/chatgpt

@@ -52,6 +52,7 @@ inputs gives byte-identical files.
 """
 import argparse
 import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -385,17 +386,127 @@ def check_loose(images, dids, warnings):
                 key, e["w"], e["h"], 1170 * 1280 / 720 / e["h"], MIN_BG[0], MIN_BG[1]))
 
 
-def check_custom_resources(warnings):
+def project_custom_resources():
+    """The custom_resources entries of game.project, in order ([] when it cannot be read)."""
     try:
         with open(rel("game.project"), encoding="utf-8") as f:
             text = f.read()
     except OSError:
-        return
+        return []
     m = re.search(r"^custom_resources\s*=\s*(.*)$", text, re.M)
-    have = {x.strip().rstrip("/") for x in (m.group(1).split(",") if m else [])}
+    return [x.strip().rstrip("/") for x in (m.group(1).split(",") if m else []) if x.strip()]
+
+
+def check_custom_resources(warnings):
+    if not os.path.isfile(rel("game.project")):
+        return
+    have = set(project_custom_resources())
     for d in LOOSE_DIRS:
         if d not in have:
             warnings.append("game.project custom_resources lacks %s: its loose images will not load" % d)
+
+
+# ---------------------------------------------------------------------------
+# remote pictures of the web build
+# ---------------------------------------------------------------------------
+# The web archive must be small (players on slow links download all of it before the first frame), so it carries
+# the shared loose images and those of the FIRST district of content/districts.json only. Every loose image of any
+# other district is "remote": the web build ships it as a plain file next to index.html (packs/<path under
+# assets/images>, copied by tools/build_web.sh from the list WEB_PACKS) and client/packs.lua downloads it when the
+# player gets there. Its registry entry says remote = "packs/<path>?v=<content hash>" (a new picture is a new
+# address, so a release never shows a stale one from the browser's cache), bytes (the size, checked on arrival) and
+# district. Which district a picture belongs to comes from its key: districts/<id>/... and mapbg/<name>_<id> (the
+# map tile bg_<id>, the gate gate_<id>), so a district added later needs no code here. Other platforms keep every
+# picture in their archive: game.project lists the whole folders, and only the web build applies WEB_SETTINGS
+# (bob --settings), whose custom_resources leave the remote files out; its [glow] packs = 1 tells the game to fetch.
+WEB_SETTINGS = GEN + "/web.settings"
+WEB_PACKS = GEN + "/web_packs.txt"
+PACKS_DIR = "packs"
+
+
+def pack_district(key, dids):
+    """District id a loose image belongs to (None: shared by every district)."""
+    parts = key.split("/")
+    if parts[0] == "districts" and len(parts) >= 3:
+        return parts[1]
+    if parts[0] == "mapbg" and len(parts) == 2 and "_" in parts[1]:
+        did = parts[1].split("_", 1)[1]
+        if did in dids:
+            return did
+    return None
+
+
+def pack_order(key):
+    """Sort key of a remote image within its district: what the player sees first comes first (the room, the grey
+    ghosts of the items not restored yet, the level background), then the restored items, the concert look, the map."""
+    name = key.split("/")[-1]
+    if key.startswith("mapbg/"):
+        rank = 5
+    elif name == "bg":
+        rank = 0
+    elif name.endswith("_ghost"):
+        rank = 1
+    elif name == "level_bg":
+        rank = 2
+    elif name.startswith("bg_"):
+        rank = 4
+    else:
+        rank = 3
+    return (rank, key)
+
+
+def plan_remote(images, dids):
+    """{image_key: {district, url, bytes}} of the loose images that are not in the web archive."""
+    first = dids[0] if dids else None
+    out = {}
+    for key in sorted(images):
+        if not is_loose(key):
+            continue
+        did = pack_district(key, dids)
+        if did is None or did == first:
+            continue
+        path = images[key]["path"]
+        with open(rel(path), "rb") as f:
+            data = f.read()
+        out[key] = {
+            "district": did,
+            "url": "%s/%s?v=%s" % (PACKS_DIR, path[len(IMAGES) + 1:], hashlib.sha1(data).hexdigest()[:10]),
+            "bytes": len(data),
+        }
+    return out
+
+
+def web_custom_resources(remote_paths):
+    """game.project's custom_resources with every remote file left out: a folder that holds one is replaced by its
+    folders and files that hold none (the smallest such list)."""
+    def cover(relpath):
+        full = rel(relpath)
+        if not os.path.isdir(full):
+            return [] if relpath in remote_paths else ["/" + relpath]
+        if not any(p == relpath or p.startswith(relpath + "/") for p in remote_paths):
+            return ["/" + relpath]
+        out = []
+        for name in sorted(os.listdir(full)):
+            if not name.startswith("."):
+                out += cover(relpath + "/" + name)
+        return out
+
+    entries = []
+    for e in project_custom_resources():
+        entries += cover(e.lstrip("/"))
+    return entries
+
+
+def web_settings_text(remote_paths):
+    # bob's settings parser takes no comment lines: the note that the file is generated is a key of [glow]
+    return "\n".join([
+        "[project]",
+        "custom_resources = " + ",".join(web_custom_resources(remote_paths)),
+        "",
+        "[glow]",
+        "packs = 1",
+        "packs_note = generated by tools/gen_defold.py for the web build only, do not edit",
+    ]) + "\n"
 
 
 def atlas_text(keys, images, anims):
@@ -711,7 +822,8 @@ def lua_value(v, indent=""):
     return "nil"
 
 
-def index_text(images, atlases, anims, fonts, sounds, guis):
+def index_text(images, atlases, anims, fonts, sounds, guis, remote=None):
+    remote = remote or {}
     also = set(atlases.get("meta", []))
     L = ["-- Generated by tools/gen_defold.py - do not edit, re-run the generator.",
          "-- Registry of the Defold resources built from assets/: scripts look",
@@ -725,13 +837,18 @@ def index_text(images, atlases, anims, fonts, sounds, guis):
             ", ".join(lua_string(a) for a in ["white"] + [anims[k] for k in keys])))
     L.append("\t},")
     L.append("\t-- atlas images {atlas, anim, w, h, slice9?, also? = {atlases holding a copy}};")
-    L.append("\t-- loose images {file, w, h}")
+    L.append("\t-- loose images {file, w, h}; those the web archive leaves out also {remote = address relative to")
+    L.append("\t-- index.html, bytes, district} (client/packs.lua downloads them in the web build)")
     L.append("\timages = {")
     for key in sorted(images):
         e = images[key]
         extra = (", slice9 = { %s }" % ", ".join("%g" % v for v in e["slice9"])) if "slice9" in e else ""
         a = atlas_for(key)
         if a is None:
+            r = remote.get(key)
+            if r:
+                extra += ", remote = %s, bytes = %d, district = %s" % (
+                    lua_string(r["url"]), r["bytes"], lua_string(r["district"]))
             L.append("\t\t[%s] = { file = %s, w = %d, h = %d%s }," % (
                 lua_string(key), lua_string(res_path(e["path"])), e["w"], e["h"], extra))
         else:
@@ -739,6 +856,14 @@ def index_text(images, atlases, anims, fonts, sounds, guis):
                 extra += ', also = { "meta" }'
             L.append("\t\t[%s] = { atlas = %s, anim = %s, w = %d, h = %d%s }," % (
                 lua_string(key), lua_string(a), lua_string(anims[key]), e["w"], e["h"], extra))
+    L.append("\t},")
+    L.append("\t-- the remote images of each district, in the order they are fetched (pack_order)")
+    L.append("\tpacks = {")
+    groups = {}
+    for key in sorted(remote, key=pack_order):
+        groups.setdefault(remote[key]["district"], []).append(key)
+    for did in sorted(groups):
+        L.append("\t\t[%s] = { %s }," % (lua_string(did), ", ".join(lua_string(k) for k in groups[did])))
     L.append("\t},")
     L.append("\tfonts = {")
     for name in sorted(fonts):
@@ -809,9 +934,14 @@ def build_outputs(warnings, errors):
         mat = gui_materials(mats)
         guis[path] = (tex, mat)
         outputs[path] = gui_text(script, tex, sorted(fonts), mat, max_nodes).encode("utf-8")
-    outputs[INDEX] = index_text(images, atlases, anims, fonts, sounds, guis).encode("utf-8")
+    remote = plan_remote(images, dids)
+    remote_paths = {images[k]["path"] for k in remote}
+    outputs[WEB_SETTINGS] = web_settings_text(remote_paths).encode("utf-8")
+    outputs[WEB_PACKS] = "".join(p + "\n" for p in sorted(remote_paths)).encode("utf-8")
+    outputs[INDEX] = index_text(images, atlases, anims, fonts, sounds, guis, remote).encode("utf-8")
     stats = {"images": len(images), "atlases": len(atlases), "fonts": len(fonts), "sounds": len(comps),
-             "loose": sum(1 for k in images if is_loose(k))}
+             "loose": sum(1 for k in images if is_loose(k)), "remote": len(remote),
+             "remote_bytes": sum(r["bytes"] for r in remote.values())}
     return outputs, stats
 
 
@@ -846,8 +976,8 @@ def main():
                     stale.append(p)
                     if not args.check:
                         os.remove(os.path.join(dp, fn))
-    print("gen_defold: %(images)d images (%(loose)d loose), %(atlases)d atlases, %(fonts)d fonts, "
-          "%(sounds)d sound components" % stats)
+    print("gen_defold: %(images)d images (%(loose)d loose, %(remote)d of them remote in the web build: "
+          "%(remote_bytes)d bytes), %(atlases)d atlases, %(fonts)d fonts, %(sounds)d sound components" % stats)
     for w in warnings:
         print("warning: " + w, file=sys.stderr)
     for p in changed:

@@ -78,7 +78,9 @@ local function with_decision(bound_uid)
 		local savecode = require("meta.savecode")
 		local other = app.meta:serialize()
 		m.accounts.u001 = { uid = "u001", kind = "google", google_sub = "g1", verified = true, email = "a@gmail.com" }
-		m.docs.u001 = { code = savecode.encode(other) }
+		-- Only what client/cloud.lua does not settle by itself opens the window: a damaged account save (its older
+		-- copy is readable: both cards, three buttons), and another account's save here when this account has none.
+		if not bound_uid then m.docs.u001 = { code = "GLOW1-garbage", previous = savecode.encode(other) } end
 		app.reset_save(7, app.now())
 		rich(app)
 		m.google_next = { sub = "g1", email = "a@gmail.com" }

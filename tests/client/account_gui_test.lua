@@ -156,6 +156,114 @@ describe("account windows", function()
 	end)
 end)
 
+-- What the player is told when Google's window ends without a sign-in (a phone has no console: silence looks like a bug)
+describe("google sign-in feedback", function()
+	local function toast_now(c) return type(c.app.overlay.toast) == "string" and c.app.overlay.toast or "" end
+
+	it("stays silent when the player said no himself (the Cancel of the Google card)", function()
+		with_account({ welcomed = true }, function(c, m)
+			open(c, "account")
+			wtap(c, "google") -- the mock answers "cancelled"
+			c.run(3)
+			assert_eq(c.app.overlay.toast, nil, "a 'no' is silent")
+			assert_eq(auth.user(), nil)
+		end)
+	end)
+
+	it("explains a Google window that closed or never answered, in the game's language", function()
+		for _, case in ipairs({
+			{ "en", "popup_closed", "The Google window closed" },
+			{ "ru", "popup_closed", "Окно Google закрылось" },
+			{ "en", "popup_timeout", "Google did not answer" },
+			{ "en", "home_app", "Google does not answer here" },
+			{ "ru", "home_app", "Здесь Google не отвечает" },
+			{ "en", "popup_blocked", "Window blocked" },
+		}) do
+			with_account({ welcomed = true, language = case[1] }, function(c, m)
+				open(c, "account")
+				m.google_error = case[2]
+				wtap(c, "google")
+				c.run(0.7)
+				assert_true(toast_now(c):find(case[3], 1, true) ~= nil, case[2] .. ": " .. toast_now(c))
+				assert_eq(auth.user(), nil)
+				assert_eq(c.app.ui.popup, "account", "the window stays: ID and password are one tap away")
+			end)
+		end
+	end)
+
+	it("shows a closed window as a soft blue 4 s toast and the other failures in pink", function()
+		for _, case in ipairs({ { "popup_closed", "blue" }, { "popup_timeout", "pink" }, { "home_app", "pink" }, { "popup_blocked", "pink" } }) do
+			with_account({ welcomed = true }, function(c, m)
+				local seen
+				local real = c.app.toast_key
+				c.app.toast_key = function(key, vars, opts)
+					seen = { key = key, color = opts and opts.color, duration = opts and opts.duration }
+					return real(key, vars, opts)
+				end
+				open(c, "account")
+				m.google_error = case[1]
+				wtap(c, "google")
+				c.app.toast_key = real
+				assert_true(seen ~= nil, case[1] .. ": a toast")
+				assert_eq(seen.key, "auth.err." .. case[1])
+				assert_eq(seen.color, case[2], case[1])
+				assert_eq(seen.duration, 4)
+			end)
+		end
+	end)
+
+	it("tells an ID account that taps 'Link Google' in the Home Screen app that Google does not answer there", function()
+		with_account({ welcomed = true }, function(c, m)
+			open(c, "account")
+			m.form_next = { id = "Anna_7", password = "secret123" }
+			wtap(c, "create")
+			c.run(0.6)
+			assert_eq(auth.user().id, "anna_7")
+			m.google_error = "home_app"
+			wtap(c, "link_google")
+			local seen = {}
+			for _ = 1, 40 do -- the toast queue shows "Signed in" first
+				c.run(0.25)
+				local t = c.app.overlay.toast
+				if type(t) == "string" then seen[#seen + 1] = t end
+			end
+			local all = table.concat(seen, " | ")
+			assert_true(all:find("does not answer in the Home Screen app", 1, true) ~= nil, all)
+			assert_true(all:find("Use ID and password", 1, true) == nil, "he is signed in with ID already: " .. all)
+		end)
+	end)
+
+	it("shows every Google failure toast at a readable size in en, ru and ko", function()
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			G.with_town({ town = false, language = lang }, function(c)
+				for _, k in ipairs({ "popup_blocked", "popup_closed", "popup_timeout", "home_app", "home_app_link", "inapp_browser", "browser_unsupported" }) do
+					c.app.toast_key("auth.err." .. k, nil, { duration = 1 })
+					c.overlay:run(0.8)
+					local list = c.overlay:smallest_texts(1)
+					assert_true(list[1] ~= nil, lang .. " " .. k .. ": the toast is on screen")
+					-- the toast is ONE line scaled to the canvas width: a long text becomes tiny (15 px is the project's floor)
+					assert_true(list[1].px >= 18, lang .. " " .. k .. ": only " .. string.format("%.1f", list[1].px) .. " px")
+					c.overlay:run(3)
+				end
+			end)
+		end
+	end)
+
+	it("answers a second tap while a window is out with 'busy', not with a second window", function()
+		with_account({ welcomed = true }, function(c, m)
+			m.manual = true -- the answer is held: the window is "out"
+			open(c, "account")
+			wtap(c, "google")
+			assert_eq(c.app.overlay.toast, nil)
+			wtap(c, "google")
+			c.run(0.7)
+			assert_true(toast_now(c):find("still working", 1, true) ~= nil, toast_now(c))
+			assert_eq(#m.calls, 1, "one window")
+			m.manual = false
+		end)
+	end)
+end)
+
 -- "Forgot password?", "Forgot your ID?" and the privacy policy link (WP-18)
 local platform = require("client.platform")
 
@@ -234,7 +342,7 @@ describe("cloud choice window", function()
 		G.win(app, 1)
 	end
 
-	-- the device (a separate game) is ahead of the account: the one case that still asks
+	-- the device (a separate game) is ahead of the account: settled without a question too (the device save is uploaded)
 	local function device_ahead(app, _, m)
 		G.win(app, 1)
 		local tbl1 = app.meta:serialize()
@@ -242,6 +350,20 @@ describe("cloud choice window", function()
 		m.docs.u001 = { code = savecode.encode(tbl1) }
 		app.reset_save(7, app.now())
 		G.win(app, 3)
+	end
+
+	-- what still asks: the account's save is unreadable (here its older copy can be read, so both saves are shown)
+	local function damaged_account(app, c, m)
+		device_ahead(app, c, m)
+		m.docs.u001 = { code = "GLOW1-garbage", previous = m.docs.u001.code }
+	end
+
+	local function splashes(c)
+		local n = 0
+		for _, p in ipairs(c.E.posted("show_screen", "main:/app")) do
+			if p.message.name == "splash" then n = n + 1 end
+		end
+		return n
 	end
 
 	it("takes the account's save into the town by itself when it is further along (no question)", function()
@@ -258,8 +380,27 @@ describe("cloud choice window", function()
 		end)
 	end)
 
-	it("asks when this device is ahead of the account: both saves, the one further along recommended", function()
+	it("uploads this device's save by itself when it is ahead of the account: no window, the town goes on", function()
 		with_account({ welcomed = true, setup = device_ahead, language = "ru" }, function(c, m)
+			local old = m.docs.u001.code
+			local before = splashes(c)
+			m.google_next = { sub = "g1", email = "a@gmail.com" }
+			auth.sign_in_google(function() end)
+			cloud.on_signed_in()
+			c.run(3)
+			assert_true(c.app.ui.popup ~= "cloud_choice", "no window")
+			assert_eq(cloud.decision(), nil)
+			assert_eq(cloud.status().status, "synced")
+			assert_eq(m.puts, 1)
+			assert_eq(m.docs.u001.code, savecode.encode(c.app.store.last), "the account holds the device save")
+			assert_eq(m.docs.u001.previous, old, "and keeps its old one")
+			assert_eq(c.app.meta:level_to_play(), 4)
+			assert_eq(splashes(c), before, "the town was not restarted")
+		end)
+	end)
+
+	it("still asks when the account's save is damaged: both saves, the one further along recommended", function()
+		with_account({ welcomed = true, setup = damaged_account, language = "ru" }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
@@ -267,11 +408,34 @@ describe("cloud choice window", function()
 			assert_eq(c.app.ui.popup, "cloud_choice")
 			assert_true(has(c, "Уровней 3"), G.dump(c.town))
 			assert_true(has(c, "Уровней 1"))
+			assert_true(c.app.ui.popup_targets.upload ~= nil and c.app.ui.popup_targets.download ~= nil
+				and c.app.ui.popup_targets.cancel ~= nil, "keep this one, take the account's, not now")
+			assert_eq(m.puts, 0, "nothing is written before the answer")
+			assert_eq(c.app.meta:level_to_play(), 4)
+		end)
+	end)
+
+	it("the player's answer in the window is carried out: the device save goes to the account", function()
+		with_account({ welcomed = true, setup = damaged_account }, function(c, m)
+			m.google_next = { sub = "g1", email = "a@gmail.com" }
+			auth.sign_in_google(function() end)
+			cloud.on_signed_in()
+			c.run(3)
+			assert_eq(c.app.ui.popup, "cloud_choice")
+			wtap(c, "upload")
+			c.run(0.6)
+			assert_eq(c.app.ui.popup, nil)
+			assert_eq(cloud.decision(), nil)
+			assert_eq(m.puts, 1)
+			assert_eq(m.docs.u001.code, savecode.encode(c.app.store.last))
+			assert_eq(c.app.meta:level_to_play(), 4)
+			c.run(3)
+			assert_eq(c.app.ui.popup, nil, "and it is not asked again")
 		end)
 	end)
 
 	it("'not now' keeps playing and pauses the upload", function()
-		with_account({ welcomed = true, setup = device_ahead }, function(c, m)
+		with_account({ welcomed = true, setup = damaged_account }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
@@ -287,7 +451,7 @@ describe("cloud choice window", function()
 	end)
 
 	it("closing with the corner button is the same as 'not now'", function()
-		with_account({ welcomed = true, setup = device_ahead }, function(c, m)
+		with_account({ welcomed = true, setup = damaged_account }, function(c, m)
 			m.google_next = { sub = "g1", email = "a@gmail.com" }
 			auth.sign_in_google(function() end)
 			cloud.on_signed_in()
@@ -295,6 +459,8 @@ describe("cloud choice window", function()
 			wtap(c, "close")
 			c.run(0.6)
 			assert_eq(cloud.status().status, "paused")
+			assert_eq(m.puts, 0)
+			assert_eq(c.app.meta:level_to_play(), 4)
 		end)
 	end)
 end)

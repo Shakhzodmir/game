@@ -57,6 +57,29 @@ describe("client.services.auth_web", function()
 		assert_eq(auth.label(auth.user()), "anna_7")
 	end)
 
+	it("tells the page the game's language with the Google calls (the page's own card speaks it)", function()
+		local i18n = require("client.i18n")
+		local page = fake_page()
+		local p = web.new({ run = page.run, now = function() return page.clock end })
+		auth.set_provider(p)
+		for _, lang in ipairs({ "ru", "ko", "en" }) do
+			i18n.set_language(lang)
+			auth.sign_in_google(function() end)
+			local call = page.calls[#page.calls]
+			assert_eq(call.op, "sign_in_google")
+			assert_eq(call.args, '"' .. lang .. '"')
+			page.queue[1] = call.id .. "|0|cancelled|"
+			auth.tick(1)
+			auth.link_google(function() end)
+			call = page.calls[#page.calls]
+			assert_eq(call.op, "link_google")
+			assert_eq(call.args, '"' .. lang .. '"')
+			page.queue[1] = call.id .. "|0|cancelled|"
+			auth.tick(2)
+		end
+		i18n.set_language("en")
+	end)
+
 	it("reads a cloud document, a missing one and a failure", function()
 		local page = fake_page()
 		local p = web.new({ run = page.run, now = function() return page.clock end })

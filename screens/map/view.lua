@@ -33,6 +33,7 @@ local rewards = require("client.rewards")
 local levels = require("client.levels")
 local map_model = require("client.map_model")
 local map_scroll = require("client.map_scroll")
+local packs = require("client.packs")
 
 local M = {}
 
@@ -77,6 +78,8 @@ function M.new(scene, mdl)
 	self.sz3 = v3(0, 0, 0)
 	self.sc3 = v3(1, 1, 1)
 	self.tiles, self.gates, self.decos = {}, {}, {}
+	self.standins, self.gate_standins = {}, {} -- tiles / gates drawn plain while their picture downloads: image key
+	self.packs_seen = packs.version
 	self.want = {}
 	self.targets = {}
 	self.keys = {}                -- "node_<level>": the QA target names, made once
@@ -146,6 +149,7 @@ function View:build_world()
 	self.c_nodes = s:layer(self.world, "nodes")
 	self.c_bit = s:layer(self.world, "bit")
 	self.tiles, self.gates, self.decos = {}, {}, {}
+	self.standins, self.gate_standins = {}, {}
 	self.first, self.last, self.g0, self.g1 = 1, 0, 1, 0
 	self.slot_of_level = {}
 	for k in pairs(self.targets) do self.targets[k] = nil end -- order-free: clears
@@ -382,6 +386,8 @@ function View:make_tile(seg, idx)
 	local node = s:image(parent, sg.bg, 360, y, { w = 720, h = th })
 	if not node then
 		node = s:box(parent, 360, y, 720, th, { color = sg.tint or "#F4EEFF" })
+		-- the web build is still downloading the picture (client/packs.lua): plain tint until it comes
+		if packs.remote(sg.bg) then self.standins[key_of(seg, idx)] = sg.bg end
 	end
 	-- Every other tile is mirrored LEFT TO RIGHT (never upside down), so the same picture is not seen twice in a
 	-- row. A tile lies over the top of the tile below it (map_model tile_step): the lower tile stays under it.
@@ -400,12 +406,19 @@ function View:make_gate(seg)
 	local sg = m.segments[seg]
 	local holder = s:layer(self.seg_layers[seg].gate)
 	local node = s:image(holder, sg.gate, 360, sg.gate_y, { w = 720, h = 480 })
-	if not node then
-		node = s:round(holder, 360, sg.gate_y, 520, 160, "#9B5CFF", { radius = 40 })
-	end
 	local sign = sg.sign or { dx = 0, dy = 116, w = 280 }
 	local d = app.district_by_id and app.district_by_id[sg.district]
 	local name = d and i18n.name(d.name) or sg.district
+	if not node then
+		-- no picture (or the web build is still downloading it, client/packs.lua): the name on a plain sign where
+		-- the board of the gate would be
+		if packs.remote(sg.gate) then self.gate_standins[seg] = sg.gate end
+		s:round(holder, 360, sg.gate_y + 116, 560, 96, "#9B5CFF", { radius = 40 })
+		s:text(holder, name, 360, sg.gate_y + 118, {
+			font = "button", size = 38, color = "white", outline = false, shadow = "#6C32CF", max_width = 500,
+		})
+		return holder
+	end
 	-- the name sits in the middle of the blank signboard of the gate picture (content/map.json `sign`, found by
 	-- tools/art/gate_signs.py) and is no taller than the board
 	local size = sign.h and math.max(22, math.min(38, math.floor(sign.h * 0.6))) or 38
@@ -438,6 +451,15 @@ function View:sync_backdrop(off)
 	for k in pairs(want) do want[k] = nil end -- order-free: clears
 	local changed = false
 	local lo, hi = off - M.TILE_MARGIN, off + vh + M.TILE_MARGIN
+	-- the web build downloads the pictures it draws (client/packs.lua): the district of the player's level first
+	if packs.enabled() then
+		local nd = m:node(self.next or m.count)
+		local sg = nd and m.segments[m:segment_at(nd.y)]
+		if sg then
+			packs.want(sg.bg, packs.NOW)
+			packs.want(sg.gate, packs.NOW)
+		end
+	end
 	for seg = 1, #m.segments do
 		local sg = m.segments[seg]
 		local a, b = m:tiles(seg, off, vh, M.TILE_MARGIN)
@@ -472,6 +494,7 @@ function View:sync_backdrop(off)
 		if not want[k] then
 			s:clear(node)
 			self.tiles[k] = nil
+			self.standins[k] = nil
 			changed = true
 		end
 	end
@@ -479,6 +502,7 @@ function View:sync_backdrop(off)
 		if not want[-seg] then
 			s:clear(node)
 			self.gates[seg] = nil
+			self.gate_standins[seg] = nil
 			changed = true
 		end
 	end
@@ -496,6 +520,31 @@ function View:sync_backdrop(off)
 		self.back_seg = seg
 		gui.set_color(self.back, ui.color(m.segments[seg].tint or "#F4EEFF"))
 	end
+end
+
+-- A picture the web build was downloading came (client/packs.lua): its plain stand-ins go, and the next apply()
+-- draws them again, now with the picture. Cheap when nothing came (one comparison).
+function View:packs_arrived()
+	if packs.version == self.packs_seen then return end
+	self.packs_seen = packs.version
+	local s, dropped = self.ui, false
+	for k, key in pairs(self.standins) do -- order-free: each tile on its own
+		if packs.bytes(key) then
+			if self.tiles[k] then s:clear(self.tiles[k]) end
+			self.tiles[k] = nil
+			self.standins[k] = nil
+			dropped = true
+		end
+	end
+	for seg, key in pairs(self.gate_standins) do -- order-free
+		if packs.bytes(key) then
+			if self.gates[seg] then s:clear(self.gates[seg]) end
+			self.gates[seg] = nil
+			self.gate_standins[seg] = nil
+			dropped = true
+		end
+	end
+	if dropped then self.tile_key = nil end
 end
 
 -- The loose pictures that are in use (Bit's, the tiles and gates on display): the others leave the GPU.

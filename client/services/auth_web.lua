@@ -11,6 +11,7 @@
 -- The provider is "available" only when web/auth_config.js was filled in (glowAuth.configured). Without it the
 -- game is a guest game: auth.available() is false and the UI says "sign-in is not available yet".
 
+local i18n = require("client.i18n")
 local platform = require("client.platform")
 
 local M = {}
@@ -143,13 +144,14 @@ function M.new(opts)
 	end
 
 	function p.restore(cb) start("restore", {}, cb) end
-	function p.sign_in_google(cb) start("sign_in_google", {}, cb) end
+	-- the game's language goes with the Google calls: the page's own card ("Continue with Google") speaks it
+	function p.sign_in_google(cb) start("sign_in_google", { i18n.language() }, cb) end
 	function p.password_form(mode, labels, cb)
 		local args = labels_list(labels)
 		table.insert(args, 1, mode)
 		start("password_form", args, cb)
 	end
-	function p.link_google(cb) start("link_google", {}, cb) end
+	function p.link_google(cb) start("link_google", { i18n.language() }, cb) end
 	function p.link_email_form(labels, cb) start("link_email_form", labels_list(labels), cb) end
 	-- the first argument is the language of the letter, the rest are the form's labels
 	function p.reset_password(labels, lang, cb)

@@ -49,6 +49,7 @@ local audio = require("client.audio")
 local rewards = require("client.rewards")
 local config = require("meta.config")
 local savecode = require("meta.savecode")
+local packs = require("client.packs")
 
 local M = {}
 
@@ -539,6 +540,8 @@ function M.snapshot(now)
 		rewards_queued = rewards.count(),
 		-- what the analytics service logged: the total and the last few events (QA reads the funnel here)
 		analytics = { count = analytics.count(), recent = analytics.recent(8) },
+		-- the downloads of the remote pictures of the web build (client/packs.lua; the QA command "packs" gives the order)
+		packs = packs.enabled() and packs.status() or nil,
 	}
 	if meta then
 		local lives = meta:lives(now)

@@ -11,6 +11,15 @@
 	var ID_DOMAIN = "id.glow.invalid";
 	var RECENT_MS = 5 * 60 * 1000; // deleting an account needs a sign-in from the last five minutes
 	var MAX_CODE = 200000;
+	var VERSION = "2026-11-23c"; // printed in the small diagnostic line, so a screenshot says which script the phone runs
+	var T_ = (window.glowAuth && window.glowAuth._test) || {};
+	var POPUP_MS = T_.popupMs || 4 * 60 * 1000; // Google's window may stay open this long (a slow link, a code by SMS)
+	var HOME_POPUP_MS = T_.homePopupMs || T_.popupMs || 90 * 1000; // an iPhone Home Screen app: the SDK cannot see that window, so less
+	var LOOK_MS = T_.lookMs || 5 * 1000;           // after a window that went away: how long the account is watched
+	var HOME_LOOK_MS = T_.homeLookMs || 12 * 1000; // ... in an iPhone Home Screen app, where nothing says what the window did
+	var CANCEL_LOOK_MS = T_.cancelLookMs || 2 * 1000; // ... after our own Cancel of the waiting card
+	var WAIT_CARD_MS = T_.waitCardMs || 10 * 1000; // a window that stays unanswered this long gets the waiting card (with Cancel)
+	var SDK_MS = T_.sdkMs || 30 * 1000;         // the three SDK files must arrive within this
 
 	var configured = !!(cfg.apiKey && cfg.authDomain && cfg.projectId);
 	var results = [];
@@ -31,8 +40,16 @@
 	// error -> the stable reason ids of client/services/auth.lua
 	function reasonOf(e, ctx) {
 		var c = (e && e.code) || "";
-		if (c === "auth/popup-closed-by-user" || c === "auth/cancelled-popup-request" || c === "auth/user-cancelled") return "cancelled";
+		// "cancelled" is silent in the game, so it is only for what the player did on purpose (our Cancel buttons, a second
+		// window replacing the first). A Google window that simply went away (auth/popup-closed-by-user) is not the
+		// same: on a phone it is also what a window that opened somewhere else and never came back looks like.
+		if (c === "auth/cancelled-popup-request" || c === "auth/user-cancelled") return "cancelled";
+		if (c === "auth/popup-closed-by-user" || c === "glow/cancel-waiting") return "popup_closed";
+		if (c === "glow/popup-timeout") return "popup_timeout";
+		if (c === "glow/sdk-timeout") return "timeout";
 		if (c === "auth/popup-blocked") return "popup_blocked";
+		if (c === "glow/inapp-browser") return "inapp_browser";
+		if (c === "auth/web-storage-unsupported" || c === "auth/operation-not-supported-in-this-environment") return "browser_unsupported";
 		if (c === "auth/network-request-failed" || c === "unavailable" || c === "firestore/unavailable") return "offline";
 		if (c === "auth/user-not-found" || c === "auth/wrong-password" || c === "auth/invalid-credential" ||
 			c === "auth/invalid-login-credentials") return "bad_credentials";
@@ -47,6 +64,16 @@
 		if (c === "permission-denied" || c === "firestore/permission-denied") return "denied";
 		if (c === "auth/user-token-expired" || c === "auth/user-disabled" || c === "auth/null-user") return "no_user";
 		return "error";
+	}
+
+	// p, or a rejection with `code` when it takes longer than ms (the answer is still used if it comes later: see loadSdk)
+	function timed(p, ms, code) {
+		return new Promise(function (resolve, reject) {
+			var t = setTimeout(function () { var e = new Error(code); e.code = code; reject(e); }, ms);
+			if (t && t.unref) t.unref(); // node (tests): a waiting timer must not keep the process alive
+			function stop() { if (typeof clearTimeout === "function") clearTimeout(t); }
+			p.then(function (v) { stop(); resolve(v); }, function (e) { stop(); reject(e); });
+		});
 	}
 
 	function loadSdk() {
@@ -66,7 +93,10 @@
 					return { m: m, auth: m.getAuth(app), db: m.getFirestore(app) };
 				});
 			};
-		sdkPromise = Promise.resolve().then(loader).then(function (s) { sdk = s; return s; });
+		// A slow link (Uzbekistan, a train) must not leave the player with a silent tap: the wait is bounded, and a
+		// late arrival still fills `sdk`, so the next tap does not start over.
+		var loading = Promise.resolve().then(loader).then(function (s) { sdk = s; return s; });
+		sdkPromise = timed(loading, SDK_MS, "glow/sdk-timeout");
 		sdkPromise.catch(function () { sdkPromise = null; });
 		return sdkPromise;
 	}
@@ -201,43 +231,232 @@
 		});
 	}
 
-	// The game opens the Google window from its own frame loop, not inside the tap, so Safari (iPhone) and strict
-	// pop-up blockers refuse it (auth/popup-blocked). Then a real page button is shown: its click IS a user gesture,
-	// and the same call made inside it is allowed. Cancel resolves as a cancelled sign-in.
-	function withGesture(open) {
+	// The environment the Google window has to live in ------------------------------------------------------------
+	function isIOS() {
+		var ua = navigator.userAgent || "";
+		// iPadOS 13+ calls itself a Mac ("Macintosh") but has a touch screen; a real Mac has none
+		return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+	}
+	// a Home Screen app: iOS says it with navigator.standalone, Android and the rest with the display-mode query (WebKit
+	// bug 264218: an installed iOS web app can answer "fullscreen" there instead of "standalone")
+	function isStandalone() {
+		try { if (navigator.standalone === true) return true; } catch (e) { /* no navigator */ }
+		try {
+			if (!window.matchMedia) return false;
+			return ["standalone", "fullscreen", "minimal-ui"].some(function (k) { return !!window.matchMedia("(display-mode: " + k + ")").matches; });
+		} catch (e2) { return false; }
+	}
+	function popupBound() { return isIOS() && isStandalone() ? HOME_POPUP_MS : POPUP_MS; }
+
+	// the texts of the page's own pieces (the tap card, the "checking" line); the game's texts are in client/i18n.lua.
+	// The game says its language with every Google call (gameLang); the page's <html lang> is always "en" here, so it
+	// comes last, after the device's language.
+	var gameLang = "";
+	function words() {
+		var lang = (gameLang || navigator.language || document.documentElement.lang || "en").slice(0, 2);
+		return { ru: ["Продолжить с Google", "Отмена", "Ждём ответ от Google…", "Проверяю, вошли ли вы…"],
+			ko: ["Google로 계속하기", "취소", "Google 응답을 기다리는 중…", "로그인 확인 중…"] }[lang] ||
+			["Continue with Google", "Cancel", "Waiting for Google…", "Checking whether you signed in…"];
+	}
+	function displayKind() {
+		try { if (navigator.standalone === true) return "home"; } catch (e) { /* no navigator */ }
+		try { if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return "home"; } catch (e2) { /* none */ }
+		if (isStandalone()) return isIOS() ? "home" : "full"; // iOS reports an installed app as "fullscreen" in some versions
+		return "tab";
+	}
+	function envLabel() {
+		var ua = navigator.userAgent || "";
+		return (isIOS() ? "ios" : /Android/.test(ua) ? "android" : "desktop") + "-" + displayKind();
+	}
+
+	// Google refuses its sign-in page inside the built-in browsers of messengers and social apps (Telegram, Instagram,
+	// KakaoTalk, ...: "403 disallowed_useragent"), and the pop-up cannot report back from them. Such a browser is
+	// recognised before the window opens, and the game says to open the link in Safari or Chrome instead.
+	function inAppBrowser() {
 		var test = window.glowAuth && window.glowAuth._test;
-		return open().catch(function (e) {
-			if (!e || e.code !== "auth/popup-blocked") throw e;
-			if (test && test.gesture) return test.gesture(open);
-			return new Promise(function (resolve, reject) {
-				var lang = (document.documentElement.lang || navigator.language || "en").slice(0, 2);
-				var T = { ru: ["Продолжить с Google", "Отмена"], ko: ["Google로 계속하기", "취소"] }[lang] || ["Continue with Google", "Cancel"];
-				var wrap = document.createElement("div");
-				wrap.style.cssText = "position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:rgba(40,20,90,.6);" +
-					"display:flex;align-items:center;justify-content:center;font-family:sans-serif;";
-				var box = document.createElement("div");
-				box.style.cssText = "background:#fff;border-radius:18px;padding:20px;width:min(86vw,340px);box-sizing:border-box;text-align:center;";
-				var go = document.createElement("button");
-				go.type = "button"; go.textContent = T[0];
-				go.style.cssText = "display:block;width:100%;padding:14px;font-size:18px;font-weight:bold;border:0;border-radius:12px;background:#2BC98A;color:#fff;";
-				var no = document.createElement("button");
-				no.type = "button"; no.textContent = T[1];
-				no.style.cssText = "display:block;width:100%;padding:12px;font-size:16px;border:0;border-radius:12px;background:#E3D9FF;color:#3A2470;margin-top:10px;";
-				box.appendChild(go); box.appendChild(no); wrap.appendChild(box);
-				formEl = wrap;
-				document.body.appendChild(wrap);
-				function close() { formEl = null; if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }
-				go.addEventListener("click", function () { var p = open(); close(); p.then(resolve, reject); });
-				no.addEventListener("click", function () { close(); var c = new Error("cancelled"); c.code = "auth/user-cancelled"; reject(c); });
+		if (test && test.inapp != null) return !!test.inapp;
+		var ua = navigator.userAgent || "";
+		if (/FBAN|FBAV|FB_IAB|Instagram|KAKAOTALK|NAVER\(|Line\/|MicroMessenger|Telegram|TikTok|musical_ly|Snapchat|Twitter|; wv\)/i.test(ua)) return true;
+		if (window.TelegramWebviewProxy || window.TelegramWebview) return true;
+		// an iPhone / iPad page that is not Safari, Chrome, Firefox, Edge... (all of them say "Safari/") and not a Home
+		// Screen app: a web view of an app (also on an iPad that calls itself a Mac)
+		if (isIOS() && !isStandalone() && !/Safari\//.test(ua)) return true;
+		return false;
+	}
+
+	// Safari (every iPhone and iPad browser) opens a window only inside the tap itself, and the game calls from its own
+	// frame loop, never inside the tap. So on iOS the sign-in asks for a real page tap FIRST ("Continue with Google").
+	// Elsewhere the call is tried at once (Chrome keeps a tap alive for about five seconds) and the same card appears
+	// when the browser refuses (auth/popup-blocked). The card stays up while Google's window is open (with "Cancel"),
+	// and the wait is bounded: a window that never reports back (a Home Screen app on iOS can lose it) ends as
+	// "popup_timeout" in POPUP_MS, not as a game that waits ten minutes with nothing on the screen.
+	function needsTap() {
+		if (isIOS()) return true;
+		var ua = navigator.userActivation; // Chrome, Firefox, Safari 16.4+: is the player's tap still alive?
+		return !!(ua && ua.isActive === false);
+	}
+
+	// The card is a real page button over the game: "Continue with Google" + "Cancel"; once a window is out the green
+	// button is disabled and says "Waiting for Google…" (Cancel stays).
+	function buildCard() {
+		var T = words();
+		var wrap = document.createElement("div");
+		wrap.style.cssText = "position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:rgba(40,20,90,.6);" +
+			"display:flex;align-items:center;justify-content:center;font-family:sans-serif;";
+		var box = document.createElement("div");
+		box.style.cssText = "background:#fff;border-radius:18px;padding:20px;width:min(86vw,340px);box-sizing:border-box;text-align:center;";
+		var go = document.createElement("button");
+		go.type = "button"; go.textContent = T[0];
+		go.style.cssText = "display:block;width:100%;padding:14px;font-size:18px;font-weight:bold;border:0;border-radius:12px;background:#2BC98A;color:#fff;";
+		var no = document.createElement("button");
+		no.type = "button"; no.textContent = T[1];
+		no.style.cssText = "display:block;width:100%;padding:12px;font-size:16px;border:0;border-radius:12px;background:#E3D9FF;color:#3A2470;margin-top:10px;";
+		box.appendChild(go); box.appendChild(no); wrap.appendChild(box);
+		formEl = wrap;
+		document.body.appendChild(wrap);
+		var ft = setTimeout(function () { if (wrap.parentNode) { try { go.focus(); } catch (e) { /* none */ } } }, 50); // keyboard users
+		if (ft && ft.unref) ft.unref(); // node (tests)
+		return {
+			go: go, no: no,
+			wait: function () { go.disabled = true; go.textContent = T[2]; go.style.background = "#9C87E0"; },
+			again: function () { go.disabled = false; go.textContent = T[0]; go.style.background = "#2BC98A"; },
+			remove: function () {
+				if (formEl === wrap) formEl = null;
+				if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+				var cv = document.getElementById("canvas"); // the game takes the keys back
+				if (cv && cv.focus) { try { cv.focus(); } catch (e) { /* none */ } }
+			}
+		};
+	}
+
+	function cancelError(waiting) {
+		var c = new Error(waiting ? "closed" : "cancelled");
+		c.code = waiting ? "glow/cancel-waiting" : "auth/user-cancelled"; // not the SDK's own "closed" code: a screenshot tells them apart
+		c.glowCancel = true; // our own button: the account is looked at only briefly
+		return c;
+	}
+
+	function tapThenOpen(run) {
+		var test = window.glowAuth && window.glowAuth._test;
+		if (test && test.gesture) return test.gesture(run);
+		return new Promise(function (resolve, reject) {
+			var card = buildCard();
+			var over = false, waiting = false, retried = false;
+			// a card nobody taps is not kept for ever (the game has stopped waiting by then): it goes as a plain "no"
+			var idle = setTimeout(function () {
+				if (waiting) return;
+				var c = new Error("cancelled"); c.code = "auth/user-cancelled";
+				end(reject, c);
+			}, POPUP_MS);
+			if (idle && idle.unref) idle.unref();
+			function end(settle, value) {
+				if (over) return;
+				over = true;
+				if (typeof clearTimeout === "function") clearTimeout(idle);
+				card.remove();
+				settle(value);
+			}
+			card.go.addEventListener("click", function () {
+				if (over || waiting) return;
+				waiting = true;
+				card.wait();
+				var p;
+				try { p = run(); } catch (e) { return end(reject, e); } // inside the tap: this is the call that may open a window
+				p.then(function (v) { end(resolve, v); }, function (e) {
+					// refused inside the tap (a cold auth iframe on an iPad's Chrome, a slow link): the card stays for one more tap
+					if (e && e.code === "auth/popup-blocked" && !retried && !over) { retried = true; waiting = false; card.again(); return; }
+					end(reject, e);
+				});
 			});
+			card.no.addEventListener("click", function () { end(reject, cancelError(waiting)); });
+		});
+	}
+
+	// Where the window may be opened at once (desktop, Android with a live tap) there is no card at first. A window that
+	// stays unanswered for WAIT_CARD_MS (left behind the game, a tab in the switcher) gets the waiting card with Cancel, so
+	// the game never looks dead and refuses a second tap as "busy" until the bound.
+	function runWithWaitCard(run) {
+		var p;
+		try { p = run(); } catch (e) { return Promise.reject(e); }
+		return new Promise(function (resolve, reject) {
+			var card = null, over = false;
+			var timer = setTimeout(function () {
+				if (over) return;
+				card = buildCard();
+				card.wait();
+				card.no.addEventListener("click", function () { finish(reject, cancelError(true)); });
+			}, WAIT_CARD_MS);
+			if (timer && timer.unref) timer.unref();
+			function finish(settle, value) {
+				if (over) return;
+				over = true;
+				if (typeof clearTimeout === "function") clearTimeout(timer);
+				if (card) card.remove();
+				settle(value);
+			}
+			p.then(function (v) { finish(resolve, v); }, function (e) { finish(reject, e); });
+		});
+	}
+
+	function withGesture(open) {
+		if (inAppBrowser()) { var ia = new Error("in-app browser"); ia.code = "glow/inapp-browser"; return Promise.reject(ia); }
+		function run() { return timed(open(), popupBound(), "glow/popup-timeout"); }
+		if (needsTap()) return tapThenOpen(run);
+		return runWithWaitCard(run).catch(function (e) {
+			if (!e || e.code !== "auth/popup-blocked") throw e;
+			return tapThenOpen(run);
+		});
+	}
+
+	// After a Google window that went away -------------------------------------------------------------------------
+	// The SDK reports "window closed" 8 s after the fact even when the sign-in is still being finished (firebase-js-sdk
+	// issue 10407), and on a slow link it finishes later still. So before "failed" is said, the account is watched for a
+	// few seconds: a user with Google that was not there before (sign-in), or Google newly linked to the current user.
+	function hasGoogle(u) { return !!u && (u.providerData || []).some(function (p) { return p.providerId === "google.com"; }); }
+	function snapshot(s) { var u = s.auth.currentUser; return { uid: u ? u.uid : "", google: hasGoogle(u) }; }
+	function finished(s, before, linking) {
+		var u = s.auth.currentUser;
+		if (!hasGoogle(u)) return null;
+		// linking: Google appeared on the SAME user (a different user is somebody else's sign-in, not our link)
+		if (linking) return (u.uid === before.uid && !before.google) ? u : null;
+		return u.uid !== before.uid ? u : null;
+	}
+	function lookAgain(s, before, linking, ms) {
+		return new Promise(function (resolve) {
+			var end = Date.now() + ms;
+			(function look() {
+				var u = finished(s, before, linking);
+				if (u) return resolve(u);
+				if (Date.now() >= end) return resolve(null);
+				var t = setTimeout(look, Math.min(400, Math.max(10, end - Date.now())));
+				if (t && t.unref) t.unref(); // node (tests)
+			})();
+		});
+	}
+	function afterGoogleFailure(s, before, linking, e) {
+		var c = (e && e.code) || "";
+		if (c !== "auth/popup-closed-by-user" && c !== "glow/cancel-waiting" && c !== "glow/popup-timeout") throw e;
+		// how long the account is watched: our own Cancel briefly; where the SDK itself sees the window (it already waited
+		// about 8 s after the close) a few seconds; in an iPhone Home Screen app, where nothing says what happened, longer
+		var ms = e.glowCancel ? CANCEL_LOOK_MS : (isIOS() && isStandalone() ? HOME_LOOK_MS : LOOK_MS);
+		var gone = note(words()[3], ms + 500);
+		return lookAgain(s, before, linking, ms).then(function (u) {
+			gone();
+			if (u) return userFields(u);
+			throw e;
 		});
 	}
 
 	// operations ------------------------------------------------------------------------------------------------
 
+	// The uid the game was last TOLD about ("" = nobody; null until it has heard anything). A Google window we gave up on
+	// (our Cancel, the bound) can still finish later and silently change the SDK's current user; the game would go on
+	// as the old account while cloud reads, writes and deletes hit the new one's document. So account operations refuse
+	// a current user the game does not know (the answer is "no_user"; the next start restores the real account).
+	var told = null;
 	function needUser(s) {
 		var u = s.auth.currentUser;
-		if (!u) { var e = new Error("no user"); e.code = "auth/null-user"; throw e; }
+		if (!u || (told !== null && u.uid !== told)) { var e = new Error("no user"); e.code = "auth/null-user"; throw e; }
 		return u;
 	}
 	function docRef(s, u) { return s.m.doc(s.db, "saves", u.uid); }
@@ -250,9 +469,11 @@
 				var off = s.m.onAuthStateChanged(s.auth, function (u) { off(); resolve(userFields(u)); });
 			});
 		},
-		sign_in_google: function (s) {
+		sign_in_google: function (s, args) {
+			gameLang = (args && args[0]) || gameLang;
+			var before = snapshot(s);
 			return withGesture(function () { return s.m.signInWithPopup(s.auth, new s.m.GoogleAuthProvider()); })
-				.then(function (r) { return userFields(r.user); });
+				.then(function (r) { return userFields(r.user); }, function (e) { return afterGoogleFailure(s, before, false, e); });
 		},
 		password_form: function (s, args) {
 			var mode = args[0] === "register" ? "register" : "login";
@@ -264,10 +485,16 @@
 				return p.then(function (r) { return userFields(r.user); });
 			});
 		},
-		link_google: function (s) {
+		link_google: function (s, args) {
+			gameLang = (args && args[0]) || gameLang;
 			var u = needUser(s);
+			var before = snapshot(s);
 			return withGesture(function () { return s.m.linkWithPopup(u, new s.m.GoogleAuthProvider()); })
-				.then(function () { return userFields(s.auth.currentUser); });
+				.then(function () { return userFields(s.auth.currentUser); }, function (e) {
+					// Google was linked after all (a window finished late): that is what the player asked for
+					if (e && e.code === "auth/provider-already-linked" && hasGoogle(s.auth.currentUser)) return userFields(s.auth.currentUser);
+					return afterGoogleFailure(s, before, true, e);
+				});
 		},
 		link_email_form: function (s, args) {
 			var u = needUser(s);
@@ -335,19 +562,65 @@
 	var NETWORK = { sign_in_google: 1, password_form: 1, link_google: 1, link_email_form: 1, refresh: 1,
 		delete_account: 1, cloud_get: 1, cloud_put: 1, cloud_delete: 1 };
 
+	// what waits for the player (Google's window, a form): one at a time on the page, whatever the game's own guard did
+	var WAITS = { sign_in_google: 1, link_google: 1, password_form: 1, link_email_form: 1, reset_password: 1 };
+	var GOOGLE = { sign_in_google: 1, link_google: 1 };
+	var SAYS_USER = { restore: 1, sign_in_google: 1, password_form: 1, link_google: 1, link_email_form: 1, refresh: 1 };
+	var interactive = false;
+
 	function call(id, op, args) {
 		if (!configured || !OPS[op]) return "unavailable";
 		if (NETWORK[op] && op !== "password_form" && op !== "link_email_form" && offline()) {
 			done(id, false, "offline", {});
 			return "ok";
 		}
+		if (WAITS[op] && interactive) { done(id, false, "busy", {}); return "ok"; }
+		if (WAITS[op]) interactive = true;
+		var t0 = Date.now();
+		function free() { if (WAITS[op]) interactive = false; }
 		loadSdk().then(function (s) { return OPS[op](s, args || []); }).then(function (fields) {
+			free();
+			if (SAYS_USER[op]) told = (fields && fields.uid) || "";
+			else if (op === "sign_out" || op === "delete_account") told = "";
 			done(id, true, "", fields);
 		}, function (e) {
-			if (window.console && console.warn) console.warn("glowAuth " + op + ":", e && (e.code || e.message));
-			done(id, false, reasonOf(e, op === "link_email_form" ? "link_email" : op), {});
+			free();
+			var code = String((e && (e.code || e.message)) || "?");
+			if (window.console && console.warn) console.warn("glowAuth " + op + ":", code);
+			var why = reasonOf(e, op === "link_email_form" ? "link_email" : op);
+			// Google's window went away or never answered inside an iPhone Home Screen app: that window cannot always
+			// report back to such an app, and "try again" would not help; the game's text says what to do instead
+			if ((why === "popup_closed" || why === "popup_timeout") && isIOS() && isStandalone()) why = "home_app";
+			if (GOOGLE[op] && why !== "cancelled" && why !== "busy") {
+				note("google " + code.slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION, 15000);
+			} else if (why === "error") {
+				note(op + ": " + code.slice(0, 80));
+			}
+			done(id, false, why, {});
 		});
 		return "ok";
+	}
+
+	// A failure the game cannot explain well: its code, the kind of page (ios-home = an iPhone Home Screen app), the
+	// seconds it took and the script version, small at the bottom, so that a player can tell the developer what exactly
+	// failed (a phone has no console; a screenshot is enough).
+	function note(text, ms) {
+		var n = null, tm = null;
+		function remove() {
+			if (tm && typeof clearTimeout === "function") clearTimeout(tm);
+			if (n && n.parentNode) n.parentNode.removeChild(n);
+			n = null;
+		}
+		try {
+			n = document.createElement("div");
+			n.textContent = text;
+			n.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483001;padding:8px 10px;border-radius:10px;" +
+				"background:rgba(43,35,69,.9);color:#fff;font:12px sans-serif;text-align:center;pointer-events:none;";
+			document.body.appendChild(n);
+			tm = setTimeout(remove, ms || 8000);
+			if (tm && tm.unref) tm.unref(); // node (tests) must not wait for it
+		} catch (x) { /* no page: tests */ }
+		return remove;
 	}
 
 	function poll() {
@@ -359,6 +632,8 @@
 
 	window.glowAuth = window.glowAuth || {};
 	window.glowAuth.configured = configured;
+	window.glowAuth.version = VERSION;
+	window.glowAuth.bounds = { popup: POPUP_MS, homePopup: HOME_POPUP_MS, look: LOOK_MS, homeLook: HOME_LOOK_MS, cancelLook: CANCEL_LOOK_MS, waitCard: WAIT_CARD_MS, sdk: SDK_MS };
 	window.glowAuth.call = call;
 	window.glowAuth.poll = poll;
 })();
