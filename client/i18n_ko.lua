@@ -503,6 +503,8 @@ return {
 	["win.stars_note"] = "별은 점수에 따라 달라요. 점수가 높을수록 별이 많아요. 남은 이동은 코인이 돼요.",
 	["win.streak"] = "히트 연속: {n}",
 	["win.title"] = "레벨 클리어!",
+	["win.town_need"] = "“{item}”까지 별 {n}개 남았어요",
+	["win.town_ready"] = "“{item}” 살 수 있어요",
 	["win.town"] = "마을로",
 	["win.unlocked"] = "새 부스터: {name}",
 	["town.super_stars_hint"] = "슈퍼 별: {n}개. 콘서트 레벨에서 얻어요. 쓰임새는 곧 알려 줄게요.",

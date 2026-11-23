@@ -12,11 +12,15 @@
 --   pause, pause_loss (after a move on level 21 with a streak), pause_free (after a move on level 3)
 --   moves, moves_poor (not enough coins), defeat, result (level 3), result_chest (level 10),
 --   result_streak (level 14), result_last (level 100), buy (the "+" of an empty booster)
+--   result_first (the first win: the town line in green, To town the big button), result_bought (a task bought: the line in
+--   green, the usual buttons), result_need (two tasks bought: "1 more star to ..."), result_map (the first win of a level
+--   started from the map: the line, no swap), result_town_done (the whole town built: no line), result_practice (no line)
 --   tutorial_swap, tutorial_tip, tutorial_booster, tutorial_taptap
 
 package.path = "./?.lua;./?/init.lua;" .. package.path
 local G = require("tests.client.level_gui_helper")
 local json = require("tools.lib.json")
+local T = require("tests.client.meta_gui_helper")
 local link = require("client.level_link")
 local bus = require("client.bus")
 
@@ -100,6 +104,20 @@ end })
 case("result", { level = 3, run = win })
 case("result_chest", { level = 10, run = win })
 case("result_streak", { level = 14, run = win })
+-- the town line over the buttons (every win rated with one star: the wallet after it is the wallet before + 1)
+local function one_star_win(c)
+	require("client.level_end").qa_stars = 1
+	win(c)
+	require("client.level_end").qa_stars = nil
+end
+case("result_first", { level = 1, run = one_star_win })
+case("result_bought", { level = 1, setup = function(app) T.build_tasks(app, "cafe", 1) end, run = one_star_win })
+case("result_need", { level = 1, setup = function(app) T.build_tasks(app, "cafe", 2) end, run = one_star_win })
+case("result_map", { level = 1, from = "map", back = "map", run = one_star_win })
+case("result_town_done", { level = 1, setup = function(app)
+	for _, d in ipairs(app.meta:districts()) do T.build_tasks(app, d.id) end
+end, run = one_star_win })
+case("result_practice", { level = 5, attempt = false, run = win })
 -- the last level: the file of level 1 under another number (the shipped files may not reach 100 yet)
 local function level_one_as(n)
 	local f = assert(io.open("content/levels/level_0001.json", "r"))

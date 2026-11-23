@@ -351,6 +351,13 @@ local S = {
 	["win.super_have"] = { en = "Super stars: {n}", ru = "Суперзвёзды: {n}" },
 	["win.all_done"] = { en = "More levels coming soon!", ru = "Скоро новые уровни!" },
 	["win.refund"] = { en = "Returned to you: {names}", ru = "Возвращено тебе: {names}" },
+	-- the line about the next task of the town over the buttons: how many stars are still missing, or that the ones in the
+	-- purse are enough ({item} is the name the task card of the town shows; one line, so the names stay short in the texts)
+	["win.town_need"] = {
+		en = { one = "{n} more star to “{item}”", other = "{n} more stars to “{item}”" },
+		ru = { one = "Ещё {n} звезда до «{item}»", few = "Ещё {n} звезды до «{item}»", many = "Ещё {n} звёзд до «{item}»" },
+	},
+	["win.town_ready"] = { en = "You can buy “{item}”", ru = "Можно купить «{item}»" },
 
 	-- tutorial -----------------------------------------------------------------------------------------------------
 	-- Two lines at most in the bubble (screens/level/tutorial_view.lua): a third one runs under its Skip tab.

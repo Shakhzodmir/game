@@ -224,6 +224,14 @@ local function open_level(c, name, extra)
 		end
 		local view = lw.result(meta, res, { score = extra == "concert" and 21000 or 99999999, moves_at_win = 99, stars = 3 }, c.app.now())
 		if extra == "concert" then assert_true(view.scale ~= nil and view.concert, "the audit must draw the score scale and the super stars") end
+		-- the town line: the other cases have what the meta says (a first win, "You can buy" in green, the buttons swapped); these
+		-- two have the widest task names of the three languages, with 7 stars missing, and with the first task bought
+		-- (the usual buttons, the line in green)
+		if extra == "need" or extra == "bought" then
+			local widest = { en = "Washboard and tub bass", ru = "Флажки папель-пикадо", ko = "빨래판과 대야 베이스" }
+			view.town = { kind = extra == "need" and "need" or "ready", name = widest, need = extra == "need" and 7 or 0, cost = 7, first = false,
+				district = "cafe", task = "sign" }
+		end
 		local refund
 		if extra ~= "norefund" then
 			refund = {}
@@ -238,7 +246,7 @@ end
 
 local LEVEL_CASES = {
 	{ "pause" }, { "moves" }, { "defeat" }, { "defeat", "nolives" },
-	{ "result", "four" }, { "result", "norefund" }, { "result", "concert" },
+	{ "result", "four" }, { "result", "norefund" }, { "result", "concert" }, { "result", "need" }, { "result", "bought" },
 	{ "booster_buy", "first" }, { "booster_buy", "last" }, { "shop" },
 }
 
