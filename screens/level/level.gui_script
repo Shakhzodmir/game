@@ -517,8 +517,14 @@ function Level:on_input(action_id, action)
 	end
 	if action_id ~= TOUCH then return false end
 	if self.swallow then
-		if action.released then self.swallow = false end
-		return true
+		-- The rest of a touch the panel took (a goal tile, Bit, a tip) is not the board's: its drag and its release are eaten.
+		-- A new press means that touch is over, whatever became of its release (a window took it while the finger was down, a
+		-- modal of the overlay, the browser lost it): the press goes where it is meant, it is never eaten in its place.
+		if not action.pressed then
+			if action.released then self.swallow = false end
+			return true
+		end
+		self.swallow = false
 	end
 	-- Any press that is not on a goal tile ends the hint of a goal (the board, a booster, the pause button): the press itself
 	-- is not touched, it goes where it was meant. A press on a tile is taken below, and only that one.
