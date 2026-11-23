@@ -305,16 +305,16 @@ function realWindow(flipMs) {
 // (b) the shim: the SDK's "closed" read is the thing that ends it, and the shim takes it away
 for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 	const holder = {}, opens = [];
-	const sdk = fakeSdk({ popup: (...a) => sdkPopup(holder, { answerMs: 120 })(...a) });
+	const sdk = fakeSdk({ popup: (...a) => sdkPopup(holder, { answerMs: 500 })(...a) });
 	const g = game({ cfg: { googleIos: flow }, sdk, test: { lookMs: 10 } });
 	holder.g = g;
-	const real = realWindow(25); // the window the browser opened reads "closed" after 25 ms although the player is still choosing
+	const real = realWindow(20); // the window the browser opened reads "closed" after 20 ms although the player is still choosing
 	const mine = (g.open = (u, n, f) => { opens.push([u, n, f]); return real; });
 	const id = startCall(g, "sign_in_google", ["en"]);
 	assert.ok(await waitFor(() => cards(g).length === 1));
 	tapCard(g).click();
 	const r = await waitLine(g, id);
-	assert.equal(r.ok, expectOk, flow + ": a window that reads closed after 25 ms while the answer comes after 120 ms");
+	assert.equal(r.ok, expectOk, flow + ": a window that reads closed after 20 ms while the answer comes after 500 ms");
 	if (!expectOk) assert.equal(r.reason, "popup_closed"); else assert.equal(r.f.uid, "g-sdk");
 	assert.deepEqual(opens, [["https://auth.example/handler", "name", "features"]], "the SDK's arguments reach the real window.open");
 	assert.equal(g.open, mine, flow + ": window.open is the page's own again");
@@ -406,9 +406,9 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 }
 {
 	// the bounds: the SDK's own window in the Home Screen app ends at HOME_POPUP_MS with home_app; the shim keeps the long bound
-	for (const [flow, wantReason, maxMs] of [["firebase", "home_app", 5000], ["shim", "popup_timeout", 700]]) {
+	for (const [flow, wantReason, minMs, maxMs] of [["firebase", "home_app", 850, 6000], ["shim", "popup_timeout", 850, 1500]]) {
 		const sdk = fakeSdk({ popup: () => new Promise(() => {}) });
-		const g = game({ ua: IPHONE_HOME, standalone: true, cfg: { googleIosHome: flow }, sdk, test: { popupMs: 300, homePopupMs: 30, homeLookMs: 900, lookMs: 5 } });
+		const g = game({ ua: IPHONE_HOME, standalone: true, cfg: { googleIosHome: flow }, sdk, test: { popupMs: 900, homePopupMs: 30, homeLookMs: 900, lookMs: 5 } });
 		g.open = () => realWindow(0);
 		const id = startCall(g, "sign_in_google", ["en"]);
 		assert.ok(await waitFor(() => cards(g).length === 1));
@@ -417,7 +417,8 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 		await sleep(150);
 		if (flow === "shim") assert.equal(g.glowAuth.poll(), "", "the shim is still waiting after the Home Screen bound has passed");
 		const r = await waitLine(g, id);
-		assert.ok(Date.now() - t0 < maxMs, flow + ": the look at the account after the bound is the short one for the shim, the Home Screen one for the SDK window");
+		const took = Date.now() - t0;
+		assert.ok(took >= minMs && took < maxMs, flow + ": the bound and the look at the account after it: " + took + " ms (the shim: the long bound and the short look; the SDK window: the short bound and the Home Screen look)");
 		assert.deepEqual(lineOf(r), { ok: false, reason: wantReason }, flow);
 		assert.match(notes(g)[0].textContent, new RegExp(" " + flow + "$"), "the dark line names the way");
 	}
@@ -606,6 +607,25 @@ for (const [name, sc, wantReason, wantCode] of [
 }
 
 {
+	// (d2) the player closes Google's window and nothing comes back. That is also what a console without the return address looks
+	// like (Google shows its error page in the window, the window is closed by hand, no answer is ever sent): a closed window is only
+	// a hint, so the wait goes on; Cancel ends it ("the window closed"), and so does the bound ("Google did not answer")
+	for (const [how, popupMs] of [["Cancel", 60000], ["the bound", 1500]]) {
+		const world = popupWorld({ stay: true }), sdk = fakeSdk();
+		const g = game({ world, cfg: OIDC_POPUP, sdk, test: { popupMs, lookMs: 5 } });
+		const id = await tapped(g);
+		world.pages[0].handle.close(); // the window is closed by hand: its handle now reads closed
+		assert.equal(world.pages[0].handle.closed, true);
+		await sleep(350);
+		assert.deepEqual([g.glowAuth.poll(), cards(g).length, tapCard(g).disabled, sdk.calls.length], ["", 1, true, 0], how + ": still waiting, a closed window is only a hint");
+		if (how === "Cancel") cancelCard(g).click();
+		const r = await waitLine(g, id);
+		assert.deepEqual(lineOf(r), { ok: false, reason: how === "Cancel" ? "popup_closed" : "popup_timeout" }, how);
+		assert.deepEqual([oidcKeys(g), stopped(g), cards(g).length], [[], true, 0], how + ": nothing left behind");
+	}
+}
+
+{
 	// (e) a stale answer: attempt 1 is cancelled, its window answers late, attempt 2 is waiting; nobody is signed in by it
 	const world = popupWorld({ stay: true }), sdk = fakeSdk();
 	const g = game({ world, cfg: OIDC_POPUP, sdk });
@@ -658,13 +678,13 @@ for (const [name, sc, wantReason, wantCode] of [
 {
 	// (g) our Cancel: the window is closed, nothing is left, the account is looked at only if an exchange was under way
 	const world = popupWorld({ stay: true }), sdk = fakeSdk();
-	const g = game({ world, cfg: OIDC_POPUP, sdk, test: { cancelLookMs: 1500 } });
+	const g = game({ world, cfg: OIDC_POPUP, sdk, test: { cancelLookMs: 3000 } });
 	const id = await tapped(g);
 	const t0 = Date.now();
 	cancelCard(g).click();
 	const r = await waitLine(g, id);
 	assert.deepEqual(lineOf(r), { ok: false, reason: "popup_closed" });
-	assert.ok(Date.now() - t0 < 800, "no look at the account where nothing can finish late");
+	assert.ok(Date.now() - t0 < 1500, "no look at the account where nothing can finish late");
 	assert.match(notes(g)[0].textContent, /^google glow\/cancel-waiting ios-tab \d+s v\S+ oidc_popup$/);
 	assert.equal(world.pages[0].closeCalls, 1);
 	assert.deepEqual([oidcKeys(g), stopped(g), cards(g).length], [[], true, 0]);
@@ -682,9 +702,9 @@ for (const [name, sc, wantReason, wantCode] of [
 	// (h) the bound: 240 s in real life; the Home Screen app's shorter bound is the SDK window's, not ours
 	for (const home of [false, true]) {
 		const world = popupWorld({ stay: true }), sdk = fakeSdk();
-		const g = game({ world, ua: home ? IPHONE_HOME : IPHONE, standalone: home ? true : undefined, cfg: home ? { googleIosHome: "oidc_popup" } : OIDC_POPUP, sdk, test: { popupMs: 400, homePopupMs: 30, lookMs: 5, homeLookMs: 5 } });
+		const g = game({ world, ua: home ? IPHONE_HOME : IPHONE, standalone: home ? true : undefined, cfg: home ? { googleIosHome: "oidc_popup" } : OIDC_POPUP, sdk, test: { popupMs: 1200, homePopupMs: 30, lookMs: 5, homeLookMs: 5 } });
 		const id = await tapped(g);
-		await sleep(200);
+		await sleep(300);
 		assert.equal(g.glowAuth.poll(), "", "still waiting past the Home Screen bound");
 		const r = await waitLine(g, id);
 		assert.deepEqual(lineOf(r), { ok: false, reason: "popup_timeout" }, "ends at the long bound, said as a timeout");
@@ -926,11 +946,11 @@ async function leaving(o = {}) {
 
 {
 	// (a) the start: the card says where we go, the save gets its moment, then ONE navigation to Google with a state of our own
-	const { world, g } = await leaving({ test: { flushMs: 150 } });
+	const { world, g } = await leaving({ test: { flushMs: 700 } });
 	assert.equal(tapCard(g).textContent, "Going to Google…");
 	assert.equal(tapCard(g).disabled, true);
 	assert.equal(g.navs.length, 0, "not at once: the game's last save reaches the browser's storage first");
-	await sleep(60);
+	await sleep(100);
 	assert.equal(g.navs.length, 0, "...but a moment later");
 	assert.ok(await waitFor(() => g.navs.length === 1), "then the page leaves");
 	await sleep(120);
