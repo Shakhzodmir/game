@@ -15,7 +15,7 @@ jobs:
       - name: Run tests
         run: ./tools/test.sh
       - name: Browser bridge of the sign-in (fake page and fake SDK, no network)
-        run: node tools/qa/auth_js_check.mjs && node tools/qa/auth_gesture_check.mjs
+        run: node tools/qa/auth_js_check.mjs && node tools/qa/auth_gesture_check.mjs && node tools/qa/auth_oidc_check.mjs && node tools/qa/auth_flows_check.mjs && node tools/qa/auth_test_page_check.mjs
       - name: Generated Defold resources are up to date and the assets consistent
         run: python3 tools/gen_defold.py --check
 

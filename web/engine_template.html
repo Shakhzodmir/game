@@ -142,10 +142,14 @@
 			window.globalThis = window;
 		}
 	</script>
-	<!-- GLOW accounts (WP-10): the public project identifiers and the bridge to Firebase; tools/build_web.sh copies both files
-	     next to index.html. A missing file only means "sign-in is not available" (the game then runs as a guest game). -->
-	<script type='text/javascript' src="auth_config.js?v=2026-11-23c"></script>
-	<script type='text/javascript' src="glow_auth.js?v=2026-11-23c"></script>
+	<!-- GLOW accounts (WP-10): the public project identifiers, our own sign-in with Google (glow_oidc.js; the page Google
+	     sends the player back to is auth_return.html next to it) and the bridge to Firebase; tools/build_web.sh copies the
+	     files next to index.html. A missing file only means "sign-in is not available" (the game then runs as a guest game);
+	     a missing glow_oidc.js only keeps Google on the Firebase pop-up. All three tags carry the VERSION of glow_auth.js, and
+	     glow_oidc.js has the same VERSION inside (a test pins both), so a release of either file is a release of both. -->
+	<script type='text/javascript' src="auth_config.js?v=2026-11-24b"></script>
+	<script type='text/javascript' src="glow_oidc.js?v=2026-11-24b"></script>
+	<script type='text/javascript' src="glow_auth.js?v=2026-11-24b"></script>
 	<script id='engine-loader' type='text/javascript' src="dmloader.js"></script>
 	<script id='engine-setup' type='text/javascript'>
 		// GLOW (web/engine_template.html, a copy of the Defold 1.13.1 template):

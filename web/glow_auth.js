@@ -3,6 +3,9 @@
 // finished operations with glowAuth.poll(): "<id>|<1|0>|<reason>|key=value&key=value" (values percent-encoded).
 // Passwords are typed into the form below and go straight to the Firebase SDK; they never reach the game.
 // The SDK is loaded from Google's CDN on first use, and only when web/auth_config.js is filled in.
+// Google's window can go five ways (googleFlow() below; "firebase" is today's and the default everywhere): the SDK's own
+// pop-up, the same with its "closed" signal ignored, our own request to Google in a window (web/glow_oidc.js, answered to
+// web/auth_return.html), the same with the whole page going to Google, or no window at all. See docs/handoff/google-signin-ios.md.
 (function () {
 	"use strict";
 	var cfg = window.GLOW_AUTH_CONFIG || {};
@@ -11,7 +14,7 @@
 	var ID_DOMAIN = "id.glow.invalid";
 	var RECENT_MS = 5 * 60 * 1000; // deleting an account needs a sign-in from the last five minutes
 	var MAX_CODE = 200000;
-	var VERSION = "2026-11-23c"; // printed in the small diagnostic line, so a screenshot says which script the phone runs
+	var VERSION = "2026-11-24b"; // printed in the small diagnostic line, so a screenshot says which script the phone runs; glow_oidc.js has the same one
 	var T_ = (window.glowAuth && window.glowAuth._test) || {};
 	var POPUP_MS = T_.popupMs || 4 * 60 * 1000; // Google's window may stay open this long (a slow link, a code by SMS)
 	var HOME_POPUP_MS = T_.homePopupMs || T_.popupMs || 90 * 1000; // an iPhone Home Screen app: the SDK cannot see that window, so less
@@ -45,14 +48,19 @@
 		// same: on a phone it is also what a window that opened somewhere else and never came back looks like.
 		if (c === "auth/cancelled-popup-request" || c === "auth/user-cancelled") return "cancelled";
 		if (c === "auth/popup-closed-by-user" || c === "glow/cancel-waiting") return "popup_closed";
+		if (c === "glow/oidc-denied") return "cancelled"; // "Cancel" on Google's own page (access_denied): the player's choice, silent
 		if (c === "glow/popup-timeout") return "popup_timeout";
+		if (c === "glow/no-window") return "home_app"; // the "no_window" way: this app has no usable Google window, so say what to do instead
 		if (c === "glow/sdk-timeout") return "timeout";
 		if (c === "auth/popup-blocked") return "popup_blocked";
 		if (c === "glow/inapp-browser") return "inapp_browser";
 		if (c === "auth/web-storage-unsupported" || c === "auth/operation-not-supported-in-this-environment") return "browser_unsupported";
 		if (c === "auth/network-request-failed" || c === "unavailable" || c === "firestore/unavailable") return "offline";
 		if (c === "auth/user-not-found" || c === "auth/wrong-password" || c === "auth/invalid-credential" ||
-			c === "auth/invalid-login-credentials") return "bad_credentials";
+			c === "auth/invalid-login-credentials") {
+			// a Google answer that Firebase refused is no "wrong ID or password" (that text is for the ID form)
+			return e && e.glowOidc ? "error" : "bad_credentials";
+		}
 		if (c === "auth/email-already-in-use") return ctx === "link_email" ? "email_in_use" : "id_taken";
 		if (c === "auth/weak-password") return "weak_password";
 		if (c === "auth/invalid-email" || c === "auth/missing-email") return (ctx === "link_email" || ctx === "reset_password") ? "bad_email" : "bad_id";
@@ -66,10 +74,24 @@
 		return "error";
 	}
 
-	// p, or a rejection with `code` when it takes longer than ms (the answer is still used if it comes later: see loadSdk)
-	function timed(p, ms, code) {
+	// p, or a rejection with `code` when it takes longer than ms (the answer is still used if it comes later: see loadSdk).
+	// last (optional): asked ONCE when the time is up. It looks one more time at what may have arrived meanwhile (a phone puts
+	// a page in the background to sleep, and the timer that is due then can fire before the page's own re-read of its mailbox),
+	// and says true when it found something to wait for: the wait then goes on for GRACE_MS, without a second look.
+	var GRACE_MS = T_.graceMs || 30 * 1000;
+	function timed(p, ms, code, last) {
 		return new Promise(function (resolve, reject) {
-			var t = setTimeout(function () { var e = new Error(code); e.code = code; reject(e); }, ms);
+			var t = null, looked = false;
+			function fire() {
+				if (last && !looked) {
+					looked = true;
+					var again = false;
+					try { again = !!last(); } catch (x) { /* a failed look is no look */ }
+					if (again) { t = setTimeout(fire, GRACE_MS); if (t && t.unref) t.unref(); return; }
+				}
+				var e = new Error(code); e.code = code; reject(e);
+			}
+			t = setTimeout(fire, ms);
 			if (t && t.unref) t.unref(); // node (tests): a waiting timer must not keep the process alive
 			function stop() { if (typeof clearTimeout === "function") clearTimeout(t); }
 			p.then(function (v) { stop(); resolve(v); }, function (e) { stop(); reject(e); });
@@ -239,8 +261,9 @@
 	}
 	// a Home Screen app: iOS says it with navigator.standalone, Android and the rest with the display-mode query (WebKit
 	// bug 264218: an installed iOS web app can answer "fullscreen" there instead of "standalone")
+	var standaloneMasked = false; // the "shim" way hides navigator.standalone from the SDK for a moment: this page still knows what it is
 	function isStandalone() {
-		try { if (navigator.standalone === true) return true; } catch (e) { /* no navigator */ }
+		try { if (standaloneMasked || navigator.standalone === true) return true; } catch (e) { /* no navigator */ }
 		try {
 			if (!window.matchMedia) return false;
 			return ["standalone", "fullscreen", "minimal-ui"].some(function (k) { return !!window.matchMedia("(display-mode: " + k + ")").matches; });
@@ -248,18 +271,83 @@
 	}
 	function popupBound() { return isIOS() && isStandalone() ? HOME_POPUP_MS : POPUP_MS; }
 
+	// Which way Google's sign-in goes -------------------------------------------------------------------------------------
+	//   firebase       today's way: the SDK's own pop-up (signInWithPopup / linkWithPopup). Desktop and Android always use it.
+	//   shim           the same SDK call, but the window it opens never reads "closed" (the SDK gives up on that after 2 s)
+	//   oidc_popup     our own request to Google in a window; Google answers to web/auth_return.html, which hands the answer over
+	//                  without needing the link to the opener (web/glow_oidc.js), and Firebase gets a credential from it
+	//   oidc_redirect  the same, with the whole page going to Google and coming back (finished by "restore" after the reload)
+	//   no_window      an iPhone Home Screen app only: no window at all, the call fails at once with "home_app"
+	// The default is chosen per kind of page by web/auth_config.js (googleIos for a Safari tab, googleIosHome for the Home
+	// Screen app; absent or unknown = "firebase"), so nothing changes for anybody until a key is flipped there. For trying a
+	// way on one device without a release: ?google=<way> in the address (for this page; on an iPhone or iPad it is also kept
+	// for 7 days), ?google=auto forgets it. Only the NAME of a way ever comes from the address or from storage.
+	var FLOWS = ["firebase", "shim", "oidc_popup", "oidc_redirect", "no_window"];
+	var FLOW_KEY = "glow_google_flow"; // {f: way, t: ms}
+	var FLOW_KEEP_MS = 7 * 24 * 3600 * 1000;
+	function goodFlow(v) { return typeof v === "string" && FLOWS.indexOf(v) >= 0 ? v : ""; }
+	function queryParam(name) {
+		try {
+			var parts = String(window.location.search || "").replace(/^\?/, "").split("&"), i, kv;
+			for (i = 0; i < parts.length; i++) {
+				kv = parts[i].split("=");
+				if (kv[0] === name) return decodeURIComponent((kv[1] || "").replace(/\+/g, " "));
+			}
+		} catch (e) { /* no address (tests), or a broken escape */ }
+		return "";
+	}
+	var urlFlow = (function () {
+		var raw = queryParam("google");
+		if (!raw) return "";
+		if (raw === "auto") { store(FLOW_KEY, null); return ""; }
+		var f = goodFlow(raw);
+		if (f && isIOS()) store(FLOW_KEY, JSON.stringify({ f: f, t: Date.now() })); // kept for the next loads of this phone only
+		return f;
+	})();
+	function savedFlow() {
+		if (!isIOS()) return ""; // a saved choice never pins a desktop or an Android phone
+		var raw = stored(FLOW_KEY), o = null, f, t;
+		if (!raw) return "";
+		try { o = JSON.parse(raw); } catch (e) { o = null; }
+		f = o && goodFlow(o.f); t = o && Number(o.t);
+		if (!f || !(t > 0) || Date.now() - t > FLOW_KEEP_MS || t - Date.now() > 60000) { store(FLOW_KEY, null); return ""; }
+		return f;
+	}
+	function envFlow() {
+		if (!isIOS()) return "firebase";
+		return goodFlow(isStandalone() ? cfg.googleIosHome : cfg.googleIos) || "firebase";
+	}
+	// our own sign-in needs: the shared core, the public identifiers, a return page of THIS origin, crypto.subtle (https only),
+	// and storage that works (the answer travels through it)
+	function oidcUsable() {
+		try {
+			var loc = window.location, ret = String(cfg.googleReturn || "");
+			if (!(window.glowOidc && cfg.googleClientId && ret && loc && loc.origin && ret.indexOf(loc.origin + "/") === 0)) return false;
+			if (!(window.crypto && window.crypto.subtle)) return false;
+			localStorage.setItem("glow_probe", "1"); localStorage.removeItem("glow_probe");
+			sessionStorage.setItem("glow_probe", "1"); sessionStorage.removeItem("glow_probe");
+			return true;
+		} catch (e) { return false; }
+	}
+	function googleFlow() {
+		var f = urlFlow || savedFlow() || envFlow();
+		if ((f === "oidc_popup" || f === "oidc_redirect") && !oidcUsable()) return "firebase";
+		if (f === "no_window" && !(isIOS() && isStandalone())) return "firebase";
+		return f;
+	}
+
 	// the texts of the page's own pieces (the tap card, the "checking" line); the game's texts are in client/i18n.lua.
 	// The game says its language with every Google call (gameLang); the page's <html lang> is always "en" here, so it
 	// comes last, after the device's language.
 	var gameLang = "";
 	function words() {
 		var lang = (gameLang || navigator.language || document.documentElement.lang || "en").slice(0, 2);
-		return { ru: ["Продолжить с Google", "Отмена", "Ждём ответ от Google…", "Проверяю, вошли ли вы…"],
-			ko: ["Google로 계속하기", "취소", "Google 응답을 기다리는 중…", "로그인 확인 중…"] }[lang] ||
-			["Continue with Google", "Cancel", "Waiting for Google…", "Checking whether you signed in…"];
+		return { ru: ["Продолжить с Google", "Отмена", "Ждём ответ от Google…", "Проверяю, вошли ли вы…", "Переходим на страницу Google…"],
+			ko: ["Google로 계속하기", "취소", "Google 응답을 기다리는 중…", "로그인 확인 중…", "Google 페이지로 이동하는 중…"] }[lang] ||
+			["Continue with Google", "Cancel", "Waiting for Google…", "Checking whether you signed in…", "Going to Google…"];
 	}
 	function displayKind() {
-		try { if (navigator.standalone === true) return "home"; } catch (e) { /* no navigator */ }
+		try { if (standaloneMasked || navigator.standalone === true) return "home"; } catch (e) { /* no navigator */ }
 		try { if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return "home"; } catch (e2) { /* none */ }
 		if (isStandalone()) return isIOS() ? "home" : "full"; // iOS reports an installed app as "fullscreen" in some versions
 		return "tab";
@@ -318,7 +406,7 @@
 		if (ft && ft.unref) ft.unref(); // node (tests)
 		return {
 			go: go, no: no,
-			wait: function () { go.disabled = true; go.textContent = T[2]; go.style.background = "#9C87E0"; },
+			wait: function (text) { go.disabled = true; go.textContent = text || T[2]; go.style.background = "#9C87E0"; },
 			again: function () { go.disabled = false; go.textContent = T[0]; go.style.background = "#2BC98A"; },
 			remove: function () {
 				if (formEl === wrap) formEl = null;
@@ -336,7 +424,7 @@
 		return c;
 	}
 
-	function tapThenOpen(run) {
+	function tapThenOpen(run, waitText) {
 		var test = window.glowAuth && window.glowAuth._test;
 		if (test && test.gesture) return test.gesture(run);
 		return new Promise(function (resolve, reject) {
@@ -359,7 +447,7 @@
 			card.go.addEventListener("click", function () {
 				if (over || waiting) return;
 				waiting = true;
-				card.wait();
+				card.wait(waitText);
 				var p;
 				try { p = run(); } catch (e) { return end(reject, e); } // inside the tap: this is the call that may open a window
 				p.then(function (v) { end(resolve, v); }, function (e) {
@@ -398,14 +486,107 @@
 		});
 	}
 
-	function withGesture(open) {
+	function codeError(code, message) { var e = new Error(message || code); e.code = code; return e; }
+
+	// One try of Google's window, with the things that must be undone when it ends (a listener, a record of the attempt, the
+	// window itself): every way but "firebase" registers them here, and withGesture ends the try whatever way it ends.
+	function newTry(flow) {
+		var t = { flow: flow, over: false, stops: [], exchanging: false, win: null, last: null };
+		t.onEnd = function (fn) { t.stops.push(fn); };
+		t.end = function (ok) {
+			if (t.over) return;
+			t.over = true;
+			var fns = t.stops, i;
+			t.stops = [];
+			for (i = 0; i < fns.length; i++) { try { fns[i](ok); } catch (e) { /* the rest still run */ } }
+		};
+		return t;
+	}
+
+	// open(try) starts Google's sign-in and returns a promise; it is called inside the player's tap where the browser needs
+	// that, so nothing asynchronous may come before the window opens. flow: which way (googleFlow()). The bounds of the SDK's
+	// own window (HOME_POPUP_MS in an iPhone Home Screen app) are for "firebase" only: the other ways keep what Google answers.
+	function withGesture(open, flow) {
 		if (inAppBrowser()) { var ia = new Error("in-app browser"); ia.code = "glow/inapp-browser"; return Promise.reject(ia); }
-		function run() { return timed(open(), popupBound(), "glow/popup-timeout"); }
-		if (needsTap()) return tapThenOpen(run);
-		return runWithWaitCard(run).catch(function (e) {
+		var cur = null;
+		function run() {
+			if (cur) cur.end(false); // a first try the browser refused is undone before the second one
+			cur = newTry(flow);
+			var mine = cur; // (a later run() replaces cur; the last look belongs to THIS try)
+			return timed(open(cur), flow === "firebase" ? popupBound() : POPUP_MS, "glow/popup-timeout", function () { return !!(mine.last && mine.last()); });
+		}
+		var p, going = flow === "oidc_redirect" ? words()[4] : undefined; // the whole page leaves: the card says so
+		if (needsTap()) p = tapThenOpen(run, going);
+		else p = runWithWaitCard(run).catch(function (e) {
 			if (!e || e.code !== "auth/popup-blocked") throw e;
-			return tapThenOpen(run);
+			return tapThenOpen(run, going);
 		});
+		return p.then(function (v) { if (cur) cur.end(true); return v; }, function (e) {
+			if (e && typeof e === "object" && cur) e.glowTry = cur; // afterGoogleFailure: was an exchange under way?
+			if (cur) cur.end(false);
+			throw e;
+		});
+	}
+
+	// The SDK's own pop-up with its window's "closed" signal ignored (the "shim" way). The SDK calls window.open once, a
+	// moment after signInWithPopup / linkWithPopup is called (it first waits for its helper frame), then asks every 2 s
+	// whether the window is closed and gives up 8 s after the first "yes"; on some iPhones it reads "yes" 2 s after the
+	// window opened while the window is alive. That one call gets the real window inside a stand-in that never says closed;
+	// everything is put back right after, or after 10 s if the SDK never called. In an iPhone Home Screen app the SDK clicks
+	// a hidden link instead of calling window.open (navigator.standalone), so that flag reads false until the call is made.
+	// The stand-in's "closed" is false only while the try (tr) is alive. The SDK's operation ends only by an answer or by
+	// reading "closed", so when OUR end comes first (Cancel, the bound, any failure) the real window is closed and the stand-in
+	// says closed: the SDK then ends its own operation, and a late account pick signs nobody in (or links nothing) after the game
+	// was told "closed". A try that ends before the SDK has asked for its window gets no window at all.
+	var SHIM_SAFETY_MS = T_.shimSafetyMs || 10 * 1000;
+	var staleShim = null; // the undo of a shim whose try ended before the SDK asked for its window (it still waits to refuse that call)
+	function shimmed(call, tr) {
+		if (staleShim) { staleShim(); staleShim = null; } // a new try never chains onto what an ended one left on window.open
+		var realOpen = window.open, wrapped = null, masked = false, had = null, done = false, safety = null, real = null, gone = false;
+		function undo() {
+			if (done) return;
+			done = true;
+			if (window.open === wrapped) window.open = realOpen;
+			if (masked) {
+				masked = false;
+				standaloneMasked = false;
+				try { if (had) Object.defineProperty(navigator, "standalone", had); else delete navigator.standalone; } catch (e) { /* none */ }
+			}
+			if (safety && typeof clearTimeout === "function") clearTimeout(safety);
+		}
+		wrapped = function () {
+			undo(); // one shot: only the SDK's own call is wrapped
+			if (gone) return null; // the try is over already (Cancel while the SDK's helper frame loaded): no window opens now
+			var w = realOpen.apply(window, arguments);
+			if (!w) return w; // refused: the SDK then says auth/popup-blocked as usual
+			real = w;
+			return {
+				get closed() { return gone; },
+				close: function () { try { w.close(); } catch (e) { /* none */ } },
+				focus: function () { try { w.focus(); } catch (e) { /* none */ } }
+			};
+		};
+		if (tr) tr.onEnd(function (ok) {
+			if (ok) return; // signed in: the SDK closes its own window
+			gone = true;
+			try { if (real) real.close(); } catch (e) { /* none */ }
+			if (!real && !done) staleShim = undo; // the SDK has not asked for its window yet: that call is refused (see wrapped)
+		});
+		try {
+			if (isIOS() && navigator.standalone === true) {
+				had = Object.getOwnPropertyDescriptor(navigator, "standalone") || null;
+				Object.defineProperty(navigator, "standalone", { configurable: true, get: function () { return false; } });
+				masked = true;
+				standaloneMasked = true;
+			}
+		} catch (e1) { masked = false; }
+		window.open = wrapped;
+		safety = setTimeout(undo, SHIM_SAFETY_MS);
+		if (safety && safety.unref) safety.unref(); // node (tests)
+		var p;
+		try { p = call(); } catch (e2) { undo(); throw e2; }
+		p.then(undo, undo); // answered or refused: nothing of ours stays on the page
+		return p;
 	}
 
 	// After a Google window that went away -------------------------------------------------------------------------
@@ -433,12 +614,15 @@
 			})();
 		});
 	}
-	function afterGoogleFailure(s, before, linking, e) {
+	function afterGoogleFailure(s, before, linking, e, flow) {
 		var c = (e && e.code) || "";
 		if (c !== "auth/popup-closed-by-user" && c !== "glow/cancel-waiting" && c !== "glow/popup-timeout") throw e;
+		// our own ways (oidc_*) have nothing that can finish late, unless the answer was already being exchanged for a sign-in
+		if ((flow === "oidc_popup" || flow === "oidc_redirect") && !(e.glowTry && e.glowTry.exchanging)) throw e;
 		// how long the account is watched: our own Cancel briefly; where the SDK itself sees the window (it already waited
 		// about 8 s after the close) a few seconds; in an iPhone Home Screen app, where nothing says what happened, longer
-		var ms = e.glowCancel ? CANCEL_LOOK_MS : (isIOS() && isStandalone() ? HOME_LOOK_MS : LOOK_MS);
+		// (only the SDK's own window: the other ways keep the same bound everywhere)
+		var ms = e.glowCancel ? CANCEL_LOOK_MS : (flow === "firebase" && isIOS() && isStandalone() ? HOME_LOOK_MS : LOOK_MS);
 		var gone = note(words()[3], ms + 500);
 		return lookAgain(s, before, linking, ms).then(function (u) {
 			gone();
@@ -463,17 +647,238 @@
 
 	function offline() { return typeof navigator !== "undefined" && navigator.onLine === false; }
 
+	// Our own sign-in with Google -----------------------------------------------------------------------------------------------
+	// Google is asked directly (web/glow_oidc.js builds the request and checks the answer) and answers to web/auth_return.html,
+	// a page of OUR origin that hands the answer over through storage, a broadcast channel and, when the link is alive,
+	// window.opener. Nothing needs the link, a server of ours or third-party storage. The checked tokens become a Firebase
+	// credential (signInWithCredential / linkWithCredential). A try is: prepare the secrets BEFORE the tap, and inside the tap
+	// save the attempt, arm the receivers, open the one window, mark it ours; then wait; then exchange.
+	var OIDC_RESPONSE = T_.oidcResponse || "id_token token"; // what Google is asked for: "id_token" once credential A is proven on the phone, "token" as a last resort
+	var OIDC_CRED = T_.oidcCred || "auto";                   // "auto" = A, and T when the nonce was the problem; or "A" | "B" | "T"
+	var FLUSH_MS = T_.flushMs || 800;                        // before the page leaves for Google: the game's last save reaches IndexedDB
+	var RESTORE_MS = T_.restoreMs || 20 * 1000;              // finishing an answer that came back with a reload (at most)
+	var GAME_WAIT_MS = T_.gameWaitMs || 38 * 1000;           // the game gives "restore" 40 s (client/services/auth_web.lua DATA_TIMEOUT): loading the SDK and finishing must fit
+	var RESTORE_MIN_MS = T_.restoreMinMs || 4 * 1000;        // ... but a finish that has started is given this much, whatever the SDK took
+	var INSTANCE = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); // this page load: who has claimed an attempt
+	var prep = { p: null, r: null }, prepGoing = { p: null, r: null };
+	function ensurePrep(mode) {
+		if (prep[mode]) return Promise.resolve(prep[mode]);
+		if (!prepGoing[mode]) {
+			prepGoing[mode] = window.glowOidc.prepare({ dest: "g", mode: mode, responseType: OIDC_RESPONSE }).then(function (rec) {
+				prep[mode] = rec; prepGoing[mode] = null; return rec;
+			}, function (e) { prepGoing[mode] = null; throw e; });
+		}
+		return prepGoing[mode];
+	}
+	function takePrep(mode) { // synchronous: the tap must not wait for anything
+		var rec = prep[mode];
+		prep[mode] = null;
+		if (rec) ensurePrep(mode).then(null, function () { /* the next try asks again and says why */ });
+		return rec;
+	}
+
+	// continue past credential A only when the nonce was what Firebase refused
+	function oidcFatal(e) { return ((e && e.code) || "") !== "auth/missing-or-invalid-nonce"; }
+	function oidcOrder(v, ath) {
+		return window.glowOidc.credOrder(OIDC_CRED, { kind: "popup", aFailed: false, access: !!v.accessToken, ath: ath })
+			.filter(function (k) { return k !== "T" || ath === "ok" || v.tokenOnly; }); // T only when the id_token vouches for the access token
+	}
+	function oidcCredential(s, kind, v, rec) {
+		if (kind === "A") return new s.m.OAuthProvider("google.com").credential({ idToken: v.idToken, rawNonce: rec.r });
+		if (kind === "B") return s.m.GoogleAuthProvider.credential(v.idToken);
+		return s.m.GoogleAuthProvider.credential(null, v.accessToken);
+	}
+	// the answer of Google (a relay) -> checked -> a Firebase credential -> the signed-in account's fields. linkUser = the
+	// account the game told us about when it asked to link, or null for a sign-in. tr = the try this answer belongs to (null when
+	// a reloaded page finishes it): once the try is over, the game has been told "failed", so no NEW credential is started
+	function oidcExchange(s, relay, rec, linkUser, tr) {
+		var G = window.glowOidc, v = G.validate(relay, rec, { clientId: cfg.googleClientId });
+		if (!v.ok) return Promise.reject(codeError(v.code, v.check));
+		return G.checkAtHash(v.claims, v.accessToken).then(function (ath) {
+			var order = oidcOrder(v, ath);
+			if (!order.length) throw codeError("glow/oidc-nocred");
+			return G.exchange({ order: order, fatal: oidcFatal, attempt: function (kind) {
+				if (tr && tr.over) throw codeError("glow/oidc-late", "the try is over"); // no nonce refusal, so oidcFatal ends the exchange here
+				var cred = oidcCredential(s, kind, v, rec);
+				if (!linkUser) return s.m.signInWithCredential(s.auth, cred);
+				var cu = needUser(s); // the game must still know this account: nobody else is linked to
+				if (cu.uid !== linkUser.uid) throw codeError("auth/null-user");
+				return s.m.linkWithCredential(cu, cred);
+			} }).then(function (x) {
+				if (!x.ok) {
+					var e = x.error && typeof x.error === "object" ? x.error : codeError(String(x.error || "glow/oidc-credential"));
+					e.glowOidc = true;
+					e.glowDetail = "A=" + x.results.A + (x.results.B !== "skip" ? " B=" + x.results.B : "") + (x.results.T !== "skip" ? " T=" + x.results.T : "");
+					throw e;
+				}
+				var cur = s.auth.currentUser; // the account now signed in is the one this answer made
+				if (linkUser) { if (!cur || cur.uid !== linkUser.uid) throw codeError("auth/null-user"); return userFields(cur); }
+				if (!cur || !x.value || !x.value.user || cur.uid !== x.value.user.uid) throw codeError("auth/null-user");
+				return userFields(cur);
+			});
+		});
+	}
+
+	// Called inside the tap (or at once where the browser lets a window open). Nothing asynchronous comes before window.open /
+	// location.assign: the attempt is saved, the receivers are armed, the one window is opened, the page marks it is the starter.
+	function oidcStart(s, mode, linkUser, tr) {
+		var G = window.glowOidc, rec = takePrep(mode);
+		if (!rec) return Promise.reject(codeError("auth/popup-blocked", "no attempt is ready")); // the one more tap of the card
+		G.sweep("g", {}); // old answers and attempts of earlier tries
+		rec.t = Date.now(); // an attempt ages from the tap, not from when its secrets were made
+		rec.w = INSTANCE;
+		rec.c = (function () { try { return navigator.standalone === true ? "home" : "tab"; } catch (e) { return "tab"; } })(); // the return page's rule for a Home Screen app
+		rec.op = linkUser ? "link" : "in";
+		if (linkUser) rec.u = linkUser.uid;
+		G.savePending(rec, {}, { shared: false });
+		var url = G.authUrl({ clientId: cfg.googleClientId, redirectUri: cfg.googleReturn, responseType: rec.rt, nonce: rec.n, state: rec.s });
+		return new Promise(function (resolve, reject) {
+			var h = G.listen({ dest: "g", state: rec.s, win: null, onRelay: function (relay, via) {
+				if (tr.over || tr.exchanging) return;
+				tr.exchanging = true;
+				try { h.ack(via); } catch (e) { /* none */ }
+				oidcExchange(s, relay, rec, linkUser, tr).then(resolve, reject);
+			} });
+			tr.onEnd(function (ok) {
+				h.stop();
+				G.clearFlow("g", rec.s, {}); // the attempt, its answer and its marker: nothing late can sign anybody in
+				if (!ok) { try { if (tr.win) tr.win.close(); } catch (e) { /* none */ } }
+			});
+			// the time limit asks once more before it gives up: a page that slept in the background (the player was in Google's tab
+			// for minutes) can have its limit due before its own re-read of the mailbox has run; an answer found NOW is still taken
+			tr.last = function () { var was = tr.exchanging; h.poke("limit"); return !was && tr.exchanging; };
+			if (mode === "p") {
+				var w = null;
+				try { w = window.open(url, "glow_oidc_" + rec.s.slice(-6)); } catch (e) { w = null; }
+				G.markOwn("g", rec.s, {}); // right AFTER window.open: a window opened from here has a copy of this storage made before this line
+				if (!w) { // refused: nothing was shown to Google; the attempt is dropped, its secrets are kept for the one more tap
+					h.stop(); G.clearFlow("g", rec.s, {});
+					if (!prep[mode]) prep[mode] = rec; // (the next attempt is being prepared, but a quick second tap must not find nothing ready)
+					return reject(codeError("auth/popup-blocked", "window.open gave nothing"));
+				}
+				tr.win = w;
+				h.setWin(w);
+				return;
+			}
+			// the whole page goes to Google. The receivers stay armed: a live page answers the return page's ping, and that is
+			// what keeps a window that did not start this from loading a second copy of the game over the same save.
+			G.markOwn("g", rec.s, {}); // right BEFORE the page leaves
+			function onShow(ev) { // back from Google by the Back button (the page came from the cache): nothing is coming
+				if (!ev || !ev.persisted) return;
+				var t1 = setTimeout(function () {
+					if (tr.over || tr.exchanging || G.readRelay("g", rec.s, {})) return;
+					reject(codeError("auth/user-cancelled", "back from Google without an answer"));
+				}, 800);
+				if (t1 && t1.unref) t1.unref();
+			}
+			try { window.addEventListener("pageshow", onShow); } catch (e) { /* none */ }
+			tr.onEnd(function () { try { window.removeEventListener("pageshow", onShow); } catch (e) { /* none */ } });
+			var go = setTimeout(function () {
+				if (tr.over) return;
+				try { window.location.assign(url); } catch (e) { reject(codeError("glow/oidc-assign", "could not leave for Google")); }
+			}, FLUSH_MS);
+			if (go && go.unref) go.unref();
+		});
+	}
+	// the whole operation: the secrets are ready before the card, then the usual tap -> window -> wait, then the same aftercare
+	function oidcRun(s, flow, before, linkUser) {
+		var mode = flow === "oidc_redirect" ? "r" : "p";
+		return ensurePrep(mode).then(function () {
+			return withGesture(function (tr) { return oidcStart(s, mode, linkUser, tr); }, flow);
+		}).then(function (fields) { return fields; }, function (e) {
+			// Google was linked after all (a try that finished late): that is what the player asked for
+			if (linkUser && e && e.code === "auth/provider-already-linked" && hasGoogle(s.auth.currentUser)) return userFields(s.auth.currentUser);
+			return afterGoogleFailure(s, before, !!linkUser, e, flow);
+		});
+	}
+
+	// An answer that came back while this page was away: the whole-page way (the page left for Google and the return page loaded
+	// it again), a window that went back to the starter's own window (iOS put the return where the starter was), or a tab that
+	// was discarded and reloaded while Google's window was open. Only an attempt of THIS window (its own sessionStorage, its own
+	// marker) with its answer already in the mailbox is finished; another tab's attempt is never touched. Never throws, never
+	// waits longer than RESTORE_MS, and less when loading the SDK took long (the game gives "restore" GAME_WAIT_MS in all).
+	// Resolves "ok", "linked", a reason id (the answer failed; "cancelled" is silent), or null when there was nothing to finish.
+	// first = the account the SDK restored (null for nobody), for an attempt to link. callAt = when the game's call began.
+	// An answer that is not there YET is not waited for (the game's start must not be held for a window that may never answer),
+	// so a tab reloaded BEFORE the answer comes back does not finish that sign-in by itself: the answer stays in the mailbox and
+	// the next load within two minutes finishes it, a later one sweeps it away, and the player can always tap again.
+	function finishReturn(s, first, callAt) {
+		return new Promise(function (resolve) {
+			var G = window.glowOidc, rec = null, relay = null, t0 = Date.now(), done = false, timer = null;
+			function finish(ret, code) {
+				if (done) return;
+				done = true;
+				if (timer && typeof clearTimeout === "function") clearTimeout(timer);
+				try { if (rec) G.clearFlow("g", rec.s, {}); } catch (e) { /* none */ }
+				if (code && ret !== "cancelled") {
+					note("google " + String(code).slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION + " " + googleFlow(), 15000);
+				}
+				resolve(ret);
+			}
+			try {
+				if (!G) return resolve(null);
+				G.sweep("g", {}); // answers older than two minutes and attempts older than fifteen go
+				var mine = G.readPending("g", "", {});
+				if (!mine || mine.src !== "ss" || !mine.rec || !mine.rec.r || !G.isOwn("g", mine.rec.s, {})) return resolve(null);
+				rec = mine.rec;
+				relay = G.readRelay("g", rec.s, {});
+			} catch (e) { return resolve(null); }
+			if (!relay) {
+				// no answer: the whole page went to Google and came back without one (the Back button, an error page of Google's), or an
+				// attempt that is too old to be answered. A young window attempt may still be answered by its window: left alone.
+				if (rec.m === "r" || Date.now() - (rec.t || 0) > POPUP_MS) return finish("cancelled");
+				rec = null;
+				return resolve(null);
+			}
+			if (!G.claim("g", rec.s, {}, { by: INSTANCE })) { rec = null; return resolve(null); } // another page of this window is on it
+			var linkUser = null;
+			if (rec.op === "link") {
+				if (!first || first.uid !== rec.u) return finish("error", "glow/oidc-link-user"); // the account that asked is not the one signed in now
+				linkUser = first;
+			}
+			var left = Math.min(RESTORE_MS, Math.max(RESTORE_MIN_MS, GAME_WAIT_MS - (t0 - (callAt || t0)))); // what is left of the game's wait
+			timer = setTimeout(function () { finish("timeout", "glow/restore-timeout"); }, left);
+			if (timer && timer.unref) timer.unref(); // node (tests)
+			oidcExchange(s, relay, rec, linkUser).then(function () { finish(linkUser ? "linked" : "ok"); }, function (e) {
+				if (linkUser && e && e.code === "auth/provider-already-linked" && hasGoogle(s.auth.currentUser)) return finish("linked");
+				var why = reasonOf(e, linkUser ? "link_google" : "sign_in_google");
+				finish(why, why === "cancelled" ? "" : String((e && (e.code || e.message)) || "?") + (e && e.glowDetail ? " " + e.glowDetail : ""));
+			});
+		});
+	}
+
+	function isOidc(flow) { return flow === "oidc_popup" || flow === "oidc_redirect"; }
+	// the way for THIS call; an in-app browser gets no Google whatever the settings say, and "no_window" fails at once
+	function chooseFlow() {
+		if (inAppBrowser()) throw codeError("glow/inapp-browser", "in-app browser");
+		var flow = googleFlow();
+		if (flow === "no_window") throw codeError("glow/no-window", "no window");
+		return flow;
+	}
+
 	var OPS = {
-		restore: function (s) {
+		// the account of an earlier run; first, an answer of Google that came back with a reload is finished (finishReturn). The
+		// answer carries "ret" when there was one: ok | linked | a reason id (the game does not read it yet; the dark line says it)
+		restore: function (s, args, callAt) {
 			return new Promise(function (resolve) {
-				var off = s.m.onAuthStateChanged(s.auth, function (u) { off(); resolve(userFields(u)); });
+				var off = s.m.onAuthStateChanged(s.auth, function (u) {
+					off();
+					finishReturn(s, u, callAt).then(null, function () { return null; }).then(function (ret) { // whatever happens there, the start goes on
+						var f = userFields(ret ? s.auth.currentUser : u);
+						if (ret) f.ret = ret;
+						resolve(f);
+					});
+				});
 			});
 		},
 		sign_in_google: function (s, args) {
 			gameLang = (args && args[0]) || gameLang;
+			var flow = chooseFlow();
 			var before = snapshot(s);
-			return withGesture(function () { return s.m.signInWithPopup(s.auth, new s.m.GoogleAuthProvider()); })
-				.then(function (r) { return userFields(r.user); }, function (e) { return afterGoogleFailure(s, before, false, e); });
+			if (isOidc(flow)) return oidcRun(s, flow, before, null);
+			var open = function () { return s.m.signInWithPopup(s.auth, new s.m.GoogleAuthProvider()); };
+			return withGesture(flow === "shim" ? function (tr) { return shimmed(open, tr); } : open, flow)
+				.then(function (r) { return userFields(r.user); }, function (e) { return afterGoogleFailure(s, before, false, e, flow); });
 		},
 		password_form: function (s, args) {
 			var mode = args[0] === "register" ? "register" : "login";
@@ -488,12 +893,15 @@
 		link_google: function (s, args) {
 			gameLang = (args && args[0]) || gameLang;
 			var u = needUser(s);
+			var flow = chooseFlow();
 			var before = snapshot(s);
-			return withGesture(function () { return s.m.linkWithPopup(u, new s.m.GoogleAuthProvider()); })
+			if (isOidc(flow)) return oidcRun(s, flow, before, u);
+			var open = function () { return s.m.linkWithPopup(u, new s.m.GoogleAuthProvider()); };
+			return withGesture(flow === "shim" ? function (tr) { return shimmed(open, tr); } : open, flow)
 				.then(function () { return userFields(s.auth.currentUser); }, function (e) {
 					// Google was linked after all (a window finished late): that is what the player asked for
 					if (e && e.code === "auth/provider-already-linked" && hasGoogle(s.auth.currentUser)) return userFields(s.auth.currentUser);
-					return afterGoogleFailure(s, before, true, e);
+					return afterGoogleFailure(s, before, true, e, flow);
 				});
 		},
 		link_email_form: function (s, args) {
@@ -578,7 +986,7 @@
 		if (WAITS[op]) interactive = true;
 		var t0 = Date.now();
 		function free() { if (WAITS[op]) interactive = false; }
-		loadSdk().then(function (s) { return OPS[op](s, args || []); }).then(function (fields) {
+		loadSdk().then(function (s) { return OPS[op](s, args || [], t0); }).then(function (fields) {
 			free();
 			if (SAYS_USER[op]) told = (fields && fields.uid) || "";
 			else if (op === "sign_out" || op === "delete_account") told = "";
@@ -590,9 +998,9 @@
 			var why = reasonOf(e, op === "link_email_form" ? "link_email" : op);
 			// Google's window went away or never answered inside an iPhone Home Screen app: that window cannot always
 			// report back to such an app, and "try again" would not help; the game's text says what to do instead
-			if ((why === "popup_closed" || why === "popup_timeout") && isIOS() && isStandalone()) why = "home_app";
+			if ((why === "popup_closed" || why === "popup_timeout") && isIOS() && isStandalone() && googleFlow() === "firebase") why = "home_app";
 			if (GOOGLE[op] && why !== "cancelled" && why !== "busy") {
-				note("google " + code.slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION, 15000);
+				note("google " + code.slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION + " " + googleFlow() + (e && e.glowDetail ? " " + String(e.glowDetail).slice(0, 80) : ""), 15000);
 			} else if (why === "error") {
 				note(op + ": " + code.slice(0, 80));
 			}
@@ -634,6 +1042,7 @@
 	window.glowAuth.configured = configured;
 	window.glowAuth.version = VERSION;
 	window.glowAuth.bounds = { popup: POPUP_MS, homePopup: HOME_POPUP_MS, look: LOOK_MS, homeLook: HOME_LOOK_MS, cancelLook: CANCEL_LOOK_MS, waitCard: WAIT_CARD_MS, sdk: SDK_MS };
+	window.glowAuth.flow = googleFlow; // which way Google's sign-in goes on this page right now (the tests and the dark line read it)
 	window.glowAuth.call = call;
 	window.glowAuth.poll = poll;
 })();

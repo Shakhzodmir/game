@@ -117,6 +117,31 @@ describe("client.services.auth_web", function()
 		assert_eq(p.pending_count(), 0)
 	end)
 
+	it("takes a restore answer that says the page finished a Google sign-in (field ret) as an ordinary restore", function()
+		-- web/glow_auth.js OPS.restore finishes an answer of Google that came back with a reload (the whole-page way, or a window that
+		-- went back to the starter's own window) before it answers; "ret" says how that went (ok | linked | a reason id). The game does
+		-- not read it: the account in the answer is what counts, and an unknown field must not break the line
+		local page = fake_page()
+		local p = web.new({ run = page.run, now = function() return page.clock end })
+		auth.set_provider(p)
+		local res
+		auth.restore(function(ok, why, u) res = { ok, why, u } end)
+		local call = page.calls[1]
+		assert_eq(call.op, "restore")
+		page.queue[1] = call.id .. "|1||email=g%40gmail.com&gmail=g%40gmail.com&google=1&id=&kind=google&name=G&pending=&ret=ok&uid=u1001&verified=1"
+		auth.tick(1)
+		assert_true(res[1]); assert_eq(res[2], nil)
+		assert_eq(res[3].uid, "u1001"); assert_eq(res[3].kind, "google"); assert_true(res[3].google_linked)
+		assert_eq(auth.user().uid, "u1001")
+		-- a failed return keeps the account that was there before (here: nobody) and is still an answer
+		auth.restore(function(ok, why, u) res = { ok, why, u } end)
+		call = page.calls[2]
+		page.queue[1] = call.id .. "|1||ret=error"
+		auth.tick(2)
+		assert_true(res[1]); assert_eq(res[3], nil)
+		assert_eq(auth.user(), nil)
+	end)
+
 	it("answers unavailable when the page has no bridge", function()
 		auth.set_provider(web.new({ run = function(js) if js:find("configured", 1, true) then return "1" end return "unavailable" end }))
 		local res
