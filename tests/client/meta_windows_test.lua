@@ -3,6 +3,7 @@
 -- sizes the game meets.
 
 local G = require("tests.client.meta_gui_helper")
+local A = require("tests.client.layout_audit")
 local iap = require("client.services.iap")
 local ads = require("client.services.ads")
 local analytics = require("client.services.analytics")
@@ -286,6 +287,54 @@ describe("meta windows: lives", function()
 			assert_true(has(c, "A new life every 20 minutes"))
 			assert_true(has(c, "Levels 1–20 don't cost lives"))
 			assert_false(c.app.ui.popup_targets.refill ~= nil)
+		end)
+	end)
+
+	it("with full lives has no 5/5 pill: the rule of the free levels stands under the hearts, above the status and the 20 minutes", function()
+		G.with_town({}, function(c)
+			open(c, "lives")
+			assert_false(has(c, "5/5"), "the pill repeats what the hearts and the green line say: " .. texts(c))
+			local rule = c.town:find("Levels 1–20 don't cost lives")
+			local status = c.town:find("All lives are here!")
+			local minutes = c.town:find("A new life every 20 minutes")
+			assert_true(rule and status and minutes, texts(c))
+			local _, ry = c.E.centre(rule)
+			local _, sy = c.E.centre(status)
+			local _, my = c.E.centre(minutes)
+			assert_true(ry > sy and sy > my, string.format("top to bottom: the rule %.0f, the status %.0f, the 20 minutes %.0f", ry, sy, my))
+			-- the rule is the first thing under the five hearts of the window, and its plate does not touch them
+			local e = c.town.self.t.popups.stack[#c.town.self.t.popups.stack]
+			assert_eq(#e.hearts, 5)
+			local _, hy = c.E.centre(e.hearts[5])
+			assert_true(hy - ry >= 88 / 2 + 74 / 2, string.format("hearts at %.0f, the rule plate (74 px) at %.0f", hy, ry))
+			assert_true(hy - ry < 120, "the rule sits right under the hearts, not far down the window")
+			-- Bit stands at the bottom and covers no text
+			local bx, by = c.E.centre(e.bit.node)
+			assert_true(by < my - 60, "Bit is below the 20 minutes line")
+			for _, r in ipairs(A.texts(c, { window = true })) do
+				local ox = math.min(r.rect[3], bx + 60) - math.max(r.rect[1], bx - 60)
+				local oy = math.min(r.rect[4], by + 60) - math.max(r.rect[2], by - 60)
+				assert_false(ox > 0 and oy > 0, "Bit covers '" .. r.text .. "'")
+			end
+			assert_same(A.check(c, { window = true }), {})
+		end)
+	end)
+
+	it("keeps the pill and the rule at the bottom while the lives are not full", function()
+		G.with_town({ setup = function(app, c)
+			G.win(app, 20)
+			c.E.clock = c.E.clock + 3 * 3600
+			assert(flow.debug_lose())
+			app.commit("test")
+		end }, function(c)
+			open(c, "lives")
+			assert_true(has(c, "4/5"), texts(c))
+			local rule = c.town:find("Levels 1–20 don't cost lives")
+			assert_true(rule ~= nil, texts(c))
+			local _, ry = c.E.centre(rule)
+			local pill = c.town:find("4/5")
+			local _, py = c.E.centre(pill)
+			assert_true(py > 640 and ry < 640 - 250, string.format("the pill (%.0f) is under the hearts, the rule (%.0f) keeps the bottom", py, ry))
 		end)
 	end)
 

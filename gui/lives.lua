@@ -1,6 +1,9 @@
 -- Lives window: the hearts, the timer to the next life (or the unlimited
 -- lives left), the refill for coins (meta:refill_lives), a way to the shop
 -- when the coins are short, and the rule that the first levels are free.
+-- With full lives the hearts, the "5/5" pill and "All lives are here!" would say one thing three times: the pill is
+-- left out and the rule of the free levels stands right under the hearts (it is the useful line, and used to sit
+-- alone at the bottom); with any other state the pill stays and the rule keeps the bottom.
 -- Bit is happy with full lives and sad with none.
 -- params = {from = "start" | "hud" | ...}: opened from the start window, a
 -- refill closes it and the start window is back on top.
@@ -71,10 +74,21 @@ local function refill(e)
 	end)
 end
 
+-- "Levels 1-N cost no lives": a lilac plate with a star, centred at y (N comes from the config).
+local function free_levels_note(e, body, y)
+	local s = e.ui
+	s:round(body, 0, y, W - 80, 74, "#F4EEFF", { radius = 30 })
+	kit.icon(e, body, "ui/icons/star", -W / 2 + 90, y, 48, "yellow")
+	s:text(body, i18n.t("lives.free_levels", { n = app.free_levels() }), 20, y, {
+		font = "button", size = 24, color = "text_soft", max_width = W - 190,
+	})
+end
+
 function M.build(e)
 	local s = e.ui
 	local v = views.lives(app.meta:lives(app.now()))
 	e.v = v
+	local full = v.state == "full"
 	local body, hh = kit.panel(e, W, H, { title = { key = "lives.title" } })
 
 	-- hearts, or the big unlimited heart
@@ -90,13 +104,17 @@ function M.build(e)
 		if e.first and not kit.reduced() then
 			for i = 1, v.count do kit.pop_in(e.hearts[i], 0.06 * i, 0.3) end
 		end
-		local count = s:round(body, 0, hy - 80, 120, 46, v.count == 0 and "pink" or "purple", { radius = 22 })
-		s:text(count, v.count .. "/" .. v.max, 0, 1, { font = "number", size = 28, color = "white" })
+		if full then
+			free_levels_note(e, body, hy - 90) -- in the place of the pill
+		else
+			local count = s:round(body, 0, hy - 80, 120, 46, v.count == 0 and "pink" or "purple", { radius = 22 })
+			s:text(count, v.count .. "/" .. v.max, 0, 1, { font = "number", size = 28, color = "white" })
+		end
 	end
 
-	-- status and the timer
+	-- status and the timer (lower with full lives: the rule of the free levels is taller than the pill was)
 	local text, color = status_text(v)
-	e.status, e.status_info = s:text(body, text, 0, hh - 290, {
+	e.status, e.status_info = s:text(body, text, 0, full and hh - 318 or hh - 290, {
 		font = "button", size = 34, color = color, max_width = W - 80,
 	})
 
@@ -126,16 +144,13 @@ function M.build(e)
 		kit.caption(e, body, i18n.t("lives.rule", { n = views.regen_minutes(config) }), 0, ry, { size = 26, width = W - 100 })
 	end
 
-	-- first levels are free
-	s:round(body, 0, -hh + 70, W - 80, 74, "#F4EEFF", { radius = 30 })
-	kit.icon(e, body, "ui/icons/star", -W / 2 + 90, -hh + 70, 48, "yellow")
-	s:text(body, i18n.t("lives.free_levels", { n = app.free_levels() }), 20, -hh + 70, {
-		font = "button", size = 24, color = "text_soft", max_width = W - 190,
-	})
+	-- first levels are free (with full lives the rule stands under the hearts, see above)
+	if not full then free_levels_note(e, body, -hh + 70) end
 
 	-- Bit
 	local mood = (v.state == "empty") and "sad" or ((v.state == "full" or v.state == "infinite") and "happy" or "idle")
-	kit.bit(e, body, W / 2 - 80, -hh + 150, 120, mood) -- inside the panel (a mascot at W/2-40 stuck out 27 px)
+	-- inside the panel (a mascot at W/2-40 stuck out 27 px); with full lives there is no plate at the bottom for him to stand on
+	kit.bit(e, body, W / 2 - 80, full and -hh + 120 or -hh + 150, 120, mood)
 	if mood == "sad" and e.bit then e.bit:mood_for(1e9, "sad") end
 end
 
