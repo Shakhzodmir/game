@@ -224,6 +224,17 @@
         { "kind": "motes", "style": "sparkle", "item": "gift_basket", "rect": [60, 230, 230, 400], "count": 5, "layer": "over", "color": "#FFE066" },
         { "kind": "bokeh", "count": 3, "layer": "fg", "view": "concert", "colors": ["#FF4FD8", "#3CF2FF", "#FFE066"], "size": [160, 260], "y": [850, 1200] }
       ]
+    },
+    "punk_garage": {
+      "mood": "night",
+      "details": [
+        { "kind": "shaft", "x": 420, "y": 250, "w": 220, "h": 780, "angle": 18, "layer": "mid", "view": "day", "color": "#C9D6FF", "alpha": [0.1, 0.2], "period": 6.2 },
+        { "kind": "motes", "style": "dust", "rect": [300, 320, 360, 560], "count": 9, "layer": "mid", "color": "#FFE2A0" },
+        { "kind": "blink", "item": "amp_stack", "points": [[88, 600], [134, 600]], "r": 36, "layer": "over", "colors": ["#FF4D4D", "#FFB347"], "period": 0.9, "alpha": [0.3, 0.9] },
+        { "kind": "motes", "style": "ember", "item": "drum_kit", "rect": [180, 560, 220, 120], "count": 6, "layer": "over", "color": "#FFB347" },
+        { "kind": "notes", "item": "bass_guitar", "x": 232, "y": 380, "count": 3, "layer": "over", "colors": ["#FF4D4D", "#FFB347", "#9B52FF"], "rise": 180, "period": 3.4 },
+        { "kind": "blink", "points": [[100, 140], [260, 140], [420, 140], [580, 140]], "r": 40, "layer": "mid", "view": "concert", "colors": ["#FF4D8D", "#FFB347", "#3CF2FF"], "period": 1.1 }
+      ]
     }
   }
 }

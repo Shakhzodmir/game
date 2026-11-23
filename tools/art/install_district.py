@@ -149,6 +149,15 @@ ROOMS = {
         ("gift_basket", 142, 330, 151),
         ("mic_stand", 578, 326, 128),
     ]),
+    # district 20: the places of the rock garage items its placeholders borrow (TASK_FROM)
+    "punk_garage": ("3x2", [
+        ("drum_kit", 286, 662, 180),
+        ("amp_stack", 112, 640, 109),
+        ("bass_guitar", 232, 470, 67),
+        ("garage_door", 536, 372, 209),
+        ("mic_stand", 636, 690, 65),
+        ("gig_posters", 112, 430, 111),
+    ]),
 }
 
 

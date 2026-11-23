@@ -57,6 +57,8 @@ TASK_FROM = {
                      "flag_garland": "garlands", "accordion": "clarinet", "shell_stage": "trumpets"},
     "fan_meeting": {"small_stage": "stage", "piano": "choir", "photo_wall": "screens", "lightsticks": "lightsticks",
                     "gift_basket": "fireworks", "mic_stand": "lasers"},
+    "punk_garage": {"drum_kit": "drum_kit", "amp_stack": "amp", "bass_guitar": "bass_guitar",
+                    "garage_door": "garage_door", "mic_stand": "mic_stand", "gig_posters": "posters"},
 }
 
 # district id -> "night" (the default) or "day" (a sunny version of the genre: the festival look)
