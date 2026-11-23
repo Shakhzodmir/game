@@ -14,7 +14,10 @@ Run it again after any re-render of tools/audio/gen_audio.py: it reads the shipp
                                 picked in the jukebox (audio.music(district, {all = true}), client/songs.lua). The
                                 game never plays the tension layer together with the party layer (the mixer contract,
                                 assets/sounds/manifest.json -> mixer), so neither does the kit.
-  NN_<id>_last_moves.mp3        all the task stems + the tension layer: a level with 5 moves or fewer left
+  NN_<id>_last_moves.mp3        all the task stems + the tension layer: a level with 5 moves or fewer left in a finished
+                                town. In a level the game plays the music quieter (music_in_level_db of the mixer
+                                contract, -6 dB today, so that the sounds of the pieces are heard), so this is the one
+                                kind of file that is quieter than the rest
   NN_parent_<id>_town_complete.mp3, NN_parent_<id>_concert.mp3
                                 the same two files of the Part 1 parent of a district, for comparison; NN is the
                                 number of the child, so the pair sorts together
@@ -23,11 +26,13 @@ Run it again after any re-render of tools/audio/gen_audio.py: it reads the shipp
 
 NN is the number of the district (its position in content/districts.json). The sound is the game's: the stems are
 summed at their own levels (the files are levelled by gen_audio.py), nothing is normalised, compressed or limited,
-and every file gets the SAME constant gain, the default music volume of the game (0.8, client/audio.lua), so the
-loudness of one district against another is what a player hears. A district file is --loops (4) loops of the 8-bar
-loop (the loops are sample-exact, they join seamlessly), a song is one loop; every file ends with a short fade-out so
-that it does not stop with a click. 44.1 kHz mono MP3, constant 192 kbps (ffmpeg, libmp3lame; it is fed 0.264 dB
-louder because that encoder decodes 0.264 dB quieter, so the decoded file has exactly the loudness of the game).
+and every file gets the SAME constant gain, the default music volume of the game (0.8, client/audio.lua) with the
+static gain of the music group (assets/sounds/manifest.json -> mixer, today 0 dB); the last_moves files get the level's
+music offset on top, as in the game (client/audio.lua Mixer:duck_target_db). So the loudness of one district against
+another is what a player hears. A district file is --loops (4) loops of the 8-bar loop (the loops are sample-exact,
+they join seamlessly), a song is one loop; every file ends with a short fade-out so that it does not stop with a
+click. 44.1 kHz mono MP3, constant 192 kbps (ffmpeg, libmp3lame; it is fed 0.264 dB louder because that encoder
+decodes 0.264 dB quieter, so the decoded file has exactly the loudness of the game).
 
 Every file is decoded again and measured with the repo's own meters (analysis.py): the duration from ffprobe, the
 true peak (no clipping: below -0.5 dBTP) and the loudness (within 0.15 LU of the mix it came from). The exit code is
@@ -38,6 +43,7 @@ import json
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -66,6 +72,7 @@ PARENTS = {"midnight_cafe": "cafe", "late_club": "jazz", "nations_fest": "square
            "punk_garage": "garage", "sunset_bossa": "beach", "night_carnival": "carnival"}
 DEFAULT_PARENTS = ["sunset_bossa", "night_carnival", "punk_garage"]  # the pairs of the producer, in listening order
 LAYERS = ("tension", "party")
+LEVEL_KINDS = ("last_moves",)  # the kinds of file that are a level on the screen: the game plays music quieter there
 
 
 # ------------------------------------------------------------------ reading
@@ -86,6 +93,17 @@ def load_districts(root):
     """{id: district dict + "number"} (the number is the position in districts.json: 16 = midnight_cafe)."""
     data = json.loads((root / "content" / "districts.json").read_text(encoding="utf-8"))["districts"]
     return {d["id"]: dict(d, number=i + 1) for i, d in enumerate(data)}
+
+
+def load_mixer(root):
+    """(dB of the static gain of the music group, dB taken off the music in a level) from the playback contract
+    of the game: assets/sounds/manifest.json -> mixer, applied by Mixer:configure in client/audio.lua."""
+    path = root / "assets" / "sounds" / "manifest.json"
+    try:
+        mixer = json.loads(path.read_text(encoding="utf-8"))["mixer"]
+        return float(mixer["group_gain_db"]["music"]), float(mixer["music_in_level_db"])
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        sys.exit(f"{path}: no mixer contract (group_gain_db.music, music_in_level_db) to read: {e!r}")
 
 
 def district_mixes(root, d, last_moves=True):
@@ -113,9 +131,9 @@ def need(tool):
     return p
 
 
-def render(loop, loops, volume):
-    """`loops` loops of one loop at the game's music volume, ending in a short raised-cosine fade-out."""
-    y = np.tile(loop, loops) * volume
+def render(loop, loops, gain):
+    """`loops` loops of one loop at a linear gain, ending in a short raised-cosine fade-out."""
+    y = np.tile(loop, loops) * gain
     k = min(len(y), int(round(FADE_OUT * HI)))
     y[-k:] *= 0.5 + 0.5 * np.cos(np.pi * (np.arange(k) + 1) / k)
     return y
@@ -167,14 +185,24 @@ def krugov(n):
     return "круга" if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else "кругов"
 
 
-def readme(items, songs, loops, volume):
+def wrap(text, first="", rest="   ", width=100):
+    """The lines of a paragraph of the README: wrapped at `width`, the first line led by `first`, the others by `rest`."""
+    return textwrap.wrap(text, width=width, initial_indent=first, subsequent_indent=rest, break_long_words=False,
+                         break_on_hyphens=False)
+
+
+def readme(items, songs, loops, volume, level_db):
     """The Russian README. items: [{number, id, name, genre, prefix, parent_of (the child's id, or None), files:
-    [(kind, file name, seconds)]}] in listening order; songs: [(district id, file name, Russian title, seconds)]."""
+    [(kind, file name, seconds)]}] in listening order; songs: [(district id, file name, Russian title, seconds)];
+    level_db: the dB the game takes off the music in a level (the last_moves files are rendered that much lower)."""
+    quiet = level_db <= -0.5  # a level is audibly quieter than the town: the files of a level say so
     kinds = [
         ("town_complete", "город достроен: играют все инструменты района"),
         ("concert", "концерт в конце района: те же инструменты и праздничный слой (хлопки, тарелки, яркие аккорды)"),
-        ("last_moves", "уровень, в котором осталось 5 ходов или меньше: те же инструменты и «нервный» слой "
-                       "(быстрый пульс и частые тарелочки)"),
+        ("last_moves", "уровень, в котором осталось 5 ходов или меньше, а город уже достроен: все инструменты района "
+                       "и «нервный» слой (быстрый пульс и частые тарелочки)"
+                       + (". В уровне игра приглушает музыку, чтобы были слышны звуки фишек, поэтому этот файл "
+                          "тише остальных" if quiet else "")),
     ]
     by_id = {it["id"]: it for it in items}
     parents = [it for it in items if it["parent_of"]]
@@ -206,17 +234,19 @@ def readme(items, songs, loops, volume):
         L.append(f"{n}. Песни автомата: папка songs, по четыре на район. Каждая песня звучит один раз (в игре её крутят")
         L.append("   по кругу). Имя файла: район_песня.")
         n += 1
-    if any(f[0] == "last_moves" for it in items for f in it["files"]):
-        L.append(f"{n}. Файлы last_moves — в последнюю очередь, по желанию: так район звучит в уровне, когда осталось")
-        L.append("   мало ходов (в игре это слышно в каждом уровне, в концерте этого слоя нет).")
+    if any(f[0] in LEVEL_KINDS for it in items for f in it["files"]):
+        L += wrap("Файлы last_moves — в последнюю очередь, по желанию: так район звучит в уровне, когда осталось мало "
+                  "ходов (в игре это слышно в каждом уровне, в концерте этого слоя нет)."
+                  + (" Эти файлы тише остальных: в уровне игра приглушает музыку, чтобы были слышны звуки фишек. "
+                     "Так и задумано; если плохо слышно, прибавь громкость." if quiet else ""), f"{n}. ")
         n += 1
     L += ["", "ЧТО ЗНАЧАТ СЛОВА В ИМЕНАХ ФАЙЛОВ"]
-    for kind, text in kinds:
-        if any(f[0] == kind for it in items for f in it["files"]):
-            L.append(f"  {kind} — {text}.")
     if parents:
-        L.append("  parent — район из части 1 для сравнения (число в начале такое же, как у нового района, чтобы пара")
-        L.append("           стояла рядом).")
+        kinds.append(("parent", "район из части 1 для сравнения (число в начале такое же, как у нового района, чтобы "
+                                "пара стояла рядом)"))
+    for kind, text in kinds:
+        if kind == "parent" or any(f[0] == kind for it in items for f in it["files"]):
+            L += wrap(f"{kind} — {text}.", "  ", "      ")
     L += ["", "ФАЙЛЫ И ДЛИТЕЛЬНОСТЬ (минуты:секунды)"]
     for it in items:
         what = "район части 1, для сравнения" if it["parent_of"] else it["genre"]
@@ -250,7 +280,8 @@ def main(argv=None):
     ap.add_argument("--no-songs", action="store_true", help="do not write the jukebox songs")
     ap.add_argument("--loops", type=int, default=4, help="loops of a district theme in a file (default %(default)s)")
     ap.add_argument("--volume", type=float, default=GAME_MUSIC_VOLUME,
-                    help="the same gain for every file; default the game's music volume (%(default)s), 1.0 = maximum")
+                    help="the music volume of the game, the same for every file; default %(default)s, 1.0 = the slider at "
+                    "maximum (the last_moves files sit lower than that by the level's offset, as in the game)")
     args = ap.parse_args(argv)
     if args.loops < 1:
         ap.error("--loops must be at least 1")
@@ -267,6 +298,11 @@ def main(argv=None):
         sys.exit("no Part 1 parent known for: " + ", ".join(x for x in with_parent if x not in PARENTS))
     need("ffmpeg")
     need("ffprobe")
+    # the gains of the game (client/audio.lua Mixer:music_group_gain): the music volume x the static gain of the music
+    # group; in a level the music also sits level_db lower (Mixer:duck_target_db)
+    group_db, level_db = load_mixer(root)
+    gain_town = args.volume * 10.0 ** (group_db / 20.0)
+    gain_level = gain_town * 10.0 ** (level_db / 20.0)
     # listening order: the pairs first (the parent, then its child), then the other districts by number
     order = [x for x in with_parent if x in want] + sorted((x for x in want if x not in with_parent),
                                                            key=lambda i: ds[i]["number"])
@@ -281,7 +317,7 @@ def main(argv=None):
             files = []
             for kind, loop in district_mixes(root, src, last_moves).items():
                 name = f"{prefix}_{kind}.mp3"
-                y = render(loop, args.loops, args.volume)
+                y = render(loop, args.loops, gain_level if kind in LEVEL_KINDS else gain_town)
                 encode_mp3(y, out / name, name[:-4])
                 rows.append(dict(check_file(out / name, y), name=name))
                 files.append((kind, name, rows[-1]["seconds"]))
@@ -292,12 +328,13 @@ def main(argv=None):
         for did in sorted(want, key=lambda i: ds[i]["number"]):
             for s in ds[did].get("songs", []):
                 name = f"{did}_{s['id']}.mp3"
-                y = render(read_hi(root / "assets" / "music" / "songs" / f"{s['id']}.ogg"), 1, args.volume)
+                y = render(read_hi(root / "assets" / "music" / "songs" / f"{s['id']}.ogg"), 1, gain_town)
                 encode_mp3(y, out / "songs" / name, name[:-4])
                 rows.append(dict(check_file(out / "songs" / name, y), name="songs/" + name))
                 songs.append((did, name, s["name"]["ru"], rows[-1]["seconds"]))
     out.mkdir(parents=True, exist_ok=True)
-    (out / "README.txt").write_text(readme(items, songs, args.loops, args.volume), encoding="utf-8-sig", newline="\r\n")
+    (out / "README.txt").write_text(readme(items, songs, args.loops, args.volume, level_db), encoding="utf-8-sig",
+                                    newline="\r\n")
     print(f"{'file':54s} {'seconds':>8s} {'expected':>8s} {'dBTP':>7s} {'LUFS':>7s} {'source':>7s}")
     for r in rows:
         print(f"{r['name']:54s} {r['seconds']:8.2f} {r['expected']:8.2f} {r['true_peak']:7.2f} {r['lufs']:7.1f} "
