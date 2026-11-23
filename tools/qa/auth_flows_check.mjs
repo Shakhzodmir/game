@@ -405,16 +405,18 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 }
 {
 	// the bounds: the SDK's own window in the Home Screen app ends at HOME_POPUP_MS with home_app; the shim keeps the long bound
-	for (const [flow, wantReason, firstMs] of [["firebase", "home_app", 30], ["shim", "popup_timeout", 250]]) {
+	for (const [flow, wantReason, maxMs] of [["firebase", "home_app", 5000], ["shim", "popup_timeout", 700]]) {
 		const sdk = fakeSdk({ popup: () => new Promise(() => {}) });
-		const g = game({ ua: IPHONE_HOME, standalone: true, cfg: { googleIosHome: flow }, sdk, test: { popupMs: 300, homePopupMs: 30, homeLookMs: 5, lookMs: 5 } });
+		const g = game({ ua: IPHONE_HOME, standalone: true, cfg: { googleIosHome: flow }, sdk, test: { popupMs: 300, homePopupMs: 30, homeLookMs: 900, lookMs: 5 } });
 		g.open = () => realWindow(0);
 		const id = startCall(g, "sign_in_google", ["en"]);
 		assert.ok(await waitFor(() => cards(g).length === 1));
+		const t0 = Date.now();
 		tapCard(g).click();
 		await sleep(150);
 		if (flow === "shim") assert.equal(g.glowAuth.poll(), "", "the shim is still waiting after the Home Screen bound has passed");
 		const r = await waitLine(g, id);
+		assert.ok(Date.now() - t0 < maxMs, flow + ": the look at the account after the bound is the short one for the shim, the Home Screen one for the SDK window");
 		assert.deepEqual(lineOf(r), { ok: false, reason: wantReason }, flow);
 		assert.match(notes(g)[0].textContent, new RegExp(" " + flow + "$"), "the dark line names the way");
 	}
@@ -521,6 +523,8 @@ const pwUser = (uid) => ({ uid, email: uid + "@id.glow.invalid", emailVerified: 
 	const id = startCall(g, "sign_in_google", ["en"]);
 	assert.ok(await waitFor(() => cards(g).length === 1), "the tap card first");
 	assert.equal(seen.length, 0, "nothing opens outside the tap");
+	await sleep(80); // the secrets were made before the card; the player taps later
+	const tapAt = Date.now();
 	tapCard(g).click();
 	assert.equal(seen.length, 1, "window.open ran inside the tap itself, with nothing asynchronous before it");
 	assert.deepEqual([seen[0].pend, seen[0].beacon, seen[0].chan, seen[0].own], [true, true, true, false],
@@ -536,7 +540,7 @@ const pwUser = (uid) => ({ uid, email: uid + "@id.glow.invalid", emailVerified: 
 	assert.equal(seen[0].n, "glow_oidc_" + q.get("state").slice(-6), "a window name of its own for every attempt");
 	const rec = JSON.parse(g.ssMap.get("glow_oidc_pend"));
 	assert.deepEqual([rec.op, rec.c, rec.m, rec.d, sha256hex(rec.r) === q.get("nonce")], ["in", "tab", "p", "g", true], "the secret stays here; Google got only its hash");
-	assert.ok(Math.abs(rec.t - Date.now()) < 3000, "the attempt ages from the tap");
+	assert.ok(rec.t >= tapAt && rec.t - tapAt < 1000, "the attempt ages from the tap, not from when its secrets were made");
 	const beacon = JSON.parse(g.world.ls.get("glow_oidc_pend:" + rec.s));
 	assert.equal(beacon.r, undefined, "the shared storage never holds the raw nonce in this mode");
 	const r = await waitLine(g, id);
@@ -622,6 +626,20 @@ for (const [name, sc, wantReason, wantCode] of [
 	loadReturn(world, { href: RETURN_URL + "#" + answerFrag(p1, { sub: "9999" }), from: child1, opener: g, sc: {} });
 	await sleep(350);
 	assert.equal(sdk.calls.length, 1, "nothing signs in a second time");
+}
+
+{
+	// (e2) the pop-up is alive: an answer posted by another window of the same origin is not the pop-up's
+	const world = popupWorld({ stay: true }), sdk = fakeSdk();
+	const g = game({ world, cfg: OIDC_POPUP, sdk });
+	const id = await tapped(g);
+	const p = world.google[0].params;
+	const other = makeWindow(world, { href: ORIGIN + "/game/other.html" });
+	g.dispatch("message", { type: "message", origin: ORIGIN, source: other.handle, data: { k: "glow_oidc", v: 1, h: answerFrag(p), q: "", t: Date.now(), d: {} } });
+	await sleep(350);
+	assert.deepEqual([g.glowAuth.poll(), sdk.calls.length], ["", 0], "ignored: not from the window we opened");
+	g.dispatch("message", { type: "message", origin: ORIGIN, source: world.pages[0].handle, data: { k: "glow_oidc", v: 1, h: answerFrag(p), q: "", t: Date.now(), d: {} } });
+	assert.equal((await waitLine(g, id)).ok, true, "the same answer from the window we opened is taken");
 }
 
 {
@@ -902,10 +920,12 @@ async function leaving(o = {}) {
 
 {
 	// (a) the start: the card says where we go, the save gets its moment, then ONE navigation to Google with a state of our own
-	const { world, g } = await leaving();
+	const { world, g } = await leaving({ test: { flushMs: 150 } });
 	assert.equal(tapCard(g).textContent, "Going to Google…");
 	assert.equal(tapCard(g).disabled, true);
 	assert.equal(g.navs.length, 0, "not at once: the game's last save reaches the browser's storage first");
+	await sleep(60);
+	assert.equal(g.navs.length, 0, "...but a moment later");
 	assert.ok(await waitFor(() => g.navs.length === 1), "then the page leaves");
 	await sleep(120);
 	assert.equal(g.navs.length, 1, "once");
