@@ -153,6 +153,19 @@ describe("client.views (meta screens)", function()
 		end
 		assert_eq(ids[16], "midnight_cafe")
 		assert_same(vm.tabs[16].genre, { en = "Night Lo-fi", ru = "Ночной лоу-фай", ko = "나이트 로파이" })
+		assert_same(vm.tabs[17].genre, { en = "Cool Jazz", ru = "Кул-джаз", ko = "쿨 재즈" })
+		assert_same(vm.tabs[18].genre, { en = "World Parade", ru = "Парад наций", ko = "월드 퍼레이드" })
+		-- (district 19: the tab is 130 px wide; "K-pop: баллада и данс" was drawn at 10 px, and a plain "K-pop" would read
+		-- like the tab of the K-pop stadium)
+		assert_same(vm.tabs[19].genre, { en = "K-pop Lite", ru = "К-поп лайт", ko = "발라드와 댄스" })
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			local seen = {}
+			for i = 1, #all do
+				local name = vm.tabs[i].genre[lang]
+				assert_true(seen[name] == nil, lang .. ": the tabs of " .. tostring(seen[name]) .. " and " .. vm.tabs[i].id .. " are both named '" .. name .. "'")
+				seen[name] = vm.tabs[i].id
+			end
+		end
 		local night = {}
 		for i, r in ipairs(vm.songs.midnight_cafe) do night[i] = r.id end
 		assert_same(night, { "midnight_cafe", "night_tram", "neon_puddles", "three_am_tea", "rooftop_stars" })
