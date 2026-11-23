@@ -1,12 +1,12 @@
 {
   "id": 329, "version": 1,
   "size": [9, 8],
-  "moves": 25,
+  "moves": 24,
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "purple"],
   "goals": [
     {"type": "break", "item": "balloon", "count": 6},
-    {"type": "collect", "color": "orange", "count": 55}
+    {"type": "collect", "color": "orange", "count": 25}
   ],
   "cells": [
     "#########",

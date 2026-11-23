@@ -1,12 +1,12 @@
 {
   "id": 350, "version": 1,
   "size": [9, 9],
-  "moves": 28,
+  "moves": 26,
   "difficulty": "easy",
   "colors": ["red", "orange", "green", "blue", "purple"],
   "goals": [
-    {"type": "break", "item": "noise", "count": 10},
-    {"type": "collect", "color": "green", "count": 70}
+    {"type": "break", "item": "noise", "count": 8},
+    {"type": "collect", "color": "green", "count": 45}
   ],
   "cells": [
     "#########",
@@ -22,7 +22,6 @@
   "slots": [
     {"at": [1, 1], "type": "noise"}, {"at": [4, 1], "type": "noise"}, {"at": [7, 1], "type": "noise"},
     {"at": [0, 2], "type": "noise"}, {"at": [8, 2], "type": "noise"}, {"at": [3, 5], "type": "noise"},
-    {"at": [5, 5], "type": "noise"}, {"at": [4, 7], "type": "noise"}, {"at": [2, 8], "type": "noise"},
-    {"at": [6, 8], "type": "noise"}
+    {"at": [5, 5], "type": "noise"}, {"at": [4, 7], "type": "noise"}
   ]
 }
