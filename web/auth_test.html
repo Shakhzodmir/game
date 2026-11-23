@@ -600,6 +600,7 @@
 			if (f.n !== 9 || f.done || !f.leftAt) return;
 			if (f.h) f.h.poke("show");
 			setTimeout(function () {
+				if (f.h) f.h.poke("limit");
 				if (f.done || f.relay) return;
 				finishFlow(f, false, [["why", "back"], ["ph", f.ph || "none"], ["alive10s", 0]], "Тест 9: вернулись без ответа Google (кнопка «Назад» или отмена на странице Google).");
 			}, 3000);
@@ -873,7 +874,7 @@
 			function (e) { log("Не удалось подготовить вход (crypto.subtle есть только на https): " + errText(e), "bad"); });
 	}
 	prepare("p"); prepare("r");
-	var viaName = { bc: "BroadcastChannel", pm: "postMessage", st: "событие хранилища", poll: "перечитывание каждые 0.3 с", vis: "перечитывание при показе страницы", show: "pageshow", focus: "фокус", load: "сразу при загрузке", reload: "после перезагрузки страницы" };
+	var viaName = { bc: "BroadcastChannel", pm: "postMessage", st: "событие хранилища", poll: "перечитывание каждые 0.3 с", vis: "перечитывание при показе страницы", show: "pageshow", focus: "фокус", load: "сразу при загрузке", reload: "после перезагрузки страницы", limit: "последний взгляд перед тем, как сдаться" };
 	function newFlow(n, run, rec) {
 		var f = { n: n, run: run, rec: rec, t0: Date.now(), seen: [], relay: null, via: "", h: null, win: null, ww: null, done: false, aliveLogged: false, leftAt: null, assignAt: 0, ph: "", resumed: "", src: "ss", tick: null, openNull: false, source: "live" };
 		flows[rec.s] = f;
@@ -952,7 +953,7 @@
 			if (!order.length) { finishFlow(f, false, [["why", "no_credential"], ["ath", ath]], "Тест " + f.n + ": нет подходящего способа войти (at_hash: " + ath + ")."); return; }
 			var startedEx = Date.now();
 			return G.exchange({ order: order, attempt: function (kind) { return signInWith(kind, v, rec); } }).then(function (x) {
-				if (x.results.A !== "skip") lsSet("glow_diag_credA", x.results.A === "ok" ? "ok" : "fail");
+				if (x.results.A !== "skip" && !x.fatal) lsSet("glow_diag_credA", x.results.A === "ok" ? "ok" : "fail"); // a network error says nothing about the nonce rule
 				var base = [["cred", x.cred], ["A", x.results.A], ["B", x.results.B], ["T", x.results.T], ["ath", ath], ["skew", v.skew == null ? "na" : v.skew]];
 				if (!x.ok) {
 					finishFlow(f, false, [["why", "credential"]].concat(base), "Тест " + f.n + ": Firebase не принял ни один способ (A: " + x.results.A + ", B: " + x.results.B + ", T: " + x.results.T + ").");
@@ -995,6 +996,8 @@
 					"Тест 8: ответа от окна нет: страница была видна " + Math.round(f.run.vis) + " с. Если в окне Google была ошибка redirect_uri_mismatch, адрес ещё не добавлен или не применился. Ждём молча до " + LIMIT_S + " с.");
 			}
 			if (el >= LIMIT_S) {
+				if (f.h) f.h.poke("limit"); // the timers stood still while Google's tab was in front: look once more before giving up
+				if (f.relay) return;
 				if (!f.run.ended) endRun(f.run, false, [["why", "no_relay"], ["vis", Math.round(f.run.vis)], ["open", f.win ? "win" : "null"], ["credmode", rec.cm]], "Тест 8: ответа нет за " + LIMIT_S + " с.");
 				f.reported = true; dropFlow(f);
 			}
@@ -1023,7 +1026,12 @@
 		f.tick = function () {
 			var el = (Date.now() - f.assignAt) / 1000;
 			if (!f.leftAt && !f.aliveLogged && el >= 10 && !f.relay) { f.aliveLogged = true; log("Тест 9: за 10 с страница не ушла (pagehide не было): окно Google открылось поверх неё или переход задерживается. alive10s=1"); }
-			if (el >= LIMIT_S && !f.relay) { if (!f.run.ended) endRun(f.run, false, [["why", "no_relay"], ["alive10s", f.aliveLogged ? 1 : 0], ["credmode", rec.cm]], "Тест 9: ответа нет за " + LIMIT_S + " с."); f.reported = true; dropFlow(f); }
+			if (el >= LIMIT_S && !f.relay) {
+				if (f.h) f.h.poke("limit");
+				if (f.relay) return;
+				if (!f.run.ended) endRun(f.run, false, [["why", "no_relay"], ["alive10s", f.aliveLogged ? 1 : 0], ["credmode", rec.cm]], "Тест 9: ответа нет за " + LIMIT_S + " с.");
+				f.reported = true; dropFlow(f);
+			}
 		};
 		ticks.push(f.tick);
 		try { location.assign(url); } catch (e) { finishFlow(f, false, [["why", ecode(e)]], "Тест 9: не удалось уйти на страницу Google: " + errText(e)); }
@@ -1070,6 +1078,7 @@
 				flow.resumed = trigger; flow.src = p.src; flow.ownMarker = G.isOwn("t", rec.s, {}); flow.starter = p.src === "ss" && flow.ownMarker; flow.widMatch = rec.w === wid;
 				listenFor(flow);
 				setTimeout(function () {
+					if (flow.h) flow.h.poke("limit");
 					if (flow.relay || flow.done) return;
 					finishFlow(flow, false, [["why", "noreturn"], ["after", Math.round((Date.now() - (rec.t || 0)) / 1000)], ["trigger", trigger]], "Тест 9: вернулись без ответа Google (кнопка «Назад», отмена на странице Google или ошибка Google).");
 				}, wait * 1000);
@@ -1087,7 +1096,12 @@
 				log("Тест 8: страницу перезагрузили, пока открыто окно Google (прошло " + Math.round(age) + " с). Жду ответ до " + LIMIT_S + " с.");
 				f8.tick = function () {
 					if (f8.relay) return;
-					if ((Date.now() - f8.t0) / 1000 >= LIMIT_S) { if (!f8.run.ended) endRun(f8.run, false, [["why", "no_relay"], ["resumed", 1]], "Тест 8: ответа нет за " + LIMIT_S + " с."); f8.reported = true; dropFlow(f8); }
+					if ((Date.now() - f8.t0) / 1000 >= LIMIT_S) {
+						if (f8.h) f8.h.poke("limit");
+						if (f8.relay) return;
+						if (!f8.run.ended) endRun(f8.run, false, [["why", "no_relay"], ["resumed", 1]], "Тест 8: ответа нет за " + LIMIT_S + " с.");
+						f8.reported = true; dropFlow(f8);
+					}
 				};
 				ticks.push(f8.tick);
 			}

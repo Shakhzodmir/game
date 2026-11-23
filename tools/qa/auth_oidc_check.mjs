@@ -488,6 +488,14 @@ async function armed(opts = {}) {
 	await waitFor(() => a.log.relay.length === 1);
 	assert.deepEqual(a.log.relay.map((x) => x.via), ["poll"], "the 300 ms re-read is the net under all of it");
 	a.h.stop();
+	// a page whose timers stood still (Google's tab was in front) looks once more by hand before it gives up: poke() reads the mailbox now
+	a = await armed({ pollMs: 100000 });
+	await sleep(40);
+	a.world.ls.set(a.key, JSON.stringify(mkRelay(a.rec.s)));
+	assert.equal(a.log.relay.length, 0, "nothing has looked yet");
+	a.h.poke("limit");
+	assert.deepEqual(a.log.relay.map((x) => x.via), ["limit"], "poke() delivers synchronously, so the caller can look at the result at once");
+	a.h.stop();
 
 	// stop(): nothing more arrives, and it can be called twice
 	a = await armed();
