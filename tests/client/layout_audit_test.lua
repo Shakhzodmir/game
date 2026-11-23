@@ -376,6 +376,7 @@ end)
 describe("text layout audit: goal hints", function()
 	local level_hud = require("client.level_hud")
 	local link = require("client.level_link")
+	local json = require("tools.lib.json")
 	local MIN_PX = 18
 
 	local function hud(c) return c.hud.self.l.hud end
@@ -420,21 +421,29 @@ describe("text layout audit: goal hints", function()
 		for _, lang in ipairs(LANGS) do
 			G.with_level({ level = 178, attempt = false, language = lang }, function(c)
 				c.run(0.8)
-				bus.publish("level_goal", { index = 1, left = 99999 })
 				bus.publish("level_goal", { index = 1, left = 0 })
 				c.step(3)
 				local problems, rows = show(c, 1)
 				for _, m in ipairs(problems) do bad[#bad + 1] = lang .. " done: " .. m end
+				if #rows ~= 1 then bad[#bad + 1] = string.format("%s done: %d texts in the pill", lang, #rows) end
 				for _, r in ipairs(rows) do
 					if r.font_px < MIN_PX - 0.01 then bad[#bad + 1] = string.format("%s done: '%s' is only %.1f px", lang, r.text, r.font_px) end
 				end
 			end)
-			-- the longest name of a piece with a number of four digits (a level may ask for a lot)
-			G.with_level({ level = 190, attempt = false, language = lang }, function(c) -- three colour goals of 45
+			-- the longest name of a piece with a number far longer than any level asks for today (110 at most, level 40): four
+			-- digits (a counter only goes down, so the number comes from the level text: level 190 with three goals of 1234)
+			local file = assert(io.open("content/levels/level_0190.json", "r"))
+			local text = json.decode(file:read("*a"))
+			file:close()
+			for _, goal in ipairs(text.goals) do goal.count = 1234 end
+			G.with_level({ level = 190, attempt = false, language = lang, level_text = json.encode(text) }, function(c)
 				c.run(0.8)
 				for k = 1, 3 do
 					local problems, rows = show(c, k)
 					for _, m in ipairs(problems) do bad[#bad + 1] = string.format("%s 190/%d: %s", lang, k, m) end
+					if #rows ~= 1 or not string.find(rows[1] and rows[1].text or "", "1234", 1, true) then
+						bad[#bad + 1] = string.format("%s 190/%d: the line does not say 1234 (the number this test is about)", lang, k)
+					end
 					for _, r in ipairs(rows) do
 						if r.font_px < MIN_PX - 0.01 then bad[#bad + 1] = string.format("%s 190/%d: '%s' is only %.1f px", lang, k, r.text, r.font_px) end
 					end
