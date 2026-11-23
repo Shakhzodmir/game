@@ -233,19 +233,33 @@ local function and_table(bits)
 end
 local AND_LO, AND_HI = and_table(7), and_table(6)
 
--- rows[i] (i = 1..13, the canvas row y is i - 2, so that the shifts of -1..1 stay inside) as numbers: bit x + 1 is the cell x
+-- rows[i] (i = 1..13, the canvas row y is i - 2, so that the shifts of -1..1 stay inside) as numbers: bit x + 1 is the cell x.
+-- The board is cut to the frame of its '#' cells first and centred by that frame: empty rows and columns at the edge of
+-- `cells` (a declared size larger than the shape) must not move the shape on the canvas and hide a copy.
 local function board_rows(cells)
-	local h, w = #cells, #cells[1]
-	assert_true(h <= CANVAS and w <= CANVAS, "a board larger than the canvas of " .. CANVAS)
-	local ox, oy = math.floor((CANVAS - w) / 2), math.floor((CANVAS - h) / 2)
+	local x0, x1, y0, y1
+	for y, row in ipairs(cells) do
+		for x = 1, #row do
+			if row:sub(x, x) == "#" then
+				x0 = (x0 and x0 < x) and x0 or x
+				x1 = (x1 and x1 > x) and x1 or x
+				y0 = (y0 and y0 < y) and y0 or y
+				y1 = (y1 and y1 > y) and y1 or y
+			end
+		end
+	end
 	local plain_rows, mirror_rows, count = {}, {}, 0
 	for i = 1, CANVAS + 2 do
 		plain_rows[i], mirror_rows[i] = 0, 0
 	end
+	if not x0 then return plain_rows, mirror_rows, 0 end
+	local w, h = x1 - x0 + 1, y1 - y0 + 1
+	assert_true(h <= CANVAS and w <= CANVAS, "a board larger than the canvas of " .. CANVAS)
+	local ox, oy = math.floor((CANVAS - w) / 2), math.floor((CANVAS - h) / 2)
 	for y, row in ipairs(cells) do
 		for x = 1, #row do
 			if row:sub(x, x) == "#" then
-				local cx, cy = x - 1 + ox, y - 1 + oy
+				local cx, cy = x - x0 + ox, y - y0 + oy
 				plain_rows[cy + 2] = plain_rows[cy + 2] + 2 ^ (cx + 1)
 				mirror_rows[cy + 2] = mirror_rows[cy + 2] + 2 ^ (CANVAS - 1 - cx + 1)
 				count = count + 1
@@ -365,6 +379,16 @@ describe("level variety: near copies of boards", function()
 		assert_eq(board_distance(b({ "##.", "###" }), b({ ".##", "###" }), 5), 0)
 		assert_eq(board_distance(b({ "#..", "###" }), b({ "###", ".#." }), 5), 2)
 		assert_eq(board_distance(b({ "###", "###" }), b({ "#" }), 1), 2)
+		-- empty rows and columns at the edge of the declared size do not hide a copy (4 empty rows moved a board by 2 rows)
+		local shape = { "..#..", ".###.", "#####", "#...#" }
+		local padded = { "........", "........", "..#.....", ".###....", "#####...", "#...#...", "........", "........", "........" }
+		assert_eq(board_distance(b(shape), b(padded), 5), 0, "a copy padded with empty rows and columns")
+		assert_eq(board_distance(b({ "###", "###" }), b({ "....", "###.", "###.", "...." , "...."}), 5), 0, "empty rows above and below")
+		-- four empty rows on one side moved the old centring by 2 canvas rows, out of the shifts -1..1
+		local lower = { "###", "###", "...", "...", "...", "..." }
+		assert_eq(board_distance(b({ "###", "###" }), b(lower), 5), 0, "four empty rows below")
+		assert_eq(board_distance(b({ "###", "###" }), b({ "...", "...", "...", "...", "###", "###" }), 5), 0, "four empty rows above")
+		assert_eq(board_distance(b({ "###", "###" }), b({ "###....", "###...." }), 5), 0, "empty columns on the right")
 	end)
 
 	it("gives every board of a level from 301 up its own shape, not even a copy with one cell more or less", function()

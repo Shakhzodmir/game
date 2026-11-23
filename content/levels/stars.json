@@ -317,7 +317,7 @@
   "316":{"kind":"normal","t":[12800,14400,18500],"best":27650,"witness":["strong",4134],"wins":37,"games":40,"share3":270,"sig":"013bde2b00a0765b"},
   "317":{"kind":"normal","t":[8600,9900,11700],"best":15190,"witness":["greedy",4103],"wins":34,"games":40,"share3":265,"sig":"6256590474d1d52b"},
   "318":{"kind":"normal","t":[21800,23800,26800],"best":31800,"witness":["strong",4112],"wins":14,"games":48,"share3":286,"sig":"52805f787c2aaef8"},
-  "319":{"kind":"normal","t":[7400,8500,10000],"best":16830,"witness":["greedy",4137],"wins":38,"games":40,"share3":263,"sig":"4dc31e9a4c604bd4"},
+  "319":{"kind":"normal","t":[5900,7500,9600],"best":14500,"witness":["strong",4140],"wins":37,"games":40,"share3":297,"sig":"0c77c5f80e7fdb77"},
   "320":{"kind":"concert","t":[28600,33400,36300],"best":42520,"witness":["greedy",4109],"wins":19,"games":40,"share3":211,"sig":"3052cff644e8dfc1"},
   "321":{"kind":"normal","t":[10700,11700,13000],"best":16290,"witness":["greedy",4131],"wins":37,"games":40,"share3":270,"sig":"5c99c0d96410f628"},
   "322":{"kind":"normal","t":[8300,10300,12600],"best":16150,"witness":["greedy",4119],"wins":37,"games":40,"share3":270,"sig":"2d52ffaf12c68dd8"},
@@ -365,7 +365,7 @@
   "364":{"kind":"normal","t":[11100,13000,15800],"best":27030,"witness":["greedy",4139],"wins":37,"games":40,"share3":270,"sig":"26d9202a5f04c732"},
   "365":{"kind":"normal","t":[14800,16000,18500],"best":24770,"witness":["strong",4116],"wins":26,"games":40,"share3":269,"sig":"0178dbbb6307a2ca"},
   "366":{"kind":"normal","t":[9300,10900,12600],"best":17970,"witness":["greedy",4119],"wins":38,"games":40,"share3":289,"sig":"6ec40a786cdb1a52"},
-  "367":{"kind":"normal","t":[14500,15400,18400],"best":26390,"witness":["greedy",4129],"wins":28,"games":40,"share3":286,"sig":"7a65ae442b7a7761"},
+  "367":{"kind":"normal","t":[14700,16100,19500],"best":21780,"witness":["greedy",4119],"wins":31,"games":40,"share3":258,"sig":"63363bd60fd98a42"},
   "368":{"kind":"normal","t":[11700,14000,16900],"best":21660,"witness":["strong",4134],"wins":38,"games":40,"share3":263,"sig":"7198d9402130f2e8"},
   "369":{"kind":"normal","t":[8800,10800,12000],"best":14960,"witness":["strong",4134],"wins":39,"games":40,"share3":256,"sig":"05f9cd88016222c7"},
   "370":{"kind":"normal","t":[18100,21100,24400],"best":27330,"witness":["strong",4110],"wins":33,"games":40,"share3":273,"sig":"31104bb023746110"},
@@ -422,7 +422,7 @@
   "421":{"kind":"normal","t":[12200,14800,18900],"best":26330,"witness":["strong",4110],"wins":35,"games":40,"share3":257,"sig":"53a194200b718a2f"},
   "422":{"kind":"normal","t":[11400,13100,15200],"best":17690,"witness":["greedy",4103],"wins":34,"games":40,"share3":265,"sig":"59fd8858232275e4"},
   "423":{"kind":"normal","t":[8400,10500,12400],"best":15030,"witness":["strong",4124],"wins":29,"games":40,"share3":276,"sig":"0395555c63a4a8eb"},
-  "424":{"kind":"normal","t":[6900,8800,10300],"best":13920,"witness":["greedy",4109],"wins":34,"games":40,"share3":265,"sig":"327911225bed3a0a"},
+  "424":{"kind":"normal","t":[7500,9000,10800],"best":14650,"witness":["strong",4124],"wins":36,"games":40,"share3":278,"sig":"5f12ff0e248346d4"},
   "425":{"kind":"normal","t":[15600,18000,21300],"best":32410,"witness":["greedy",4107],"wins":29,"games":40,"share3":276,"sig":"1f6d51e622a56ea3"},
   "426":{"kind":"normal","t":[9700,11000,13000],"best":16550,"witness":["strong",4124],"wins":38,"games":40,"share3":263,"sig":"6f4d591a58bf3825"},
   "427":{"kind":"normal","t":[9400,11700,13900],"best":16910,"witness":["strong",4132],"wins":36,"games":40,"share3":278,"sig":"321fd5534f28e482"},
@@ -438,5 +438,5 @@
   "437":{"kind":"normal","t":[8700,10700,12900],"best":17960,"witness":["greedy",4139],"wins":36,"games":40,"share3":278,"sig":"2dffc0823023eb47"},
   "438":{"kind":"normal","t":[10600,12500,14500],"best":20360,"witness":["strong",4114],"wins":14,"games":54,"share3":286,"sig":"673ae2d84b50087f"},
   "439":{"kind":"normal","t":[7300,8500,10600],"best":12850,"witness":["strong",4140],"wins":29,"games":40,"share3":276,"sig":"7030b6cd1cdb8149"},
-  "440":{"kind":"concert","t":[21200,23300,27700],"best":30250,"witness":["strong",4128],"wins":14,"games":44,"share3":214,"sig":"6e764fae39df4e9d"}
+  "440":{"kind":"concert","t":[26000,28200,32000],"best":36790,"witness":["strong",4150],"wins":14,"games":51,"share3":214,"sig":"1c1606897ff56e13"}
 }}
