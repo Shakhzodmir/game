@@ -10,9 +10,10 @@ Run it again after any re-render of tools/audio/gen_audio.py: it reads the shipp
 *.ogg and assets/music/songs/*.ogg), so the kit always sounds like the game. It writes into OUT_DIR:
 
   NN_<id>_town_complete.mp3     all the task stems together: a finished town (audio.music(district))
-  NN_<id>_concert.mp3           the same + the party layer: the finale concert (audio.music(district, {all = true})).
-                                The game never plays the tension layer together with the party layer (the mixer
-                                contract, assets/sounds/manifest.json -> mixer), so neither does the kit.
+  NN_<id>_concert.mp3           the same + the party layer: the finale concert and the theme of a finished district
+                                picked in the jukebox (audio.music(district, {all = true}), client/songs.lua). The
+                                game never plays the tension layer together with the party layer (the mixer contract,
+                                assets/sounds/manifest.json -> mixer), so neither does the kit.
   NN_<id>_last_moves.mp3        all the task stems + the tension layer: a level with 5 moves or fewer left
   NN_parent_<id>_town_complete.mp3, NN_parent_<id>_concert.mp3
                                 the same two files of the Part 1 parent of a district, for comparison; NN is the
@@ -55,9 +56,10 @@ BITRATE = "192k"
 TRUE_PEAK_MAX = -0.5       # dBTP of a decoded file: no clipping, with room for a player's own resampling
 DURATION_TOL = 0.1         # s, ffprobe against the expected length
 LOUDNESS_TOL = 0.15        # LU, the decoded file against the mix it came from
-# libmp3lame at a constant bitrate decodes 0.264 dB quieter than it was fed (measured with sine tones and with the
+# libmp3lame at a constant 192 kbps decodes 0.264 dB quieter than it was fed (measured with sine tones and with the
 # district mixes: the same on every one, at any frequency; the variable-bitrate modes lose nothing but their size is
-# not 192 kbps). It is fed that much louder, so that the decoded file has the loudness of the game.
+# not 192 kbps). It is fed that much louder, so that the decoded file has the loudness of the game. The constant
+# belongs to BITRATE and to this encoder: check_file() fails the run if another setting or version decodes differently.
 LAME_LOSS_DB = 0.264
 # The Part 1 district a Part 2 district is made from (docs/design/part2-districts.md).
 PARENTS = {"midnight_cafe": "cafe", "late_club": "jazz", "nations_fest": "square", "fan_meeting": "stadium",
