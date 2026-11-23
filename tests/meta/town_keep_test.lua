@@ -11,6 +11,7 @@ local save = require("meta.save")
 local savecode = require("meta.savecode")
 local cloudsync = require("meta.cloudsync")
 local town = require("meta.town")
+local util = require("meta.util")
 local C = require("meta.config")
 local Meta = require("meta.meta")
 local H = require("tests.meta.helper")
@@ -152,6 +153,25 @@ describe("town.restore: districts this build does not know", function()
 				if id ~= "a" then count = count + 1 end
 			end
 			assert_eq(count, KEEP.districts)
+		end)
+	end)
+
+	it("picks the ones that stay without sorting them all: the work grows with the number of ids", function()
+		assert_true(KEEP ~= nil, "meta/config.lua has the bounds (town_keep)")
+		with_data(fixture(1), function(data)
+			-- a forged save may hold tens of thousands of small entries (a save code takes 200,000 characters)
+			local n = 20000
+			local raw = {}
+			for i = 1, n do raw[string.format("z%05d", i)] = {} end
+			local calls, real = 0, util.str_less
+			util.str_less = function(x, y) calls = calls + 1; return real(x, y) end
+			local ok, t = pcall(town.restore, raw, data)
+			util.str_less = real
+			assert_true(ok, tostring(t))
+			-- about one comparison per id; sorting them all took about fifteen
+			assert_true(calls < 3 * n, calls .. " comparisons for " .. n .. " ids")
+			for i = 1, KEEP.districts do assert_true(t[string.format("z%05d", i)] ~= nil, "z" .. i) end
+			assert_eq(t[string.format("z%05d", KEEP.districts + 1)], nil, "the first one over the cap")
 		end)
 	end)
 

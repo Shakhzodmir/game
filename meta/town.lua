@@ -229,23 +229,28 @@ function M.restore(t, data)
 			view = util.index_of(C.views, saved.view) and saved.view or C.views[1],
 		}
 	end
+	-- The ones that stay are the first `keep.districts` entries within the bounds, in id order. A forged save may hold
+	-- tens of thousands of them, so they are not all sorted: one pass over the save keeps the best ones so far in
+	-- `stay` (in id order, at most the cap), so the work grows with the number of ids and not faster.
 	local keep = C.town_keep
-	local unknown = {}
-	for id in pairs(t) do -- order-free: sorted below
-		if type(id) == "string" and id ~= "" and #id <= keep.id_bytes and not data.by_id[id] then
-			unknown[#unknown + 1] = id
+	local stay = {}
+	for id, entry in pairs(t) do -- order-free: the ones that stay do not depend on the order of the walk
+		if type(id) == "string" and id ~= "" and #id <= keep.id_bytes and not data.by_id[id]
+			and type(entry) == "table" and weigh(entry, keep.depth, keep.bytes) then
+			local at = #stay + 1
+			if at > keep.districts then -- full: the id takes the place of the last one, if it comes before it
+				at = #stay > 0 and util.str_less(id, stay[#stay]) and #stay or nil
+			end
+			if at then
+				while at > 1 and util.str_less(id, stay[at - 1]) do
+					stay[at] = stay[at - 1]
+					at = at - 1
+				end
+				stay[at] = id
+			end
 		end
 	end
-	table.sort(unknown, util.str_less)
-	local kept = 0
-	for _, id in ipairs(unknown) do
-		if kept >= keep.districts then break end
-		local entry = t[id]
-		if type(entry) == "table" and weigh(entry, keep.depth, keep.bytes) then
-			town[id] = util.copy(entry)
-			kept = kept + 1
-		end
-	end
+	for _, id in ipairs(stay) do town[id] = util.copy(t[id]) end
 	return town
 end
 
