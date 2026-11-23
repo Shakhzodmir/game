@@ -41,6 +41,61 @@ describe("the district of a level", function()
 	end)
 end)
 
+-- Which districts get the night sky (stars over the district's own evening picture) and which the day sky (clouds).
+-- Pinned here on purpose: NIGHT is a plain list of ids, a district that is missing from it silently gets clouds over a
+-- night picture (or the other way round). Part 2 is the second round of the genres: its pictures are the night versions
+-- of the pictures of the parent district (tools/art/make_part2_placeholders.py LOOK), except the two sunny ones.
+local NIGHT_PART1 = { cinema = true, skyclub = true, bluesclub = true, arcade = true }
+local NIGHT_PART2 = {
+	midnight_cafe = true,    -- 16 a rainy night
+	late_club = true,        -- 17 after midnight
+	nations_fest = false,    -- 18 a sunny parade: clouds
+	fan_meeting = true,      -- 19 an evening, lightsticks
+	punk_garage = true,      -- 20 a garage at night
+	sunset_bossa = false,    -- 21 golden hour on the beach: clouds
+	night_carnival = true,   -- 22 fireworks
+}
+
+describe("which districts have the night sky", function()
+	it("every district of Part 2 is decided in this table (a new district must be added here and to client/level_sky.lua)", function()
+		local seen = 0
+		for _, d in ipairs(districts) do
+			if (d.part or 1) >= 2 then
+				seen = seen + 1
+				assert_true(NIGHT_PART2[d.id] ~= nil, d.id .. " is a Part 2 district: decide its sky (stars or clouds), write it in NIGHT_PART2 and sky.NIGHT")
+			end
+		end
+		assert_true(seen >= 7, "districts 16-22 are Part 2: " .. seen)
+		local parts = {}
+		for _, d in ipairs(districts) do parts[d.id] = d.part or 1 end
+		for id in pairs(NIGHT_PART2) do -- order-free
+			assert_true(parts[id] ~= nil and parts[id] >= 2, id .. " is not a district of Part 2")
+		end
+	end)
+
+	it("the stars are over districts 16, 17, 19, 20 and 22, the clouds over 18 and 21", function()
+		for id, night in pairs(NIGHT_PART2) do -- order-free
+			assert_eq(sky.NIGHT[id] == true, night, id .. ": " .. (night and "stars" or "clouds") .. " expected")
+			assert_eq(sky.kind(id, true), night and "stars" or "clouds", id .. " over its own picture")
+			assert_eq(sky.kind(id, false), "clouds", id .. " over the common backdrop (a day sky)")
+		end
+		assert_eq(sky.kind("midnight_cafe", true), "stars")
+		assert_eq(sky.kind("nations_fest", true), "clouds")
+		assert_eq(sky.kind("sunset_bossa", true), "clouds")
+	end)
+
+	it("the whole night set is the four evening districts of Part 1 and the five of Part 2, nothing else", function()
+		local want = {}
+		for id in pairs(NIGHT_PART1) do want[#want + 1] = id end -- order-free: sorted below
+		for id, night in pairs(NIGHT_PART2) do if night then want[#want + 1] = id end end -- order-free: sorted below
+		table.sort(want)
+		local got = {}
+		for id, on in pairs(sky.NIGHT) do if on then got[#got + 1] = id end end -- order-free: sorted below
+		table.sort(got)
+		assert_same(got, want)
+	end)
+end)
+
 describe("the picture behind the board", function()
 	it("is the common one for a district without a picture of its own (and for no district)", function()
 		local key, own = assets.level_bg_key("zz_no_picture")
