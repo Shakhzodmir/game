@@ -14,6 +14,15 @@
 --   * A district is available when it is the first one, when the chest of the
 --     previous one is claimed, or when the player already has progress in it.
 --
+-- Districts this build does not know. A newer build (the next part of the game) adds districts; when the live site
+-- is rolled back to this build, the save arrives with entries for them. restore() keeps such an entry as it is: an
+-- opaque copy, nothing of it is read, so the save written back carries it and the newer build, when it returns,
+-- finds every task done and its chest claimed (the header of meta/save.lua, "Rollbacks"). It counts nowhere in this
+-- build (this build cannot price those tasks: meta/cloudsync.lua), shows nowhere (the views walk data.list) and when
+-- a build learns the district it is read like any other entry. Only plain data within the bounds of C.town_keep is
+-- kept: a damaged or forged save must not grow the save (the cloud copy has a size limit), so an entry over them is
+-- dropped like any other broken field.
+--
 -- The jukebox catalogue lives here too: every district is a genre. Its theme (the layered
 -- track of the district; its song id is the district id) opens with the district's first stem,
 -- the extra songs of the genre (songs[] of the district in districts.json, single mixes) open
@@ -160,6 +169,48 @@ function M.validate(src)
 	return data
 end
 
+-- Size of a value of plain data: its length in the text form of a save code (meta/savecode.lua enc). Nil when the
+-- value is not plain data that form can write (a function, a number that is not finite, a table that mixes array and
+-- map keys or has holes, a key that is neither a string nor a position) or when it goes over the bounds: more than
+-- `levels` levels of tables, more than `left` bytes. The walk stops at the first byte over, so a huge value costs
+-- no more than a small one.
+local function weigh(v, levels, left)
+	local tv = type(v)
+	local w
+	if tv == "string" then
+		w = 2 + #tostring(#v) + #v
+	elseif tv == "number" then
+		if v ~= v or v == math.huge or v == -math.huge then return nil end
+		w = 2 + #string.format("%.17g", v)
+	elseif tv == "boolean" then
+		w = 1
+	elseif tv == "table" and levels > 0 then
+		local n, count, named = #v, 0, 0
+		w = 2
+		for k, x in pairs(v) do -- order-free: a sum and checks every key has to pass
+			count = count + 1
+			if type(k) == "string" then
+				named = named + 1
+				w = w + 2 + #tostring(#k) + #k
+			elseif not (util.is_int(k) and k >= 1 and k <= n) then
+				return nil
+			end
+			if w > left then return nil end
+			local inner = weigh(x, levels - 1, left - w)
+			if not inner then return nil end
+			w = w + inner
+		end
+		if named > 0 and named ~= count then return nil end -- array and map keys in one table
+		if named == 0 and count ~= n then return nil end -- holes in an array
+	else
+		return nil
+	end
+	if w > left then return nil end
+	return w
+end
+
+-- Raw town table of a save -> the town state: an entry for every district of `data`, read and repaired, and, as
+-- they are, the entries of districts this build does not know (the header, C.town_keep).
 function M.restore(t, data)
 	t = type(t) == "table" and t or {}
 	local town = {}
@@ -177,6 +228,23 @@ function M.restore(t, data)
 			chest_claimed = claimed,
 			view = util.index_of(C.views, saved.view) and saved.view or C.views[1],
 		}
+	end
+	local keep = C.town_keep
+	local unknown = {}
+	for id in pairs(t) do -- order-free: sorted below
+		if type(id) == "string" and id ~= "" and #id <= keep.id_bytes and not data.by_id[id] then
+			unknown[#unknown + 1] = id
+		end
+	end
+	table.sort(unknown, util.str_less)
+	local kept = 0
+	for _, id in ipairs(unknown) do
+		if kept >= keep.districts then break end
+		local entry = t[id]
+		if type(entry) == "table" and weigh(entry, keep.depth, keep.bytes) then
+			town[id] = util.copy(entry)
+			kept = kept + 1
+		end
 	end
 	return town
 end

@@ -20,9 +20,23 @@
 -- know are kept as they are (state.extra) and written back, so updating the
 -- app again finds them. Two rules follow for format changes:
 --   * add new data as new top-level fields; do not rename or reshape old
---     ones (unknown fields inside known ones are dropped);
+--     ones (unknown fields inside known ones are dropped, with ONE exception,
+--     below);
 --   * a migration must keep a field that already exists: a save that went
 --     through a rollback carries the newer version's fields already.
+--
+-- The exception: the town. A newer build adds districts (a new part of the
+-- game, no new field and no new version), and what the player buys there is
+-- an entry for each district inside the known field `town`. A build that does
+-- not know a district keeps its entry as it is (meta/town.lua restore: an
+-- opaque copy of plain data within the bounds of C.town_keep, at most
+-- 64 districts of 1024 bytes) and writes it back; it never counts it in the
+-- progress numbers of the cloud sync (meta/cloudsync.lua) or shows it. So a
+-- rollback and a new update in between leave the tasks, and the chests
+-- already paid for them, in place. What protects a player is the build the
+-- site is rolled back TO: only a build that holds this exception keeps the
+-- entries (an older one drops them at its first re-save, and a save that lost
+-- them is not repaired later), so the exception is never to be taken out.
 
 local C = require("meta.config")
 local util = require("meta.util")

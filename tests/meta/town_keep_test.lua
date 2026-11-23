@@ -101,15 +101,24 @@ describe("town.restore: districts this build does not know", function()
 		end)
 	end)
 
-	it("keeps an entry up to the size cap and drops one over it", function()
+	it("measures an entry as its length in the text form of a save code: the cap is that many bytes", function()
 		assert_true(KEEP ~= nil, "meta/config.lua has the bounds (town_keep)")
 		with_data(fixture(1), function(data)
-			local t = town.restore({
-				fits = { blob = string.rep("x", KEEP.bytes - 100) },
-				over = { blob = string.rep("x", KEEP.bytes) },
-			}, data)
-			assert_true(t.fits ~= nil)
-			assert_eq(t.over, nil)
+			-- { pad = { true, true, ... } } is 10 bytes and one more for every true
+			local function entry(k)
+				local pad = {}
+				for i = 1, k do pad[i] = true end
+				return { pad = pad }
+			end
+			assert_eq(#savecode.pack(entry(KEEP.bytes - 10)), KEEP.bytes)
+			assert_true(town.restore({ z = entry(KEEP.bytes - 10) }, data).z ~= nil, "exactly the cap")
+			assert_eq(town.restore({ z = entry(KEEP.bytes - 9) }, data).z, nil, "one byte over")
+			-- strings, numbers and keys are measured the same way: a long one does not slip through
+			assert_eq(town.restore({ z = { blob = string.rep("x", KEEP.bytes) } }, data).z, nil)
+			assert_eq(town.restore({ z = { [string.rep("k", KEEP.bytes)] = 1 } }, data).z, nil)
+			local numbers = {}
+			for i = 1, KEEP.bytes / 4 do numbers[i] = 1 / (i + 2) end -- about 20 bytes each in the code
+			assert_eq(town.restore({ z = { numbers = numbers } }, data).z, nil)
 		end)
 	end)
 
@@ -224,12 +233,13 @@ describe("save: a save with districts this build does not know", function()
 	it("loads at once whatever many and huge entries a forged save holds", function()
 		assert_true(KEEP ~= nil, "meta/config.lua has the bounds (town_keep)")
 		local t = H.json_round_trip(H.new(5):serialize())
-		for i = 1, 2000 do t.town["z" .. i] = { done = { "a", "b" }, view = "day" } end
+		for i = 1, 1000 do t.town["z" .. i] = { done = { "a", "b" }, view = "day" } end
 		local giant = {}
-		for i = 1, 20000 do giant[i] = i end
+		for i = 1, 10000 do giant[i] = i end
 		t.town.giant = { list = giant }
 		resign(t)
-		local finished, res = H.within_budget(12000000, Meta.load, H.districts(), t, nil, 1, T)
+		-- about 3e6 on Lua 5.1, most of it the checksum and the copy of the forged input itself
+		local finished, res = H.within_budget(8000000, Meta.load, H.districts(), t, nil, 1, T)
 		assert_true(finished, "Meta.load did not finish within the budget")
 		assert_true(res[1], tostring(res[2]))
 		local s = res[2]:serialize()

@@ -14,6 +14,12 @@
 -- fewer stars than the copy from before it, and read by the wallet it looked "behind" and was rolled back (the
 -- producer's screenshot of 2026-11-20: 54 levels, 46 stars against the account's 54 levels, 50 stars). `earned`
 -- (the wallet plus what the done tasks cost) never goes down, `tasks` counts the done tasks.
+-- Tasks of districts this build does not know (a newer build's: the site was rolled back to this build; meta/town.lua
+-- restore keeps their entries in the save as they are) count in neither number, this build cannot price them. So the
+-- stars they cost are missing from `earned` too, and the same player's save from before those purchases reads as level
+-- with the save that has them, or even ahead of it. A write of this build never drops the entries: the quiet upload
+-- that follows a change (same progress, other checksum) is a save that still holds them, and what a save replaces
+-- stays in the "previous" slot and field (tests/meta/town_keep_test.lua, tests/client/cloud_test.lua).
 
 local save = require("meta.save")
 local town = require("meta.town")

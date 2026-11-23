@@ -158,6 +158,20 @@ C.genres_unlock = "districts"
 
 C.save_version = 1
 
+-- Districts this build does not know. A newer build (the next part of the game) adds districts, and when the live
+-- site is rolled back to this build its save arrives with town entries for them: meta/town.lua restore keeps such an
+-- entry as it is, so the save written back carries it and the newer build finds every task again (the header of
+-- meta/save.lua, "Rollbacks"). A damaged or forged save must not be able to grow the save without limit (the cloud
+-- copy may hold 200,000 characters, meta/savecode.lua MAX_CODE), so an entry is kept only within these bounds and a
+-- bad one is dropped like any other broken field. A real entry is about 120 bytes (six task ids, a flag, a view);
+-- the bounds leave wide room for later parts of the game. docs/design/meta-economy.md documents them.
+C.town_keep = {
+	districts = 64,  -- entries kept; over it the first ones in id order stay
+	bytes = 1024,    -- size of one entry: its length in the text form of a save code (meta/savecode.lua)
+	depth = 4,       -- levels of tables in one entry, the entry itself being level 1 (the save code refuses 16 and deeper)
+	id_bytes = 40,   -- the longest district id kept
+}
+
 -- Content binding ----------------------------------------------------------------------------------------------
 -- The number of levels and the stretch of levels of every district are data (content/districts.json: `first`,
 -- `last` of each district, in the order the districts open); the meta reads them from here. A build with more
