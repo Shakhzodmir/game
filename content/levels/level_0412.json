@@ -1,0 +1,31 @@
+{
+  "id": 412, "version": 1,
+  "size": [9, 8],
+  "moves": 32,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "carpet"},
+    {"type": "ice", "count": 5}
+  ],
+  "cells": [
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    ".#######."
+  ],
+  "overlay": [
+    {"at": [2, 2], "type": "ice", "hp": 1},
+    {"at": [4, 2], "type": "ice", "hp": 1},
+    {"at": [6, 2], "type": "ice", "hp": 1},
+    {"at": [3, 4], "type": "ice", "hp": 1},
+    {"at": [5, 4], "type": "ice", "hp": 1}
+  ],
+  "carpet": [
+    [1, 6], [2, 6], [4, 6], [6, 6], [7, 6]
+  ]
+}

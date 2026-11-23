@@ -1,0 +1,41 @@
+{
+  "id": 420, "version": 1,
+  "size": [9, 11],
+  "moves": 32,
+  "difficulty": "super_hard",
+  "colors": ["orange", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "drop", "count": 8},
+    {"type": "break", "item": "record_box", "count": 4},
+    {"type": "collect", "color": "blue", "count": 50}
+  ],
+  "cells": [
+    ".#######.",
+    ".#######.",
+    ".#######.",
+    ".........",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########"
+  ],
+  "slots": [
+    {"at": [1, 9], "type": "record_box", "hp": 3},
+    {"at": [3, 9], "type": "record_box", "hp": 3},
+    {"at": [5, 9], "type": "record_box", "hp": 3},
+    {"at": [7, 9], "type": "record_box", "hp": 3}
+  ],
+  "coconut": {"total": 8, "on_board_max": 2, "gap_moves": 3, "columns": [1, 2, 3, 4, 5, 6, 7]},
+  "portals": [
+    {"in": [1, 2], "out": [1, 4]},
+    {"in": [2, 2], "out": [2, 4]},
+    {"in": [3, 2], "out": [3, 4]},
+    {"in": [4, 2], "out": [4, 4]},
+    {"in": [5, 2], "out": [5, 4]},
+    {"in": [6, 2], "out": [6, 4]},
+    {"in": [7, 2], "out": [7, 4]}
+  ]
+}

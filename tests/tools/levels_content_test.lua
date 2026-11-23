@@ -46,6 +46,7 @@ local PART2_SAW = {
 	nations_fest = { hard = { 352, 355 }, super_hard = { 357, 360 } }, -- district 18: the parade of big fields
 	fan_meeting = { hard = { 372, 376 }, super_hard = { 378, 380 } }, -- district 19: the concert is a dancefloor over the field
 	punk_garage = { hard = { 392, 395 }, super_hard = { 398, 400 } }, -- district 20: a fast district, 20-26 moves
+	sunset_bossa = { hard = { 414, 416 }, super_hard = { 417, 420 } }, -- district 21: a soft district, the only super hard level before the concert is 417
 }
 local TIMES = "\195\151" -- the multiplication sign of the "9×9" of the field column
 
