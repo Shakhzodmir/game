@@ -205,6 +205,60 @@ describe("tools/check_content", function()
 		w.rewrite("content/districts.json", function(t) t.districts[1].tasks = {} end)
 		expect_error(w, "d1 has no tasks")
 	end)
+
+	-- The "part" of a district (Part 2 = districts 16-30). client/app.lua district_part reads a district without it as
+	-- Part 1, so a district without "part" after Part 2 would make part_opens give the next Part 2 district the "Part 2"
+	-- gate tag a second time. parts[i] = the part of district i, false = no "part" field.
+	local function with_parts(parts)
+		local w = world({ 20, 20, 20, 20, 20 })
+		w.rewrite("content/districts.json", function(t)
+			for i, p in ipairs(parts) do
+				if p == false then t.districts[i].part = nil else t.districts[i].part = p end
+			end
+		end)
+		return w
+	end
+
+	it("accepts the parts the shipped data has: districts 1-15 without it, Part 2 from then on, a part never going down", function()
+		for _, parts in ipairs({
+			{ false, false, false, false, false },   -- a game of one part
+			{ false, false, 2, 2, 2 },               -- Part 1 without the field, Part 2 with it
+			{ 1, 1, 2, 2, 2 },                       -- Part 1 spelled out
+			{ false, 1, 1, 2, 3 },                   -- a third part is allowed too
+		}) do
+			local errors = run(with_parts(parts))
+			assert_same(errors, {}, table.concat({ tostring(parts[1]), tostring(parts[2]), tostring(parts[3]), tostring(parts[4]), tostring(parts[5]) }, ","))
+		end
+	end)
+
+	it("names a part that is not a whole number >= 1", function()
+		for _, bad in ipairs({ 0, -1, 1.5, "2", true }) do
+			local errors = run(with_parts({ false, false, bad, false, false }))
+			assert_true(has(errors, "district 3 (d3): part must be a whole number >= 1"), "part " .. tostring(bad) .. ":\n  " .. table.concat(errors, "\n  "))
+			assert_eq(#errors, 1, "part " .. tostring(bad) .. " is one problem:\n  " .. table.concat(errors, "\n  "))
+		end
+	end)
+
+	it("names a part that goes down along the list", function()
+		local w = with_parts({ 1, 2, 2, 1, 1 })
+		expect_error(w, "district 4 (d4): part 1 comes after part 2 (the parts follow the list)")
+		local errors = run(w)
+		assert_true(has(errors, "district 5 (d5): part 1 comes after part 2"), "the next one too")
+		w = with_parts({ 1, 3, 2, 2, 2 })
+		expect_error(w, "district 3 (d3): part 2 comes after part 3")
+	end)
+
+	it("names a district without a part after Part 2 (it would read as Part 1 and open Part 2 again)", function()
+		local w = with_parts({ false, false, 2, false, 2 })
+		local errors = run(w)
+		assert_true(has(errors, "district 4 (d4): no part, but the districts before it are in part 2"), table.concat(errors, "\n  "))
+		assert_true(has(errors, "write \"part\": 2"), "the message says what to write")
+		assert_eq(#errors, 1, "only the district without the part, not the Part 2 district after it:\n  " .. table.concat(errors, "\n  "))
+		errors = run(with_parts({ false, false, 2, 2, false }))
+		assert_true(has(errors, "district 5 (d5): no part, but the districts before it are in part 2"), table.concat(errors, "\n  "))
+		errors = run(with_parts({ 1, 3, 3, 3, false }))
+		assert_true(has(errors, "district 5 (d5): no part, but the districts before it are in part 3"), table.concat(errors, "\n  "))
+	end)
 end)
 
 describe("tools/levels.lua knows the number of levels from the data", function()
