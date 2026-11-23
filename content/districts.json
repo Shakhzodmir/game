@@ -2622,7 +2622,7 @@
         {
           "id": "steel_pan",
           "name": {
-            "ru": "Стил-пэн",
+            "ru": "Стальной барабан",
             "en": "Steel pan",
             "ko": "스틸팬"
           },
@@ -2818,7 +2818,7 @@
       "name": {
         "ru": "Панк-гараж",
         "en": "Punk Garage",
-        "ko": "펑크 차고"
+        "ko": "펑크 개러지"
       },
       "genre": {
         "ru": "Поп-панк",
@@ -2847,7 +2847,7 @@
           "name": {
             "ru": "Гимн гаражной распродажи",
             "en": "Garage Sale Anthem",
-            "ko": "차고 세일 찬가"
+            "ko": "개러지 세일 찬가"
           },
           "bpm": 148,
           "bars": 12,
@@ -2869,7 +2869,7 @@
           "name": {
             "ru": "Гараж без розетки",
             "en": "Unplugged Garage",
-            "ko": "어쿠스틱 차고"
+            "ko": "어쿠스틱 개러지"
           },
           "bpm": 84,
           "bars": 8,
@@ -2888,7 +2888,7 @@
         {
           "id": "drum_kit",
           "name": {
-            "ru": "Ударная установка",
+            "ru": "Облезлая ударная установка",
             "en": "Beat-up drum kit",
             "ko": "낡은 드럼 세트"
           },
@@ -2899,9 +2899,9 @@
         {
           "id": "amp_stack",
           "name": {
-            "ru": "Стек усилителей",
-            "en": "Amp stack",
-            "ko": "앰프 스택"
+            "ru": "Стек усилителей в наклейках",
+            "en": "Sticker-bombed amp stack",
+            "ko": "스티커로 도배한 앰프 스택"
           },
           "cost": 4,
           "stem": "rhythm",
@@ -2910,9 +2910,9 @@
         {
           "id": "bass_guitar",
           "name": {
-            "ru": "Бас-гитара",
-            "en": "Bass guitar",
-            "ko": "베이스 기타"
+            "ru": "Бас с замотанным грифом",
+            "en": "Bass with a taped neck",
+            "ko": "테이프 감은 베이스"
           },
           "cost": 5,
           "stem": "bass",
@@ -2921,9 +2921,9 @@
         {
           "id": "garage_door",
           "name": {
-            "ru": "Гаражные ворота",
-            "en": "Garage door",
-            "ko": "차고 문"
+            "ru": "Ворота с граффити",
+            "en": "Graffiti garage door",
+            "ko": "그래피티 개러지 문"
           },
           "cost": 5,
           "stem": "claps",
@@ -2965,9 +2965,9 @@
         "ko": "노을 보사노바"
       },
       "genre": {
-        "ru": "Босса на закате",
-        "en": "Sunset Bossa",
-        "ko": "노을빛 보사노바"
+        "ru": "Золотая босса",
+        "en": "Golden Bossa",
+        "ko": "골든 보사노바"
       },
       "bpm": 96,
       "key": "C",
@@ -3000,7 +3000,7 @@
         {
           "id": "sea_salt_samba",
           "name": {
-            "ru": "Солёный самба",
+            "ru": "Солёная самба",
             "en": "Sea Salt Samba",
             "ko": "바다 소금 삼바"
           },
@@ -3123,8 +3123,8 @@
           "id": "fireworks_mambo",
           "name": {
             "ru": "Мамбо под салютом",
-            "en": "Fireworks Mambo",
-            "ko": "불꽃놀이 맘보"
+            "en": "Mambo Under the Rockets",
+            "ko": "축포 아래 맘보"
           },
           "bpm": 152,
           "bars": 12,
@@ -3233,7 +3233,7 @@
           "name": {
             "ru": "Медная секция",
             "en": "Horn section",
-            "ko": "혼 섹션"
+            "ko": "브라스 섹션"
           },
           "cost": 6,
           "stem": "brass",

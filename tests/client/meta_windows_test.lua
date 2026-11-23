@@ -831,20 +831,19 @@ describe("meta windows: jukebox", function()
 
 	-- The genre name of a district is the label of its tab: one line, 130 px wide, shrunk to fit. A long name is drawn so
 	-- small that it cannot be read: "K-pop: баллада и данс" (district 19) was drawn at 10 px of 23. The genres of districts
-	-- 16-18 are drawn at 13.8 px and more; no Part 2 genre may go below 13 px.
+	-- 16-18 are drawn at 13.8 px and more; no Part 2 genre may go below 13 px. Every district is built here, so that the tab of
+	-- the last district is open and every Part 2 tab is measured, not only the first four.
 	it("draws the genre names of the Part 2 districts on their tabs at 13 px at least", function()
 		local i18n = require("client.i18n")
 		for _, lang in ipairs({ "en", "ru", "ko" }) do
 			G.with_town({ language = lang, setup = function(app)
-				for _, d in ipairs(app.meta:districts()) do
-					if d.id == "fan_meeting" then break end
-					G.build_tasks(app, d.id) -- the districts before the fan meeting are built: its tab and those before it are open
-				end
+				for _, d in ipairs(app.meta:districts()) do G.build_tasks(app, d.id) end
 			end }, function(c)
 				open(c, "jukebox")
-				local checked, small = {}, {}
+				local checked, small, part2 = {}, {}, {}
 				for _, d in ipairs(c.app.district_list) do
 					local data = c.app.district_by_id[d.id]
+					if data.part == 2 then part2[#part2 + 1] = d.id end
 					if data.part == 2 and c.app.meta:district(d.id).available then
 						tab_to(c, d.id)
 						local label = i18n.name(data.genre)
@@ -856,9 +855,48 @@ describe("meta windows: jukebox", function()
 					end
 				end
 				assert_eq(table.concat(small, "; "), "", lang .. ": genre names drawn too small")
-				assert_true(#checked >= 4, lang .. ": checked " .. table.concat(checked, ", "))
-				assert_eq(checked[4], "fan_meeting")
+				assert_true(#part2 >= 7, lang .. ": the content has the Part 2 districts 16-22 at least")
+				assert_same(checked, part2, lang .. ": every Part 2 tab is measured")
 			end)
+		end
+	end)
+
+	-- The song rows of the Part 2 tabs (the theme row and the songs): in every language no text of the window may be drawn
+	-- below 15 px, a glyph of a name must be in the font, and nothing sticks out. The labels of the tabs themselves are measured
+	-- by the test above (they are drawn smaller than 15 px on purpose: the row is only 130 px a tab), so they are left out here.
+	it("draws the songs of the Part 2 tabs at 15 px at least, in every language and window shape", function()
+		local i18n = require("client.i18n")
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			for _, w in ipairs({ { 720, 1280 }, { 1280, 720 } }) do
+				G.with_town({ language = lang, window = w, safe = { left = 0, top = 48, right = 0, bottom = 30 }, setup = function(app)
+					for _, d in ipairs(app.meta:districts()) do G.build_tasks(app, d.id) end
+				end }, function(c)
+					open(c, "jukebox")
+					local label = lang .. " " .. w[1] .. "x" .. w[2]
+					local tab_labels, checked = {}, 0
+					for _, d in ipairs(c.app.district_list) do tab_labels[i18n.name(c.app.district_by_id[d.id].genre)] = true end
+					for _, d in ipairs(c.app.district_list) do
+						local data = c.app.district_by_id[d.id]
+						if data.part == 2 then
+							tab_to(c, d.id)
+							assert_eq(c.app.ui.jukebox.tab, d.id)
+							assert_same(c.E.audit(), {}, label .. " " .. d.id)
+							-- the rows are there (the theme row carries the name of the district, which the ribbon of the town
+							-- shows too, so only the songs prove it; the 15 px check below sees every text of the scene)
+							for _, song in ipairs(data.songs) do
+								assert_true(c.town:find(i18n.name(song.name)) ~= nil, label .. " " .. d.id .. ": no row '" .. i18n.name(song.name) .. "'")
+							end
+							local small = {}
+							for _, s in ipairs(c.town:smallest_texts(80)) do
+								if s.px < 15 and not tab_labels[s.text] then small[#small + 1] = string.format("'%s' %.1f px", s.text, s.px) end
+							end
+							assert_eq(table.concat(small, "; "), "", label .. " " .. d.id .. ": texts below 15 px")
+							checked = checked + 1
+						end
+					end
+					assert_true(checked >= 7, label .. ": only " .. checked .. " Part 2 tabs were looked at")
+				end)
+			end
 		end
 	end)
 

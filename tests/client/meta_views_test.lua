@@ -166,6 +166,28 @@ describe("client.views (meta screens)", function()
 				seen[name] = vm.tabs[i].id
 			end
 		end
+		-- A song has a title of its own. "Fireworks Mambo" / "불꽃놀이 맘보" was the title of a song of district 7 and of one of
+		-- district 22, and two rows with one name cannot be told apart in the jukebox. Strict over every district (Part 1 has no
+		-- repeats, so there is no list of exceptions) and every language; the theme row of a district carries the name of the
+		-- district, so those names count as well.
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			local owner = {}
+			local function take(name, what)
+				assert_true(type(name) == "string" and name ~= "", lang .. ": " .. what .. " has no name")
+				assert_true(owner[name] == nil, lang .. ": '" .. name .. "' names " .. tostring(owner[name]) .. " and " .. what)
+				owner[name] = what
+			end
+			for _, d in ipairs(all) do
+				take(d.name[lang], "the district " .. d.id)
+				for _, song in ipairs(d.songs) do take(song.name[lang], "the song " .. song.id .. " of " .. d.id) end
+			end
+		end
+		-- The genre is the label of a tab and not the name of its own district ("Sunset Bossa" was both in English)
+		for _, d in ipairs(all) do
+			for _, lang in ipairs({ "en", "ru", "ko" }) do
+				assert_true(d.genre[lang] ~= d.name[lang], lang .. ": the genre of " .. d.id .. " is named like the district: '" .. d.genre[lang] .. "'")
+			end
+		end
 		local night = {}
 		for i, r in ipairs(vm.songs.midnight_cafe) do night[i] = r.id end
 		assert_same(night, { "midnight_cafe", "night_tram", "neon_puddles", "three_am_tea", "rooftop_stars" })
@@ -476,5 +498,74 @@ describe("client.views (meta screens)", function()
 		local ids = {}
 		for _, b in ipairs(starter.boosters) do ids[#ids + 1] = b.id end
 		assert_same(ids, { "stick", "riff", "sub" })
+	end)
+end)
+
+-- The task card above the level button of the town (screens/town/hud.lua) draws the name of the task in the font "button" at
+-- 30 px and, under it, "Adds <layer> to the track" in the font "small" at 22 px, each shrunk to fit 300 px. No layout test walks
+-- the cards of every district (the audit builds windows, not a card for each of the 130 tasks), so the names are measured here
+-- from the advance widths of the generated fonts, the numbers the strict GUI stub answers with: a name is drawn at 18 px or
+-- more (the longest of Part 1 is at 24 px), the line under it at 15 px or more (the smallest text of the game), and every
+-- character is in the font that draws it.
+describe("task cards of every district", function()
+	local i18n = require("client.i18n")
+	local fonts = require("tests.client.font_advances")
+	local HANGUL = "[\234-\237][\128-\191][\128-\191]" -- as client/ui.lua: the Korean twin of a font draws Hangul
+	local CYRILLIC = "[\208\209][\128-\191]"
+
+	local function codepoints(s)
+		local out, i = {}, 1
+		while i <= #s do
+			local b = s:byte(i)
+			local size = (b >= 240 and 4) or (b >= 224 and 3) or (b >= 192 and 2) or 1
+			local cp
+			if size == 1 then
+				cp = b
+			elseif size == 2 then
+				cp = (b % 32) * 64 + (s:byte(i + 1) % 64)
+			elseif size == 3 then
+				cp = (b % 16) * 4096 + (s:byte(i + 1) % 64) * 64 + (s:byte(i + 2) % 64)
+			else
+				cp = 0x10000
+			end
+			out[#out + 1] = cp
+			i = i + size
+		end
+		return out
+	end
+
+	-- drawn size of a one-line text shrunk to max_w, and the characters its font lacks
+	local function drawn(font, size, max_w, str, lang)
+		local name = font
+		if string.find(str, HANGUL) or (lang == "ko" and not string.find(str, CYRILLIC)) then name = font .. "_ko" end
+		local f = assert(fonts[name], name)
+		local w, missing = 0, {}
+		for _, cp in ipairs(codepoints(str)) do
+			local a = f.advances[cp]
+			if a then w = w + a else missing[#missing + 1] = string.format("U+%04X", cp) end
+		end
+		w = w * size / f.size
+		return (w > max_w and w > 0) and size * max_w / w or size, missing
+	end
+
+	it("draws every task name at 18 px and the line under it at 15 px at least, in every language, with every character in the font", function()
+		local bad, n = {}, 0
+		for _, d in ipairs(H.districts().districts) do
+			for _, t in ipairs(d.tasks) do
+				for _, lang in ipairs({ "en", "ru", "ko" }) do
+					local name = t.name[lang]
+					local px, missing = drawn("button", 30, 300, name, lang)
+					if px < 18 then bad[#bad + 1] = string.format("%s/%s %s '%s' is drawn at %.1f px", d.id, t.id, lang, name, px) end
+					if #missing > 0 then bad[#bad + 1] = string.format("%s/%s %s '%s' lacks %s", d.id, t.id, lang, name, table.concat(missing, ",")) end
+					local adds = i18n.t("town.task_adds", { stem = i18n.t("stem." .. t.stem, nil, lang) }, lang)
+					px, missing = drawn("small", 22, 300, adds, lang)
+					if px < 15 then bad[#bad + 1] = string.format("%s/%s %s '%s' is drawn at %.1f px", d.id, t.id, lang, adds, px) end
+					if #missing > 0 then bad[#bad + 1] = string.format("%s/%s %s '%s' lacks %s", d.id, t.id, lang, adds, table.concat(missing, ",")) end
+					n = n + 1
+				end
+			end
+		end
+		assert_true(n >= 390, "only " .. n .. " cards measured")
+		assert_eq(table.concat(bad, "; "), "")
 	end)
 end)
