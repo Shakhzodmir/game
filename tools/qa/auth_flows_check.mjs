@@ -441,8 +441,8 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 	for (const [op, how] of [["sign_in_google", "Cancel"], ["sign_in_google", "the bound"], ["link_google", "Cancel"], ["link_google", "the bound"]]) {
 		const holder = {}; let given = null;
 		const cur = { uid: "P5", email: "p@id.glow.invalid", emailVerified: false, displayName: "", providerData: [{ providerId: "password" }] };
-		const sdk = fakeSdk({ current: op === "link_google" ? cur : null, popup: (...a) => sdkPopup(holder, { answerMs: 600, onOpen: (w) => { given = w; } })(...a) });
-		const g = game({ cfg: { googleIos: "shim" }, sdk, test: { cancelLookMs: 10, lookMs: 10, popupMs: how === "the bound" ? 250 : 60000 } });
+		const sdk = fakeSdk({ current: op === "link_google" ? cur : null, popup: (...a) => sdkPopup(holder, { answerMs: 1500, onOpen: (w) => { given = w; } })(...a) });
+		const g = game({ cfg: { googleIos: "shim" }, sdk, test: { cancelLookMs: 10, lookMs: 10, popupMs: how === "the bound" ? 600 : 60000 } });
 		holder.g = g;
 		const real = realWindow(0);
 		g.open = () => real;
@@ -457,7 +457,7 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 		assert.deepEqual(lineOf(r), { ok: false, reason: how === "Cancel" ? "popup_closed" : "popup_timeout" }, op + ", " + how);
 		assert.equal(real.closes, 1, op + ", " + how + ": the real window is closed when the try ends");
 		assert.equal(given.closed, true, op + ", " + how + ": the stand-in now says closed, so the SDK ends its own operation");
-		await sleep(750); // the answer would have come at 600 ms
+		await sleep(1700); // the answer would have come at 1500 ms
 		if (op === "sign_in_google") assert.equal(sdk.auth.currentUser, null, how + ": a late pick signs nobody in");
 		else assert.deepEqual(cur.providerData.map((p) => p.providerId), ["password"], how + ": a late pick links nothing");
 		if (op === "link_google") assert.ok((await ask(g, "cloud_get")).ok, "the game's account is still the one it knows");
@@ -469,7 +469,7 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 			const w = holder.g.open("https://auth.example/handler", "name", "features");
 			if (!w) return reject(err("auth/popup-blocked"));
 			result = "opened"; resolve({ user: null });
-		}, 250)) });
+		}, 1500)) });
 		const g = game({ cfg: { googleIos: "shim" }, sdk, test: { cancelLookMs: 10 } });
 		holder.g = g;
 		const mine = (g.open = () => { opens.push(1); return realWindow(0); });
@@ -479,7 +479,7 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 		await sleep(40);
 		cancelCard(g).click();
 		assert.deepEqual(lineOf(await waitLine(g, id)), { ok: false, reason: "popup_closed" });
-		await sleep(400); // the SDK's helper frame is ready now and asks for its window
+		await sleep(1700); // the SDK's helper frame is ready now and asks for its window
 		assert.deepEqual([opens.length, result], [0, "pending"], "no window opens after the player pressed Cancel");
 		assert.equal(g.open, mine, "window.open is the page's own again");
 	}
@@ -487,7 +487,7 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 	{
 		const holder = {}, opens = []; let calls = 0;
 		const sdk = fakeSdk({ popup: (kind, mkUser, auth) => new Promise((resolve, reject) => {
-			const mine = ++calls, delay = mine === 1 ? 300 : 30; // the first call's helper frame is slow, the second's is warm
+			const mine = ++calls, delay = mine === 1 ? 2500 : 30; // the first call's helper frame is slow, the second's is warm
 			setTimeout(() => {
 				const w = holder.g.open("https://auth.example/handler", "name", "features");
 				if (!w) return reject(err("auth/popup-blocked"));
@@ -798,20 +798,22 @@ for (const [name, sc, wantReason, wantCode] of [
 	// was told "closed" already; a sign-in made after that would switch the account under it
 	for (const how of ["Cancel", "the bound"]) {
 		const world = popupWorld(), sdk = fakeSdk({ current: pwUser("P1") });
+		let aRefused = false;
 		sdk.m.signInWithCredential = async (a, cred) => {
 			sdk.calls.push(["signInWithCredential", cred.kind]);
-			if (cred.kind === "A") { await sleep(500); throw err("auth/missing-or-invalid-nonce"); } // slow, then refused for the nonce
+			if (cred.kind === "A") { await sleep(2500); aRefused = true; throw err("auth/missing-or-invalid-nonce"); } // slow, then refused for the nonce
 			sdk.auth.currentUser = sdk.mkUser("g-late");
 			return { user: sdk.auth.currentUser };
 		};
-		const g = game({ world, cfg: OIDC_POPUP, sdk, test: { cancelLookMs: 50, lookMs: 50, popupMs: how === "the bound" ? 350 : 60000 } });
+		const g = game({ world, cfg: OIDC_POPUP, sdk, test: { cancelLookMs: 50, lookMs: 50, popupMs: how === "the bound" ? 1200 : 60000 } });
 		assert.ok((await ask(g, "restore")).ok);
 		const id = await tapped(g);
 		assert.ok(await waitFor(() => sdk.calls.length === 1), "credential A is in the air");
 		if (how === "Cancel") cancelCard(g).click(); // (the bound ends it by itself while A is still in the air)
 		const r = await waitLine(g, id, 6000);
 		assert.deepEqual(lineOf(r), { ok: false, reason: how === "Cancel" ? "popup_closed" : "popup_timeout" }, how);
-		await sleep(900);
+		assert.ok(await waitFor(() => aRefused, 8000), how + ": credential A is refused for its nonce after the game was told");
+		await sleep(400); // a T, if one were going to start, would start now
 		assert.deepEqual(sdk.calls.map((c) => c[1]), ["A"], how + ": no new credential is tried after the game was told");
 		assert.equal(sdk.auth.currentUser.uid, "P1", how + ": nobody signed in after the game was told it failed");
 		assert.ok((await ask(g, "cloud_get")).ok, how + ": the game's account is still the one it knows");
@@ -837,12 +839,12 @@ for (const [name, sc, wantReason, wantCode] of [
 	// minutes) can have its limit due before its own re-read of the mailbox has run; an answer found at that moment is still taken.
 	// Here the page's re-reads are switched off (it "sleeps"), so only the limit's own look can find the answer
 	const world = popupWorld({ stay: true }), sdk = fakeSdk();
-	const g = game({ world, cfg: OIDC_POPUP, sdk, test: { popupMs: 700, lookMs: 5 } });
+	const g = game({ world, cfg: OIDC_POPUP, sdk, test: { popupMs: 2500, lookMs: 5 } });
 	const realListen = g.window.glowOidc.listen;
 	g.window.glowOidc.listen = (o) => realListen({ ...o, pollMs: 100000 });
 	const id = await tapped(g);
 	const p = { ...world.google[0].params };
-	await sleep(250);
+	await sleep(300);
 	g.localStorage.setItem("glow_oidc_res:" + p.state, JSON.stringify({ k: "glow_oidc", v: 1, h: answerFrag(p), q: "", t: Date.now(), d: {} })); // no event reaches this page
 	const r = await waitLine(g, id, 6000);
 	assert.deepEqual([r.ok, r.f.uid], [true, "u2002"], "the limit's last look found the answer, and the sign-in went through");
@@ -945,7 +947,7 @@ for (const [name, sc, wantReason, wantCode] of [
 	// ... also when the game has meanwhile been told about the other account (a restore of its own): then only the link's own check
 	// of whose link it is stands in the way
 	const s5 = fakeSdk({ current: pwUser("P5") });
-	const g5 = game({ world: popupWorld({ delay: 300 }), cfg: OIDC_POPUP, sdk: s5 });
+	const g5 = game({ world: popupWorld({ delay: 1500 }), cfg: OIDC_POPUP, sdk: s5 });
 	await ask(g5, "restore");
 	const id5 = await tapped(g5, "link_google");
 	s5.auth.currentUser = pwUser("P6");
@@ -1086,8 +1088,8 @@ for (const [name, sc, ret, noted] of [
 }
 {
 	// the game waits 40 s for "restore" in all, the SDK's loading included: a slow SDK leaves the finish only what is left of the wait
-	// (here the game's wait is shortened to 1.4 s and the SDK takes 1 s; the finish's own limit would be 5 s), but never less than the minimum
-	for (const [sdkMs, gameWaitMs, minMs, wantMax] of [[1000, 1400, 100, 1900], [400, 300, 250, 1400]]) {
+	// (here the game's wait is shortened to 2.4 s and the SDK takes 1.5 s; the finish's own limit would be 5 s), but never less than the minimum
+	for (const [sdkMs, gameWaitMs, minMs, wantMax] of [[1500, 2400, 100, 3150], [400, 300, 250, 1400]]) {
 		const world = popupWorld({ delay: 100 }), g1 = game({ world, cfg: OIDC_POPUP, sdk: fakeSdk() });
 		await tapped(g1); kill(g1);
 		assert.ok(await waitFor(() => [...world.ls.keys()].some((k) => k.indexOf("glow_oidc_res:") === 0)));

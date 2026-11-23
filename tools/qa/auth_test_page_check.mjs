@@ -51,6 +51,8 @@ function pageSdk(o = {}) {
 			await sleep(o.exchangeMs || 1);
 			const user = { uid: "uid-0001abcdef", email: "anna@gmail.com", metadata: { creationTime: "2026-01-01T00:00:00Z" } };
 			auth.currentUser = user;
+			// explode: the page trips over the answer, and the error's own message carries tokens (an SDK error may echo the request it sent)
+			if (o.explode) return { get user() { throw Object.assign(new Error("boom id_token=eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl access_token=ya29.SECRETSECRET"), { code: "x/boom" }); } };
 			return { user };
 		},
 	};
@@ -112,7 +114,7 @@ const logOf = (world) => [...world.ls.keys()].filter((k) => k.indexOf("glow_diag
 const resultsOf = (world, n, load) => logOf(world).filter((l) => new RegExp("^\\[" + (load || "\\d+") + "\\] [\\d.]+ s  (\\[(OK|ОШИБКА)\\] )?RESULT T" + n + " ").test(l));
 const field = (line, key) => { const m = new RegExp(" " + key.replace(/\./g, "\\.") + "=(\\S+)").exec(line); return m ? m[1] : null; };
 const ready = (win, id) => waitFor(() => win.el(id).disabled === false, 6000);
-const nTokens = (text) => /eyJ[A-Za-z0-9_-]{6,}\.|ya29\.|id_token=|access_token=/.test(text);
+const nTokens = (text) => /eyJ[A-Za-z0-9_-]{6,}\.|ya29\.|(id_token|access_token)=(?!\[)/.test(text); // a token VALUE (a scrubbed "id_token=[...]" is not one)
 const paramsOfUrl = (u) => Object.fromEntries(new URL(u).searchParams);
 const mailKeys = (world) => [...world.ls.keys()].filter((k) => k.indexOf("glow_oidc_t_res:") === 0);
 const OPEN = { delay: 25 };
@@ -127,10 +129,11 @@ const OPEN = { delay: 25 };
 	assert.ok(await waitFor(() => resultsOf(world, 8).length === 1, 8000), "test 8 ends with a RESULT line");
 	const line = resultsOf(world, 8)[0];
 	assert.equal(field(line, "ok"), "1", line);
-	assert.deepEqual([field(line, "cred"), field(line, "A"), field(line, "prod"), field(line, "open")], ["A", "ok", "A", "win"], "A signed in, and A is what the game's own code would have used");
+	assert.deepEqual([field(line, "cred"), field(line, "A"), field(line, "prod"), field(line, "open"), field(line, "ack")], ["A", "ok", "A", "win", "1"], "A signed in, A is what the game's own code would have used, and the return page was told the answer arrived");
 	assert.deepEqual(page.sdk.calls, ["A"]);
 	assert.ok(logOf(world).every((l) => !nTokens(l)), "no token reaches the log");
 	assert.deepEqual(mailKeys(world), [], "single use");
+	assert.ok(["bc", "pm"].includes(JSON.parse(world.ls.get("glow_oidc_t_ret")).via), "the return page was told by word, not left to notice the emptied mailbox");
 	kill(page);
 }
 
@@ -149,6 +152,34 @@ for (const [name, sdkOpts, sc, wantCred, wantProd] of [
 	assert.ok(await waitFor(() => resultsOf(world, 8).length === 1, 8000), name);
 	const line = resultsOf(world, 8)[0];
 	assert.deepEqual([name, field(line, "ok"), field(line, "cred"), field(line, "prod")], [name, "1", wantCred, wantProd], line);
+	kill(page);
+}
+
+// ---- an answer the page must not take: a wrong nonce and Cancel on Google's page never reach Firebase; a token that an error message echoes never reaches the log
+for (const [name, sc, want] of [
+	["a wrong nonce", { ...OPEN, badNonce: true }, { why: "nonce", reason: "error" }],
+	["Cancel on Google's page", { ...OPEN, error: "access_denied" }, { why: "denied", reason: "cancelled" }],
+]) {
+	const world = makeWorld(); installGoogle(world, sc);
+	const page = testPage({ world });
+	assert.ok(await ready(page, "b8"));
+	page.el("b8").click();
+	assert.ok(await waitFor(() => resultsOf(world, 8).length === 1, 8000), name);
+	const line = resultsOf(world, 8)[0];
+	assert.deepEqual([name, field(line, "ok"), field(line, "why"), field(line, "reason")], [name, "0", want.why, want.reason], line);
+	assert.deepEqual(page.sdk.calls, [], name + ": nothing reached Firebase");
+	kill(page);
+}
+{
+	const world = makeWorld(); installGoogle(world, OPEN);
+	const page = testPage({ world, sdk: pageSdk({ explode: true }) });
+	assert.ok(await ready(page, "b8"));
+	page.el("b8").click();
+	assert.ok(await waitFor(() => resultsOf(world, 8).length === 1, 8000));
+	const lines = logOf(world);
+	assert.ok(lines.some((l) => /ошибка при разборе ответа: x\/boom/.test(l)), "the error is in the log");
+	assert.ok(lines.every((l) => !nTokens(l) && l.indexOf("eyJhbGci") < 0 && l.indexOf("SECRETSECRET") < 0), "...but the tokens its message echoed are not: " + lines.filter((l) => /boom/.test(l)).join(" // "));
+	assert.ok(lines.some((l) => /id_token=\[\.\.\.\]/.test(l)), "they are replaced, not just cut");
 	kill(page);
 }
 
@@ -208,11 +239,11 @@ for (const stale of [false, true]) {
 	back.document.getElementById("b").click(); // the player taps it
 	assert.deepEqual(back.replaced, ["auth_test.html"]);
 	const w2 = testPage({ world, ss: back.ssMap }); // the pop-up's tab now runs the test page
-	await sleep(1800);
+	assert.ok(await waitFor(() => logOf(world).some((l) => /копия попытки другого окна/.test(l)), 8000), "the page says why it did not touch it");
+	await sleep(800); // an exchange, if the page were going to make one, would have started by now
 	assert.deepEqual(w2.sdk.calls, [], "the copy does not exchange the answer");
 	assert.equal(resultsOf(world, 8).length, 0, "and prints no result of its own");
 	assert.equal(mailKeys(world).length, 1, "the answer is still there for the starter");
-	assert.ok(logOf(world).some((l) => /копия попытки другого окна/.test(l)), "the page says why it did not touch it");
 	assert.equal(JSON.parse(w1.ssMap.get("glow_oidc_t_pend")).cl, undefined, "nobody claimed it");
 	kill(w2);
 	// the starter's own tab, reloaded (a page iOS discarded): it has the marker, so it finishes the sign-in

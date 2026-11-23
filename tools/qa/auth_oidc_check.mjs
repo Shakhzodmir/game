@@ -1,8 +1,8 @@
 // Checks our own sign-in with Google (web/glow_oidc.js, web/auth_return.html, and that web/auth_test.html compiles and loads
 // the core by its own version) in a small fake browser (no real browser, no network): the request, the answer checks, the
 // three hand-over channels, the return page in every state it can meet, and the whole loop with a fake Google and a fake
-// Firebase SDK (the nonce rule and the order of credentials). The test page itself is run in real browsers by hand:
-// the script of the phone-test work (Playwright, Chromium and WebKit) is not part of the repository.
+// Firebase SDK (the nonce rule and the order of credentials). The test page itself runs in tools/qa/auth_test_page_check.mjs, and in
+// real browsers by hand (Playwright, Chromium and WebKit: scripts in GLOW-tools, not in the repository).
 //   node tools/qa/auth_oidc_check.mjs
 import vm from "node:vm";
 import assert from "node:assert/strict";
@@ -628,11 +628,11 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	// a starter that takes the answer out of the mailbox without a word (its channels are gone) still lets the window close early:
 	// the emptied mailbox counts as the ack
 	const st = await starter({ noListen: true });
-	const page = retPage(st, { frag: fragFor(st.rec), scale: 1 });
+	const page = retPage(st, { frag: fragFor(st.rec), scale: 3 }); // its wait for a word is 6 s here, its look at the mailbox every 0.3 s
 	assert.ok(st.world.ls.get(st.key));
 	st.world.ls.delete(st.key); // the starter took it
-	await waitFor(() => page.closeCalls === 1, 1500);
-	assert.equal(page.closeCalls, 1, "closed well before the two seconds the page waits for a word");
+	await waitFor(() => page.closeCalls === 1, 4000);
+	assert.equal(page.closeCalls, 1, "closed well before the six seconds the page waits for a word");
 	const rr = JSON.parse(st.world.ls.get("glow_oidc_t_ret"));
 	assert.deepEqual([rr.ack, rr.via], [1, "ls"]);
 }
