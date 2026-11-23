@@ -400,9 +400,14 @@ end)
 
 describe("level variety: pure levels", function()
 	it("counts the elements of rule 2.1.6", function()
-		assert_eq(element_count(level(381)), 1, "381: a column")
-		assert_eq(element_count(level(390)), 2, "390: chains and a column")
-		assert_eq(element_count(level(420)), 3, "420: carpet, ice and coconuts")
+		local collect = { type = "collect", color = "red", count = 10 }
+		assert_eq(element_count({ goals = { collect }, slots = { { type = "column", hp = 6 }, { type = "piece", color = "red" } } }), 1, "a column and plain pieces")
+		assert_eq(element_count({ goals = { collect, { type = "chains", count = 2 } }, overlay = { { type = "chain", hp = 1 } },
+			slots = { { type = "column", hp = 6 } } }), 2, "chains and a column")
+		assert_eq(element_count({ goals = { { type = "carpet" }, { type = "ice", count = 2 }, { type = "drop", count = 3 } },
+			carpet = { { 0, 0 } }, overlay = { { type = "ice", hp = 1 } }, coconut = { total = 3 } }), 3, "carpet, ice and coconuts")
+		assert_eq(element_count({ goals = { { type = "fog" } }, fog = { { 1, 1 } }, floor = { { at = { 1, 1 }, hp = 1 } },
+			portals = { { ["in"] = { 0, 0 }, out = { 0, 2 } } }, slots = { { type = "hay" }, { type = "hay" } } }), 4, "fog, floor, portals, hay")
 	end)
 
 	for _, d in ipairs(part2_districts()) do
