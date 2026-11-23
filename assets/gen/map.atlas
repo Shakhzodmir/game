@@ -637,6 +637,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_punk_garage_1"
+  images {
+    image: "/assets/images/map/deco_punk_garage_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_2"
+  images {
+    image: "/assets/images/map/deco_punk_garage_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_3"
+  images {
+    image: "/assets/images/map/deco_punk_garage_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_4"
+  images {
+    image: "/assets/images/map/deco_punk_garage_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_5"
+  images {
+    image: "/assets/images/map/deco_punk_garage_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_6"
+  images {
+    image: "/assets/images/map/deco_punk_garage_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_ranch_1"
   images {
     image: "/assets/images/map/deco_ranch_1.png"

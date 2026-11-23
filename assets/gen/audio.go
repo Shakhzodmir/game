@@ -624,6 +624,46 @@ embedded_components {
   data: "sound: \"/assets/music/nations_fest/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_punk_garage_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_claps"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/claps.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_gang"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/gang.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_party"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_rhythm"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/rhythm.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_ranch_banjo"
   type: "sound"
   data: "sound: \"/assets/music/ranch/banjo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1564,6 +1604,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/floating_clouds.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_garage_sale_anthem"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/garage_sale_anthem.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_green_hill_jig"
   type: "sound"
   data: "sound: \"/assets/music/songs/green_hill_jig.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1632,6 +1677,11 @@ embedded_components {
   id: "song_lightstick_wave"
   type: "sound"
   data: "sound: \"/assets/music/songs/lightstick_wave.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_loud_neighbours"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/loud_neighbours.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_mambo_fireworks"
@@ -1929,6 +1979,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/three_am_tea.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_three_chord_summer"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/three_chord_summer.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_trap_playground"
   type: "sound"
   data: "sound: \"/assets/music/songs/trap_playground.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1942,6 +1997,11 @@ embedded_components {
   id: "song_tumbleweed_swing"
   type: "sound"
   data: "sound: \"/assets/music/songs/tumbleweed_swing.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_unplugged_garage"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/unplugged_garage.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_velvet_evening"
