@@ -229,7 +229,8 @@ describe("client.i18n", function()
 	-- shrink of 5% (gui/result.lua NOTE_FIT), and above the 15 px floor of the layout audit in the busiest window of the game
 	-- (level 20: a ready song, the streak, an older chest, a new booster, the super stars), which shrinks to 78% at the most
 	-- (tests/client/level_screen_test.lua pins it above 77%, tests/client/result_town_test.lua measures the line in it). The
-	-- longest Russian names come out under 18 px there, where "Слушать" is 12 px and "15 мин" 17 px already: decisions.md 7e.
+	-- longest Russian names come out under 18 px in every window that shrinks below 87% (18 / 20.7: the busiest one is 78%, level 30
+	-- with a chest 88%), where "Слушать" is 12 px and "15 мин" 17 px in the busiest already: decisions.md 7e.
 	it("keeps the town line readable for every task name of the game, in every language, with every number the town can ask", function()
 		local A = require("tests.client.layout_audit")
 		local advances = require("tests.client.font_advances")
