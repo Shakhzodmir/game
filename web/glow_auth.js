@@ -48,6 +48,7 @@
 		// same: on a phone it is also what a window that opened somewhere else and never came back looks like.
 		if (c === "auth/cancelled-popup-request" || c === "auth/user-cancelled") return "cancelled";
 		if (c === "auth/popup-closed-by-user" || c === "glow/cancel-waiting") return "popup_closed";
+		if (c === "glow/oidc-denied") return "cancelled"; // "Cancel" on Google's own page (access_denied): the player's choice, silent
 		if (c === "glow/popup-timeout") return "popup_timeout";
 		if (c === "glow/no-window") return "home_app"; // the "no_window" way: this app has no usable Google window, so say what to do instead
 		if (c === "glow/sdk-timeout") return "timeout";
@@ -56,7 +57,10 @@
 		if (c === "auth/web-storage-unsupported" || c === "auth/operation-not-supported-in-this-environment") return "browser_unsupported";
 		if (c === "auth/network-request-failed" || c === "unavailable" || c === "firestore/unavailable") return "offline";
 		if (c === "auth/user-not-found" || c === "auth/wrong-password" || c === "auth/invalid-credential" ||
-			c === "auth/invalid-login-credentials") return "bad_credentials";
+			c === "auth/invalid-login-credentials") {
+			// a Google answer that Firebase refused is no "wrong ID or password" (that text is for the ID form)
+			return e && e.glowOidc ? "error" : "bad_credentials";
+		}
 		if (c === "auth/email-already-in-use") return ctx === "link_email" ? "email_in_use" : "id_taken";
 		if (c === "auth/weak-password") return "weak_password";
 		if (c === "auth/invalid-email" || c === "auth/missing-email") return (ctx === "link_email" || ctx === "reset_password") ? "bad_email" : "bad_id";
@@ -243,8 +247,9 @@
 	}
 	// a Home Screen app: iOS says it with navigator.standalone, Android and the rest with the display-mode query (WebKit
 	// bug 264218: an installed iOS web app can answer "fullscreen" there instead of "standalone")
+	var standaloneMasked = false; // the "shim" way hides navigator.standalone from the SDK for a moment: this page still knows what it is
 	function isStandalone() {
-		try { if (navigator.standalone === true) return true; } catch (e) { /* no navigator */ }
+		try { if (standaloneMasked || navigator.standalone === true) return true; } catch (e) { /* no navigator */ }
 		try {
 			if (!window.matchMedia) return false;
 			return ["standalone", "fullscreen", "minimal-ui"].some(function (k) { return !!window.matchMedia("(display-mode: " + k + ")").matches; });
@@ -300,9 +305,7 @@
 	}
 	// our own sign-in needs: the shared core, the public identifiers, a return page of THIS origin, crypto.subtle (https only),
 	// and storage that works (the answer travels through it)
-	var OIDC_BUILT = false;
 	function oidcUsable() {
-		if (!OIDC_BUILT) return false;
 		try {
 			var loc = window.location, ret = String(cfg.googleReturn || "");
 			if (!(window.glowOidc && cfg.googleClientId && ret && loc && loc.origin && ret.indexOf(loc.origin + "/") === 0)) return false;
@@ -325,12 +328,12 @@
 	var gameLang = "";
 	function words() {
 		var lang = (gameLang || navigator.language || document.documentElement.lang || "en").slice(0, 2);
-		return { ru: ["Продолжить с Google", "Отмена", "Ждём ответ от Google…", "Проверяю, вошли ли вы…"],
-			ko: ["Google로 계속하기", "취소", "Google 응답을 기다리는 중…", "로그인 확인 중…"] }[lang] ||
-			["Continue with Google", "Cancel", "Waiting for Google…", "Checking whether you signed in…"];
+		return { ru: ["Продолжить с Google", "Отмена", "Ждём ответ от Google…", "Проверяю, вошли ли вы…", "Переходим на страницу Google…"],
+			ko: ["Google로 계속하기", "취소", "Google 응답을 기다리는 중…", "로그인 확인 중…", "Google 페이지로 이동하는 중…"] }[lang] ||
+			["Continue with Google", "Cancel", "Waiting for Google…", "Checking whether you signed in…", "Going to Google…"];
 	}
 	function displayKind() {
-		try { if (navigator.standalone === true) return "home"; } catch (e) { /* no navigator */ }
+		try { if (standaloneMasked || navigator.standalone === true) return "home"; } catch (e) { /* no navigator */ }
 		try { if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return "home"; } catch (e2) { /* none */ }
 		if (isStandalone()) return isIOS() ? "home" : "full"; // iOS reports an installed app as "fullscreen" in some versions
 		return "tab";
@@ -389,7 +392,7 @@
 		if (ft && ft.unref) ft.unref(); // node (tests)
 		return {
 			go: go, no: no,
-			wait: function () { go.disabled = true; go.textContent = T[2]; go.style.background = "#9C87E0"; },
+			wait: function (text) { go.disabled = true; go.textContent = text || T[2]; go.style.background = "#9C87E0"; },
 			again: function () { go.disabled = false; go.textContent = T[0]; go.style.background = "#2BC98A"; },
 			remove: function () {
 				if (formEl === wrap) formEl = null;
@@ -407,7 +410,7 @@
 		return c;
 	}
 
-	function tapThenOpen(run) {
+	function tapThenOpen(run, waitText) {
 		var test = window.glowAuth && window.glowAuth._test;
 		if (test && test.gesture) return test.gesture(run);
 		return new Promise(function (resolve, reject) {
@@ -430,7 +433,7 @@
 			card.go.addEventListener("click", function () {
 				if (over || waiting) return;
 				waiting = true;
-				card.wait();
+				card.wait(waitText);
 				var p;
 				try { p = run(); } catch (e) { return end(reject, e); } // inside the tap: this is the call that may open a window
 				p.then(function (v) { end(resolve, v); }, function (e) {
@@ -497,11 +500,11 @@
 			cur = newTry(flow);
 			return timed(open(cur), flow === "firebase" ? popupBound() : POPUP_MS, "glow/popup-timeout");
 		}
-		var p;
-		if (needsTap()) p = tapThenOpen(run);
+		var p, going = flow === "oidc_redirect" ? words()[4] : undefined; // the whole page leaves: the card says so
+		if (needsTap()) p = tapThenOpen(run, going);
 		else p = runWithWaitCard(run).catch(function (e) {
 			if (!e || e.code !== "auth/popup-blocked") throw e;
-			return tapThenOpen(run);
+			return tapThenOpen(run, going);
 		});
 		return p.then(function (v) { if (cur) cur.end(true); return v; }, function (e) {
 			if (e && typeof e === "object" && cur) e.glowTry = cur; // afterGoogleFailure: was an exchange under way?
@@ -525,6 +528,7 @@
 			if (window.open === wrapped) window.open = realOpen;
 			if (masked) {
 				masked = false;
+				standaloneMasked = false;
 				try { if (had) Object.defineProperty(navigator, "standalone", had); else delete navigator.standalone; } catch (e) { /* none */ }
 			}
 			if (safety && typeof clearTimeout === "function") clearTimeout(safety);
@@ -544,6 +548,7 @@
 				had = Object.getOwnPropertyDescriptor(navigator, "standalone") || null;
 				Object.defineProperty(navigator, "standalone", { configurable: true, get: function () { return false; } });
 				masked = true;
+				standaloneMasked = true;
 			}
 		} catch (e1) { masked = false; }
 		window.open = wrapped;
@@ -613,6 +618,194 @@
 
 	function offline() { return typeof navigator !== "undefined" && navigator.onLine === false; }
 
+	// Our own sign-in with Google -----------------------------------------------------------------------------------------------
+	// Google is asked directly (web/glow_oidc.js builds the request and checks the answer) and answers to web/auth_return.html,
+	// a page of OUR origin that hands the answer over through storage, a broadcast channel and, when the link is alive,
+	// window.opener. Nothing needs the link, a server of ours or third-party storage. The checked tokens become a Firebase
+	// credential (signInWithCredential / linkWithCredential). A try is: prepare the secrets BEFORE the tap, and inside the tap
+	// save the attempt, arm the receivers, open the one window, mark it ours; then wait; then exchange.
+	var OIDC_RESPONSE = T_.oidcResponse || "id_token token"; // what Google is asked for: "id_token" once credential A is proven on the phone, "token" as a last resort
+	var OIDC_CRED = T_.oidcCred || "auto";                   // "auto" = A, and T when the nonce was the problem; or "A" | "B" | "T"
+	var FLUSH_MS = T_.flushMs || 800;                        // before the page leaves for Google: the game's last save reaches IndexedDB
+	var RESTORE_MS = T_.restoreMs || 20 * 1000;              // finishing an answer that came back with a reload
+	var INSTANCE = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); // this page load: who has claimed an attempt
+	var prep = { p: null, r: null }, prepGoing = { p: null, r: null };
+	function ensurePrep(mode) {
+		if (prep[mode]) return Promise.resolve(prep[mode]);
+		if (!prepGoing[mode]) {
+			prepGoing[mode] = window.glowOidc.prepare({ dest: "g", mode: mode, responseType: OIDC_RESPONSE }).then(function (rec) {
+				prep[mode] = rec; prepGoing[mode] = null; return rec;
+			}, function (e) { prepGoing[mode] = null; throw e; });
+		}
+		return prepGoing[mode];
+	}
+	function takePrep(mode) { // synchronous: the tap must not wait for anything
+		var rec = prep[mode];
+		prep[mode] = null;
+		if (rec) ensurePrep(mode).then(null, function () { /* the next try asks again and says why */ });
+		return rec;
+	}
+
+	// continue past credential A only when the nonce was what Firebase refused
+	function oidcFatal(e) { return ((e && e.code) || "") !== "auth/missing-or-invalid-nonce"; }
+	function oidcOrder(v, ath) {
+		return window.glowOidc.credOrder(OIDC_CRED, { kind: "popup", aFailed: false, access: !!v.accessToken, ath: ath })
+			.filter(function (k) { return k !== "T" || ath === "ok" || v.tokenOnly; }); // T only when the id_token vouches for the access token
+	}
+	function oidcCredential(s, kind, v, rec) {
+		if (kind === "A") return new s.m.OAuthProvider("google.com").credential({ idToken: v.idToken, rawNonce: rec.r });
+		if (kind === "B") return s.m.GoogleAuthProvider.credential(v.idToken);
+		return s.m.GoogleAuthProvider.credential(null, v.accessToken);
+	}
+	// the answer of Google (a relay) -> checked -> a Firebase credential -> the signed-in account's fields. linkUser = the
+	// account the game told us about when it asked to link, or null for a sign-in.
+	function oidcExchange(s, relay, rec, linkUser) {
+		var G = window.glowOidc, v = G.validate(relay, rec, { clientId: cfg.googleClientId });
+		if (!v.ok) return Promise.reject(codeError(v.code, v.check));
+		return G.checkAtHash(v.claims, v.accessToken).then(function (ath) {
+			var order = oidcOrder(v, ath);
+			if (!order.length) throw codeError("glow/oidc-nocred");
+			return G.exchange({ order: order, fatal: oidcFatal, attempt: function (kind) {
+				var cred = oidcCredential(s, kind, v, rec);
+				if (!linkUser) return s.m.signInWithCredential(s.auth, cred);
+				var cu = needUser(s); // the game must still know this account: nobody else is linked to
+				if (cu.uid !== linkUser.uid) throw codeError("auth/null-user");
+				return s.m.linkWithCredential(cu, cred);
+			} }).then(function (x) {
+				if (!x.ok) {
+					var e = x.error && typeof x.error === "object" ? x.error : codeError(String(x.error || "glow/oidc-credential"));
+					e.glowOidc = true;
+					e.glowDetail = "A=" + x.results.A + (x.results.B !== "skip" ? " B=" + x.results.B : "") + (x.results.T !== "skip" ? " T=" + x.results.T : "");
+					throw e;
+				}
+				var cur = s.auth.currentUser; // the account now signed in is the one this answer made
+				if (linkUser) { if (!cur || cur.uid !== linkUser.uid) throw codeError("auth/null-user"); return userFields(cur); }
+				if (!cur || !x.value || !x.value.user || cur.uid !== x.value.user.uid) throw codeError("auth/null-user");
+				return userFields(cur);
+			});
+		});
+	}
+
+	// Called inside the tap (or at once where the browser lets a window open). Nothing asynchronous comes before window.open /
+	// location.assign: the attempt is saved, the receivers are armed, the one window is opened, the page marks it is the starter.
+	function oidcStart(s, mode, linkUser, tr) {
+		var G = window.glowOidc, rec = takePrep(mode);
+		if (!rec) return Promise.reject(codeError("auth/popup-blocked", "no attempt is ready")); // the one more tap of the card
+		G.sweep("g", {}); // old answers and attempts of earlier tries
+		rec.t = Date.now(); // an attempt ages from the tap, not from when its secrets were made
+		rec.w = INSTANCE;
+		rec.c = (function () { try { return navigator.standalone === true ? "home" : "tab"; } catch (e) { return "tab"; } })(); // the return page's rule for a Home Screen app
+		rec.op = linkUser ? "link" : "in";
+		if (linkUser) rec.u = linkUser.uid;
+		G.savePending(rec, {}, { shared: false });
+		var url = G.authUrl({ clientId: cfg.googleClientId, redirectUri: cfg.googleReturn, responseType: rec.rt, nonce: rec.n, state: rec.s });
+		return new Promise(function (resolve, reject) {
+			var h = G.listen({ dest: "g", state: rec.s, win: null, onRelay: function (relay, via) {
+				if (tr.over || tr.exchanging) return;
+				tr.exchanging = true;
+				try { h.ack(via); } catch (e) { /* none */ }
+				oidcExchange(s, relay, rec, linkUser).then(resolve, reject);
+			} });
+			tr.onEnd(function (ok) {
+				h.stop();
+				G.clearFlow("g", rec.s, {}); // the attempt, its answer and its marker: nothing late can sign anybody in
+				if (!ok) { try { if (tr.win) tr.win.close(); } catch (e) { /* none */ } }
+			});
+			if (mode === "p") {
+				var w = null;
+				try { w = window.open(url, "glow_oidc_" + rec.s.slice(-6)); } catch (e) { w = null; }
+				G.markOwn("g", rec.s, {}); // right AFTER window.open: a window opened from here has a copy of this storage made before this line
+				if (!w) { // refused: the secrets go back unused, and the card keeps one more tap
+					h.stop(); G.clearFlow("g", rec.s, {});
+					if (!prep[mode]) prep[mode] = rec;
+					return reject(codeError("auth/popup-blocked", "window.open gave nothing"));
+				}
+				tr.win = w;
+				h.setWin(w);
+				return;
+			}
+			// the whole page goes to Google. The receivers stay armed: a live page answers the return page's ping, and that is
+			// what keeps a window that did not start this from loading a second copy of the game over the same save.
+			G.markOwn("g", rec.s, {}); // right BEFORE the page leaves
+			function onShow(ev) { // back from Google by the Back button (the page came from the cache): nothing is coming
+				if (!ev || !ev.persisted) return;
+				var t1 = setTimeout(function () {
+					if (tr.over || tr.exchanging || G.readRelay("g", rec.s, {})) return;
+					reject(codeError("auth/user-cancelled", "back from Google without an answer"));
+				}, 800);
+				if (t1 && t1.unref) t1.unref();
+			}
+			try { window.addEventListener("pageshow", onShow); } catch (e) { /* none */ }
+			tr.onEnd(function () { try { window.removeEventListener("pageshow", onShow); } catch (e) { /* none */ } });
+			var go = setTimeout(function () {
+				if (tr.over) return;
+				try { window.location.assign(url); } catch (e) { reject(codeError("glow/oidc-assign", "could not leave for Google")); }
+			}, FLUSH_MS);
+			if (go && go.unref) go.unref();
+		});
+	}
+	// the whole operation: the secrets are ready before the card, then the usual tap -> window -> wait, then the same aftercare
+	function oidcRun(s, flow, before, linkUser) {
+		var mode = flow === "oidc_redirect" ? "r" : "p";
+		return ensurePrep(mode).then(function () {
+			return withGesture(function (tr) { return oidcStart(s, mode, linkUser, tr); }, flow);
+		}).then(function (fields) { return fields; }, function (e) {
+			// Google was linked after all (a try that finished late): that is what the player asked for
+			if (linkUser && e && e.code === "auth/provider-already-linked" && hasGoogle(s.auth.currentUser)) return userFields(s.auth.currentUser);
+			return afterGoogleFailure(s, before, !!linkUser, e, flow);
+		});
+	}
+
+	// An answer that came back while this page was away: the whole-page way (the page left for Google and the return page loaded
+	// it again), a window that went back to the starter's own window (iOS put the return where the starter was), or a tab that
+	// was discarded and reloaded while Google's window was open. Only an attempt of THIS window (its own sessionStorage, its own
+	// marker) with its answer already in the mailbox is finished; another tab's attempt is never touched. Never throws, never
+	// waits longer than RESTORE_MS. Resolves "ok", "linked", a reason id (the answer failed; "cancelled" is silent), or null
+	// when there was nothing to finish. first = the account the SDK restored (null for nobody), for an attempt to link.
+	function finishReturn(s, first) {
+		return new Promise(function (resolve) {
+			var G = window.glowOidc, rec = null, relay = null, t0 = Date.now(), done = false, timer = null;
+			function finish(ret, code) {
+				if (done) return;
+				done = true;
+				if (timer && typeof clearTimeout === "function") clearTimeout(timer);
+				try { if (rec) G.clearFlow("g", rec.s, {}); } catch (e) { /* none */ }
+				if (code && ret !== "cancelled") {
+					note("google " + String(code).slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION + " " + googleFlow(), 15000);
+				}
+				resolve(ret);
+			}
+			try {
+				if (!G) return resolve(null);
+				G.sweep("g", {}); // answers older than two minutes and attempts older than fifteen go
+				var mine = G.readPending("g", "", {});
+				if (!mine || mine.src !== "ss" || !mine.rec || !mine.rec.r || !G.isOwn("g", mine.rec.s, {})) return resolve(null);
+				rec = mine.rec;
+				relay = G.readRelay("g", rec.s, {});
+			} catch (e) { return resolve(null); }
+			if (!relay) {
+				// no answer: the whole page went to Google and came back without one (the Back button, an error page of Google's), or an
+				// attempt that is too old to be answered. A young window attempt may still be answered by its window: left alone.
+				if (rec.m === "r" || Date.now() - (rec.t || 0) > POPUP_MS) return finish("cancelled");
+				rec = null;
+				return resolve(null);
+			}
+			if (!G.claim("g", rec.s, {}, { by: INSTANCE })) { rec = null; return resolve(null); } // another page of this window is on it
+			var linkUser = null;
+			if (rec.op === "link") {
+				if (!first || first.uid !== rec.u) return finish("error", "glow/oidc-link-user"); // the account that asked is not the one signed in now
+				linkUser = first;
+			}
+			timer = setTimeout(function () { finish("timeout", "glow/restore-timeout"); }, RESTORE_MS);
+			if (timer && timer.unref) timer.unref(); // node (tests)
+			oidcExchange(s, relay, rec, linkUser).then(function () { finish(linkUser ? "linked" : "ok"); }, function (e) {
+				if (linkUser && e && e.code === "auth/provider-already-linked" && hasGoogle(s.auth.currentUser)) return finish("linked");
+				var why = reasonOf(e, linkUser ? "link_google" : "sign_in_google");
+				finish(why, why === "cancelled" ? "" : String((e && (e.code || e.message)) || "?") + (e && e.glowDetail ? " " + e.glowDetail : ""));
+			});
+		});
+	}
+
 	function isOidc(flow) { return flow === "oidc_popup" || flow === "oidc_redirect"; }
 	// the way for THIS call; an in-app browser gets no Google whatever the settings say, and "no_window" fails at once
 	function chooseFlow() {
@@ -621,12 +814,20 @@
 		if (flow === "no_window") throw codeError("glow/no-window", "no window");
 		return flow;
 	}
-	function oidcRun() { return Promise.reject(codeError("glow/oidc-unbuilt")); }
 
 	var OPS = {
+		// the account of an earlier run; first, an answer of Google that came back with a reload is finished (finishReturn). The
+		// answer carries "ret" when there was one: ok | linked | a reason id (the game does not read it yet; the dark line says it)
 		restore: function (s) {
 			return new Promise(function (resolve) {
-				var off = s.m.onAuthStateChanged(s.auth, function (u) { off(); resolve(userFields(u)); });
+				var off = s.m.onAuthStateChanged(s.auth, function (u) {
+					off();
+					finishReturn(s, u).then(null, function () { return null; }).then(function (ret) { // whatever happens there, the start goes on
+						var f = userFields(ret ? s.auth.currentUser : u);
+						if (ret) f.ret = ret;
+						resolve(f);
+					});
+				});
 			});
 		},
 		sign_in_google: function (s, args) {
@@ -758,7 +959,7 @@
 			// report back to such an app, and "try again" would not help; the game's text says what to do instead
 			if ((why === "popup_closed" || why === "popup_timeout") && isIOS() && isStandalone() && googleFlow() === "firebase") why = "home_app";
 			if (GOOGLE[op] && why !== "cancelled" && why !== "busy") {
-				note("google " + code.slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION + " " + googleFlow(), 15000);
+				note("google " + code.slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION + " " + googleFlow() + (e && e.glowDetail ? " " + String(e.glowDetail).slice(0, 80) : ""), 15000);
 			} else if (why === "error") {
 				note(op + ": " + code.slice(0, 80));
 			}
