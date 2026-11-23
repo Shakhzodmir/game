@@ -156,6 +156,8 @@ return {
 	["fx.concert"] = "파이널 콘서트!",
 	["gift.tap"] = "선물을 눌러 보세요!",
 	["gift.title"] = "새 부스터!",
+	["goal.collect"] = "{name}: {n}개 더 모아요",
+	["goal.done"] = "이 목표는 달성했어요!",
 
 	["hud.bonus_hint"] = "특수 조각이 막대를 채워요. 가득 채우면 보너스 특수 조각을 받아요!",
 	["hud.booster_locked"] = "{n}레벨에서 열려요",

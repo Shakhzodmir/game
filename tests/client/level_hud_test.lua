@@ -420,3 +420,250 @@ describe("client.level_hud tutorial helpers", function()
 		assert_false(overlap(r4, mid))
 	end)
 end)
+
+-- A tap on a goal tile explains it (screens/level/hud.lua draws the hint, this is what it asks of the pure side).
+describe("client.level_hud goal hints", function()
+	local json = require("tools.lib.json")
+	local const = require("core.const")
+	local levels = require("client.levels")
+	local i18n = require("client.i18n")
+
+	local function level_data(n)
+		local f = io.open(string.format("content/levels/level_%04d.json", n), "r")
+		if not f then return nil end
+		local data = json.decode(f:read("*a"))
+		f:close()
+		return data
+	end
+
+	before_each(function() i18n.set_language("en") end)
+
+	it("finds the goal tile under a press: the panel is cut into columns, the title strip and the outside are no tile", function()
+		local l = hud.layout(layout.fit(720, 1280), nil, nil)
+		local g = l.goals
+		-- one goal: the whole width of the panel
+		assert_eq(hud.goal_at(l, 1, g.x0 + 5, g.cy), 1)
+		assert_eq(hud.goal_at(l, 1, g.x1 - 5, g.cy), 1)
+		-- two: a half each; three: a third each
+		assert_eq(hud.goal_at(l, 2, g.cx - 5, g.cy), 1)
+		assert_eq(hud.goal_at(l, 2, g.cx + 5, g.cy), 2)
+		assert_eq(hud.goal_at(l, 3, g.x0 + 10, g.cy), 1)
+		assert_eq(hud.goal_at(l, 3, g.cx, g.cy), 2)
+		assert_eq(hud.goal_at(l, 3, g.x1 - 10, g.cy), 3)
+		assert_eq(hud.goal_at(l, 5, g.x1 - 10, g.cy), 3, "at most three tiles")
+		-- the centre of every drawn icon is in its own column
+		for n = 1, 3 do
+			for k, x in ipairs(hud.goal_slots(n).xs) do
+				assert_eq(hud.goal_at(l, n, g.cx + x, g.cy + 4), k, n .. " goals, tile " .. k)
+			end
+		end
+		-- the whole height of a tile answers, from the bottom edge up to the title strip
+		assert_eq(hud.goal_at(l, 2, g.cx - 5, g.y0 + 1), 1)
+		assert_eq(hud.goal_at(l, 2, g.cx - 5, g.y1 - hud.GOAL_TITLE_STRIP - 1), 1)
+		-- the title strip, the outside of the panel, the pause button and the moves badge are no tile
+		assert_eq(hud.goal_at(l, 2, g.cx - 5, g.y1 - 10), nil)
+		assert_eq(hud.goal_at(l, 2, g.x0 - 1, g.cy), nil)
+		assert_eq(hud.goal_at(l, 2, g.x1 + 1, g.cy), nil)
+		assert_eq(hud.goal_at(l, 2, g.cx, g.y0 - 1), nil)
+		assert_eq(hud.goal_at(l, 2, l.pause.cx, l.pause.cy), nil)
+		assert_eq(hud.goal_at(l, 2, l.moves.cx, l.moves.cy), nil)
+		-- no goal drawn, no tile
+		assert_eq(hud.goal_at(l, 0, g.cx, g.cy), nil)
+		assert_eq(hud.goal_at(nil, 2, g.cx, g.cy), nil)
+	end)
+
+	it("has a hint line for every goal kind of the core and for every blocker a goal can break, in every language", function()
+		for _, kind in ipairs(const.GOAL_NAME) do
+			local keys = {}
+			if kind == "break" then
+				for _, item in ipairs(const.BLOCKER_NAME) do keys[item] = hud.GOAL_HINT_BREAK[item] end
+			else
+				keys[kind] = hud.GOAL_HINT[kind]
+			end
+			for what, key in pairs(keys) do
+				assert_true(key ~= nil, "goal " .. kind .. " " .. what .. " has no hint")
+				assert_true(i18n.has(key), key .. " is not in client/i18n.lua")
+				for _, lang in ipairs(i18n.LANGUAGES) do
+					local text = i18n.t(key, { n = 7, name = "x" }, lang)
+					assert_true(text ~= key and #text > 2, key .. " has no " .. lang .. " text")
+				end
+			end
+		end
+		-- nothing that no goal can be: a dead line would hide a typo in the name of a kind
+		local kinds, items = {}, {}
+		for _, k in ipairs(const.GOAL_NAME) do kinds[k] = true end
+		for _, b in ipairs(const.BLOCKER_NAME) do items[b] = true end
+		for k in pairs(hud.GOAL_HINT) do assert_true(kinds[k] and k ~= "break", "GOAL_HINT." .. k .. " is no goal kind") end
+		for k in pairs(hud.GOAL_HINT_BREAK) do assert_true(items[k], "GOAL_HINT_BREAK." .. k .. " is no blocker") end
+		assert_true(i18n.has(hud.GOAL_DONE))
+	end)
+
+	it("hints every goal of every level, and every kind the levels use", function()
+		local used, count = {}, 0
+		for n = 1, 1000 do
+			local data = level_data(n)
+			if not data then break end
+			count = n
+			for _, def in ipairs(levels.goals(data)) do
+				local spec = hud.goal_hint(def, def.count or 9)
+				assert_true(spec ~= nil, "level " .. n .. " goal " .. def.kind)
+				assert_true(i18n.has(spec.key), "level " .. n .. ": " .. tostring(spec.key))
+				local what = def.kind .. (def.item and (":" .. def.item) or "")
+				used[what] = true
+				if def.kind ~= "collect" then
+					assert_true(string.sub(spec.key, 1, 9) == "tutorial.", what .. ": the hint of an element is the line the tutorial says for it")
+				end
+			end
+		end
+		assert_true(count >= 300, "read the levels: " .. count)
+		for _, want in ipairs({ "collect", "light", "deliver", "drop", "chains", "carpet", "ice", "fog", "break:record_box",
+			"break:concrete", "break:noise", "break:balloon", "break:column", "break:boombox", "break:hay" }) do
+			assert_true(used[want], "no level has the goal " .. want .. ": a table row nobody sees")
+		end
+	end)
+
+	it("says for a colour goal what it is and how many are left, in words that need no plural of the thing", function()
+		local def = { kind = "collect", color = "blue", count = 40, label = { key = "piece.blue" }, image = "pieces/blue" }
+		local spec = hud.goal_hint(def, 23)
+		assert_eq(spec.key, "goal.collect")
+		assert_eq(spec.vars.n, 23)
+		assert_same(spec.vars.name, { key = "piece.blue" })
+		i18n.set_language("en")
+		assert_eq(i18n.tr(spec), "Blue cassettes: collect 23 more")
+		i18n.set_language("ru")
+		assert_eq(i18n.tr(spec), "Синие кассеты: собери ещё 23")
+		i18n.set_language("ko")
+		assert_eq(i18n.tr(spec), "파란 카세트: 23개 더 모아요")
+		-- the numbers a Russian ear minds (1, 2-4, 5-20, 21, 22, 25, 11-14) read right: the number is the last word
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			i18n.set_language(lang)
+			for _, n in ipairs({ 1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 112 }) do
+				local text = i18n.tr(hud.goal_hint(def, n))
+				assert_true(string.find(text, tostring(n), 1, true) ~= nil, lang .. " " .. n .. ": " .. text)
+				assert_true(string.find(text, "{", 1, true) == nil, lang .. " " .. n .. ": a placeholder is left in " .. text)
+			end
+		end
+	end)
+
+	it("takes the line the tutorial says for an element goal, and says 'done' for a goal that has nothing left", function()
+		local floor = hud.goal_hint({ kind = "light", label = { key = "blocker.dancefloor" } }, 23)
+		assert_eq(floor.key, "tutorial.dancefloor_match")
+		assert_eq(hud.goal_hint({ kind = "break", item = "concrete", label = { key = "blocker.concrete" } }, 12).key, "tutorial.concrete")
+		assert_eq(hud.goal_hint({ kind = "break", item = "record_box", label = { key = "blocker.record_box" } }, 8).key, "tutorial.record_box")
+		assert_eq(hud.goal_hint({ kind = "deliver", label = { key = "blocker.mic" } }, 5).key, "tutorial.mic")
+		assert_eq(hud.goal_hint({ kind = "drop", label = { key = "blocker.coconut" } }, 5).key, "tutorial.coconut")
+		assert_eq(hud.goal_hint({ kind = "chains", label = { key = "blocker.chain" } }, 5).key, "tutorial.chain")
+		-- done: any kind
+		assert_eq(hud.goal_hint({ kind = "collect", color = "red", label = { key = "piece.red" } }, 0).key, "goal.done")
+		assert_eq(hud.goal_hint({ kind = "light", label = { key = "blocker.dancefloor" } }, 0).key, "goal.done")
+		-- a goal the table does not know says what it is by its name; garbage says nothing
+		assert_eq(hud.goal_hint({ kind = "future", label = { key = "blocker.fog" } }, 3).key, "blocker.fog")
+		assert_eq(hud.goal_hint({ kind = "future" }, 3), nil)
+		assert_eq(hud.goal_hint(nil, 3), nil)
+		-- every line is one the producer can read in a pill: a handful of words, not a rule book
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			i18n.set_language(lang)
+			for _, key in pairs(hud.GOAL_HINT) do assert_true(#i18n.t(key, { n = 99, name = "Blue cassettes" }) <= 96, key .. " " .. lang) end
+			for _, key in pairs(hud.GOAL_HINT_BREAK) do assert_true(#i18n.t(key) <= 96, key .. " " .. lang) end
+		end
+	end)
+
+	-- the sizes of the boards the levels have (W x H), read from the files
+	local function board_sizes()
+		local seen, list = {}, {}
+		for n = 1, 1000 do
+			local data = level_data(n)
+			if not data then break end
+			local key = data.size[1] .. "x" .. data.size[2]
+			if not seen[key] then
+				seen[key] = true
+				list[#list + 1] = { data.size[1], data.size[2] }
+			end
+		end
+		return list
+	end
+
+	it("hangs the hint pill from the bottom edge of the panel, above the first cells of every board, inside every window", function()
+		local windows = { { 720, 1280 }, { 540, 960 }, { 1170, 2532 }, { 828, 1792 }, { 1920, 1080 }, { 1536, 2048 }, { 2560, 1440 },
+			{ 600, 1024 }, { 390, 844 }, { 360, 640 } }
+		local sizes = board_sizes()
+		assert_true(#sizes >= 15, "the levels have many board shapes: " .. #sizes)
+		local tight = 1e9
+		for _, size in ipairs(sizes) do
+			for _, win in ipairs(windows) do
+				local fit, board = board_in(size[1], size[2], win[1], win[2])
+				local l = hud.layout(fit, nil, board)
+				tight = math.min(tight, l.goals.y0 - board.y1)
+				for n = 1, 3 do
+					for k, x in ipairs(hud.goal_slots(n).xs) do
+						local what = size[1] .. "x" .. size[2] .. " in " .. win[1] .. "x" .. win[2] .. ", tile " .. k .. " of " .. n
+						local r = hud.goal_hint_rect(l, l.goals.cx + x, 600)
+						assert_true(r.y0 >= board.y1 + 0.5, what .. ": the pill covers a cell (its bottom " .. r.y0 .. ", the cells' top " .. board.y1 .. ")")
+						assert_true(r.h >= hud.GOAL_HINT_MIN_H, what .. ": the pill is too thin: " .. r.h)
+						assert_true(inside(r, l.safe), what .. ": outside the window")
+						-- it hangs from the panel's edge (the picture's own bottom edge is GOAL_PANEL_EDGE above the node's) and
+						-- its pointer reaches exactly that edge: nothing of the counters is covered
+						assert_near(r.y1 + hud.GOAL_HINT_NOTCH, l.goals.y0 + hud.GOAL_PANEL_EDGE, 1e-6, what)
+						assert_true(r.y1 < l.goals.y0 + hud.GOAL_PANEL_EDGE, what)
+						-- the pointer stands under the tile, on the pill's straight part
+						assert_true(r.tail_x >= r.x0 + 20 - 1e-6 and r.tail_x <= r.x1 - 20 + 1e-6, what .. ": the pointer is off the pill")
+						if r.w < 600 then assert_true(math.abs(r.tail_x - (l.goals.cx + x)) < 1e-6, what .. ": the pointer left its tile") end
+						-- the pause button and the moves badge are not covered
+						assert_false(overlap(r, l.pause), what)
+						assert_false(overlap(r, l.moves), what)
+					end
+				end
+			end
+		end
+		-- the tightest board of the game still leaves room for a readable pill (this is the number the design stands on)
+		assert_true(tight >= 44 - 1e-6, "the least room between the panel and the cells: " .. tight)
+	end)
+
+	it("keeps a narrow pill under the tile it explains and a wide one inside the window", function()
+		local fit, board = board_in(9, 9, 720, 1280)
+		local l = hud.layout(fit, nil, board)
+		local x = l.goals.cx + hud.goal_slots(3).xs[1]
+		local narrow = hud.goal_hint_rect(l, x, 300)
+		assert_near(narrow.cx, math.max(x, narrow.w / 2 + hud.GOAL_HINT_MARGIN), 1e-6)
+		assert_eq(narrow.w, 300)
+		local wide = hud.goal_hint_rect(l, x, 2000)
+		assert_true(wide.x0 >= l.safe.x0 and wide.x1 <= l.safe.x1)
+		assert_true(wide.w < 2000)
+		-- a board that crowds the panel thins the pill but never lets it onto the cells
+		local crowded = { x0 = 18, y0 = 200, x1 = 702, y1 = l.goals.y0 - 31, cell = 70 }
+		local l2 = hud.layout(fit, nil, crowded)
+		local r = hud.goal_hint_rect(l2, x, 400)
+		assert_true(r.y0 >= crowded.y1 + 0.5)
+		assert_true(r.h < hud.GOAL_HINT_H)
+		-- without a board (before it is laid out) the pill has its usual height
+		assert_eq(hud.goal_hint_rect(hud.layout(fit, nil, nil), x, 400).h, hud.GOAL_HINT_H)
+	end)
+
+	it("shows a hint for a few seconds, one at a time", function()
+		local h = hud.goal_hint_new()
+		assert_eq(h:shown(), nil)
+		assert_false(h:update(1), "nothing shown: nothing runs out")
+		assert_true(hud.GOAL_HINT_SECONDS >= 2.5 and hud.GOAL_HINT_SECONDS <= 4, "about three seconds")
+		h:show(1)
+		assert_eq(h:shown(), 1)
+		assert_false(h:update(hud.GOAL_HINT_SECONDS - 0.5))
+		assert_eq(h:shown(), 1)
+		-- another tile: the first one is replaced, and the clock starts again
+		h:show(2)
+		assert_eq(h:shown(), 2)
+		assert_false(h:update(hud.GOAL_HINT_SECONDS - 0.5))
+		assert_eq(h:shown(), 2, "the second hint has its own full time")
+		assert_true(h:update(0.6), "it runs out")
+		assert_eq(h:shown(), nil)
+		assert_false(h:update(1))
+		-- the same tile again renews the time
+		h:show(1)
+		h:update(hud.GOAL_HINT_SECONDS - 0.1)
+		h:show(1)
+		assert_false(h:update(hud.GOAL_HINT_SECONDS - 0.1))
+		-- hide says whether anything was shown
+		assert_eq(h:hide(), 1)
+		assert_eq(h:hide(), nil)
+		assert_eq(h:shown(), nil)
+	end)
+end)
