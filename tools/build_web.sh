@@ -45,6 +45,9 @@ echo "remote pictures: $packs files in $out/packs"
 cp web/packs_sw.js "$out/"
 # accounts (WP-10): the browser bridge and the public provider configuration sit next to index.html
 cp web/auth_config.js web/glow_auth.js "$out/"
+# the phone-side check of the sign-in with Google (https://shakhzodmir.github.io/game/auth_test.html): runs the same Firebase
+# calls in a separate app instance and shows what the browser does, step by step
+cp web/auth_test.html "$out/"
 # the site's own pages (WP-18): the privacy policy (the game links it as ./privacy.html) and the 404 page that
 # GitHub Pages serves for any address the site does not have
 cp web/privacy.html web/404.html "$out/"

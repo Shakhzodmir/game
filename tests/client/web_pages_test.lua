@@ -125,3 +125,34 @@ describe("the build and the publishing step carry the pages", function()
 		assert_false(has(pages, "privacy.html"), "no per-file list: a new page needs no workflow change")
 	end)
 end)
+
+describe("web/auth_test.html: the phone-side check of the sign-in with Google", function()
+	local s = slurp("web/auth_test.html")
+
+	it("uses its own Firebase app, so the player's real session is never touched, and signs out at once", function()
+		assert_true(has(s, 'initializeApp(cfg, "diag")'))
+		assert_true(has(s, "signOut(auth)"))
+		assert_true(has(s, '<script src="auth_config.js"></script>'), "the public configuration comes from the same file as the game's")
+	end)
+
+	it("tests the pop-up inside the tap, the redirect and the plain window.open", function()
+		assert_true(has(s, "signInWithPopup(auth, new m.GoogleAuthProvider())"))
+		assert_true(has(s, "signInWithRedirect(auth, new m.GoogleAuthProvider())"))
+		assert_true(has(s, "getRedirectResult(auth)"))
+		assert_true(has(s, 'window.open("about:blank"'))
+	end)
+
+	it("holds no keys, names or addresses, and masks the e-mail it shows", function()
+		local low = s:lower()
+		for _, bad in ipairs({ "@gmail", "aigpa", "c:\\", "c:/users", "aiza", "api_key", "secret" }) do
+			assert_false(has(low, bad), "contains '" .. bad .. "'")
+		end
+		assert_true(has(s, "function mask("))
+		assert_true(s:find("<script[^>]-src=\"https?:") == nil, "no external script tag: the SDK comes by import() from Google's CDN")
+	end)
+
+	it("is copied next to index.html by tools/build_web.sh", function()
+		local b = slurp("tools/build_web.sh")
+		assert_true(b:find('cp [^\n]*web/auth_test%.html[^\n]*"%$out/"') ~= nil)
+	end)
+end)
