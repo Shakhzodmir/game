@@ -830,7 +830,7 @@ return {
 	["sb.nations_fest.1"] = { en = "Flags from every country wave hello", ru = "Флаги всех стран машут: привет" },
 	["sb.nations_fest.2"] = { en = "One square, a hundred kinds of music", ru = "Одна площадь — сто видов музыки" },
 	["sb.nations_fest.3"] = { en = "Taiko drums wake the morning up", ru = "Барабаны тайко будят утро" },
-	["sb.nations_fest.4"] = { en = "A steel pan rings like sun on water", ru = "Стальной барабан звенит, как солнце на воде" },
+	["sb.nations_fest.4"] = { en = "A steel pan rings like sun on water", ru = "Барабан звенит, как солнце на воде" },
 	["sb.nations_fest.5"] = { en = "Together", ru = "Вместе" },
 	["sb.nations_fest.6"] = { en = "The accordion plays a waltz for a stranger", ru = "Аккордеон играет вальс для незнакомца" },
 	["sb.nations_fest.7"] = { en = "Tubas march with their round bellies", ru = "Тубы маршируют, выпятив круглые бока" },
