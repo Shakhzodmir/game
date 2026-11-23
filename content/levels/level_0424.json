@@ -23,6 +23,7 @@
     {"at": [3, 3], "type": "balloon", "color": "red"}, {"at": [5, 3], "type": "balloon", "color": "blue"},
     {"at": [2, 5], "type": "balloon", "color": "red"}, {"at": [6, 5], "type": "balloon", "color": "blue"},
     {"at": [1, 4], "type": "balloon", "color": "red"}, {"at": [7, 4], "type": "balloon", "color": "blue"},
-    {"at": [4, 6], "type": "balloon", "color": "red"}, {"at": [3, 7], "type": "balloon", "color": "blue"}
+    {"at": [4, 6], "type": "balloon", "color": "red"}, {"at": [3, 7], "type": "balloon", "color": "blue"},
+    {"at": [3, 4], "type": "noise"}, {"at": [5, 4], "type": "noise"}, {"at": [4, 5], "type": "noise"}
   ]
 }
