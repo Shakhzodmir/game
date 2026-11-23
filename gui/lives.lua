@@ -105,7 +105,7 @@ function M.build(e)
 			for i = 1, v.count do kit.pop_in(e.hearts[i], 0.06 * i, 0.3) end
 		end
 		if full then
-			free_levels_note(e, body, hy - 90) -- in the place of the pill
+			free_levels_note(e, body, hy - 98) -- in the place of the pill, a little lower: the plate is taller
 		else
 			local count = s:round(body, 0, hy - 80, 120, 46, v.count == 0 and "pink" or "purple", { radius = 22 })
 			s:text(count, v.count .. "/" .. v.max, 0, 1, { font = "number", size = 28, color = "white" })
@@ -114,7 +114,7 @@ function M.build(e)
 
 	-- status and the timer (lower with full lives: the rule of the free levels is taller than the pill was)
 	local text, color = status_text(v)
-	e.status, e.status_info = s:text(body, text, 0, full and hh - 318 or hh - 290, {
+	e.status, e.status_info = s:text(body, text, 0, full and hh - 326 or hh - 290, {
 		font = "button", size = 34, color = color, max_width = W - 80,
 	})
 
