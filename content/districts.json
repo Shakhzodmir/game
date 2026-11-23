@@ -3096,6 +3096,150 @@
           "stem_desc": "a soft flute tune that floats over the chords"
         }
       ]
+    },
+    {
+      "id": "night_carnival",
+      "part": 2,
+      "first": 421,
+      "last": 440,
+      "map_tint": "#CDB9E0",
+      "name": {
+        "ru": "Ночной карнавал",
+        "en": "Night Carnival",
+        "ko": "한밤의 카니발"
+      },
+      "genre": {
+        "ru": "Сальса ночью",
+        "en": "Night Salsa",
+        "ko": "나이트 살사"
+      },
+      "bpm": 140,
+      "key": "G",
+      "semitones_from_c": -5,
+      "bars": 8,
+      "mood": "salsa under fireworks on a street at night: a piano montuno, congas, timbales with a cowbell, big horn hits and torches",
+      "songs": [
+        {
+          "id": "fireworks_mambo",
+          "name": {
+            "ru": "Мамбо под салютом",
+            "en": "Fireworks Mambo",
+            "ko": "불꽃놀이 맘보"
+          },
+          "bpm": 152,
+          "bars": 12,
+          "mood": "a hot mambo: a piano montuno, timbales, a cowbell and loud horn hits"
+        },
+        {
+          "id": "torchlight_bolero",
+          "name": {
+            "ru": "Болеро при факелах",
+            "en": "Torchlight Bolero",
+            "ko": "횃불 볼레로"
+          },
+          "bpm": 72,
+          "bars": 8,
+          "mood": "a slow bolero: a nylon guitar, soft congas, a warm bass and a sighing trumpet"
+        },
+        {
+          "id": "street_conga_line",
+          "name": {
+            "ru": "Уличная конга",
+            "en": "Street Conga Line",
+            "ko": "거리의 콩가 행렬"
+          },
+          "bpm": 126,
+          "bars": 12,
+          "mood": "a rolling conga line: congas, a shaker, whistles and a bouncing bass"
+        },
+        {
+          "id": "last_dance_cha_cha",
+          "name": {
+            "ru": "Последний ча-ча-ча",
+            "en": "Last Dance Cha-Cha",
+            "ko": "마지막 차차차"
+          },
+          "bpm": 110,
+          "bars": 8,
+          "mood": "a smooth cha-cha-cha: a clean piano, a guiro, a soft bass and a light trumpet"
+        }
+      ],
+      "chest": {
+        "coins": 4400,
+        "boosters": [
+          "disco",
+          "remix",
+          "sub"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "timbales",
+          "name": {
+            "ru": "Тимбалес",
+            "en": "Timbales",
+            "ko": "팀발레스"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "timbales and a cowbell playing the salsa clave pattern"
+        },
+        {
+          "id": "torches",
+          "name": {
+            "ru": "Факелы",
+            "en": "Torches",
+            "ko": "횃불"
+          },
+          "cost": 4,
+          "stem": "shaker",
+          "stem_desc": "a shaker on the 16ths that crackles like torches"
+        },
+        {
+          "id": "feather_dancer",
+          "name": {
+            "ru": "Танцовщица в перьях",
+            "en": "Feather dancer",
+            "ko": "깃털 무용수"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "a salsa tumbao bass that anticipates the downbeat"
+        },
+        {
+          "id": "montuno_piano",
+          "name": {
+            "ru": "Пианино-монтуно",
+            "en": "Montuno piano",
+            "ko": "몬투노 피아노"
+          },
+          "cost": 5,
+          "stem": "piano",
+          "stem_desc": "the montuno: a syncopated piano pattern over the chords"
+        },
+        {
+          "id": "night_congas",
+          "name": {
+            "ru": "Ночные конги",
+            "en": "Night congas",
+            "ko": "한밤의 콩가"
+          },
+          "cost": 5,
+          "stem": "congas",
+          "stem_desc": "congas with the tumbao slaps and open tones"
+        },
+        {
+          "id": "horn_section",
+          "name": {
+            "ru": "Медная секция",
+            "en": "Horn section",
+            "ko": "혼 섹션"
+          },
+          "cost": 6,
+          "stem": "brass",
+          "stem_desc": "big horn hits that punch into each phrase"
+        }
+      ]
     }
   ],
   "level_stems": {
