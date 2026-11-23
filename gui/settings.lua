@@ -198,7 +198,7 @@ function M.build(e)
 		app.set_setting("haptics", on)
 		if on then pcall(platform.vibrate, 30) end
 	end, "haptics")
-	row_label(e, body, "ui/icons/city", i18n.t("settings.reduced_motion"), y - 186)
+	row_label(e, body, "ui/icons/pause", i18n.t("settings.reduced_motion"), y - 186) -- not the house of the Town tab: motion on pause
 	kit.toggle(e, body, 206, y - 186, v.reduced_motion, function(on)
 		e.self_key = "reduced_motion"
 		app.set_setting("reduced_motion", on)

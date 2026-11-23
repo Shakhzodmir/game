@@ -564,6 +564,22 @@ describe("meta windows: settings", function()
 		end)
 	end)
 
+	it("shows the pause icon at Reduced motion, not the house of the Town tab", function()
+		G.with_town({}, function(c)
+			local function count(anim)
+				local n = 0
+				for _, node in ipairs(c.E.alive_nodes(c.town.scene)) do
+					if node.anim == anim and c.E.visible(node) then n = n + 1 end
+				end
+				return n
+			end
+			local houses, pauses = count("ui_icons_city"), count("ui_icons_pause")
+			open(c, "settings")
+			assert_eq(count("ui_icons_city"), houses, "the window drew another house")
+			assert_eq(count("ui_icons_pause"), pauses + 1, "the Reduced motion row has the pause icon")
+		end)
+	end)
+
 	it("toggles vibration and reduced motion, and switches the controls", function()
 		G.with_town({}, function(c)
 			open(c, "settings")
