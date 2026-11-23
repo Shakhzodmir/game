@@ -503,9 +503,11 @@ def headroom(man, note_dec, clear_dec):
     """Sample-aligned sums the game really produces: k match notes of one
     cascade wave (same step n, different colours, every colour combination
     and order) + the clear pop, all starting on the same 1/32 tick, played per
-    MIXER; then with the level's music bed (task stems + tension at
-    music_in_level_db) with the tick on each of its 32 beats (where the kick
-    and snare transients are). 'raw' = the same without the MIXER note rules."""
+    MIXER; then with the level's music beds (the task stems, alone and with the
+    tension layer, at music_in_level_db; a layer played upside down,
+    music.STEM_POLARITY, can make the task stems alone the louder one) with the
+    tick on each of its 32 beats (where the kick and snare transients are).
+    'raw' = the same without the MIXER note rules."""
     rule = MIXER["notes_same_tick"]
     sr = notes.SR
 
@@ -518,16 +520,23 @@ def headroom(man, note_dec, clear_dec):
 
     beds = []
     for dd in man["music"].values():
-        sig = None
+        # the beds a level plays: the task stems with the tension layer (<= 5 moves left) and the task stems alone
+        # (never with party). Either can be the louder one: a layer played upside down (music.STEM_POLARITY) lowers
+        # the sum with it below the task stems alone.
+        tasks, tension = None, None
         for s in dd["stems"]:
             if s["stem"] == "party":
                 continue
             x, r = sf.read(ROOT / s["path"], dtype="float64")
             x = hi_rate(x, r)
-            sig = x if sig is None else sig + x
-        sig = sig * dsp.db_amp(MIXER["music_in_level_db"] + MIXER["group_gain_db"]["music"])
+            if s["stem"] == "tension":
+                tension = x
+            else:
+                tasks = x if tasks is None else tasks + x
         nb = dd["bars"] * 4
-        beds.append((dd["id"], sig, [int(round(b * len(sig) / nb)) for b in range(nb)]))
+        for sig in (tasks + tension, tasks):
+            sig = sig * dsp.db_amp(MIXER["music_in_level_db"] + MIXER["group_gain_db"]["music"])
+            beds.append((dd["id"], sig, [int(round(b * len(sig) / nb)) for b in range(nb)]))
     for sd in man.get("songs", {}).values():  # a song chosen in the jukebox plays in levels too (one mix, no layers)
         x, r = sf.read(ROOT / sd["path"], dtype="float64")
         sig = hi_rate(x, r) * dsp.db_amp(MIXER["music_in_level_db"] + MIXER["group_gain_db"]["music"])
@@ -651,7 +660,8 @@ def write_report(man):
     a(f"1/32 grid); every voice plays at {', '.join(f'{g:+.1f}' for g in rule['gain_db_by_count'])} dB for 1/2/3 voices;")
     a(f"music in a level at {MIXER['music_in_level_db']:+.0f} dB. The table is the worst true peak over every step, colour")
     a("combination and order (`clear` at its own level), then the loudest of those sums placed on each of the 32 beats of")
-    a("each district's in-level bed (task stems + tension, i.e. on the kick and snare transients).")
+    a("each district's in-level beds (the task stems with the tension layer, and the task stems alone, i.e. on the kick and")
+    a("snare transients).")
     a("")
     a("| Voices | Notes + clear, raw (all at 0 dB, no strum) | Notes + clear, per mixer | + music bed in a level (worst beat) |")
     a("|---|---|---|---|")

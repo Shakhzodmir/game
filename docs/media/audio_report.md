@@ -43,7 +43,8 @@ follow it): identical files play once; at most 3 voices; voice *i* starts 10, 22
 1/32 grid); every voice plays at +0.0, -4.5, -6.5 dB for 1/2/3 voices;
 music in a level at -6 dB. The table is the worst true peak over every step, colour
 combination and order (`clear` at its own level), then the loudest of those sums placed on each of the 32 beats of
-each district's in-level bed (task stems + tension, i.e. on the kick and snare transients).
+each district's in-level beds (the task stems with the tension layer, and the task stems alone, i.e. on the kick and
+snare transients).
 
 | Voices | Notes + clear, raw (all at 0 dB, no strum) | Notes + clear, per mixer | + music bed in a level (worst beat) |
 |---|---|---|---|
