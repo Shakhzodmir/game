@@ -289,7 +289,8 @@ M.GOAL_HINT_MARGIN = 16     -- between the pill and the edge of the window
 -- The line of each goal kind (client/levels.lua `kind`; a `break` goal by its item): colour goals have a line of their own, every
 -- element says what the tutorial says for it (content/tutorials.json teaches it with the same line). The dance floor says the
 -- action (what the player does on the violet tile), because the tile and the number already say what is to be lit. Wires,
--- portals, the conveyor and the curtain are never goals (they are teaching steps only), so they have no row. The keys are
+-- portals, the conveyor and the curtain are board elements that no level takes for a goal (the levels have exactly the 15
+-- kinds of the rows below: tests/client/level_goal_hint_test.lua walks every level file), so they have no row. The keys are
 -- literal on purpose: tools/check_refs.lua reads them.
 M.GOAL_HINT = {
 	collect = "goal.collect", light = "tutorial.dancefloor_match", deliver = "tutorial.mic", drop = "tutorial.coconut",
@@ -331,10 +332,12 @@ end
 
 -- Where the pill of the hint of the tile at tile_x (logical, the tile's centre) stands, w wide: it hangs under the panel,
 -- its pointer on the panel's visible bottom edge, centred under the tile as far as the window allows, its bottom edge above
--- the top of the board's cells (the tallest boards of the game leave 44 px: the pill is a single line and thins to fit, it
--- may stand on the frame of the board, which is a decoration, never on a cell; a board that left less than GOAL_HINT_MIN_H
--- would get a pill that stands on its first cells rather than one too thin for its line). Returns the rectangle with
--- `tail_x`, where the pointer stands (always under the tile, on the straight part of the pill).
+-- the top of the board's cells (the tallest board of the game, 7x11, starts 44 px under the bottom of the panel's node and the
+-- pill hangs from 6 px above that edge: 50 px of room for a pill of 46, so it clears the cells by 4 px at the design size. The
+-- pill is a single line and thins to fit a board that is closer, it may stand on the frame of the board, which is a decoration,
+-- never on a cell; a board so close that the pill would be thinner than GOAL_HINT_MIN_H would get a pill that stands on its
+-- first cells rather than one too thin for its line). Returns the rectangle with `tail_x`, where the pointer stands (always
+-- under the tile, on the straight part of the pill).
 function M.goal_hint_rect(l, tile_x, w)
 	local g, safe = l.goals, l.safe
 	local top = g.y0 + M.GOAL_HINT_TOP

@@ -506,6 +506,12 @@ describe("level goal hints: a tap on a goal tile", function()
 				assert_true(r ~= nil, "a pill")
 				local b = link.board_rect()
 				assert_true(r.y0 >= b.y1 + 0.5, win[1] .. "x" .. win[2] .. ": the pill covers a cell")
+				if win[1] == 720 and win[2] == 1280 then
+					-- the numbers the comments and the handoff note give: the cells start 44 px under the bottom of the panel's
+					-- node, and the pill (hanging from 6 px above it, 46 px tall) clears them by 4 px
+					assert_near(h.l.goals.y0 - b.y1, 44, 0.5, "the cells under the panel's node")
+					assert_near(r.y0 - b.y1, 4, 0.5, "the pill's clearance of the cells")
+				end
 				assert_true(r.x0 >= h.l.safe.x0 and r.x1 <= h.l.safe.x1, "inside the window")
 				local x = h:goal_pos(k)
 				assert_true(r.tail_x >= r.x0 and r.tail_x <= r.x1)

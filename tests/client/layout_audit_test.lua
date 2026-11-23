@@ -372,7 +372,8 @@ end)
 
 -- The hint of a goal tile (screens/level/hud.lua): one line in a pill under the goals panel. Every kind of goal the levels have,
 -- in every language, must read at 18 px or more, inside its pill, and the pill must stay inside the window, off the cells of the
--- board (level 185 is the tallest board: 44 px under the panel) and off the counters of the panel.
+-- board (level 185 is the tallest board: its cells start 44 px under the bottom of the panel's node, and the pill, which hangs from
+-- 6 px above that edge, clears them by 4 px at the design size) and off the counters of the panel.
 describe("text layout audit: goal hints", function()
 	local level_hud = require("client.level_hud")
 	local link = require("client.level_link")
@@ -455,7 +456,7 @@ describe("text layout audit: goal hints", function()
 
 	it("keeps the pill inside every window shape, off the cells and the counters, under the tile it explains", function()
 		local bad = {}
-		-- 185: the tallest board (7x11, 44 px under the panel); 60: three goals; 178: two goals on a shaped 9x9 board
+		-- 185: the tallest board (7x11, its cells 44 px under the panel's node); 60: three goals; 178: two goals on a shaped 9x9 board
 		for _, lang in ipairs(LANGS) do
 			for _, w in ipairs(SIZES) do
 				for _, level in ipairs({ 185, 60, 178 }) do
