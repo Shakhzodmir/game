@@ -426,6 +426,7 @@ describe("screens/map/map.gui_script", function()
 			assert_true(standins(tile) > 0, "the tiles of the player's district are plain while they download")
 			assert_eq(standins(gate), 1, "and its gate is a sign")
 			assert_true(c.map:has_text("Street Band Square", true), "the sign has the district's name")
+			assert_false(c.map:has_text("Part 2", true), "an ordinary gate carries no Part 2 tag")
 			packs.update()
 			for _, call in ipairs(calls) do
 				for _, key in ipairs({ tile, gate }) do
@@ -437,6 +438,76 @@ describe("screens/map/map.gui_script", function()
 			assert_eq(standins(tile), 0, "the tiles came: drawn again with the picture")
 			assert_eq(standins(gate), 0)
 			assert_true(v.ui.images[tile] ~= nil, "the tile picture is decoded and on the GPU")
+			assert_same(c.E.audit(), {})
+		end)
+		require("client.packs")._reset()
+	end)
+
+	-- The gate of the first district of Part 2 wears a gold "Part 2" tag. The tag did not wait for the picture: the plain sign
+	-- drawn while the web build downloads it had none, and the tag popped up with the picture.
+	it("draws the Part 2 tag on the plain gate sign of district 16 while its picture downloads, and on its board after", function()
+		local A = require("tests.client.layout_audit")
+		local calls = {}
+		with_map({ setup = function(app)
+			G.win(app, 300) -- level 301, the first of district 16, is the next one: its gate is in view
+			local assets = require("client.assets")
+			require("client.packs").init({
+				base = "https://host/game/", clock = function() return 0 end,
+				images = assets.index.images, groups = assets.index.packs,
+				request = function(url, done) calls[#calls + 1] = { url = url, done = done } end,
+			})
+		end }, function(c)
+			local packs = require("client.packs")
+			local assets = require("client.assets")
+			local v = c.map.self.m.view
+			local gate = "mapbg/gate_midnight_cafe"
+			assert_true(assets.image(gate).remote ~= nil, "the web build downloads the gate picture of district 16")
+			local seg
+			for i, sg in ipairs(v.model.segments) do
+				if sg.district == "midnight_cafe" then seg = i end
+			end
+			assert_true(seg ~= nil, "district 16 is on the map")
+			assert_eq(v.gate_standins[seg], gate, "its gate is a plain sign while the picture downloads")
+			local function tags()
+				local n = 0
+				for _, t in ipairs(c.map:texts(true)) do
+					if t == "Part 2" then n = n + 1 end
+				end
+				return n
+			end
+			assert_eq(tags(), 1, "the plain sign wears the tag")
+			-- the tag sits just above the plate of the name, inside the window, and covers nothing
+			local function rows()
+				local tag, name
+				for _, row in ipairs(A.texts(c, { scene = c.map.scene })) do
+					if row.text == "Part 2" then tag = row end
+					if row.text == "Midnight Café" then name = row end
+				end
+				assert_true(tag ~= nil and name ~= nil, "the tag and the name: " .. table.concat(c.map:texts(true), "|"))
+				return tag, name
+			end
+			local tag, name = rows()
+			assert_true(tag.box ~= nil, "the text of the tag lies on the gold plate")
+			local plate -- the plain sign: the box next to the name, made by the same holder
+			for _, n in ipairs(c.E.alive_nodes(c.map.scene)) do
+				if n.kind == "box" and n.parent == name.node.parent and n.size.x == 560 then plate = n end
+			end
+			assert_true(plate ~= nil, "the plain sign of the gate")
+			local x0, y0, x1, y1 = c.E.rect(plate)
+			local _, ay = c.E.to_logical(x0, y0)
+			local _, by = c.E.to_logical(x1, y1)
+			local top = math.max(ay, by)
+			assert_true(tag.box[2] >= top + 2, string.format("the tag (bottom %.0f) covers the sign (top %.0f)", tag.box[2], top))
+			assert_true(tag.box[2] - top <= 20, string.format("the tag floats %.0f px over the sign", tag.box[2] - top))
+			-- the picture comes: the gate is drawn again with its board, and the tag stays (once)
+			packs.update()
+			for _, call in ipairs(calls) do
+				local e = assets.image(gate)
+				if call.url == "https://host/game/" .. e.remote then call.done(200, string.rep("x", e.bytes)) end
+			end
+			c.step(3)
+			assert_eq(v.gate_standins[seg], nil, "the picture came")
+			assert_eq(tags(), 1, "the tag is on the board of the picture")
 			assert_same(c.E.audit(), {})
 		end)
 		require("client.packs")._reset()

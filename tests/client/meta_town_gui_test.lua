@@ -1071,6 +1071,58 @@ describe("screens/town: the room while its pictures download (the web build)", f
 		end)
 		require("client.packs")._reset()
 	end)
+
+	-- The gold "Part 2" tag hangs on the lower edge of the ribbon of every district of Part 2 (bottom edge y 1026); the note
+	-- under the ribbon had its top edge at 1028 and touched the tag. The note is anchored to the top like the ribbon, so the
+	-- gap holds in every window shape, with a phone's top inset too.
+	it("keeps the loading note clear of the Part 2 tag of the ribbon, in every window shape", function()
+		local shapes = {
+			{ w = { 720, 1280 } }, { w = { 390, 844 } }, { w = { 1920, 970 } },
+			{ w = { 360, 640 }, safe = { left = 0, top = 24, right = 0, bottom = 0 } },
+			{ w = { 720, 1280 }, safe = { left = 0, top = 48, right = 0, bottom = 30 } },
+		}
+		for _, shape in ipairs(shapes) do
+			for _, lang in ipairs({ "en", "ru", "ko" }) do
+				local calls = {}
+				G.with_town({ window = shape.w, safe = shape.safe, language = lang, setup = function(app)
+					for _, d in ipairs(app.meta:districts()) do
+						if d.id == "midnight_cafe" then break end
+						G.build_tasks(app, d.id) -- district 16, the first of Part 2, is the one being built
+					end
+					local assets = require("client.assets")
+					require("client.packs").init({
+						base = "https://host/game/", clock = function() return 0 end,
+						images = assets.index.images, groups = assets.index.packs,
+						request = function(url, done) calls[#calls + 1] = { url = url, done = done } end, -- nothing answers
+					})
+				end }, function(c)
+					local label = lang .. " " .. shape.w[1] .. "x" .. shape.w[2] .. (shape.safe and (" safe top " .. shape.safe.top) or "")
+					local t = c.town.self.t
+					c.run(1)
+					assert_eq(c.app.ui.district, "midnight_cafe", label)
+					assert_true(t.note ~= nil, label .. ": the note is not on the screen")
+					local tag = t.hud.part_tag
+					assert_true(tag ~= nil, label .. ": the ribbon has no Part 2 tag")
+					local plate
+					for _, n in ipairs(c.E.alive_nodes(c.town.scene)) do
+						if n.kind == "box" and n.parent == t.note then plate = n end
+					end
+					assert_true(plate ~= nil, label .. ": the plate of the note")
+					local function span(n) -- bottom and top edge in logical px
+						local x0, y0, x1, y1 = c.E.rect(n)
+						local _, ay = c.E.to_logical(x0, y0)
+						local _, by = c.E.to_logical(x1, y1)
+						return math.min(ay, by), math.max(ay, by)
+					end
+					local tag_bottom = span(tag)
+					local _, plate_top = span(plate)
+					assert_true(tag_bottom - plate_top >= 6, label .. string.format(": the tag (bottom %.1f) and the note (top %.1f) are %.1f px apart", tag_bottom, plate_top, tag_bottom - plate_top))
+					assert_true(tag_bottom - plate_top <= 30, label .. string.format(": the note hangs %.1f px under the tag", tag_bottom - plate_top))
+				end)
+				require("client.packs")._reset()
+			end
+		end
+	end)
 end)
 
 -- When a layer enters the track Bit jumps with joy and then LISTENS to it (hands at the headphones, assets/images/bit/

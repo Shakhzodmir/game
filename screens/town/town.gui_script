@@ -71,7 +71,10 @@ local REGISTRY = {
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
-local ROOM_NOTE_Y = 990 -- the "loading the district" note, under the ribbon
+-- the "loading the district" note, under the ribbon: its top edge (y + 38) clears the "Part 2" tag on the lower edge of
+-- the ribbon (bottom edge 1026) by 10 px. The note is anchored to the top like the ribbon (a phone's safe area moves
+-- both), so the two never touch in any window shape.
+local ROOM_NOTE_Y = 978
 local SWIPE_MIN = 90   -- logical px of a horizontal swipe that pages the districts
 local TAP_SLOP = 26    -- a press and release further apart than this is a drag, not a tap
 
@@ -147,6 +150,7 @@ function Town:room_note(missing, pending, got, total)
 	end
 	if not text then return end
 	self.note = s:layer(self.c_note)
+	s:anchor(self.note, "top")
 	s:round(self.note, 360, ROOM_NOTE_Y, 580, 76, "white", { alpha = 0.92 })
 	s:text(self.note, text, 360, ROOM_NOTE_Y + 2, { font = "body", size = 28, color = "text", max_width = 540 })
 end

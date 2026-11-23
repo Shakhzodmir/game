@@ -430,6 +430,8 @@ function View:make_gate(seg)
 		s:text(holder, name, 360, sg.gate_y + 118, {
 			font = "button", size = 38, color = "white", outline = false, shadow = "#6C32CF", max_width = 500,
 		})
+		-- (the "Part 2" tag does not wait for the picture: it sits over the plain sign just as it sits over the board)
+		self:part_tag(holder, sg, 360, sg.gate_y + 116 + 48 + 28)
 		return holder
 	end
 	-- the name sits in the middle of the blank signboard of the gate picture (content/map.json `sign`, found by
@@ -438,15 +440,19 @@ function View:make_gate(seg)
 	s:text(holder, name, 360 + sign.dx, sg.gate_y + sign.dy, {
 		font = "button", size = size, color = "text", outline = false, shadow = false, max_width = sign.w,
 	})
-	-- the first district of Part 2 (district 16) wears a gold "Part 2" tag above its signboard
-	if app.part_opens and app.part_opens(sg.district) == 2 then
-		local ty = sg.gate_y + sign.dy + math.floor((sign.h or 60) / 2) + 28
-		s:round(holder, 360 + sign.dx, ty, 196, 46, "#FFC93C", { radius = 23 })
-		s:text(holder, i18n.t("part2.title"), 360 + sign.dx, ty, {
-			font = "button", size = 26, color = "white", shadow = "#C77A00", max_width = 172,
-		})
-	end
+	self:part_tag(holder, sg, 360 + sign.dx, sg.gate_y + sign.dy + math.floor((sign.h or 60) / 2) + 28)
 	return holder
+end
+
+-- The first district of Part 2 (district 16) wears a gold "Part 2" tag above its signboard, on the gate picture's board
+-- and on the plain sign drawn while the picture downloads (x, y: the centre of the tag).
+function View:part_tag(holder, sg, x, y)
+	if not (app.part_opens and app.part_opens(sg.district) == 2) then return end
+	local s = self.ui
+	local tag = s:round(holder, x, y, 196, 46, "#FFC93C", { radius = 23 })
+	s:text(tag, i18n.t("part2.title"), 0, 0, {
+		font = "button", size = 26, color = "white", shadow = "#C77A00", max_width = 172,
+	})
 end
 
 function View:make_deco(seg, j)
