@@ -139,6 +139,34 @@ describe("Part 2 at full size: 30 districts, 600 levels, by data only", function
 	end)
 end)
 
+-- docs/design/part2-districts.md: "the chest of a district holds three boosters, no repeats in a row". Districts 6 and
+-- later all have three; the disco ball is in every chest and is the one booster that may stand in two neighbours.
+describe("the district chests from the 6th district on (three boosters, none repeated from the district before)", function()
+	it("hold three different boosters each", function()
+		for i = 6, #SHIPPED do
+			local boosters, seen = SHIPPED[i].chest.boosters, {}
+			assert_eq(#boosters, 3, SHIPPED[i].id .. " chest")
+			for _, id in ipairs(boosters) do
+				assert_false(seen[id], SHIPPED[i].id .. " holds " .. id .. " twice")
+				seen[id] = true
+			end
+		end
+	end)
+
+	it("share nothing with the chest of the district before but the disco ball (16 does not repeat the Remix of 15)", function()
+		assert_true(#SHIPPED >= 17 and SHIPPED[16].id == "midnight_cafe", "district 16 is the first of Part 2")
+		for i = 7, #SHIPPED do
+			local own = {}
+			for _, id in ipairs(SHIPPED[i].chest.boosters) do own[id] = true end
+			for _, id in ipairs(SHIPPED[i - 1].chest.boosters) do
+				if id ~= "disco" then
+					assert_false(own[id], SHIPPED[i - 1].id .. " (" .. (i - 1) .. ") and " .. SHIPPED[i].id .. " (" .. i .. ") both hold " .. id)
+				end
+			end
+		end
+	end)
+end)
+
 describe("the Part 2 tag (client/app.lua)", function()
 	local app = require("client.app")
 
