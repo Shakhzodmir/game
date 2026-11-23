@@ -65,7 +65,7 @@ def main(argv):
     for d in wanted:
         if d not in ids:
             sys.exit("unknown district '%s' (known: %s)" % (d, ", ".join(ids)))
-    files = inst.load()
+    files, sources = inst.load(), inst.load_sources()
     done = 0
     for did in wanted or ids:
         src = os.path.join(folder, "level_bg_%s.png" % did)
@@ -81,12 +81,12 @@ def main(argv):
         path = os.path.join(IMAGES, rel)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         out.save(path, optimize=True)
-        files.add(rel)
+        inst.record(files, sources, rel, IMAGES)      # listed, no longer a placeholder, no JPEG of the same key left
         done += 1
         print("installed", rel, "from", im.size)
     if done == 0:
         sys.exit("no level_bg_<district>.png in %s" % folder)
-    inst.save(files)
+    inst.save(files, sources)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,14 @@ Reads from the folder (drawn on magenta where a cut-out is needed):
 The place of every item in the room is the table ROOMS below (x, y = centre in the 720x1280 room, y from the top;
 w = width on screen). content/district_layouts.json gets the district; the files are recorded in
 assets/art_ready/installed.json. Run python3 tools/gen_defold.py afterwards.
+
+The map tile is made 720x1080 RGBA with the bottom 110 rows faded out whatever the picture was (PNG or JPEG, opaque, any size
+of the 2:3 shape): tools/art/feather_mapbg.py. A map picture of another shape (a square) or with transparency of its own is
+refused BEFORE anything is written. The pictures may be .png, .jpg or .jpeg. A picture that replaces a placeholder
+of tools/art/make_part2_placeholders.py stops being one (its note in installed.json goes, an older .jpg/.png of the same
+key is deleted).
+
+  python3 tools/art/install_district.py selftest     # installs synthetic pictures into a temporary project (Pillow, numpy)
 """
 import json
 import os
@@ -22,6 +30,7 @@ import sys
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import feather_mapbg as fm  # noqa: E402
 import import_incoming as imp  # noqa: E402
 import installed as inst  # noqa: E402
 from gen_art import ghost_image  # noqa: E402
@@ -187,24 +196,39 @@ def centred(im, size):
     return canvas
 
 
-def main():
-    did, folder, name = sys.argv[1], sys.argv[2], sys.argv[3]
-    files = inst.load()
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["selftest"]:
+        return selftest()
+    did, folder, name = argv[0], argv[1], argv[2]
+    files, sources = inst.load(), inst.load_sources()
 
     def save(im, rel):
         path = os.path.join(IMAGES, rel)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         im.save(path, optimize=True)
-        files.add(rel)
+        inst.record(files, sources, rel, IMAGES)      # listed, no longer a placeholder, no JPEG of the same key left
         print("installed", rel, im.size)
 
-    def src(n):
+    def src(n):             # a PNG or a JPEG, as the producer saved it
+        for ext in (".png", ".jpg", ".jpeg"):
+            if os.path.isfile(os.path.join(folder, n + ext)):
+                return os.path.join(folder, n + ext)
         return os.path.join(folder, n + ".png")
 
+    # the map tile: 720x1080 RGBA with the bottom 110 rows faded out (the map overlaps the tiles of a district: an opaque
+    # tile shows a hard seam every 740 px), whatever the picture was: tools/art/feather_mapbg.py. It is made FIRST: a picture
+    # that is refused (not 2:3, transparent) must stop the install before the rooms are written (save() deletes the old
+    # .jpg of a key and the list is saved only at the end)
+    try:
+        with Image.open(src("map_bg_" + name)) as picture:
+            tile = fm.feather(picture)
+    except ValueError as e:
+        sys.exit("map_bg_%s: %s" % (name, e))
     for view, key in (("day", "bg"), ("concert", "bg_concert")):
         save(Image.open(src("room_%s_%s" % (name, view))).convert("RGB").resize((720, 1280), Image.LANCZOS),
              "districts/%s/%s.png" % (did, key))
-    save(Image.open(src("map_bg_" + name)).convert("RGB").resize((720, 1080), Image.LANCZOS), "mapbg/bg_%s.png" % did)
+    save(tile, "mapbg/bg_%s.png" % did)
 
     color, alpha = keyed(src("gate_" + name))
     h, w = alpha.shape
@@ -238,8 +262,116 @@ def main():
                     "items": {t: items[t] for t in tasks}}
     with open(LAYOUTS, "w", encoding="utf-8", newline="") as f:
         f.write(json.dumps(layouts, indent=2, ensure_ascii=False) + "\n")
-    inst.save(files)
+    inst.save(files, sources)
+
+
+def selftest():
+    """Installs a district of synthetic pictures into a temporary project: the map tile comes out feathered (here from an
+    opaque JPEG of another size), a placeholder is replaced for good, nothing else of installed.json is lost."""
+    import tempfile
+
+    import numpy as np
+    from PIL import ImageDraw
+
+    failed = []
+
+    def check(ok, what):
+        if not ok:
+            failed.append(what)
+            print("FAIL:", what)
+
+    def sheet(cols, rows, size=240):
+        im = Image.new("RGB", (cols * size, rows * size), (255, 0, 255))
+        d = ImageDraw.Draw(im)
+        for r in range(rows):
+            for c in range(cols):
+                x0, y0 = c * size + size // 4, r * size + size // 4
+                d.rectangle((x0, y0, x0 + size // 2, y0 + size // 2), fill=(40 + c * 20, 160 + r * 30, 220))
+        return im
+
+    saved = (inst.ROOT, inst.PATH, IMAGES, LAYOUTS, dict(ROOMS))
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "root")
+            for d in ("assets/images/mapbg", "assets/images/districts/zz_test", "assets/art_ready", "content"):
+                os.makedirs(os.path.join(root, d))
+            tasks = ["t1", "t2", "t3", "t4", "t5", "t6"]
+            with open(os.path.join(root, "content", "districts.json"), "w") as f:
+                json.dump({"districts": [{"id": "zz_test", "tasks": [{"id": t} for t in tasks]}]}, f)
+            with open(os.path.join(root, "content", "district_layouts.json"), "w") as f:
+                json.dump({}, f)
+            folder = os.path.join(tmp, "pictures")
+            os.makedirs(folder)
+            rng = np.random.RandomState(1)
+            for n, shape in (("room_zz_day.png", (1280, 720, 3)), ("room_zz_concert.png", (1280, 720, 3))):
+                Image.fromarray(rng.randint(0, 255, shape, np.uint8)).save(os.path.join(folder, n))
+            tile_jpeg = os.path.join(folder, "map_bg_zz.jpg")           # the producer's map picture: an opaque JPEG, 1024x1536
+            Image.fromarray(rng.randint(0, 255, (1536, 1024, 3), np.uint8)).save(tile_jpeg, quality=90)
+            sheet(1, 1, 480).save(os.path.join(folder, "gate_zz.png"))
+            sheet(3, 2).save(os.path.join(folder, "deco_zz.png"))
+            sheet(3, 2).save(os.path.join(folder, "items_zz.png"))
+            ROOMS["zz_test"] = ("3x2", [(t, 100 + 50 * i, 700, 100) for i, t in enumerate(tasks)])
+            inst.ROOT, inst.PATH = root, os.path.join(root, "assets", "art_ready", "installed.json")
+            images = os.path.join(root, "assets", "images")
+            globals()["IMAGES"], globals()["LAYOUTS"] = images, os.path.join(root, "content", "district_layouts.json")
+            # the district wears placeholders (the map tile and the day room as JPEG files); another file has a note of its own
+            inst.save({"mapbg/bg_zz_test.jpg", "districts/zz_test/bg.jpg", "keep.png"},
+                      {"mapbg/bg_zz_test.jpg": "placeholder: night version of cafe",
+                       "districts/zz_test/bg.jpg": "placeholder: night version of cafe", "keep.png": "placeholder: other"})
+            for rel in ("mapbg/bg_zz_test.jpg", "districts/zz_test/bg.jpg"):
+                with open(os.path.join(images, rel), "wb") as f:
+                    f.write(b"placeholder")
+
+            # a map picture that is not 2:3 (a square from ChatGPT) is refused BEFORE anything is written: no room JPEG is
+            # deleted, installed.json and the layouts stay as they were (the rooms are installed ahead of the tile)
+            def snapshot():
+                kept = {}
+                for dp, _, fns in os.walk(root):
+                    for fn in fns:
+                        with open(os.path.join(dp, fn), "rb") as fh:
+                            kept[os.path.relpath(os.path.join(dp, fn), root)] = fh.read()
+                return kept
+            good_tile = open(tile_jpeg, "rb").read()
+            Image.fromarray(rng.randint(0, 255, (1024, 1024, 3), np.uint8)).save(tile_jpeg, quality=90)
+            before = snapshot()
+            try:
+                main(["zz_test", folder, "zz"])
+                check(False, "a square map picture is refused")
+            except SystemExit as e:
+                check("map_bg_zz" in str(e.code) and "2:3" in str(e.code), "the refusal names the picture and the shape: %s" % e.code)
+            check(snapshot() == before, "a refused map picture leaves the project as it was (nothing written, no JPEG deleted)")
+            with open(tile_jpeg, "wb") as f:
+                f.write(good_tile)
+
+            main(["zz_test", folder, "zz"])
+
+            tile = Image.open(os.path.join(images, "mapbg", "bg_zz_test.png"))
+            check(tile.mode == "RGBA" and tile.size == (720, 1080), "the map tile is a 720x1080 RGBA PNG: %s %s" % (tile.mode, tile.size))
+            with Image.open(tile_jpeg) as src:
+                want = np.asarray(fm.feather(src))
+            check(np.array_equal(np.asarray(tile), want), "the tile is the feathered picture (alpha 255 -> 0 in the bottom 110 rows)")
+            check(np.array_equal(np.asarray(tile)[..., 3], fm.mask()), "the alpha is exactly the feather of feather_mapbg.py")
+            check(not os.path.isfile(os.path.join(images, "mapbg", "bg_zz_test.jpg")), "the old JPEG of the tile is gone")
+            check(not os.path.isfile(os.path.join(images, "districts", "zz_test", "bg.jpg")), "the old JPEG of the room is gone")
+            files = inst.load()
+            check({"mapbg/bg_zz_test.png", "districts/zz_test/bg.png", "keep.png"} <= files, "the new pictures are listed")
+            check("mapbg/bg_zz_test.jpg" not in files and "districts/zz_test/bg.jpg" not in files, "the old files are not listed")
+            check(inst.load_sources() == {"keep.png": "placeholder: other"},
+                  "the district stopped being a placeholder, the other note stays: %s" % inst.load_sources())
+            with open(inst.PATH, encoding="utf-8") as f:
+                listed = json.load(f)["files"]
+            check(len(listed) == len(set(listed)), "every picture is listed once")
+    finally:
+        inst.ROOT, inst.PATH, IMAGES_, LAYOUTS_, rooms = saved
+        globals()["IMAGES"], globals()["LAYOUTS"] = IMAGES_, LAYOUTS_
+        ROOMS.clear()
+        ROOMS.update(rooms)
+    if failed:
+        print("install_district selftest: %d failed" % len(failed))
+        return 1
+    print("install_district selftest: ok")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

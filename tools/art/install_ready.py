@@ -17,9 +17,13 @@ game reads (docs/handoff/WP-8.md):
 and every other picture of the brief: the tables SINGLES and SETS below (notebook, map, mapbg, bonus, ui, icons,
 genres, backgrounds, the still poses of Bit). A picture of the wrong size is reported and not installed.
 
+A map tile (map/map_bg_<district>.png -> mapbg/bg_<district>.png) is not copied as it is: the producer draws it opaque and
+the game needs the bottom 110 rows faded out (an opaque tile shows a hard seam every 740 px on the map), so it goes through
+tools/art/feather_mapbg.py. Without Pillow and numpy a tile is not installed at all (the note says what to run).
+
 Whatever is not there stays the procedural drawing of tools/art. The installed files are listed in
 assets/art_ready/installed.json: tools/art/gen_art.py skips them, so a full redraw never overwrites the producer's art.
-Standard library only (sizes are read from the PNG header).
+Standard library only (sizes are read from the PNG header), except for the map tiles above.
 """
 import argparse
 import hashlib
@@ -116,6 +120,20 @@ def png_info(path):
     return w, h, head[25]
 
 
+def is_tile(dst):
+    """A map tile (the key mapbg/bg_<district>.png): 720x1080 RGBA with the bottom rows faded out, see feather_mapbg.py."""
+    return dst.startswith("mapbg/bg_") and dst.endswith(".png")
+
+
+def feather_module():
+    """tools/art/feather_mapbg.py, or None where Pillow or numpy is missing (only the map tiles need them)."""
+    try:
+        import feather_mapbg
+    except ImportError:
+        return None
+    return feather_mapbg
+
+
 def sha1(path):
     h = hashlib.sha1()
     with open(path, "rb") as f:
@@ -186,11 +204,27 @@ def install(ready=READY, images=IMAGES, state=inst.PATH, gen=True, out=print):
         digest = sha1(sp)
         if dst in files and sources.get(dst) == digest and os.path.isfile(dp):
             continue
-        os.makedirs(os.path.dirname(dp), exist_ok=True)
-        shutil.copyfile(sp, dp)
-        files.add(dst)
+        if is_tile(dst):
+            # the producer's tile is opaque: it is installed feathered or not at all (never copied as it is)
+            fm = feather_module()
+            if fm is None:
+                notes.append("%s: нужны Pillow и numpy, чтобы растушевать низ плитки карты; без этого плитка не ставится "
+                             "(python3 tools/art/feather_mapbg.py)" % os.path.basename(src))
+                continue
+            stale = os.path.isfile(os.path.join(images, inst.sibling(dst)))
+            try:
+                changed = fm.write_tile(sp, dp)
+            except (ValueError, OSError) as e:
+                notes.append("%s: %s, не ставится" % (os.path.basename(src), e))
+                continue
+            inst.record(files, sources, dst, images)     # listed once, no JPEG of the same key left beside it
+            copied += 1 if changed or stale else 0
+        else:
+            os.makedirs(os.path.dirname(dp), exist_ok=True)
+            shutil.copyfile(sp, dp)
+            files.add(dst)
+            copied += 1
         sources[dst] = digest
-        copied += 1
     inst.save(files, sources, state)
     for n in notes:
         out("  " + n)
@@ -234,6 +268,112 @@ def _png(path, w, h, color=6):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as f:
         f.write(data)
+
+
+def _selftest_tiles(tmp, check):
+    """The producer's map tile (map/map_bg_<district>.png, 720x1080) comes opaque and the game needs the bottom 110 rows
+    faded out: an opaque tile shows a hard seam every 740 px (tools/art/feather_mapbg.py makes the fade, tools/art/tile_check.py
+    names a tile that lacks it). The installer feathers the tile; a machine without Pillow installs no tile at all and says
+    what to run. Both are tried here: Pillow is hidden from the first run."""
+    import contextlib
+
+    import tile_check
+    geo = tile_check.geometry()
+
+    @contextlib.contextmanager
+    def no_pillow():
+        names = ("PIL", "numpy", "feather_mapbg")
+        saved = {n: sys.modules[n] for n in names if n in sys.modules}
+        sys.modules.pop("feather_mapbg", None)
+        sys.modules["PIL"] = sys.modules["numpy"] = None          # an import now fails, as on a machine without them
+        try:
+            yield
+        finally:
+            for n in names:
+                sys.modules.pop(n, None)
+            sys.modules.update(saved)
+
+    def case(name):
+        return [os.path.join(tmp, name, x) for x in ("ready", "images", "installed.json")]
+
+    def problems(images, did):
+        path = os.path.join(images, "mapbg", "bg_%s.png" % did)
+        return tile_check.check_tile(path, "bg_%s.png" % did, geo) if os.path.isfile(path) else []
+
+    # no Pillow: nothing opaque goes into the game
+    ready, images, state = case("tile_no_pillow")
+    _png(os.path.join(ready, "map/map_bg_cafe.png"), 720, 1080, 2)           # an opaque RGB picture, as ChatGPT draws it
+    lines = []
+    with no_pillow():
+        install(ready, images, state, gen=False, out=lines.append)
+    text = "\n".join(lines)
+    check(not problems(images, "cafe"), "a map tile is never installed opaque (no Pillow): %s" % problems(images, "cafe"))
+    check(not os.path.isfile(os.path.join(images, "mapbg", "bg_cafe.png")) and "mapbg/bg_cafe.png" not in inst.load(state),
+          "no Pillow: the tile is neither copied nor listed")
+    check("feather_mapbg.py" in text, "no Pillow: the note names tools/art/feather_mapbg.py")
+
+    try:
+        import numpy as np
+        from PIL import Image
+        import feather_mapbg as fm
+    except ImportError:
+        print("skip  the map tile cases that need Pillow and numpy")
+        return
+
+    def opaque(path, seed):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        Image.fromarray(np.random.RandomState(seed).randint(0, 255, (1080, 720, 3), np.uint8)).save(path)
+
+    ready, images, state = case("tile_pillow")
+    src = os.path.join(ready, "map/map_bg_cafe.png")
+    opaque(src, 1)
+    lines.clear()
+    install(ready, images, state, gen=False, out=lines.append)
+    tile = os.path.join(images, "mapbg", "bg_cafe.png")
+    check(os.path.isfile(tile) and not problems(images, "cafe"),
+          "a map tile is installed with the feather (bottom rows faded, the rest opaque): %s" % problems(images, "cafe"))
+    if os.path.isfile(tile):
+        with Image.open(src) as s, Image.open(tile) as t:
+            check(np.array_equal(np.asarray(t), np.asarray(fm.feather(s))),
+                  "the tile is the producer's picture with the alpha of feather_mapbg.py, nothing else changed")
+    check("mapbg/bg_cafe.png" in inst.load(state) and inst.load_sources(state).get("mapbg/bg_cafe.png") == sha1(src),
+          "the tile is listed with the digest of the picture it came from")
+
+    stamp = os.stat(tile).st_mtime_ns
+    lines.clear()
+    install(ready, images, state, gen=False, out=lines.append)
+    check("0 файлов новых" in "\n".join(lines) and os.stat(tile).st_mtime_ns == stamp,
+          "a second run copies nothing and leaves the tile alone")
+
+    inst.save(inst.load(state), {}, state)                  # the real installed.json lists the tiles without a digest
+    lines.clear()
+    install(ready, images, state, gen=False, out=lines.append)
+    check("0 файлов новых" in "\n".join(lines) and os.stat(tile).st_mtime_ns == stamp
+          and inst.load_sources(state).get("mapbg/bg_cafe.png") == sha1(src),
+          "a feathered tile with no digest is recognised by its pixels (not written again) and gets its digest")
+
+    opaque(src, 2)                                          # the producer redraws the tile
+    lines.clear()
+    install(ready, images, state, gen=False, out=lines.append)
+    with Image.open(src) as s, Image.open(tile) as t:
+        check("1 файлов новых" in "\n".join(lines) and np.array_equal(np.asarray(t), np.asarray(fm.feather(s))),
+              "a redrawn picture is installed again, feathered")
+
+    # a picture with transparency of its own is refused (the game would show the hole); an old JPEG of a tile goes away
+    Image.new("RGBA", (720, 1080), (1, 2, 3, 16)).save(os.path.join(ready, "map/map_bg_jazz.png"))
+    opaque(os.path.join(ready, "map/map_bg_square.png"), 3)
+    with open(os.path.join(images, "mapbg", "bg_square.jpg"), "wb") as f:
+        f.write(b"an old JPEG of the tile")
+    inst.save(inst.load(state) | {"mapbg/bg_square.jpg"}, None, state)
+    lines.clear()
+    install(ready, images, state, gen=False, out=lines.append)
+    text = "\n".join(lines)
+    check(not os.path.isfile(os.path.join(images, "mapbg", "bg_jazz.png")) and "mapbg/bg_jazz.png" not in inst.load(state)
+          and "map_bg_jazz" in text, "a tile with transparency of its own is refused and named")
+    check(os.path.isfile(os.path.join(images, "mapbg", "bg_square.png")) and not problems(images, "square")
+          and not os.path.isfile(os.path.join(images, "mapbg", "bg_square.jpg"))
+          and "mapbg/bg_square.jpg" not in inst.load(state) and "mapbg/bg_square.png" in inst.load(state),
+          "an old JPEG of the tile is deleted and unlisted when the feathered PNG is installed")
 
 
 def selftest():
@@ -286,6 +426,7 @@ def selftest():
         uninstall(state, out=lines.append)
         check(inst.load(state) == set(), "uninstall forgets the list")
         check(inst.load(os.path.join(tmp, "nothing.json")) == set(), "no list, nothing installed")
+        _selftest_tiles(tmp, check)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("install_ready selftest: %s" % ("ok" if ok else "FAILED"))

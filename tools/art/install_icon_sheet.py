@@ -29,7 +29,8 @@ def main():
     else:
         color = rgb.astype("float32")
     h, w = alpha.shape
-    files = inst.load()
+    files, sources = inst.load(), inst.load_sources()
+    images = os.path.join(inst.ROOT, "assets", "images")
     for name, (x0, y0, x1, y1) in zip(names, imp.cell_boxes(w, h, cols, rows)):
         if name == "-":
             continue
@@ -45,10 +46,10 @@ def main():
         im = Image.fromarray(sprite, "RGBA")
         canvas.alpha_composite(im, ((SIZE - im.width) // 2, (SIZE - im.height) // 2))
         rel = "ui/icons/%s.png" % name
-        canvas.save(os.path.join(inst.ROOT, "assets", "images", rel), optimize=True)
-        files.add(rel)
+        canvas.save(os.path.join(images, rel), optimize=True)
+        inst.record(files, sources, rel, images)
         print("installed", rel)
-    inst.save(files)
+    inst.save(files, sources)
 
 
 if __name__ == "__main__":
