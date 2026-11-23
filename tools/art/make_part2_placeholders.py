@@ -57,10 +57,12 @@ TASK_FROM = {
                      "flag_garland": "garlands", "accordion": "clarinet", "shell_stage": "trumpets"},
     "fan_meeting": {"small_stage": "stage", "piano": "choir", "photo_wall": "screens", "lightsticks": "lightsticks",
                     "gift_basket": "fireworks", "mic_stand": "lasers"},
+    "punk_garage": {"drum_kit": "drum_kit", "amp_stack": "amp", "bass_guitar": "bass_guitar",
+                    "garage_door": "garage_door", "mic_stand": "mic_stand", "gig_posters": "posters"},
 }
 
 # district id -> "night" (the default) or "day" (a sunny version of the genre: the festival look)
-LOOK = {"nations_fest": "day"}
+LOOK = {"nations_fest": "day", "sunset_bossa": "day"}
 
 # the level background (night look): rgb -> M @ rgb + offset, the light lavender sky of district 16
 LEVEL_TINT = np.array([[0.685, -0.057, -0.017], [-0.028, 0.697, -0.015], [-0.027, -0.053, 1.106]], np.float32)
@@ -194,6 +196,8 @@ def make(d, parent, files, sources, force=False):
     note = PLACEHOLDER + "%s version of %s" % (look, pid)
     for rel, (src, kind) in sorted(todo.items()):
         path = os.path.join(IMAGES, src)
+        if not os.path.isfile(path) and os.path.isfile(path[:-4] + ".jpg"):
+            path = path[:-4] + ".jpg"      # a big opaque background was turned into a JPEG (to_jpeg_backgrounds.py)
         if not os.path.isfile(path):
             sys.exit("%s: the parent picture %s is missing" % (did, src))
         with Image.open(path) as im:

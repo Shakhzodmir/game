@@ -624,6 +624,86 @@ embedded_components {
   data: "sound: \"/assets/music/nations_fest/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_night_carnival_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_brass"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/brass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_congas"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/congas.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_party"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_piano"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/piano.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_shaker"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/shaker.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_claps"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/claps.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_gang"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/gang.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_lead"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/lead.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_party"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_rhythm"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/rhythm.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_punk_garage_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/punk_garage/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_ranch_banjo"
   type: "sound"
   data: "sound: \"/assets/music/ranch/banjo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -802,6 +882,46 @@ embedded_components {
   id: "music_stadium_tension"
   type: "sound"
   data: "sound: \"/assets/music/stadium/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_flute"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/flute.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_guitar"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/guitar.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_keys"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/keys.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_party"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_perc"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/perc.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_shaker"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/shaker.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "note_blue_1"
@@ -1554,6 +1674,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/festival_drop.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_fireworks_mambo"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/fireworks_mambo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_flamenco_fire"
   type: "sound"
   data: "sound: \"/assets/music/songs/flamenco_fire.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1562,6 +1687,16 @@ embedded_components {
   id: "song_floating_clouds"
   type: "sound"
   data: "sound: \"/assets/music/songs/floating_clouds.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_garage_sale_anthem"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/garage_sale_anthem.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_golden_hour_walk"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/golden_hour_walk.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_green_hill_jig"
@@ -1624,14 +1759,34 @@ embedded_components {
   data: "sound: \"/assets/music/songs/lantern_stroll.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_lantern_tide"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/lantern_tide.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_laser_trance"
   type: "sound"
   data: "sound: \"/assets/music/songs/laser_trance.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_last_dance_cha_cha"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/last_dance_cha_cha.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_last_ferry_home"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/last_ferry_home.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_lightstick_wave"
   type: "sound"
   data: "sound: \"/assets/music/songs/lightstick_wave.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_loud_neighbours"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/loud_neighbours.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_mambo_fireworks"
@@ -1819,6 +1974,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/scat_parade.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_sea_salt_samba"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/sea_salt_samba.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_silk_road_caravan"
   type: "sound"
   data: "sound: \"/assets/music/songs/silk_road_caravan.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1884,6 +2044,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/street_cipher.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_street_conga_line"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/street_conga_line.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_summer_crush"
   type: "sound"
   data: "sound: \"/assets/music/songs/summer_crush.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1929,6 +2094,16 @@ embedded_components {
   data: "sound: \"/assets/music/songs/three_am_tea.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_three_chord_summer"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/three_chord_summer.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_torchlight_bolero"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/torchlight_bolero.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_trap_playground"
   type: "sound"
   data: "sound: \"/assets/music/songs/trap_playground.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1942,6 +2117,11 @@ embedded_components {
   id: "song_tumbleweed_swing"
   type: "sound"
   data: "sound: \"/assets/music/songs/tumbleweed_swing.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_unplugged_garage"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/unplugged_garage.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_velvet_evening"

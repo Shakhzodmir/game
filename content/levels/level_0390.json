@@ -1,0 +1,32 @@
+{
+  "id": 390, "version": 1,
+  "size": [8, 8],
+  "moves": 20,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "green", "blue", "purple"],
+  "goals": [
+    {"type": "chains", "count": 4},
+    {"type": "break", "item": "boombox", "count": 3}
+  ],
+  "cells": [
+    ".######.",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    ".######."
+  ],
+  "slots": [
+    {"at": [2, 2], "type": "boombox", "hp": 3},
+    {"at": [5, 2], "type": "boombox", "hp": 3},
+    {"at": [3, 5], "type": "boombox", "hp": 3}
+  ],
+  "overlay": [
+    {"at": [1, 3], "type": "chain", "hp": 2},
+    {"at": [6, 3], "type": "chain", "hp": 2},
+    {"at": [2, 4], "type": "chain", "hp": 2},
+    {"at": [5, 4], "type": "chain", "hp": 2}
+  ]
+}

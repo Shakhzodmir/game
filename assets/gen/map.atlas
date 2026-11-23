@@ -637,6 +637,90 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_night_carnival_1"
+  images {
+    image: "/assets/images/map/deco_night_carnival_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_night_carnival_2"
+  images {
+    image: "/assets/images/map/deco_night_carnival_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_night_carnival_3"
+  images {
+    image: "/assets/images/map/deco_night_carnival_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_night_carnival_4"
+  images {
+    image: "/assets/images/map/deco_night_carnival_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_night_carnival_5"
+  images {
+    image: "/assets/images/map/deco_night_carnival_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_night_carnival_6"
+  images {
+    image: "/assets/images/map/deco_night_carnival_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_1"
+  images {
+    image: "/assets/images/map/deco_punk_garage_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_2"
+  images {
+    image: "/assets/images/map/deco_punk_garage_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_3"
+  images {
+    image: "/assets/images/map/deco_punk_garage_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_4"
+  images {
+    image: "/assets/images/map/deco_punk_garage_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_5"
+  images {
+    image: "/assets/images/map/deco_punk_garage_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_punk_garage_6"
+  images {
+    image: "/assets/images/map/deco_punk_garage_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_deco_ranch_1"
   images {
     image: "/assets/images/map/deco_ranch_1.png"
@@ -801,6 +885,48 @@ animations {
   id: "map_deco_stadium_6"
   images {
     image: "/assets/images/map/deco_stadium_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_1"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_2"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_3"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_4"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_5"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_6"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_6.png"
   }
   playback: PLAYBACK_NONE
 }

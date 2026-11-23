@@ -1,0 +1,57 @@
+{
+  "id": 438, "version": 1,
+  "size": [9, 11],
+  "moves": 20,
+  "difficulty": "super_hard",
+  "colors": ["red", "orange", "yellow", "green", "blue"],
+  "goals": [
+    {"type": "break", "item": "balloon", "count": 10},
+    {"type": "break", "item": "noise", "count": 6},
+    {"type": "chains", "count": 12}
+  ],
+  "cells": [
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    ".#######."
+  ],
+  "slots": [
+    {"at": [1, 2], "type": "balloon", "color": "blue"},
+    {"at": [3, 2], "type": "balloon", "color": "yellow"},
+    {"at": [5, 2], "type": "balloon", "color": "blue"},
+    {"at": [7, 2], "type": "balloon", "color": "yellow"},
+    {"at": [2, 4], "type": "balloon", "color": "blue"},
+    {"at": [4, 4], "type": "balloon", "color": "yellow"},
+    {"at": [6, 4], "type": "balloon", "color": "blue"},
+    {"at": [0, 6], "type": "balloon", "color": "yellow"},
+    {"at": [4, 6], "type": "balloon", "color": "blue"},
+    {"at": [8, 6], "type": "balloon", "color": "yellow"},
+    {"at": [4, 7], "type": "noise"},
+    {"at": [0, 8], "type": "noise"},
+    {"at": [8, 8], "type": "noise"},
+    {"at": [1, 9], "type": "noise"},
+    {"at": [4, 9], "type": "noise"},
+    {"at": [7, 9], "type": "noise"}
+  ],
+  "overlay": [
+    {"at": [2, 3], "type": "chain", "hp": 2},
+    {"at": [6, 3], "type": "chain", "hp": 2},
+    {"at": [1, 5], "type": "chain", "hp": 2},
+    {"at": [3, 5], "type": "chain", "hp": 2},
+    {"at": [5, 5], "type": "chain", "hp": 2},
+    {"at": [7, 5], "type": "chain", "hp": 2},
+    {"at": [1, 7], "type": "chain", "hp": 2},
+    {"at": [2, 7], "type": "chain", "hp": 2},
+    {"at": [3, 7], "type": "chain", "hp": 2},
+    {"at": [5, 7], "type": "chain", "hp": 2},
+    {"at": [6, 7], "type": "chain", "hp": 2},
+    {"at": [7, 7], "type": "chain", "hp": 2}
+  ]
+}

@@ -163,6 +163,33 @@ ROOMS = {
         ("gift_basket", 142, 330, 151),
         ("mic_stand", 578, 326, 128),
     ]),
+    # district 20: the places of the rock garage items its placeholders borrow (TASK_FROM)
+    "punk_garage": ("3x2", [
+        ("drum_kit", 286, 662, 180),
+        ("amp_stack", 112, 640, 109),
+        ("bass_guitar", 232, 470, 67),
+        ("garage_door", 536, 372, 209),
+        ("mic_stand", 636, 690, 65),
+        ("gig_posters", 112, 430, 111),
+    ]),
+    # district 21: the places of the beach items its placeholders borrow (the tasks go in the order of the beach)
+    "sunset_bossa": ("3x2", [
+        ("sunset_cajon", 478, 772, 118),
+        ("veranda_guitar", 384, 700, 88),
+        ("tide_speaker", 668, 694, 86),
+        ("sunset_bar", 250, 688, 210),
+        ("dune_hammock", 596, 800, 200),
+        ("lantern_palm", 76, 694, 150),
+    ]),
+    # district 22: the places of the carnival items its placeholders borrow (the tasks go in the order of the carnival)
+    "night_carnival": ("3x2", [
+        ("timbales", 210, 800, 150),
+        ("torches", 520, 812, 128),
+        ("feather_dancer", 452, 716, 150),
+        ("montuno_piano", 272, 722, 200),
+        ("night_congas", 92, 716, 136),
+        ("horn_section", 628, 700, 82),
+    ]),
 }
 
 
