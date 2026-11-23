@@ -936,4 +936,14 @@ const verdict = (L, extra = {}) => json(L.G.validate(L.got.relay, L.rec, { clien
 	h2.stop();
 }
 
+// 9. the phone test page: it compiles, loads the core with the core's own version, and its pinned facts hold -----------------------------
+{
+	const testJs = scriptOf(TEST_HTML);
+	assert.ok(testJs, "the test page has an inline script");
+	new vm.Script(testJs, { filename: "auth_test.html" }); // a syntax error would fail the check, not the producer's phone
+	const scripts = [...TEST_HTML.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
+	assert.deepEqual(scripts, ["auth_config.js", "glow_oidc.js?v=" + coreWorld().G.version], "the test page loads the core with its own version, so a phone never holds a stale copy");
+	for (const bad of ["id_token=", "access_token=", "rawNonce="]) assert.equal(testJs.includes('log("' + bad), false);
+}
+
 console.log("auth_oidc_check: ok");

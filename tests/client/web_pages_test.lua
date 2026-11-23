@@ -177,4 +177,157 @@ describe("web/auth_test.html: the phone-side check of the sign-in with Google", 
 		local b = slurp("tools/build_web.sh")
 		assert_true(b:find('cp [^\n]*web/auth_test%.html[^\n]*"%$out/"') ~= nil)
 	end)
+
+	it("loads the shared core with the core's own version, so a phone never holds a stale copy of one half", function()
+		local core = slurp("web/glow_oidc.js")
+		local version = core:match('var VERSION = "([%d%-]+%a?)"')
+		assert_true(version ~= nil, "VERSION in web/glow_oidc.js")
+		assert_true(has(s, '<script src="glow_oidc.js?v=' .. version .. '"></script>'), "auth_test.html must ask for glow_oidc.js?v=" .. version)
+		assert_true(has(s, '<script src="auth_config.js"></script>'))
+	end)
+
+	it("has the tests of rev 2: the probes, the Firebase pop-up with and without its 'closed' signal, our own sign-in in a window and by the whole page", function()
+		for _, id in ipairs({ "b0a", "b0b", "b0c", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9" }) do
+			assert_true(has(s, 'id="' .. id .. '"'), "button " .. id)
+		end
+		assert_true(has(s, 'new m.OAuthProvider("google.com").credential(') or has(s, 'OAuthProvider("google.com").credential'), "credential A")
+		assert_true(has(s, "m.GoogleAuthProvider.credential(v.idToken)") and has(s, "m.GoogleAuthProvider.credential(null, v.accessToken)"), "credentials B and T")
+		assert_true(has(s, "signInWithCredential(auth,"))
+		assert_true(has(s, "glow_oidc_t_") and has(s, "auth_return.html"), "the test page names the return page and its own keys")
+		assert_true(has(s, "RESULT T"), "every test ends with a RESULT line")
+		assert_true(has(s, "function mask("), "the e-mail is masked")
+		assert_true(has(s, "glow_diag_log_") and has(s, "glow_diag_boot"), "the log is kept per page load")
+		assert_true(has(s, "function scrub("), "no token reaches the log")
+		assert_true(has(s, "glow_google_flow") and has(s, "t10=1"), "test 10 only with ?t10=1")
+		assert_true(has(s, '"back_cache"') and has(s, '"interrupted"') and has(s, '"aborted"') and has(s, '"no_answer"') and has(s, '"no_relay"'), "a test cannot end silently")
+	end)
+
+	it("opens Google's window as the first and only window.open of the tap, with every receiver armed before it and the marker written after it", function()
+		local a = s:find('$("b8").addEventListener("click"', 1, true)
+		local open = s:find("try { w = window.open(url, name); }", 1, true)
+		local marker = s:find('G.markOwn("t", rec.s, {}); // right AFTER window.open', 1, true)
+		assert_true(a and open and marker and a < open and open < marker)
+		local before = s:sub(a, open)
+		for _, bad in ipairs({ "await", ".then(", "setTimeout(", "Promise", "fetch(", "import(" }) do
+			assert_false(has(before, bad), "nothing asynchronous before window.open in the tap (" .. bad .. ")")
+		end
+		assert_true(has(before, "G.savePending(") and has(before, "listenFor(f)"), "the attempt is saved and the receivers are armed before the window opens")
+		assert_eq(select(2, s:sub(a, marker):gsub("window%.open%(", "")), 1, "one window.open in the tap")
+	end)
+
+	it("never lets a token, a raw nonce or a code reach the log: the log text is scrubbed", function()
+		local fn = s:match("function log%(text, cls%).-\n\t%}")
+		assert_true(fn ~= nil and has(fn, "scrub(text)"), "log() scrubs")
+		for _, v in ipairs({ "eyJ", "ya29", "id_token", "access_token" }) do assert_true(has(s:match("function scrub%(s%).-\n\t%}") or "", v), "scrub knows " .. v) end
+	end)
+end)
+
+describe("web/glow_oidc.js: the shared core of our own sign-in with Google", function()
+	local s = slurp("web/glow_oidc.js")
+
+	it("is plain ES5-style script that loads by a script tag and by node, and touches nothing of the browser until called", function()
+		assert_true(has(s, '(function () {\n\t"use strict";') or has(s, '(function () {\r\n\t"use strict";'))
+		assert_true(has(s, 'if (typeof module === "object" && module && module.exports) module.exports = api;'))
+		assert_true(has(s, 'window.glowOidc = api'))
+		assert_false(s:find("\n[%a_$][%w_$.]*%.addEventListener", 1) ~= nil, "no listener is added at load time")
+		assert_false(s:find("\nwindow%.", 1) ~= nil or s:find("\ndocument%.", 1) ~= nil or s:find("\nlocalStorage", 1) ~= nil, "no top-level browser access")
+		assert_false(has(s, "=>") or has(s, "`") or has(s, "let ") or has(s, "const "), "ES5 style like web/glow_auth.js")
+	end)
+
+	it("knows nothing of Firebase: no SDK call, no address of its servers", function()
+		for _, bad in ipairs({ "signInWith", "initializeApp", "getAuth", "gstatic", "firebaseapp", "identitytoolkit", "new m.", "m.signIn" }) do
+			assert_false(has(s, bad), "web/glow_oidc.js must not contain " .. bad)
+		end
+	end)
+
+	it("names only Google's own addresses", function()
+		local seen = {}
+		for url in s:gmatch("https?://[^%s\"'<>)]+") do seen[#seen + 1] = url end
+		table.sort(seen)
+		for _, url in ipairs(seen) do
+			assert_true(url == "https://accounts.google.com" or url:find("^https://accounts%.google%.com/o/oauth2/v2/auth") ~= nil, "unexpected address " .. url)
+		end
+	end)
+
+	it("never sends response_mode, include_granted_scopes or hd in its request, and no nonce with response_type=token", function()
+		local fn = s:match("function authUrl%(p%).-\n\t%}")
+		assert_true(fn ~= nil)
+		for _, bad in ipairs({ "response_mode", "include_granted_scopes", "hd=" }) do assert_false(has(fn, bad), bad) end
+		assert_true(has(fn, 'if (rt !== "token") parts.push("nonce="'))
+	end)
+
+	it("has the same storage keys as the return page", function()
+		local page = slurp("web/auth_return.html")
+		for _, key in ipairs({ "glow_oidc_t_pend", "glow_oidc_t_res:", "glow_oidc_t_ret", "glow_oidc_t_own", "glow_oidc_pend", "glow_oidc_res:", "glow_oidc_own", '"glow_oidc_t"', '"glow_oidc"' }) do
+			assert_true(has(s, key), "core: " .. key)
+			assert_true(has(page, key), "return page: " .. key)
+		end
+	end)
+
+	it("is copied next to index.html by tools/build_web.sh, and the CI runs its node check", function()
+		local b = slurp("tools/build_web.sh")
+		assert_true(b:find('cp [^\n]*web/glow_oidc%.js[^\n]*"%$out/"') ~= nil)
+		assert_true(has(slurp(".github/workflows/ci.yml"), "node tools/qa/auth_oidc_check.mjs"))
+	end)
+end)
+
+describe("web/auth_return.html: the page Google sends the player back to", function()
+	local s = slurp("web/auth_return.html")
+	local script = s:match("<script>(.-)</script>")
+
+	it("is frozen and logic-free: one inline script, a meta CSP that allows nothing from outside, no referrer, nothing external", function()
+		assert_true(script ~= nil)
+		assert_true(has(s, "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\">"))
+		assert_true(has(s, '<meta name="referrer" content="no-referrer">'))
+		assert_false(s:find("<script[^>]-src=") ~= nil, "no external script")
+		for _, tag in ipairs({ "<link", "<img", "<iframe", "<form", "<object", "<embed", "<base" }) do assert_false(has(s:lower(), tag), "no " .. tag) end
+		assert_false(has(script, "http://") or has(script, "https://"), "the script names no address")
+		assert_false(has(s, "?v="), "the address is registered at Google exactly: no query, no version")
+	end)
+
+	it("knows nothing of Firebase and parses no token", function()
+		assert_false(has(s:lower(), "firebase"), "no Firebase")
+		for _, bad in ipairs({ "id_token", "access_token", "atob", "eval(", "Function(", "innerHTML", "document.write", "JSON.parse(hash" }) do
+			assert_false(has(script, bad), "the return page must not contain " .. bad)
+		end
+	end)
+
+	it("wipes the answer from the address before it sends anything, and sends only to its own origin", function()
+		local wipe = script:find("history.replaceState(null", 1, true)
+		local chan = script:find("new BroadcastChannel", 1, true)
+		local post = script:find("postMessage(relay, location.origin)", 1, true)
+		assert_true(wipe and chan and post and wipe < chan and wipe < post)
+		assert_false(has(script, '"*"') or has(script, "'*'"), "never targetOrigin *")
+	end)
+
+	it("blanks itself when framed and does nothing without a state of ours", function()
+		assert_true(has(script, "window.top !== window.self") and has(script, 'document.documentElement.textContent = ""'))
+		assert_true(has(script, "/^([pr])([gt])\\.[A-Za-z0-9_-]{8,}$/"), "the state format")
+		assert_true(has(script, "nostate"), "a breadcrumb of names and lengths when there is no state")
+	end)
+
+	it("goes back only to fixed pages, and only from the starter's own window, never next to a live starter", function()
+		local replaces = select(2, script:gsub("location%.replace%(target%)", ""))
+		assert_eq(replaces, 2, "two navigations, both to the fixed target")
+		assert_false(has(script, "location.assign(") or has(script, "location.href"), "no other way to navigate")
+		assert_true(has(script, 'var target = dest === "g" ? "./" : "auth_test.html";'), "the target is written out")
+		assert_true(has(script, "var own = sget(ss, K.own) === state;"), "the marker of the starter's own window, written after window.open")
+		assert_true(has(script, "if (own && homeOk) return leave();") and has(script, "if (!(own && homeOk)) return stay(false);"), "the guard before every navigation")
+		assert_true(has(script, "glow_oidc_ping") and has(script, "glow_oidc_pong") and has(script, "tmPong"), "a live starter answers a ping, and then nothing navigates")
+		local own = script:find("var own = ", 1, true)
+		local leave = script:find("function leave()", 1, true)
+		assert_true(own and leave and own < leave)
+	end)
+
+	it("keeps the answer in the shared storage only when a record of the attempt is visible there", function()
+		assert_true(has(script, "if (known && ls) { ls.setItem(K.res + state"), "the mailbox is written only for a known attempt")
+		assert_true(has(script, "known = pSS || pLS;"))
+	end)
+
+	it("speaks Russian, Korean or English by the device, and is copied next to index.html by tools/build_web.sh", function()
+		assert_true(has(s, "Готово. Закройте это окно") and has(s, "완료되었습니다") and has(s, "Done. Close this window"))
+		assert_true(s:find("[\234-\237][\128-\191][\128-\191]") ~= nil and s:find("\208[\144-\175]") ~= nil, "Hangul and Cyrillic")
+		local b = slurp("tools/build_web.sh")
+		assert_true(b:find('cp [^\n]*web/auth_return%.html[^\n]*"%$out/"') ~= nil)
+	end)
 end)

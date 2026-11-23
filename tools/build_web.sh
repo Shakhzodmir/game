@@ -46,8 +46,10 @@ cp web/packs_sw.js "$out/"
 # accounts (WP-10): the browser bridge and the public provider configuration sit next to index.html
 cp web/auth_config.js web/glow_auth.js "$out/"
 # the phone-side check of the sign-in with Google (https://shakhzodmir.github.io/game/auth_test.html): runs the same Firebase
-# calls in a separate app instance and shows what the browser does, step by step
-cp web/auth_test.html web/auth_echo.html "$out/"
+# calls in a separate app instance and shows what the browser does, step by step. Next to it: our own sign-in with Google
+# (glow_oidc.js, the shared core, and auth_return.html, the page Google sends the player back to; its address is registered
+# at Google, so the file name must not change)
+cp web/auth_test.html web/auth_echo.html web/auth_return.html web/glow_oidc.js "$out/"
 # the site's own pages (WP-18): the privacy policy (the game links it as ./privacy.html) and the 404 page that
 # GitHub Pages serves for any address the site does not have
 cp web/privacy.html web/404.html "$out/"
