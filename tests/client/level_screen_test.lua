@@ -1203,8 +1203,9 @@ describe("level screen: the results", function()
 		G.with_level({ level = 10 }, function(c)
 			win(c)
 			-- Open: a touch target of at least 88 px (gui/kit.lua), hit off centre too. It is 88 px at the window's own scale: the
-			-- town line (70 px) makes this window a little too tall, so it shrinks by 5% at most (NOTE_FIT) and the button is
-			-- 83.6 px high on the design area
+			-- town line (70 px) makes this window 56 px too tall for the screen (it was 14 px below the limit), so it shrinks by 4%
+			-- and the button is 84 px high on the design area (the stars note, which NOTE_FIT would keep, is not in this window:
+			-- it went before the line already)
 			local label = c.hud:find("Open")
 			assert_true(label ~= nil)
 			local x0, y0, x1, y1 = c.E.rect(label.parent)

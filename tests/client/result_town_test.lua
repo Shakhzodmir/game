@@ -417,7 +417,41 @@ describe("results window: the town line after a purchase", function()
 	end)
 end)
 
+-- a results window of a view made by hand (what the layout audit does): the window itself, its view and the stars note
+local function popups(c) return c.hud.self.l.popups end
+
+local function open_view(c, res)
+	local view = lw.result(c.app.meta, res, { score = 100, moves_at_win = 3, stars = 1 }, c.app.now())
+	c.hud:ctx(function() c.hud.self.l:open("result", { view = view, level_id = res.level_id }) end)
+	c.run(0.6)
+	assert_eq(c.popup(), "result")
+	return popups(c):find("result"), view
+end
+
 describe("results window: where the line stays away", function()
+	-- The screen holds a window of 1124 px unscaled (1248 less Bit's 104 and the shadow's 20); a window that is taller
+	-- shrinks. The line (70 px) makes some windows taller than that, and gui/result.lua lets such a window shrink by 5%
+	-- (NOTE_FIT) to keep the stars note. Only where the line is the reason: a window with no line is what it always was.
+	it("does not shrink a window that has no town line to keep the stars note: the whole town built", function()
+		local res = { level_id = 3, stars = 1, best = 1, gained = 1, next_level = 4, record_coins = 5, unlocked = { "riff" } }
+		-- 1142 px tall with the note: 18 px over what fits; before the line existed the note went and the window stayed whole
+		G.with_level({ level = 3, setup = complete_town }, function(c)
+			local e, view = open_view(c, res)
+			assert_eq(view.town, nil, "the town is complete: no line")
+			assert_false(c.has(i18n.t("win.stars_note")), "the note goes, as it always did")
+			assert_eq(e.fit_k, 1, "the window is not shrunk")
+		end)
+		-- the same window of a player who still has a town to build: the line is on it (70 px more, 1158 px with the note),
+		-- and the note stays at the price of 3% (this is NOTE_FIT at work)
+		res.record_coins = nil
+		G.with_level({ level = 3 }, function(c)
+			local e, view = open_view(c, res)
+			assert_true(view.town ~= nil, "the line")
+			assert_true(c.has(i18n.t("win.stars_note")), "the note stays for the line's sake")
+			assert_true(e.fit_k >= 0.95 and e.fit_k < 1, "the window is shrunk to " .. tostring(e.fit_k))
+		end)
+	end)
+
 	it("has no line and the usual buttons when the whole town is built", function()
 		G.with_level({ level = 1, setup = complete_town }, function(c)
 			win(c)
@@ -497,5 +531,41 @@ describe("results window: where the line stays away", function()
 			assert_true(ly > t.town.y + 80, "the line is over the button and its caption")
 			clean(c)
 		end)
+	end)
+end)
+
+-- the busiest window of the game ---------------------------------------------------------------------------------------
+
+describe("results window: the town line in the busiest window", function()
+	-- Level 20 with the chest of level 10 left unopened: a ready song, the streak, an older chest, a new booster, the super stars
+	-- of the concert and the town line, so the window shrinks to 78%. With the districts 1-12 built the next task is the washboard of
+	-- the ranch, the longest name of the game in Russian. The line is as big as that window leaves it (it is 17 px in Russian, where
+	-- the song button says "Слушать" in 12 px): not under the 15 px floor of the layout audit, and the window is the one the pure
+	-- measurement of tests/client/i18n_test.lua assumes (above 77%).
+	it("keeps the line above the 15 px floor with the longest task name of the game, in every language", function()
+		local flow = require("client.flow")
+		for _, lang in ipairs({ "ru", "en", "ko" }) do
+			G.with_level({ level = 20, language = lang, setup = function(app)
+				while app.meta:level_to_play() < 20 do assert(flow.debug_win(3, true)) end
+				for i, d in ipairs(app.meta:districts()) do
+					if i <= 12 then T.build_tasks(app, d.id) end
+				end
+			end }, function(c)
+				win(c)
+				i18n.set_language(lang)
+				assert_eq(c.popup(), "result")
+				local task = c.app.meta:next_task()
+				assert_eq(task.id, "washboard_tub", "the first task of the ranch")
+				assert_eq(c.app.ui.result.town.kind, "ready")
+				local text = i18n.t("win.town_ready", { item = i18n.name(task.name) })
+				local line = c.hud:find(text)
+				assert_true(line ~= nil, lang .. ": " .. text .. " is not drawn: " .. table.concat(c.texts(), " | "))
+				local k = popups(c):find("result").fit_k
+				assert_true(k > 0.77 and k < 0.8, lang .. ": the busiest window shrinks to " .. tostring(k))
+				local px = c.E.text_px(line)
+				assert_true(px >= 15, string.format("%s: the line is %.1f px in a window shrunk to %.3f", lang, px, k))
+				clean(c)
+			end)
+		end
 	end)
 end)

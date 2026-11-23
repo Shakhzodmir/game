@@ -10,8 +10,8 @@
 -- player has never done a task of the town and can do one now, the buttons swap emphasis (lw.swap_buttons): "To town" is
 -- the big green one, "Next level" the small white one (lw.FIRST_WIN_TO_TOWN switches it off).
 -- The window always fits the screen: the stars note is the one block that goes when the window would be too tall
--- for it (it may shrink a little to keep it: NOTE_FIT), and a window that is still too tall slides down and shrinks
--- (kit.panel fit, popups Entry:fit), so the title ribbon and Bit never leave the design area.
+-- for it (with the town line it may shrink a little to keep it: NOTE_FIT), and a window that is still too tall slides
+-- down and shrinks (kit.panel fit, popups Entry:fit), so the title ribbon and Bit never leave the design area.
 -- params = {view = level_windows.result(...), refund = {[id] = count} | nil, standalone}
 -- Result: "town" | {action = "next", level} (a debug level: no start window).
 
@@ -38,7 +38,7 @@ local CHEST_H = 212      -- the chest strip: the picture, the title, the content
 local OPEN_H = 88        -- the touch target of the kit
 local TOWN_H = 56        -- the town line: how far the next task of the town is (lw.town_line), just over the buttons
 local DOWN = 20          -- how far the window's shadow reaches below the panel (the default of Entry:fit)
-local NOTE_FIT = 0.95    -- the stars note stays while the window has to shrink no more than this to keep it
+local NOTE_FIT = 0.95    -- with the town line: the stars note stays while the window has to shrink no more than this to keep it (1: the note goes as it did)
 local TAKEN_HOLD = 1.2   -- seconds a chest just taken stays on show while another one waits
 
 -- names of boosters as "Riff, Subwoofer"
@@ -447,11 +447,13 @@ local function next_level(e, v)
 	e:open("start", { level = v.next_level })
 end
 
--- The tallest window that keeps the stars note: one that has to shrink by NOTE_FIT at most (a window the screen has
--- room for is not shrunk at all: layout.fit_window gives k = 2 * half / (h + up + down), room is where k = 1).
-local function note_room(e)
+-- The tallest window that keeps the stars note: one the screen has room for, or, when the town line is on it (it is
+-- what made the window taller), one that has to shrink by NOTE_FIT at most. A window with no line is the window it was
+-- before the line existed: the note goes as soon as it does not fit. (layout.fit_window gives k = 2 * half / (h + up +
+-- down); room is where k = 1.)
+local function note_room(e, v)
 	local span = e:room(BIT_UP, DOWN) + BIT_UP + DOWN
-	return span / NOTE_FIT - BIT_UP - DOWN
+	return span / (v.town and NOTE_FIT or 1) - BIT_UP - DOWN
 end
 
 function M.build(e)
@@ -472,7 +474,7 @@ function M.build(e)
 	local alive = lkit.token(e)
 
 	-- the heights first (nothing is drawn yet). The stars note is the block that goes when the window would be too
-	-- tall for the screen with it (it may shrink a little to keep it: NOTE_FIT): by the time the streak, a chest and a
+	-- tall for the screen with it (with the town line it may shrink a little to keep it: NOTE_FIT): by the time the streak, a chest and a
 	-- new booster crowd the window the player has read it many times. What is left and still too tall is shrunk by
 	-- kit.panel (fit).
 	local function height(list)
@@ -483,7 +485,7 @@ function M.build(e)
 	local note = true
 	local list = blocks(e, nil, v, false, alive, note)
 	local H = height(list)
-	if H > note_room(e) then
+	if H > note_room(e, v) then
 		note = false
 		list = blocks(e, nil, v, false, alive, note)
 		H = height(list)

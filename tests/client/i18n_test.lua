@@ -223,8 +223,13 @@ describe("client.i18n", function()
 		assert_eq(i18n.t("win.town_ready", { item = "피아노" }), "“피아노” 살 수 있어요")
 	end)
 
-	-- one line of 26 px shrunk to the room of its row (the Lua side draws one line per label): the longest name of the game
-	-- with the biggest number must stay readable, and still above 18 px in a window that shrank by a tenth
+	-- One line of 26 px shrunk to the room of its row (the Lua side draws one line per label), and then by the window it is in
+	-- (a window the screen cannot hold shrinks as a whole). The line of every task name of the game, with every number the
+	-- town can ask, must stay readable in the windows it meets: above 18 px in a first win, which keeps its stars note at a
+	-- shrink of 5% (gui/result.lua NOTE_FIT), and above the 15 px floor of the layout audit in the busiest window of the game
+	-- (level 20: a ready song, the streak, an older chest, a new booster, the super stars), which shrinks to 78% at the most
+	-- (tests/client/level_screen_test.lua pins it above 77%, tests/client/result_town_test.lua measures the line in it). The
+	-- longest Russian names come out under 18 px there, where "Слушать" is 12 px and "15 мин" 17 px already: decisions.md 7e.
 	it("keeps the town line readable for every task name of the game, in every language, with every number the town can ask", function()
 		local A = require("tests.client.layout_audit")
 		local advances = require("tests.client.font_advances")
@@ -255,7 +260,9 @@ describe("client.i18n", function()
 			end
 		end
 		assert_true(names >= 3 * 98, "every task name of the game was measured (" .. names .. ")")
-		assert_true(worst * 0.9 >= 18, "the line shrinks to " .. string.format("%.1f", worst) .. " px (" .. tostring(worst_what) .. ")")
+		local FIRST_WIN_K, BUSIEST_K = 0.95, 0.77 -- how far the window the line is in shrinks (see above)
+		assert_true(worst * FIRST_WIN_K >= 18, string.format("in a first win the line is %.1f px (%s)", worst * FIRST_WIN_K, tostring(worst_what)))
+		assert_true(worst * BUSIEST_K >= 15, string.format("in the busiest window the line is %.1f px (%s)", worst * BUSIEST_K, tostring(worst_what)))
 	end)
 
 	it("formats numbers and durations", function()
