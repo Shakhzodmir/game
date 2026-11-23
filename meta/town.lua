@@ -16,12 +16,13 @@
 --
 -- Districts this build does not know. A newer build (the next part of the game) adds districts; when the live site
 -- is rolled back to this build, the save arrives with entries for them. restore() keeps such an entry as it is: an
--- opaque copy, nothing of it is read, so the save written back carries it and the newer build, when it returns,
--- finds every task done and its chest claimed (the header of meta/save.lua, "Rollbacks"). It counts nowhere in this
--- build (this build cannot price those tasks: meta/cloudsync.lua), shows nowhere (the views walk data.list) and when
--- a build learns the district it is read like any other entry. Only plain data within the bounds of C.town_keep is
--- kept: a damaged or forged save must not grow the save (the cloud copy has a size limit), so an entry over them is
--- dropped like any other broken field.
+-- opaque copy, so the save written back carries it and the newer build, when it returns, finds every task done and
+-- its chest claimed (the header of meta/save.lua, "Rollbacks"). Nothing of it is read but the number of its done
+-- tasks (unknown_done below, for the cloud sync: this build cannot price those tasks, so they are no part of `tasks`
+-- and `earned` of meta/cloudsync.lua, they have a number of their own). It shows nowhere (the views walk data.list)
+-- and when a build learns the district it is read like any other entry. Only plain data within the bounds of
+-- C.town_keep is kept: a damaged or forged save must not grow the save (the cloud copy has a size limit), so an
+-- entry over them is dropped like any other broken field.
 --
 -- The jukebox catalogue lives here too: every district is a genre. Its theme (the layered
 -- track of the district; its song id is the district id) opens with the district's first stem,
@@ -252,6 +253,22 @@ function M.restore(t, data)
 	end
 	for _, id in ipairs(stay) do town[id] = util.copy(t[id]) end
 	return town
+end
+
+-- How many tasks the kept entries of districts this build does not know have done: the strings in the `done` list
+-- of each, which is how every entry of the town is written (the header). The one thing that is read inside such an
+-- entry, for the cloud sync (meta/cloudsync.lua): it has to tell a save that holds more purchases of a newer build
+-- from one that holds fewer, though this build cannot price them. An entry of another shape counts 0.
+function M.unknown_done(town, data)
+	local n = 0
+	for id, entry in pairs(town) do -- order-free: a sum
+		if not data.by_id[id] and type(entry) == "table" and type(entry.done) == "table" then
+			for _, task in ipairs(entry.done) do
+				if type(task) == "string" then n = n + 1 end
+			end
+		end
+	end
+	return n
 end
 
 function M.need(data, id)

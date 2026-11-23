@@ -1152,6 +1152,57 @@ describe("client.cloud: a rolled-back build and the districts it does not know",
 		assert_eq(uploaded.prefs.settings.music, 0.5)
 		keeps_every_entry(uploaded, saved, "account")
 	end)
+
+	-- One player, two copies of the newer build's save: `stale` is a device that stopped syncing before 12 tasks of
+	-- the newer districts were bought (it still holds the 57 stars they cost), `account` is the copy that has them.
+	-- Levels are level; the older build cannot price those tasks, so by what it can price the stale copy is richer.
+	local function two_copies()
+		return H.newer_player(newer, 42, 6, 57, 12)
+	end
+
+	local function held_by_account(m, uid) -- the checksum of the save the account holds
+		return assert(savecode.decode(m.docs[uid].code)).checksum
+	end
+
+	it("takes the account's copy that holds the purchases instead of uploading the stale device save over it", function()
+		local m = new_server()
+		local stale, account = two_copies()
+		boot_device({ current = { glow_save = 1, data = account } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		assert_eq(held_by_account(m, uid), account.checksum)
+		auth.sign_out(); m.session = nil
+		boot_device({ current = { glow_save = 1, data = stale } }, 42) -- the other device
+		sign_in_google(m)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(held_by_account(m, uid), account.checksum, "the account's copy was not replaced by the stale one")
+		keeps_every_entry(app.store.last, account, "device")
+		assert_same(app.store.last.town, account.town, "the device holds the purchases now")
+		local _, prev = app.store:load()
+		assert_eq(prev.checksum, stale.checksum, "and the stale save is kept in the previous slot")
+		-- the next saves of this device carry the entries on
+		wins(1)
+		T = T + 5
+		cloud.tick(T)
+		keeps_every_entry(assert(savecode.decode(m.docs[uid].code)), account, "account after a win")
+	end)
+
+	it("uploads its own copy that holds the purchases over the account's stale one, never the other way round", function()
+		local m = new_server()
+		local stale, account = two_copies()
+		boot_device({ current = { glow_save = 1, data = stale } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		assert_eq(held_by_account(m, uid), stale.checksum)
+		auth.sign_out(); m.session = nil
+		boot_device({ current = { glow_save = 1, data = account } }, 42) -- the device that bought the tasks
+		sign_in_google(m)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(held_by_account(m, uid), account.checksum, "the account now holds the purchases")
+		keeps_every_entry(app.store.last, account, "device")
+		keeps_every_entry(app.meta:serialize(), account, "meta")
+		assert_eq(assert(savecode.decode(m.docs[uid].previous)).checksum, stale.checksum, "the stale copy is the previous one")
+	end)
 end)
 
 describe("cloud cleanup", function()

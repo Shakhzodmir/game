@@ -30,13 +30,14 @@
 -- an entry for each district inside the known field `town`. A build that does
 -- not know a district keeps its entry as it is (meta/town.lua restore: an
 -- opaque copy of plain data within the bounds of C.town_keep, at most
--- 64 districts of 1024 bytes) and writes it back; it never counts it in the
--- progress numbers of the cloud sync (meta/cloudsync.lua) or shows it. So a
--- rollback and a new update in between leave the tasks, and the chests
--- already paid for them, in place. What protects a player is the build the
--- site is rolled back TO: only a build that holds this exception keeps the
--- entries (an older one drops them at its first re-save, and a save that lost
--- them is not repaired later), so the exception is never to be taken out.
+-- 64 districts of 1024 bytes) and writes it back; it never shows it, and the
+-- cloud sync (meta/cloudsync.lua) counts the tasks of its `done` list apart
+-- from the tasks whose price it knows. So a rollback and a new update in
+-- between leave the tasks, and the chests already paid for them, in place.
+-- What protects a player is the build the site is rolled back TO: only a
+-- build that holds this exception keeps the entries (an older one drops them
+-- at its first re-save, and a save that lost them is not repaired later), so
+-- the exception is never to be taken out.
 
 local C = require("meta.config")
 local util = require("meta.util")

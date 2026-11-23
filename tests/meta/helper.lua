@@ -136,6 +136,29 @@ function H.build_everything(m)
 	end
 end
 
+-- A player of a newer build (the content of H.newer_districts) who bought every task of the districts of this build
+-- and keeps `stars` unspent. Returns two saves of that one player, both after a JSON round trip: the first as it is
+-- then (a device that stopped syncing here) and the second after `bought` tasks of the newer districts were bought
+-- on another device (the account's copy). This build knows none of those tasks.
+function H.newer_player(newer, seed, levels, stars, bought)
+	return H.as_build(newer, function()
+		local m = Meta.new(newer, seed)
+		H.advance_to(m, levels)
+		local own = {}
+		for _, d in ipairs(H.districts().districts) do own[d.id] = true end
+		local function buy()
+			local task = m:next_task()
+			if not task.affordable then H.give(m, "stars", task.cost - m:stars()) end
+			assert(m:complete_task(task.district, task.id))
+		end
+		while own[m:current_district()] do buy() end
+		if m:stars() < stars then H.give(m, "stars", stars - m:stars()) end
+		local stale = H.json_round_trip(m:serialize())
+		for _ = 1, bought do buy() end
+		return stale, H.json_round_trip(m:serialize())
+	end)
+end
+
 -- Runs fn(...) under a budget of VM instructions instead of seconds: a hang turns into a failure at the same
 -- place on every machine (a normal Meta.load takes about 5e4 instructions). Returns finished, results (the
 -- pcall results). LuaJIT runs compiled traces that never fire the count hook, so its JIT is off meanwhile.

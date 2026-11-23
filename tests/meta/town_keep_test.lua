@@ -399,17 +399,116 @@ describe("a rollback: the older build meets the save of a newer one", function()
 		assert_true(savecode.read(code, H.districts()) ~= nil)
 	end)
 
-	it("never counts in the progress numbers of the cloud sync", function()
+	it("counts in a progress number of its own, never in the tasks or the stars earned", function()
 		local saved = newer_save(10)
 		local read = cloudsync.summarize(saved, H.districts())
 		local bare = H.json_round_trip(saved)
-		for _, id in ipairs(NEW_IDS) do bare.town[id] = nil end
+		local done = 0
+		for _, id in ipairs(NEW_IDS) do
+			done = done + #saved.town[id].done
+			bare.town[id] = nil
+		end
+		assert_true(done > 0, "the player bought tasks there")
 		local without = cloudsync.summarize(resign(bare), H.districts())
+		-- this build cannot price those tasks: they are in neither number it knows the price of
 		for _, k in ipairs({ "beaten", "coins", "stars", "earned", "tasks", "wins", "salt" }) do
 			assert_eq(read[k], without[k], k)
 		end
 		assert_true(read.checksum ~= without.checksum)
-		assert_eq(cloudsync.compare(read, without), "equal")
+		-- but it counts them: the ids in the lists of done tasks of the entries it keeps
+		assert_eq(read.unknown_tasks, done)
+		assert_eq(without.unknown_tasks, 0)
+		assert_eq(cloudsync.compare(read, without), "a", "the save that holds the purchases is ahead")
+		assert_eq(cloudsync.compare(without, read), "b")
+	end)
+
+	it("counts only what a list of done tasks says, whatever shape the kept entry has", function()
+		local saved = newer_save(10)
+		local id = NEW_IDS[1]
+		local function count(entry)
+			local t = H.json_round_trip(saved)
+			for _, other in ipairs(NEW_IDS) do t.town[other] = nil end
+			t.town[id] = entry
+			return cloudsync.summarize(resign(t), H.districts()).unknown_tasks
+		end
+		assert_eq(count({ done = { "t1", "t2", "t3" }, chest_claimed = false }), 3)
+		assert_eq(count({ done = {}, chest_claimed = false }), 0)
+		assert_eq(count({ chest_claimed = true }), 0, "no list")
+		assert_eq(count({ done = 7 }), 0, "not a list")
+		assert_eq(count({ done = { "t1", 2, true, { "t2" } } }), 1, "only the ids")
+		assert_eq(count({ done = { a = "t1" } }), 0, "a map is not a list of done tasks")
+		-- the districts of this build are never counted twice: their tasks are priced
+		local own = H.districts().districts[1]
+		local t = H.json_round_trip(saved)
+		t.town[own.id] = { done = { own.tasks[1].id }, chest_claimed = false, view = "day" }
+		assert_eq(cloudsync.summarize(resign(t), H.districts()).unknown_tasks, cloudsync.summarize(saved, H.districts()).unknown_tasks)
+	end)
+
+	describe("a device and an account that met before the rollback", function()
+		local STARS, BOUGHT, SEED = 57, 12, 7
+		-- the same player twice: `stale` is a device that stopped syncing before 12 tasks of the newer districts were
+		-- bought (it still holds the 57 stars), `account` is the copy that holds them
+		local stale, account
+		local function sums() -- the summaries of the two saves, as this build reads them
+			if not stale then stale, account = H.newer_player(newer, SEED, 30, STARS, BOUGHT) end
+			return cloudsync.summarize(stale, H.districts()), cloudsync.summarize(account, H.districts())
+		end
+
+		it("is the setup of the review: the account's copy is poorer in everything this build can price", function()
+			local sa, sb = sums()
+			assert_eq(sa.beaten, sb.beaten)
+			assert_eq(sa.tasks, sb.tasks, "this build counts no task of the newer districts")
+			assert_true(sa.earned > sb.earned, "the stars they cost are missing from the account's earned")
+			assert_eq(sa.unknown_tasks, 0)
+			assert_eq(sb.unknown_tasks, BOUGHT)
+			-- the newer build reads it as it is: the account is ahead
+			H.as_build(newer, function()
+				assert_eq(cloudsync.compare(cloudsync.summarize(stale, newer), cloudsync.summarize(account, newer)), "b")
+			end)
+		end)
+
+		it("does not read the stale device save as ahead of the account's copy", function()
+			local sa, sb = sums()
+			assert_eq(cloudsync.compare(sa, sb), "branch", "it used to be ahead: a quiet upload over the purchases")
+			assert_eq(cloudsync.compare(sb, sa), "branch")
+		end)
+
+		it("recommends the copy that holds the purchases, and the background upload leaves the account alone", function()
+			local sa, sb = sums()
+			local plan = cloudsync.plan(sa, sb, "same")
+			assert_eq(plan.action, "choose")
+			assert_eq(plan.recommend, "cloud", "the stale device takes the account's copy")
+			assert_eq(cloudsync.background(sa, sb), "conflict")
+			-- and the other way round: this device holds the purchases and the account's copy is the stale one
+			local back = cloudsync.plan(sb, sa, "same")
+			assert_eq(back.action, "choose")
+			assert_eq(back.recommend, "local", "it used to be offered a download that would drop them")
+			assert_eq(cloudsync.background(sb, sa), "conflict")
+		end)
+
+		it("keeps the order of the levels first: more levels beaten win, as they always did", function()
+			local sa, sb = sums()
+			local more = {}
+			for k, v in pairs(sa) do more[k] = v end -- order-free: a copy of a map
+			more.beaten, more.wins, more.checksum = sa.beaten + 1, sa.wins + 1, "other"
+			local plan = cloudsync.plan(more, sb, "same")
+			assert_eq(plan.action, "choose")
+			assert_eq(plan.recommend, "local", "the levels decide before the purchases it cannot price")
+			-- while an account that is ahead in levels wins against a device with the purchases
+			local plan_back = cloudsync.plan(sb, more, "same")
+			assert_eq(plan_back.recommend, "cloud")
+		end)
+
+		it("is level with itself: the same save twice, and the older build's write-back of it", function()
+			local sa, sb = sums()
+			assert_eq(cloudsync.compare(sb, sb), "equal")
+			local old = Meta.load(H.districts(), account, nil, 1, T)
+			old:set_setting("music", 0.5)
+			local written = cloudsync.summarize(H.json_round_trip(old:serialize()), H.districts())
+			assert_eq(written.unknown_tasks, sb.unknown_tasks)
+			assert_eq(cloudsync.compare(written, sb), "equal")
+			assert_eq(cloudsync.plan(written, sb, "same").action, "upload")
+		end)
 	end)
 
 	it("is level with the account's copy when the older build writes it back: a quiet upload that carries the tasks", function()
