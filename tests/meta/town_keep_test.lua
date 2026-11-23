@@ -178,10 +178,10 @@ describe("save: a save with districts this build does not know", function()
 		local m = H.new(5)
 		H.advance_to(m, 4)
 		local t = H.json_round_trip(m:serialize())
-		t.town.fan_meeting = entry
+		t.town.unknown_district = entry
 		return resign(t)
 	end
-	local ENTRY = { done = { "small_stage", "piano" }, chest_claimed = false, view = "concert" }
+	local ENTRY = { done = { "task_a", "task_b" }, chest_claimed = false, view = "concert" }
 
 	it("loads clean and writes the very same save back", function()
 		local t = with_entry(ENTRY)
@@ -196,7 +196,7 @@ describe("save: a save with districts this build does not know", function()
 		H.win(m, T)
 		m:set_setting("music", 0.5)
 		local s = m:serialize()
-		assert_same(s.town.fan_meeting, ENTRY)
+		assert_same(s.town.unknown_district, ENTRY)
 		assert_eq(save.checksum(s), s.checksum, "and the checksum covers it")
 		assert_true(save.decode(H.json_round_trip(s)) ~= nil)
 	end)
@@ -207,19 +207,19 @@ describe("save: a save with districts this build does not know", function()
 		broken.wallet.coins = 999999 -- the checksum no longer fits
 		local m, info = Meta.load(H.districts(), broken, older, 1, T)
 		assert_eq(info.source, "previous")
-		assert_same(m:serialize().town.fan_meeting, ENTRY)
+		assert_same(m:serialize().town.unknown_district, ENTRY)
 	end)
 
 	it("does not show it anywhere: the districts of the meta are this build's own", function()
 		local with = Meta.load(H.districts(), with_entry(ENTRY), nil, 1, T)
 		local bare = with_entry(ENTRY)
-		bare.town.fan_meeting = nil
+		bare.town.unknown_district = nil
 		local without = Meta.load(H.districts(), resign(bare), nil, 1, T)
 		assert_eq(#with:districts(), #H.districts().districts)
 		assert_same(with:districts(), without:districts())
 		assert_eq(with:current_district(), without:current_district())
-		assert_error(function() with:district("fan_meeting") end, "unknown district")
-		assert_error(function() with:complete_task("fan_meeting", "piano") end, "unknown district")
+		assert_error(function() with:district("unknown_district") end, "unknown district")
+		assert_error(function() with:complete_task("unknown_district", "task_a") end, "unknown district")
 	end)
 
 	it("drops an entry that is garbage and loads the rest as always", function()
@@ -227,7 +227,7 @@ describe("save: a save with districts this build does not know", function()
 		local m, info = Meta.load(H.districts(), t, nil, 1, T)
 		assert_eq(info.source, "current")
 		assert_eq(m:level_to_play(), 4)
-		assert_eq(m:serialize().town.fan_meeting, nil)
+		assert_eq(m:serialize().town.unknown_district, nil)
 	end)
 
 	it("loads at once whatever many and huge entries a forged save holds", function()
@@ -255,11 +255,15 @@ describe("save: a save with districts this build does not know", function()
 end)
 
 describe("a rollback: the older build meets the save of a newer one", function()
+	-- Four districts more than this build has, whatever number that is (the branches that add districts merge into
+	-- this one: nothing here counts from 15 or from 300).
+	local BASE = #H.districts().districts
+	local LAST_LEVEL = H.districts().districts[BASE].last
 	local newer = H.newer_districts(4)
-	local NEW_IDS = { newer.districts[16].id, newer.districts[17].id, newer.districts[18].id, newer.districts[19].id }
+	local NEW_IDS = H.newer_ids(4)
 
-	-- A player of the newer build who bought every task of the 19 districts: its save, after a JSON round trip,
-	-- and the meta that wrote it.
+	-- A player of the newer build who bought every task of every district: its save, after a JSON round trip, and
+	-- the meta that wrote it.
 	local function newer_save(levels)
 		return H.as_build(newer, function()
 			local m = Meta.new(newer, 7)
@@ -273,7 +277,7 @@ describe("a rollback: the older build meets the save of a newer one", function()
 		local saved, was = newer_save(8)
 		for _, id in ipairs(NEW_IDS) do assert_true(saved.town[id] ~= nil, id) end
 		local old = Meta.load(H.districts(), saved, nil, 1, T)
-		assert_eq(#old:districts(), 15)
+		assert_eq(#old:districts(), BASE, "it shows only its own districts")
 		H.win(old, T)
 		old:set_setting("music", 0.5)
 		local back = H.json_round_trip(old:serialize())
@@ -295,8 +299,8 @@ describe("a rollback: the older build meets the save of a newer one", function()
 	end)
 
 	it("does the same with a player who is far into the newer levels (the old build is past its last level)", function()
-		local saved, was = newer_save(345)
-		assert_true(saved.progress.beaten > 300)
+		local saved, was = newer_save(LAST_LEVEL + 45)
+		assert_true(saved.progress.beaten > LAST_LEVEL)
 		local old = Meta.load(H.districts(), saved, nil, 1, T)
 		assert_true(old:all_done(), "the older build has no level left to give")
 		old:set_setting("music", 0.5)

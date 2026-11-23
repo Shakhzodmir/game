@@ -86,8 +86,11 @@ end
 
 -- The content of a newer build: the districts of this build and `n` more after the last one, shaped like the
 -- districts of Part 2 (twenty levels, six tasks of 1, 4, 5, 5, 5 and 6 stars, a chest). This build knows none of the
--- added ones: it is what a rolled-back site meets in the save of a player who bought tasks there.
-H.NEWER_IDS = { "midnight_cafe", "late_club", "nations_fest", "fan_meeting", "block_party", "garden_stage" }
+-- added ones: it is what a rolled-back site meets in the save of a player who bought tasks there. Whatever
+-- content/districts.json holds (the branches that add districts merge into this one), the added ids are never real
+-- ones, so the tests count from `#H.districts().districts` and never from a district number.
+H.NEWER_IDS = { "rollback_fixture_1", "rollback_fixture_2", "rollback_fixture_3", "rollback_fixture_4",
+	"rollback_fixture_5", "rollback_fixture_6" }
 function H.newer_districts(n)
 	local d = H.districts_copy()
 	for i = 1, n or 2 do
@@ -100,6 +103,13 @@ function H.newer_districts(n)
 			last = list[#list].last + 20, chest = { coins = 500, boosters = { "stick" } }, tasks = tasks }
 	end
 	return d
+end
+
+-- The ids of the `n` districts of H.newer_districts(n) that this build does not know, in order.
+function H.newer_ids(n)
+	local out = {}
+	for i = 1, n do out[i] = H.NEWER_IDS[i] end
+	return out
 end
 
 -- Runs fn() as one build of the game: the level count and the songbook stretches are global in meta/config.lua

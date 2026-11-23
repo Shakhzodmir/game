@@ -1061,8 +1061,9 @@ describe("client.cloud: a rolled-back build and the districts it does not know",
 	-- carry those entries through its own saves and uploads (meta/town.lua restore), or the newer build, when it
 	-- comes back, finds the tasks at 0 while the stars they cost are gone.
 	local Meta = require("meta.meta")
+	-- (four districts more than this build has, whatever number that is: the branches that add districts merge here)
 	local newer = H.newer_districts(4)
-	local NEW_IDS = { newer.districts[16].id, newer.districts[17].id, newer.districts[18].id, newer.districts[19].id }
+	local NEW_IDS = H.newer_ids(4)
 
 	-- the save of a player of the newer build (the seed of boot_device: the same player on every device)
 	local function newer_save()
