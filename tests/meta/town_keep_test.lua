@@ -454,7 +454,7 @@ describe("a rollback: the older build meets the save of a newer one", function()
 			return cloudsync.summarize(stale, H.districts()), cloudsync.summarize(account, H.districts())
 		end
 
-		it("is the setup of the review: the account's copy is poorer in everything this build can price", function()
+		it("starts from a stale copy that looks richer: the account's copy is poorer in everything this build can price", function()
 			local sa, sb = sums()
 			assert_eq(sa.beaten, sb.beaten)
 			assert_eq(sa.tasks, sb.tasks, "this build counts no task of the newer districts")
@@ -500,7 +500,7 @@ describe("a rollback: the older build meets the save of a newer one", function()
 		end)
 
 		it("is level with itself: the same save twice, and the older build's write-back of it", function()
-			local sa, sb = sums()
+			local _, sb = sums()
 			assert_eq(cloudsync.compare(sb, sb), "equal")
 			local old = Meta.load(H.districts(), account, nil, 1, T)
 			old:set_setting("music", 0.5)
