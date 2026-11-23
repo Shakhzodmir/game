@@ -1116,56 +1116,56 @@
       "taiko": {
         "image": "assets/images/districts/nations_fest/taiko.png",
         "ghost": "assets/images/districts/nations_fest/taiko_ghost.png",
-        "x": 330,
-        "y": 700,
-        "scale": 0.66,
-        "w": 239,
-        "h": 239
+        "x": 135,
+        "y": 752,
+        "scale": 0.7,
+        "w": 271,
+        "h": 198
       },
       "festival_tent": {
         "image": "assets/images/districts/nations_fest/festival_tent.png",
         "ghost": "assets/images/districts/nations_fest/festival_tent_ghost.png",
-        "x": 380,
-        "y": 520,
-        "scale": 0.66,
-        "w": 262,
-        "h": 215
+        "x": 600,
+        "y": 728,
+        "scale": 0.7,
+        "w": 286,
+        "h": 264
       },
       "steel_pan": {
         "image": "assets/images/districts/nations_fest/steel_pan.png",
         "ghost": "assets/images/districts/nations_fest/steel_pan_ghost.png",
-        "x": 600,
-        "y": 580,
-        "scale": 0.56,
-        "w": 211,
-        "h": 231
+        "x": 458,
+        "y": 766,
+        "scale": 0.7,
+        "w": 214,
+        "h": 190
       },
       "flag_garland": {
         "image": "assets/images/districts/nations_fest/flag_garland.png",
         "ghost": "assets/images/districts/nations_fest/flag_garland_ghost.png",
         "x": 360,
-        "y": 322,
-        "scale": 1.7,
-        "w": 268,
-        "h": 107
+        "y": 470,
+        "scale": 0.7,
+        "w": 714,
+        "h": 236
       },
       "accordion": {
         "image": "assets/images/districts/nations_fest/accordion.png",
         "ghost": "assets/images/districts/nations_fest/accordion_ghost.png",
-        "x": 560,
-        "y": 716,
-        "scale": 0.46,
-        "w": 135,
-        "h": 171
+        "x": 285,
+        "y": 775,
+        "scale": 0.7,
+        "w": 186,
+        "h": 142
       },
       "shell_stage": {
         "image": "assets/images/districts/nations_fest/shell_stage.png",
         "ghost": "assets/images/districts/nations_fest/shell_stage_ghost.png",
-        "x": 596,
-        "y": 432,
-        "scale": 0.46,
-        "w": 203,
-        "h": 170
+        "x": 360,
+        "y": 634,
+        "scale": 0.7,
+        "w": 343,
+        "h": 284
       }
     }
   },
