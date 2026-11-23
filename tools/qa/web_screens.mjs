@@ -24,7 +24,8 @@
 // (section 1b: a won chest waits in the meta; the results window offers it with "Open", the chest window pays it at
 // "Collect" and only then do its unlimited lives start; a chest left unopened is offered again by the town, after
 // the unlock gift of the level, and its time starts at "Collect" there; section 1c: in a crowded results window, where
-// "Collect" lies over "Next level", a double tap on it does not press the button below), and no
+// "Collect" lies over the big button ("To town" in a first win that points at the town, else "Next level"), a double
+// tap on it does not press the button below), and no
 // engine or game warning about something lost ("could not be found", "WARNING:
 // tutorials|level") appears in the console.
 // Every command the script sends exists in the bridge and every field it reads
@@ -1139,7 +1140,10 @@ async function debugChecks() {
 	}
 
 	// 1c. a crowded results window: the chest of level 10 left unopened, then the results of level 11 (the older chest and
-	// a new booster). There "Collect" of the chest window lies over "Next level": a double tap on it must not press it ---
+	// a new booster). There "Collect" of the chest window lies over the big button of the window: a double tap on it must not
+	// press it. The save of `advance 10` has stars and has bought no task of the town, so this is a first win with something to
+	// buy: "To town" is the big button (result.swap); with a task bought, or with the switch off (lw.FIRST_WIN_TO_TOWN), it is
+	// "Next level" ---
 	{
 		const p = await openPage(browser, { width: 540, height: 960 });
 		await waitFor(p, s => s.app && s.app.screen && !s.app.transitioning, 'boot (crowded results)', 30000);
@@ -1164,12 +1168,16 @@ async function debugChecks() {
 		await command(p, 'win');
 		await waitFor(p, s => lvl(s) && ['concert', 'complete'].includes(lvl(s).state), 'the final concert of level 11', 150000);
 		await command(p, 'skip');
-		const r11 = await waitFor(p, s => s.app.ui.popup === 'result', 'the results of level 11', 60000);
+		const r11 = await waitFor(p, s => s.app.ui.popup === 'result' && s.app.ui.result, 'the results of level 11', 60000);
 		await sleep(2200);
 		await p.screenshot({ path: `${outDir}/client_result_crowded.png` });
 		const t = r11.app.ui.popup_targets || {};
 		check(['chest', 'next', 'town'].every(n => t[n] && t[n].x > 0 && t[n].x < 720 && t[n].y > 0 && t[n].y < 1280),
 			'results: the older chest, a streak-free win and a new booster: every button of the window is on the screen', t);
+		// the big button, where "Collect" lands: "To town" in a first win that points at the town, else "Next level"
+		const swapped = r11.app.ui.result.swap === true;
+		const big = swapped ? 'town' : 'next';
+		const bigName = swapped ? 'To town' : 'Next level';
 		await tapTarget(p, 'chest', 'popup');
 		await waitFor(p, s => s.app.ui.popup === 'chest', 'the chest window (level 10)', 8000);
 		await sleep(1000);
@@ -1178,8 +1186,9 @@ async function debugChecks() {
 		await sleep(1800);
 		const beforeTap = await state(p);
 		const collect = await targetOf(p, 'collect', 'popup');
-		check(Math.abs(collect.x - t.next.x) < 230 && Math.abs(collect.y - t.next.y) < 62,
-			'results: Collect lies over Next level in this window (the case a double tap used to fall through)', { collect, next: t.next });
+		check(Math.abs(collect.x - t[big].x) < 230 && Math.abs(collect.y - t[big].y) < 62,
+			`results: Collect lies over the big button (${bigName}) in this window (the case a double tap used to fall through)`,
+			{ collect, big: t[big], swapped });
 		const at = await logicalToPage(p, collect.x, collect.y);
 		await p.mouse.move(at.x, at.y);
 		await sleep(100);
@@ -1189,7 +1198,7 @@ async function debugChecks() {
 		await sleep(2000);
 		const afterTap = await state(p);
 		check(JSON.stringify(afterTap.app.ui.popups) === '["result"]',
-			'chest: the second tap of a double tap on Collect does not press "Next level"', afterTap.app.ui.popups);
+			`chest: the second tap of a double tap on Collect does not press "${bigName}"`, afterTap.app.ui.popups);
 		check(afterTap.app.coins - beforeTap.app.coins === 60, 'chest: the chest of level 10 was paid once',
 			{ before: beforeTap.app.coins, after: afterTap.app.coins });
 		await sleep(1500);
