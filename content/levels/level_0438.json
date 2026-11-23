@@ -1,7 +1,7 @@
 {
   "id": 438, "version": 1,
   "size": [9, 11],
-  "moves": 24,
+  "moves": 22,
   "difficulty": "super_hard",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [

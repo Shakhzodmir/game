@@ -1,12 +1,12 @@
 {
   "id": 432, "version": 1,
   "size": [9, 10],
-  "moves": 25,
+  "moves": 24,
   "difficulty": "medium",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [
     {"type": "chains", "count": 9},
-    {"type": "collect", "color": "red", "count": 50}
+    {"type": "collect", "color": "red", "count": 66}
   ],
   "cells": [
     ".#######.",
