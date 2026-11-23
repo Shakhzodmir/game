@@ -1055,56 +1055,56 @@
       "drums": {
         "image": "assets/images/districts/late_club/drums.png",
         "ghost": "assets/images/districts/late_club/drums_ghost.png",
-        "x": 382,
-        "y": 330,
+        "x": 330,
+        "y": 600,
         "scale": 0.7,
         "w": 173,
-        "h": 281
+        "h": 166
       },
       "double_bass": {
         "image": "assets/images/districts/late_club/double_bass.png",
         "ghost": "assets/images/districts/late_club/double_bass_ghost.png",
-        "x": 578,
-        "y": 560,
+        "x": 170,
+        "y": 765,
         "scale": 0.7,
         "w": 130,
-        "h": 256
+        "h": 179
       },
       "piano": {
         "image": "assets/images/districts/late_club/piano.png",
         "ghost": "assets/images/districts/late_club/piano_ghost.png",
-        "x": 240,
-        "y": 586,
-        "scale": 0.74,
-        "w": 225,
-        "h": 250
+        "x": 520,
+        "y": 575,
+        "scale": 0.7,
+        "w": 237,
+        "h": 247
       },
       "vibes": {
         "image": "assets/images/districts/late_club/vibes.png",
         "ghost": "assets/images/districts/late_club/vibes_ghost.png",
-        "x": 160,
-        "y": 722,
-        "scale": 0.6,
-        "w": 256,
-        "h": 196
+        "x": 135,
+        "y": 595,
+        "scale": 0.7,
+        "w": 220,
+        "h": 179
       },
       "muted_trumpet": {
         "image": "assets/images/districts/late_club/muted_trumpet.png",
         "ghost": "assets/images/districts/late_club/muted_trumpet_ghost.png",
-        "x": 568,
-        "y": 738,
-        "scale": 0.56,
-        "w": 216,
-        "h": 123
+        "x": 555,
+        "y": 770,
+        "scale": 0.7,
+        "w": 173,
+        "h": 152
       },
       "note_sign": {
         "image": "assets/images/districts/late_club/note_sign.png",
         "ghost": "assets/images/districts/late_club/note_sign_ghost.png",
-        "x": 160,
-        "y": 322,
-        "scale": 0.6,
-        "w": 179,
-        "h": 186
+        "x": 360,
+        "y": 765,
+        "scale": 0.7,
+        "w": 153,
+        "h": 163
       }
     }
   },
