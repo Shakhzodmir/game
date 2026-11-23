@@ -1,0 +1,4 @@
+# Text files are stored with LF in the repository whatever core.autocrlf says on the machine that commits.
+# (Agents working on this Windows PC committed whole files with CRLF three times in one day: a 5-line change became a
+# 5000-line diff and broke merges and blame.) The working tree on Windows still gets CRLF from core.autocrlf/core.eol.
+* text=auto
