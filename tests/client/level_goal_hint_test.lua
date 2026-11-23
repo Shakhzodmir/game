@@ -638,3 +638,200 @@ describe("level goal hints: the end of a touch the panel took", function()
 		end)
 	end)
 end)
+
+-- The toasts of the overlay (main/overlay.gui_script) hang in the band under the top bar: 1042..1138 at the design size, which is
+-- where the pill hangs (1042..1088). A toast is not ours to move, so the pill waits for it: nothing of it is drawn while a toast
+-- is on the screen, its time stands still, and it comes back when the toast has gone.
+describe("level goal hints: a toast over the pill", function()
+	-- the white panel of the toast on the screen, in logical px
+	local function toast_box(c)
+		for _, n in ipairs(c.E.alive_nodes(c.overlay.scene)) do
+			if n.kind == "box" and n.size.x == 620 and n.size.y == 96 and c.E.visible(n) then
+				local x0, y0, x1, y1 = c.E.rect(n)
+				local ax, ay = c.E.to_logical(x0, y0)
+				local bx, by = c.E.to_logical(x1, y1)
+				return { x0 = math.min(ax, bx), y0 = math.min(ay, by), x1 = math.max(ax, bx), y1 = math.max(ay, by) }
+			end
+		end
+		return nil
+	end
+
+	-- the part (0..1) of the rectangle r that lies under the box
+	local function covered(box, r)
+		local w = math.max(0, math.min(box.x1, r.x1) - math.max(box.x0, r.x0))
+		local h = math.max(0, math.min(box.y1, r.y1) - math.max(box.y0, r.y0))
+		return (w * h) / (r.w * r.h)
+	end
+
+	local function toast_on(c) return c.app.overlay.toast ~= nil end
+	local function toast_off(c) return c.app.overlay.toast == nil end
+
+	-- steps until `pred(c)` holds, for `seconds` at most. A wait for something to go must have seen it come first:
+	-- a loop that starts before the toast reached the status ends at once and proves nothing.
+	local function wait(c, pred, seconds)
+		for _ = 1, math.ceil(seconds * 60) do
+			if pred(c) then return true end
+			c.step(1)
+		end
+		return pred(c)
+	end
+
+	-- a toast of three seconds, in its place on the screen
+	local function toast_comes(c)
+		c.app.toast_key("hud.bonus_hint", nil, { color = "purple", duration = 3 })
+		assert_true(wait(c, toast_on, 1), "the toast came")
+		c.run(0.8) -- it slid in
+	end
+
+	it("covers the pill: a toast's panel lies over (nearly) the whole of it, on a tall phone as well", function()
+		for _, win in ipairs({ { 720, 1280 }, { 390, 844 } }) do
+			G.with_level({ level = 185, attempt = false, window = win }, function(c)
+				c.run(0.8)
+				tap_goal(c, 1)
+				c.step(2)
+				local r = hud(c).hint_rect
+				assert_true(r ~= nil, "the pill")
+				toast_comes(c)
+				local box = toast_box(c)
+				assert_true(box ~= nil, "the panel of the toast")
+				local part = covered(box, r)
+				assert_true(part > 0.85, string.format("%dx%d: the toast covers %.0f%% of the pill", win[1], win[2], part * 100))
+			end)
+		end
+	end)
+
+	it("keeps its time while the toast covers it: after the toast the pill is there for the time it had left", function()
+		G.with_level({ level = 178, attempt = false }, function(c)
+			c.run(0.8)
+			tap_goal(c, 1)
+			c.step(2)
+			assert_true(c.has(RED))
+			c.run(2.0) -- 2 s of the 3.5 are used
+			toast_comes(c)
+			assert_true(wait(c, toast_off, 6), "the toast went")
+			c.step(3)
+			assert_true(c.has(RED), "the pill is there after the toast: its time did not run out under it")
+			assert_eq(ui(c).goal_hint, 1)
+			assert_eq(ui(c).goal_hint_text, RED)
+			c.run(1.0) -- about 1.5 s were left
+			assert_true(c.has(RED), "still there after the time that was left, less a little")
+			c.run(0.8)
+			assert_false(c.has(RED), "gone when its own time is up")
+			assert_eq(ui(c).goal_hint, nil)
+			clean(c)
+		end)
+	end)
+
+	it("draws nothing while the toast is on the screen (a wide pill would peek out beside it), and leaves no node behind", function()
+		G.with_level({ level = 178, attempt = false }, function(c)
+			c.run(0.8)
+			local n0 = nodes(c)
+			tap_goal(c, 1)
+			c.step(2)
+			assert_true(c.has(RED))
+			toast_comes(c)
+			assert_false(c.has(RED), "the pill is not drawn under the toast")
+			assert_eq(hud(c).hint_node, nil)
+			assert_eq(ui(c).goal_hint, nil, "nothing is on the screen for QA to see")
+			assert_eq(nodes(c), n0, "no node of the pill stands")
+			assert_true(wait(c, toast_off, 6), "the toast went")
+			c.step(3)
+			assert_true(c.has(RED), "and it is drawn again")
+			c.run(level_hud.GOAL_HINT_SECONDS + 0.5)
+			assert_false(c.has(RED))
+			assert_eq(nodes(c), n0, "every node of the pill was deleted")
+			clean(c)
+		end)
+	end)
+
+	it("answers a tap on a tile while a toast is up: the panel takes the tap, and the pill comes when the toast has gone", function()
+		G.with_level({ level = 178, attempt = false }, function(c)
+			c.run(0.8)
+			local before = game(c)
+			toast_comes(c)
+			local pressed, released = tap_goal(c, 2)
+			assert_true(pressed ~= nil and released ~= nil, "the panel took the tap: it is not the board's")
+			c.step(2)
+			assert_false(c.has(PURPLE), "nothing is drawn under the toast")
+			assert_true(wait(c, toast_off, 6), "the toast went")
+			c.step(3)
+			assert_true(c.has(PURPLE), "the tap is answered once the toast has gone")
+			assert_eq(ui(c).goal_hint, 2)
+			c.run(level_hud.GOAL_HINT_SECONDS - 0.9)
+			assert_true(c.has(PURPLE), "for its whole time")
+			c.run(1.2)
+			assert_false(c.has(PURPLE))
+			assert_same(game(c), before, "the game did not notice")
+			clean(c)
+		end)
+	end)
+
+	it("is ended by a press on the board while it waits: it does not come back after the toast", function()
+		G.with_level({ level = 178, attempt = false }, function(c)
+			c.run(0.8)
+			tap_goal(c, 1)
+			c.step(2)
+			toast_comes(c)
+			local x, y = c.cell(5, 5)
+			assert_true(c.tap(x, y) == nil, "the board's press goes to the board")
+			c.step(2)
+			assert_eq(ui(c).goal_hint, nil)
+			assert_true(wait(c, toast_off, 6), "the toast went")
+			c.run(0.5)
+			assert_false(c.has(RED), "it does not come back")
+			assert_eq(ui(c).goal_hint, nil)
+			clean(c)
+		end)
+	end)
+
+	it("is ended by a window while it waits: it does not come back after the window and the toast", function()
+		G.with_level({ level = 178, attempt = false }, function(c)
+			c.run(0.8)
+			tap_goal(c, 1)
+			c.step(2)
+			toast_comes(c)
+			tap_target(c, "pause")
+			c.step(20)
+			assert_eq(top(c), "pause")
+			c.tap_target("resume")
+			c.step(20)
+			assert_true(wait(c, toast_off, 6), "the toast went")
+			c.run(0.5)
+			assert_false(c.has(RED), "it does not come back")
+			assert_eq(ui(c).goal_hint, nil)
+			clean(c)
+		end)
+	end)
+
+	it("says what is left when it comes back: the counter went down while the toast hung over it", function()
+		G.with_level({ level = 178, attempt = false }, function(c)
+			c.run(0.8)
+			tap_goal(c, 1)
+			c.step(2)
+			toast_comes(c)
+			bus.publish("level_goal", { index = 1, left = 20 })
+			c.step(3)
+			assert_false(c.has("Red picks: collect 20 more"), "nothing is drawn under the toast")
+			assert_true(wait(c, toast_off, 6), "the toast went")
+			c.step(3)
+			assert_eq(ui(c).goal_hint_text, "Red picks: collect 20 more")
+			assert_true(c.has("Red picks: collect 20 more"))
+			clean(c)
+		end)
+	end)
+
+	it("comes back without a movement under reduced motion", function()
+		G.with_level({ level = 178, attempt = false }, function(c)
+			c.app.set_setting("reduced_motion", true)
+			c.run(0.8)
+			tap_goal(c, 1)
+			c.step(2)
+			toast_comes(c)
+			assert_true(wait(c, toast_off, 6), "the toast went")
+			c.step(3)
+			assert_true(c.has(RED))
+			assert_eq(#hint_anims(c), 0, "no animation on any node of the pill")
+			clean(c)
+		end)
+	end)
+end)

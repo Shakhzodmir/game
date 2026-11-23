@@ -22,8 +22,9 @@
 --   hud:set_bit_hidden(on), hud:bit_rect() -- the tutorial's bubble covers him: he steps aside
 --   hud:goal_at(action)                    -- the goal tile (1..3) a press is on, or nil
 --   hud:show_goal_hint(k), hud:hide_goal_hint()   -- the hint of a tile (a few seconds, one at a time); any other press, a
---                                          -- window or the end of the level hides it
---   hud:goal_hint_shown(), hud:goal_hint_text()   -- what is on show (QA, tests)
+--                                          -- window or the end of the level hides it; a toast hangs over its place, so it
+--                                          -- waits for the toast (not drawn, its time stands still)
+--   hud:goal_hint_shown(), hud:goal_hint_text()   -- what is on the screen (QA, tests): nil while it waits
 
 local app = require("client.app")
 local ui = require("client.ui")
@@ -52,7 +53,7 @@ function M.new(scene, opts)
 		ui = scene, fx = opts.fx, parent = opts.layer, actions = opts.actions or {},
 		moves = nil, goals = nil, state = "playing", target = nil,
 		feed = level_hud.score_feed(), pops = 0, sync_t = 0, bit_slot = nil, built = false,
-		ghint = level_hud.goal_hint_new(), hint_node = nil, hint_mark = nil,
+		ghint = level_hud.goal_hint_new(), hint_node = nil, hint_mark = nil, hint_wait = false,
 	}, Hud)
 	return self
 end
@@ -202,6 +203,7 @@ function Hud:build(info, status, rect)
 	self.c_bit, self.c_target, self.cancel_btn, self.bit = nil, nil, nil, nil -- they went with the layer
 	self.hint_node, self.hint_mark = nil, nil -- ... and so did the hint of a goal (it is not drawn again: the language or the window changed)
 	self.ghint:hide()
+	self.hint_wait = false
 	self.layer = s:layer(self.parent, "hud")
 	self.info = info
 	self.l = level_hud.layout(s.fit, s.insets, rect)
@@ -316,16 +318,26 @@ end
 
 function Hud:hide_goal_hint()
 	self.ghint:hide()
+	self.hint_wait = false
 	self:_hint_clear()
 end
 
--- The tile whose hint is on show, and the line it says, or nil (QA, tests).
+-- The tile whose hint is on the screen, and the line it says, or nil (QA, tests). A hint that waits for a toast is not on it.
 function Hud:goal_hint_shown()
-	return self.ghint:shown()
+	return self.hint_node and self.ghint:shown() or nil
 end
 
 function Hud:goal_hint_text()
 	return self.ghint:shown() and self.hint_text or nil
+end
+
+-- Is a toast on the screen? The overlay hangs its toasts in the band under the top bar (main/overlay.gui_script TOAST_Y, 620 px
+-- wide): the band the pill hangs in. A toast covers the pill, and a pill wider than the toast would peek out at its sides, so while
+-- a toast is up the pill is not drawn. The overlay shows the next toast in the call that takes the last one away: `toast` stays
+-- set through a chain of them.
+local function toast_up()
+	local o = app.overlay
+	return o ~= nil and o.toast ~= nil
 end
 
 function Hud:_hint_clear()
@@ -344,8 +356,31 @@ function Hud:_hint_show(k, fresh)
 		return false
 	end
 	if fresh then self.ghint:show(k) end
+	if toast_up() then
+		-- a toast hangs over the pill's place: nothing is drawn, the tap is answered when the toast has gone (Hud:_hint_tick)
+		self:_hint_clear()
+		self.hint_wait = true
+		return true
+	end
+	self.hint_wait = false
 	self:_hint_draw(k, gdef, spec, (left or 0) <= 0, fresh)
 	return true
+end
+
+-- The clock of the pill, once a frame. While a toast is up the pill waits: it is not drawn and its time stands still, so that it
+-- is seen for the whole of its time; when the toast has gone it is drawn again for the time it had left (no pop: it is not new).
+function Hud:_hint_tick(dt)
+	local k = self.ghint:shown()
+	if not k then return end
+	if toast_up() then
+		if self.hint_node then self:_hint_clear() end
+		self.hint_wait = true
+	elseif self.hint_wait then
+		self.hint_wait = false
+		self:_hint_show(k, false)
+	elseif self.ghint:update(dt) then
+		self:_hint_clear()
+	end
 end
 
 function Hud:_hint_draw(k, gdef, spec, done, pop)
@@ -721,7 +756,7 @@ local POP_STYLE = {
 }
 
 function Hud:update(dt)
-	if self.ghint:shown() and self.ghint:update(dt) then self:_hint_clear() end
+	self:_hint_tick(dt)
 	if self.bit then self.bit:update(dt) end
 	if self.bit_machine then
 		self.bit_machine:update(dt)
