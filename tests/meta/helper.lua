@@ -84,6 +84,81 @@ function H.json_round_trip(t)
 	return json.decode(json.encode(t))
 end
 
+-- The content of a newer build: the districts of this build and `n` more after the last one, shaped like the
+-- districts of Part 2 (twenty levels, six tasks of 1, 4, 5, 5, 5 and 6 stars, a chest). This build knows none of the
+-- added ones: it is what a rolled-back site meets in the save of a player who bought tasks there. Whatever
+-- content/districts.json holds (the branches that add districts merge into this one), the added ids are never real
+-- ones, so the tests count from `#H.districts().districts` and never from a district number.
+H.NEWER_IDS = { "rollback_fixture_1", "rollback_fixture_2", "rollback_fixture_3", "rollback_fixture_4",
+	"rollback_fixture_5", "rollback_fixture_6" }
+function H.newer_districts(n)
+	local d = H.districts_copy()
+	for i = 1, n or 2 do
+		local list = d.districts
+		local tasks = {}
+		for j, cost in ipairs({ 1, 4, 5, 5, 5, 6 }) do
+			tasks[j] = { id = "task_" .. j, name = { en = "Task " .. j }, cost = cost, stem = "beat" }
+		end
+		list[#list + 1] = { id = H.NEWER_IDS[i], name = { en = H.NEWER_IDS[i] }, first = list[#list].last + 1,
+			last = list[#list].last + 20, chest = { coins = 500, boosters = { "stick" } }, tasks = tasks }
+	end
+	return d
+end
+
+-- The ids of the `n` districts of H.newer_districts(n) that this build does not know, in order.
+function H.newer_ids(n)
+	local out = {}
+	for i = 1, n do out[i] = H.NEWER_IDS[i] end
+	return out
+end
+
+-- Runs fn() as one build of the game: the level count and the songbook stretches are global in meta/config.lua
+-- (town.validate binds them, so every Meta.new / Meta.load / cloudsync.summarize does), so the content of that build
+-- is bound first and the content of this build again afterwards, even when fn fails. Returns what fn returns.
+function H.as_build(content, fn)
+	local town = require("meta.town")
+	town.validate(content)
+	local res = { pcall(fn) }
+	town.validate(H.districts())
+	if not res[1] then error(res[2], 0) end
+	return unpack(res, 2)
+end
+
+-- Buys every task of every district in order, giving the stars it lacks (test setup only).
+function H.build_everything(m)
+	local guard = 0
+	while m:current_district() do
+		guard = guard + 1
+		assert(guard < 1000, "the town does not complete")
+		local task = m:next_task()
+		if not task.affordable then H.give(m, "stars", task.cost - m:stars()) end
+		assert(m:complete_task(task.district, task.id))
+	end
+end
+
+-- A player of a newer build (the content of H.newer_districts) who bought every task of the districts of this build
+-- and keeps `stars` unspent. Returns two saves of that one player, both after a JSON round trip: the first as it is
+-- then (a device that stopped syncing here) and the second after `bought` tasks of the newer districts were bought
+-- on another device (the account's copy). This build knows none of those tasks.
+function H.newer_player(newer, seed, levels, stars, bought)
+	return H.as_build(newer, function()
+		local m = Meta.new(newer, seed)
+		H.advance_to(m, levels)
+		local own = {}
+		for _, d in ipairs(H.districts().districts) do own[d.id] = true end
+		local function buy()
+			local task = m:next_task()
+			if not task.affordable then H.give(m, "stars", task.cost - m:stars()) end
+			assert(m:complete_task(task.district, task.id))
+		end
+		while own[m:current_district()] do buy() end
+		if m:stars() < stars then H.give(m, "stars", stars - m:stars()) end
+		local stale = H.json_round_trip(m:serialize())
+		for _ = 1, bought do buy() end
+		return stale, H.json_round_trip(m:serialize())
+	end)
+end
+
 -- Runs fn(...) under a budget of VM instructions instead of seconds: a hang turns into a failure at the same
 -- place on every machine (a normal Meta.load takes about 5e4 instructions). Returns finished, results (the
 -- pcall results). LuaJIT runs compiled traces that never fire the count hook, so its JIT is off meanwhile.

@@ -1053,6 +1053,158 @@ describe("client.cloud: stars spent on the town", function()
 	end)
 end)
 
+describe("client.cloud: a rolled-back build and the districts it does not know", function()
+	before_each(function() T = H.T0 end)
+
+	-- The live site was rolled back to an older build while the account (and this device) hold the save of a newer
+	-- one: a player who bought every task of districts the older build has never heard of. The older build must
+	-- carry those entries through its own saves and uploads (meta/town.lua restore), or the newer build, when it
+	-- comes back, finds the tasks at 0 while the stars they cost are gone.
+	local Meta = require("meta.meta")
+	-- (four districts more than this build has, whatever number that is: the branches that add districts merge here)
+	local newer = H.newer_districts(4)
+	local NEW_IDS = H.newer_ids(4)
+
+	-- the save of a player of the newer build (the seed of boot_device: the same player on every device)
+	local function newer_save()
+		return H.as_build(newer, function()
+			local m = Meta.new(newer, 42)
+			H.advance_to(m, 6)
+			H.build_everything(m)
+			return H.json_round_trip(m:serialize())
+		end)
+	end
+
+	local function keeps_every_entry(tbl, saved, where)
+		for _, id in ipairs(NEW_IDS) do
+			assert_true(tbl.town[id] ~= nil, where .. ": " .. id .. " is gone")
+			assert_same(tbl.town[id], saved.town[id], where .. ": " .. id)
+		end
+	end
+
+	it("uploads its own save after a win and the account keeps every entry of the newer build", function()
+		local m = new_server()
+		local saved = newer_save()
+		boot_device({ current = { glow_save = 1, data = saved } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		assert_eq(cloud.status().status, "synced")
+		assert_eq(m.docs[uid].code, savecode.encode(saved), "the account holds the save as the newer build wrote it")
+		wins(1)
+		T = T + 5
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(cloud.status().status, "synced")
+		local uploaded = assert(savecode.decode(m.docs[uid].code))
+		assert_eq(uploaded.progress.beaten, saved.progress.beaten + 1, "this is the older build's save")
+		keeps_every_entry(uploaded, saved, "account")
+		keeps_every_entry(assert(savecode.decode(m.docs[uid].previous)), saved, "account, previous")
+		keeps_every_entry(app.store.last, saved, "device")
+		-- the update comes back and reads what the account holds
+		H.as_build(newer, function()
+			local again = Meta.load(newer, uploaded, nil, 42, T)
+			for _, id in ipairs(NEW_IDS) do
+				local view = again:district(id)
+				assert_eq(view.done, view.total, id)
+				assert_true(view.chest_claimed, id)
+			end
+		end)
+	end)
+
+	it("takes the account's save of the newer build and keeps its entries through its own next saves", function()
+		local m = new_server()
+		local saved = newer_save()
+		boot_device({ current = { glow_save = 1, data = saved } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		auth.sign_out(); m.session = nil
+		boot_device(nil, 42) -- another device of the player, on the older build, a few levels behind
+		wins(2)
+		sign_in_google(m)
+		assert_eq(cloud.decision(), nil, "no question: the account is ahead")
+		assert_eq(app.meta:level_to_play(), saved.progress.beaten + 1, "the account's save is taken")
+		keeps_every_entry(app.meta:serialize(), saved, "meta")
+		keeps_every_entry(app.store.last, saved, "device")
+		wins(1)
+		T = T + 5
+		cloud.tick(T)
+		keeps_every_entry(app.store.last, saved, "device after a win")
+		keeps_every_entry(assert(savecode.decode(m.docs[uid].code)), saved, "account after a win")
+		local _, prev = app.store:load()
+		keeps_every_entry(prev, saved, "previous slot")
+	end)
+
+	it("sends the save quietly when only a setting changed (equal progress, other checksum) and it carries the entries", function()
+		local m = new_server()
+		local saved = newer_save()
+		boot_device({ current = { glow_save = 1, data = saved } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		local before = m.docs[uid].code
+		assert_eq(m.puts, 1)
+		assert_true(app.set_setting("music", 0.5))
+		T = T + 70 -- the once-a-minute check
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(m.puts, 2, "the changed save went up")
+		assert_true(m.docs[uid].code ~= before)
+		local uploaded = assert(savecode.decode(m.docs[uid].code))
+		assert_eq(uploaded.prefs.settings.music, 0.5)
+		keeps_every_entry(uploaded, saved, "account")
+	end)
+
+	-- One player, two copies of the newer build's save: `stale` is a device that stopped syncing before 12 tasks of
+	-- the newer districts were bought (it still holds the 57 stars they cost), `account` is the copy that has them.
+	-- Levels are level; the older build cannot price those tasks, so by what it can price the stale copy is richer.
+	local function two_copies()
+		return H.newer_player(newer, 42, 6, 57, 12)
+	end
+
+	local function held_by_account(m, uid) -- the checksum of the save the account holds
+		return assert(savecode.decode(m.docs[uid].code)).checksum
+	end
+
+	it("takes the account's copy that holds the purchases instead of uploading the stale device save over it", function()
+		local m = new_server()
+		local stale, account = two_copies()
+		boot_device({ current = { glow_save = 1, data = account } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		assert_eq(held_by_account(m, uid), account.checksum)
+		auth.sign_out(); m.session = nil
+		boot_device({ current = { glow_save = 1, data = stale } }, 42) -- the other device
+		sign_in_google(m)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(held_by_account(m, uid), account.checksum, "the account's copy was not replaced by the stale one")
+		keeps_every_entry(app.store.last, account, "device")
+		assert_same(app.store.last.town, account.town, "the device holds the purchases now")
+		local _, prev = app.store:load()
+		assert_eq(prev.checksum, stale.checksum, "and the stale save is kept in the previous slot")
+		-- the next saves of this device carry the entries on
+		wins(1)
+		T = T + 5
+		cloud.tick(T)
+		keeps_every_entry(assert(savecode.decode(m.docs[uid].code)), account, "account after a win")
+	end)
+
+	it("uploads its own copy that holds the purchases over the account's stale one, never the other way round", function()
+		local m = new_server()
+		local stale, account = two_copies()
+		boot_device({ current = { glow_save = 1, data = stale } }, 42)
+		sign_in_google(m)
+		local uid = m.session
+		assert_eq(held_by_account(m, uid), stale.checksum)
+		auth.sign_out(); m.session = nil
+		boot_device({ current = { glow_save = 1, data = account } }, 42) -- the device that bought the tasks
+		sign_in_google(m)
+		assert_eq(cloud.decision(), nil, "no question")
+		assert_eq(held_by_account(m, uid), account.checksum, "the account now holds the purchases")
+		keeps_every_entry(app.store.last, account, "device")
+		keeps_every_entry(app.meta:serialize(), account, "meta")
+		assert_eq(assert(savecode.decode(m.docs[uid].previous)).checksum, stale.checksum, "the stale copy is the previous one")
+	end)
+end)
+
 describe("cloud cleanup", function()
 	it("leaves no provider and no cloud state behind for the next test file", function()
 		require("client.cloud").reset()

@@ -3,25 +3,35 @@
 -- time: a save with less progress never replaces one with more without the player's explicit word, and
 -- whatever loses is kept (the "previous" slot on the device, the "previous" field in the cloud).
 --
---   local a = cloudsync.summarize(meta:serialize(), districts)    -- {beaten, coins, stars, earned, tasks, wins, salt, checksum}
+--   local a = cloudsync.summarize(meta:serialize(), districts)    -- {beaten, coins, stars, earned, tasks, unknown_tasks, wins, salt, checksum}
 --   local plan = cloudsync.plan(a, b, "same")                     -- b = cloud summary or nil
 --   plan.action: "none" | "upload" | "offer_upload" | "offer_download" | "choose" | "foreign"
 --
 -- Progress order (same player = same salt): save x is ahead of y when it has at least as many levels beaten,
--- stars EARNED, town tasks done and wins, and more of one of them. Mixed (more levels, fewer tasks) or different
--- salts (two games started independently) are separate branches.
+-- stars EARNED, town tasks done (and tasks of districts this build does not know, below) and wins, and more of one of
+-- them. Mixed (more levels, fewer tasks) or different salts (two games started independently) are separate branches.
 -- The stars of the wallet are NOT a measure of progress: they are spent on town tasks. A save that bought a task has
 -- fewer stars than the copy from before it, and read by the wallet it looked "behind" and was rolled back (the
 -- producer's screenshot of 2026-11-20: 54 levels, 46 stars against the account's 54 levels, 50 stars). `earned`
 -- (the wallet plus what the done tasks cost) never goes down, `tasks` counts the done tasks.
+-- Tasks of districts this build does not know (a newer build's: the site was rolled back to this build; meta/town.lua
+-- restore keeps their entries in the save as they are) count in neither of those two numbers, this build cannot price
+-- them: the stars they cost are missing from `earned`, so the same player's save from before those purchases would
+-- read as level with the save that has them, or even ahead of it (a quiet upload over the purchases). They have a
+-- number of their own, `unknown_tasks` (the ids in the done lists of the kept entries, meta/town.lua unknown_done):
+-- a save is ahead only with at least as many of them, and where the levels are level the one with more of them is
+-- the one advised (before `earned`). The levels still decide first: a save with more levels beaten is advised
+-- whatever the other holds. A write of this build never drops the entries: the quiet upload that follows a change
+-- (same progress, other checksum) is a save that still holds them, and what a save replaces stays in the "previous"
+-- slot and field (tests/meta/town_keep_test.lua, tests/client/cloud_test.lua).
 
 local save = require("meta.save")
 local town = require("meta.town")
 
 local M = {}
 
--- Save table -> {beaten, coins, stars (the wallet, for display), earned, tasks, wins, salt, checksum}; nil and a
--- reason for a table that is no save.
+-- Save table -> {beaten, coins, stars (the wallet, for display), earned, tasks, unknown_tasks, wins, salt, checksum};
+-- nil and a reason for a table that is no save.
 function M.summarize(tbl, districts)
 	if type(tbl) ~= "table" then return nil, "missing" end
 	local data = town.validate(districts)
@@ -42,6 +52,7 @@ function M.summarize(tbl, districts)
 		stars = state.wallet.stars,
 		earned = state.wallet.stars + spent,
 		tasks = tasks,
+		unknown_tasks = town.unknown_done(state.town, data),
 		wins = state.stats.wins,
 		salt = state.salt,
 		checksum = tbl.checksum,
@@ -62,8 +73,9 @@ function M.compare(a, b)
 	end
 	local ea, eb = a.earned or a.stars, b.earned or b.stars -- a summary without `earned` (written by hand) counts its stars
 	local ta, tb = a.tasks or 0, b.tasks or 0
-	local ge_a = a.beaten >= b.beaten and ea >= eb and ta >= tb and a.wins >= b.wins
-	local ge_b = b.beaten >= a.beaten and eb >= ea and tb >= ta and b.wins >= a.wins
+	local ua, ub = a.unknown_tasks or 0, b.unknown_tasks or 0
+	local ge_a = a.beaten >= b.beaten and ea >= eb and ta >= tb and ua >= ub and a.wins >= b.wins
+	local ge_b = b.beaten >= a.beaten and eb >= ea and tb >= ta and ub >= ua and b.wins >= a.wins
 	if ge_a and ge_b then return "equal" end
 	if ge_a then return "a" end
 	if ge_b then return "b" end
@@ -74,6 +86,8 @@ end
 local function recommend(loc, cloud)
 	local el, ec = loc.earned or loc.stars, cloud.earned or cloud.stars
 	if loc.beaten ~= cloud.beaten then return loc.beaten > cloud.beaten and "local" or "cloud" end
+	local ul, uc = loc.unknown_tasks or 0, cloud.unknown_tasks or 0 -- before `earned`: it misses what they cost
+	if ul ~= uc then return ul > uc and "local" or "cloud" end
 	if el ~= ec then return el > ec and "local" or "cloud" end
 	if (loc.tasks or 0) ~= (cloud.tasks or 0) then return (loc.tasks or 0) > (cloud.tasks or 0) and "local" or "cloud" end
 	if loc.wins ~= cloud.wins then return loc.wins > cloud.wins and "local" or "cloud" end
