@@ -716,6 +716,8 @@ local S = {
 	["town.layers"] = { en = "Track layers: {done}/{total}", ru = "Слоёв трека: {done} из {total}" },
 	["town.task_adds"] = { en = "Adds {stem} to the track", ru = "Добавит в трек: {stem}" },
 	["town.layer_added"] = { en = "+ {stem}!", ru = "+ {stem}!" },
+	-- (a layer was built while a jukebox song played: the song gives way so that the new layer is heard)
+	["town.music_back"] = { en = "The town music is back", ru = "Музыка города вернулась" },
 	["town.stars_hint"] = { en = "Win levels to earn stars", ru = "Звёзды дают за победы в уровнях" },
 	["town.super_stars_hint"] = {
 		en = "Super stars: {n}. Concert levels give them. What they buy comes soon.",

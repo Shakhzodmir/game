@@ -428,6 +428,7 @@ return {
 	["town.hard"] = "어려움",
 	["town.item_wait"] = "{item}: 곧 트랙에 울려 퍼져요",
 	["town.layer_added"] = "+ {stem}!",
+	["town.music_back"] = "마을 음악이 돌아왔어요",
 	["town.layers"] = "트랙 레이어: {done}/{total}",
 	["town.level"] = "{n}레벨",
 	["town.lives_full"] = "가득",

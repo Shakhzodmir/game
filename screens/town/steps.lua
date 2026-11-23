@@ -1,7 +1,8 @@
 -- The town's animated steps (screens/town/show.lua runs them):
 --   M.task(town, task, res)        stars fly from the top bar to the card, a light
 --                                  flies to the item, the item lights up, the new
---                                  stem fades in, Bit cheers (2-3 s, tap to skip)
+--                                  stem fades in (a jukebox song that would drown it gives way to the town's track),
+--                                  Bit cheers (2-3 s, tap to skip)
 --   M.concert(town, res)           the District Concert (gui/concert.lua)
 --   M.chest(town, params)          a chest reveal (gui/chest.lua), then its coins,
 --                                  boosters and unlimited lives fly to the HUD
@@ -104,6 +105,11 @@ function M.task(town, task, res)
 	local function light_up()
 		if lit then return end
 		lit = true
+		-- a jukebox song (or the theme of another district) has no such stem: the town's own track comes back first,
+		-- so that the new layer is heard
+		if songs.yield_to_layer(res.district) then
+			app.toast_key("town.music_back", nil, { color = "blue" })
+		end
 		audio.unlock_stem(res.district, res.stem)
 	end
 	step.run = function(done)
