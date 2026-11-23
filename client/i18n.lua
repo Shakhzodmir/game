@@ -483,7 +483,8 @@ local S = {
 	["tutorial.tap_continue"] = { en = "Tap to continue", ru = "Нажми, чтобы продолжить" },
 
 	-- music stems (layer names shown by tasks and the jukebox) -------------------------------------------------------
-	["stem.beat"] = { en = "Beat", ru = "Бит" },
+	-- (ru "Ударные", not "Бит": Bit is the mascot, and this is the name on the first card of five districts)
+	["stem.beat"] = { en = "Beat", ru = "Ударные" },
 	["stem.vinyl"] = { en = "Vinyl crackle", ru = "Треск винила" },
 	["stem.keys"] = { en = "Keys", ru = "Клавиши" },
 	["stem.bass"] = { en = "Bass", ru = "Бас" },
@@ -715,6 +716,8 @@ local S = {
 	["town.layers"] = { en = "Track layers: {done}/{total}", ru = "Слоёв трека: {done} из {total}" },
 	["town.task_adds"] = { en = "Adds {stem} to the track", ru = "Добавит в трек: {stem}" },
 	["town.layer_added"] = { en = "+ {stem}!", ru = "+ {stem}!" },
+	-- (a layer was built while a jukebox song played: the song gives way so that the new layer is heard)
+	["town.music_back"] = { en = "The town music is back", ru = "Музыка города вернулась" },
 	["town.stars_hint"] = { en = "Win levels to earn stars", ru = "Звёзды дают за победы в уровнях" },
 	["town.super_stars_hint"] = {
 		en = "Super stars: {n}. Concert levels give them. What they buy comes soon.",
@@ -729,9 +732,10 @@ local S = {
 	["nav.jukebox"] = { en = "Jukebox", ru = "Автомат" },
 	["nav.soon"] = { en = "Soon", ru = "Скоро" },
 	["nav.notebook"] = { en = "Songbook", ru = "Блокнот" }, -- the tab that stands where Band and Chart are not shown (en as the window's title)
+	-- (the bubble over the very first task of the town: it promises the first music, two lines at most)
 	["tutorial.town"] = {
-		en = "Spend stars to bring the town back to life",
-		ru = "Трать звёзды, чтобы вернуть городу жизнь",
+		en = "Buy the first layer: the town will play music!",
+		ru = "Купи первый слой: в городе зазвучит музыка!",
 	},
 
 	-- lives window -----------------------------------------------------------------------------------------------------

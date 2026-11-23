@@ -2,9 +2,13 @@
 --
 -- Style: polite casual (해요체), short, the tone of a casual mobile game. One plural form: a counted phrase is
 -- a plain string with {n}. Terms (docs/design/decisions.md, glossary; docs/handoff/WP-3.md lists the choices):
---   booster 부스터, district 구역, town 마을, Beat/drum stem 비트, concert 콘서트, piece 조각, match 매치,
+--   booster 부스터, district 구역, town 마을, Beat stem 리듬 (비트 is the name of the mascot Bit: the first layer of a
+--   district must not share it), drum stem 드럼, concert 콘서트, piece 조각, match 매치,
 --   lives 하트, coins 코인, stars 별, hit streak 히트 연속, Songbird 노래새, Disco ball 디스코볼.
 -- Every {placeholder} must match en and ru (tests/client/i18n_test.lua checks it).
+-- A {placeholder} never takes a literal particle pair such as 이(가), 을(를), 은(는), (으)로: Korean cannot choose the
+-- particle for a variable. Write a label and a colon (트랙에 추가: {stem}) or put a noun after it that fixes the particle
+-- (“{name}” 구역을). tests/client/i18n_test.lua checks it.
 -- Hangul used here is baked into the ko fonts by tools/gen_defold.py (only the syllables that occur).
 
 return {
@@ -178,7 +182,7 @@ return {
 	["jukebox.bpm"] = "{bpm} BPM",
 	["jukebox.full_song"] = "전체 곡",
 	["jukebox.layers"] = "레이어: {done}/{total}",
-	["jukebox.locked"] = "“{name}”을(를) 복구하면 열려요",
+	["jukebox.locked"] = "“{name}” 구역을 복구하면 열려요",
 	["jukebox.no_layers"] = "과제를 완료하면 들을 수 있어요",
 	["jukebox.now_playing"] = "재생 중: {name}",
 	["jukebox.page"] = "{page} / {pages}",
@@ -355,14 +359,14 @@ return {
 	["start.play"] = "플레이",
 	["start.run_active"] = "먼저 진행 중인 레벨을 끝내 주세요",
 	["start.safe"] = "여기서는 져도 잃는 게 없어요",
-	["start.selected"] = "{name}을(를) 가져가요!",
+	["start.selected"] = "가져가요: {name}!",
 	["start.streak"] = "히트 연속",
 	["start.streak_from"] = "히트 연속은 {n}레벨부터 시작돼요",
 	["start.title"] = "{n}레벨",
 
 	["stem.arp"] = "아르페지오",
 	["stem.bass"] = "베이스",
-	["stem.beat"] = "비트",
+	["stem.beat"] = "리듬",
 	["stem.brass"] = "금관악기",
 	["stem.brushes"] = "브러시",
 	["stem.choir"] = "합창",
@@ -420,19 +424,20 @@ return {
 	["town.all_done"] = "새 레벨이 곧 나와요!",
 	["town.room_loading"] = "동네를 불러오는 중... {pct}%",
 	["town.room_offline"] = "연결이 없어요. 그림은 나중에 받아요",
-	["town.back_to"] = "{name}(으)로 돌아가기",
+	["town.back_to"] = "돌아가기: {name}",
 	["town.concert"] = "콘서트",
 	["town.day"] = "낮",
 	["town.hard"] = "어려움",
 	["town.item_wait"] = "{item}: 곧 트랙에 울려 퍼져요",
 	["town.layer_added"] = "+ {stem}!",
+	["town.music_back"] = "마을 음악이 돌아왔어요",
 	["town.layers"] = "트랙 레이어: {done}/{total}",
 	["town.level"] = "{n}레벨",
 	["town.lives_full"] = "가득",
 	["town.new_district"] = "새 구역 열림: {name}",
 	["town.stars_hint"] = "레벨을 깨면 별을 받아요",
 	["town.super_hard"] = "매우 어려움",
-	["town.task_adds"] = "트랙에 {stem}이(가) 더해져요",
+	["town.task_adds"] = "트랙에 추가: {stem}",
 	["town.task_need"] = "별이 {n}개 더 필요해요",
 	["town.town_done"] = "온 마을이 반짝여요!",
 
@@ -479,7 +484,7 @@ return {
 	["tutorial.swap_booster"] = "크로스페이더로 아무 조각 두 개를 바꿔 보세요!",
 	["tutorial.tap_continue"] = "눌러서 계속하기",
 	["tutorial.tap_special"] = "특수 조각을 누르면 발동해요",
-	["tutorial.town"] = "별을 써서 마을에 활기를 되찾아 주세요",
+	["tutorial.town"] = "첫 레이어를 추가하면 마을에 음악이 울려 퍼져요!",
 	["tutorial.wires"] = "전선을 끊어서 조각을 풀어 주세요!",
 	["tutorial.wires_free"] = "전선이 끊어졌어요. 조각이 다시 자유예요!",
 	["tutorial.wires_match"] = "전선에 묶인 조각은 움직일 수 없지만 매치는 돼요",
@@ -546,7 +551,7 @@ return {
 	["account.google_as"] = "Google 연결됨: {email}",
 	["account.no_google_warn"] = "비밀번호를 잊어도 계정을 잃지 않도록 Google을 연결하세요.",
 	["account.linked"] = "Google을 연결했어요",
-	["account.mail_sent"] = "{email}(으)로 메일을 보냈어요",
+	["account.mail_sent"] = "메일을 보냈어요: {email}",
 	["account.mail_confirmed"] = "이메일을 확인했어요",
 	["account.mail_not_yet"] = "아직 확인되지 않았어요. 메일을 열어 링크를 눌러 주세요",
 	["account.reminder"] = "게스트로 플레이 중이라 다른 기기에서는 진행도가 이어지지 않아요. 설정의 계정에서 로그인할 수 있어요.",

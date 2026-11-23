@@ -4,12 +4,15 @@
 -- every place that starts music plays IT instead of the track of the district: entering the town, paging
 -- the districts, coming back from a level, starting a level, the next district after a concert. The pick
 -- is cleared only by an explicit action (songs.clear(): the "Return the town music" button, or a tap on the
--- playing row). Closing the jukebox keeps it.
+-- playing row) and by one thing the player does that must be heard: building a layer of the town (a stem joins only
+-- the layered theme of its own district, so a song would swallow it: songs.yield_to_layer). Closing the jukebox
+-- keeps it.
 --
 --   local songs = require("client.songs")
 --   songs.play("town", district)    -- starts the music of the town for the district on display
 --   songs.play("level", focus)      -- starts the music of a level
 --   songs.pick(id) / songs.clear()  -- the jukebox: set the pick and play it / follow the town again
+--   songs.yield_to_layer(district)  -- a layer of `district` was built: a pick that would drown it is cleared
 --   songs.resolve(meta, district, ctx) -- what would play (pure; the tests and the QA status read it)
 --
 -- What plays (resolve):
@@ -78,6 +81,17 @@ function M.clear()
 	if not ok then return false, why end
 	M.play(M.TOWN, M.shown_district())
 	return true
+end
+
+-- A layer of `district` was just built: its stem is announced to the audio script, which lets it join only the
+-- layered theme of its own district. A picked song (one mix) and the theme of another district have no such stem,
+-- so the new layer, the first music of a new player, would not be heard: that pick gives way and the town's own
+-- track comes back with the layer in it. A pick that IS the theme of `district` is left alone (the layer joins it,
+-- no restart). Returns true when a pick was cleared (the caller says so), false when nothing had to change.
+function M.yield_to_layer(district)
+	local r = M.resolve(app.meta, district, M.TOWN)
+	if not r.chosen or (r.kind == "theme" and r.id == district) then return false end
+	return M.clear() == true
 end
 
 return M
