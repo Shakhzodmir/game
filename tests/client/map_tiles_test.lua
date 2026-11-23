@@ -66,15 +66,25 @@ describe("map tiles", function()
 end)
 
 describe("the art tools that make and install tiles", function()
-	it("pass their own self test (feathered whatever the file was, idempotent, JPEG in and PNG out, no tile turned into a JPEG)", function()
+	local function have_pillow()
 		local probe = run("python3 -I -c \"import PIL, numpy; print('pillow ok')\"")
-		if not (probe and string.find(probe, "pillow ok", 1, true)) then
-			print("  (skipped: Pillow or numpy is not installed)")
-			return
-		end
+		if probe and string.find(probe, "pillow ok", 1, true) then return true end
+		print("  (skipped: Pillow or numpy is not installed)")
+		return false
+	end
+
+	it("make a tile feathered whatever the file was (PNG, JPEG, opaque RGBA, any size), leave a feathered one alone, never turn one into a JPEG", function()
+		if not have_pillow() then return end
 		local out = run("python3 -I tools/art/feather_mapbg.py selftest")
 		assert_true(out ~= nil, "python3 did not start")
 		assert_true(string.find(out, "feather_mapbg selftest: ok", 1, true) ~= nil, out)
+	end)
+
+	it("install a whole district with a JPEG map picture: the tile comes out feathered, a placeholder is replaced for good", function()
+		if not have_pillow() then return end
+		local out = run("python3 -I tools/art/install_district.py selftest")
+		assert_true(out ~= nil, "python3 did not start")
+		assert_true(string.find(out, "install_district selftest: ok", 1, true) ~= nil, out)
 	end)
 
 	it("keep the notes of installed.json (every installer saves with its sources and unmarks what it writes)", function()

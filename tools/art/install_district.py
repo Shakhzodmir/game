@@ -14,6 +14,13 @@ Reads from the folder (drawn on magenta where a cut-out is needed):
 The place of every item in the room is the table ROOMS below (x, y = centre in the 720x1280 room, y from the top;
 w = width on screen). content/district_layouts.json gets the district; the files are recorded in
 assets/art_ready/installed.json. Run python3 tools/gen_defold.py afterwards.
+
+The map tile is made 720x1080 RGBA with the bottom 110 rows faded out whatever the picture was (PNG or JPEG, opaque, any size
+of the 2:3 shape): tools/art/feather_mapbg.py. The pictures may be .png, .jpg or .jpeg. A picture that replaces a placeholder
+of tools/art/make_part2_placeholders.py stops being one (its note in installed.json goes, an older .jpg/.png of the same
+key is deleted).
+
+  python3 tools/art/install_district.py selftest     # installs synthetic pictures into a temporary project (Pillow, numpy)
 """
 import json
 import os
@@ -186,8 +193,11 @@ def centred(im, size):
     return canvas
 
 
-def main():
-    did, folder, name = sys.argv[1], sys.argv[2], sys.argv[3]
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["selftest"]:
+        return selftest()
+    did, folder, name = argv[0], argv[1], argv[2]
     files, sources = inst.load(), inst.load_sources()
 
     def save(im, rel):
@@ -245,5 +255,91 @@ def main():
     inst.save(files, sources)
 
 
+def selftest():
+    """Installs a district of synthetic pictures into a temporary project: the map tile comes out feathered (here from an
+    opaque JPEG of another size), a placeholder is replaced for good, nothing else of installed.json is lost."""
+    import tempfile
+
+    import numpy as np
+    from PIL import ImageDraw
+
+    failed = []
+
+    def check(ok, what):
+        if not ok:
+            failed.append(what)
+            print("FAIL:", what)
+
+    def sheet(cols, rows, size=240):
+        im = Image.new("RGB", (cols * size, rows * size), (255, 0, 255))
+        d = ImageDraw.Draw(im)
+        for r in range(rows):
+            for c in range(cols):
+                x0, y0 = c * size + size // 4, r * size + size // 4
+                d.rectangle((x0, y0, x0 + size // 2, y0 + size // 2), fill=(40 + c * 20, 160 + r * 30, 220))
+        return im
+
+    saved = (inst.ROOT, inst.PATH, IMAGES, LAYOUTS, dict(ROOMS))
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "root")
+            for d in ("assets/images/mapbg", "assets/images/districts/zz_test", "assets/art_ready", "content"):
+                os.makedirs(os.path.join(root, d))
+            tasks = ["t1", "t2", "t3", "t4", "t5", "t6"]
+            with open(os.path.join(root, "content", "districts.json"), "w") as f:
+                json.dump({"districts": [{"id": "zz_test", "tasks": [{"id": t} for t in tasks]}]}, f)
+            with open(os.path.join(root, "content", "district_layouts.json"), "w") as f:
+                json.dump({}, f)
+            folder = os.path.join(tmp, "pictures")
+            os.makedirs(folder)
+            rng = np.random.RandomState(1)
+            for n, shape in (("room_zz_day.png", (1280, 720, 3)), ("room_zz_concert.png", (1280, 720, 3))):
+                Image.fromarray(rng.randint(0, 255, shape, np.uint8)).save(os.path.join(folder, n))
+            tile_jpeg = os.path.join(folder, "map_bg_zz.jpg")           # the producer's map picture: an opaque JPEG, 1024x1536
+            Image.fromarray(rng.randint(0, 255, (1536, 1024, 3), np.uint8)).save(tile_jpeg, quality=90)
+            sheet(1, 1, 480).save(os.path.join(folder, "gate_zz.png"))
+            sheet(3, 2).save(os.path.join(folder, "deco_zz.png"))
+            sheet(3, 2).save(os.path.join(folder, "items_zz.png"))
+            ROOMS["zz_test"] = ("3x2", [(t, 100 + 50 * i, 700, 100) for i, t in enumerate(tasks)])
+            inst.ROOT, inst.PATH = root, os.path.join(root, "assets", "art_ready", "installed.json")
+            images = os.path.join(root, "assets", "images")
+            globals()["IMAGES"], globals()["LAYOUTS"] = images, os.path.join(root, "content", "district_layouts.json")
+            # the district wears placeholders (the map tile and the day room as JPEG files); another file has a note of its own
+            inst.save({"mapbg/bg_zz_test.jpg", "districts/zz_test/bg.jpg", "keep.png"},
+                      {"mapbg/bg_zz_test.jpg": "placeholder: night version of cafe",
+                       "districts/zz_test/bg.jpg": "placeholder: night version of cafe", "keep.png": "placeholder: other"})
+            for rel in ("mapbg/bg_zz_test.jpg", "districts/zz_test/bg.jpg"):
+                with open(os.path.join(images, rel), "wb") as f:
+                    f.write(b"placeholder")
+            main(["zz_test", folder, "zz"])
+
+            tile = Image.open(os.path.join(images, "mapbg", "bg_zz_test.png"))
+            check(tile.mode == "RGBA" and tile.size == (720, 1080), "the map tile is a 720x1080 RGBA PNG: %s %s" % (tile.mode, tile.size))
+            with Image.open(tile_jpeg) as src:
+                want = np.asarray(fm.feather(src))
+            check(np.array_equal(np.asarray(tile), want), "the tile is the feathered picture (alpha 255 -> 0 in the bottom 110 rows)")
+            check(np.array_equal(np.asarray(tile)[..., 3], fm.mask()), "the alpha is exactly the feather of feather_mapbg.py")
+            check(not os.path.isfile(os.path.join(images, "mapbg", "bg_zz_test.jpg")), "the old JPEG of the tile is gone")
+            check(not os.path.isfile(os.path.join(images, "districts", "zz_test", "bg.jpg")), "the old JPEG of the room is gone")
+            files = inst.load()
+            check({"mapbg/bg_zz_test.png", "districts/zz_test/bg.png", "keep.png"} <= files, "the new pictures are listed")
+            check("mapbg/bg_zz_test.jpg" not in files and "districts/zz_test/bg.jpg" not in files, "the old files are not listed")
+            check(inst.load_sources() == {"keep.png": "placeholder: other"},
+                  "the district stopped being a placeholder, the other note stays: %s" % inst.load_sources())
+            with open(inst.PATH, encoding="utf-8") as f:
+                listed = json.load(f)["files"]
+            check(len(listed) == len(set(listed)), "every picture is listed once")
+    finally:
+        inst.ROOT, inst.PATH, IMAGES_, LAYOUTS_, rooms = saved
+        globals()["IMAGES"], globals()["LAYOUTS"] = IMAGES_, LAYOUTS_
+        ROOMS.clear()
+        ROOMS.update(rooms)
+    if failed:
+        print("install_district selftest: %d failed" % len(failed))
+        return 1
+    print("install_district selftest: ok")
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

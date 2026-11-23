@@ -13,22 +13,23 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 PATH = os.path.join(ROOT, "assets", "art_ready", "installed.json")
 
 
-def read(path=PATH):
-    """The whole file as a dict ({} without it or when it is broken)."""
+def read(path=None):
+    """The whole file as a dict ({} without it or when it is broken). path=None: PATH, looked up when called (a test may
+    point PATH somewhere else)."""
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path or PATH, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}
 
 
-def load(path=PATH):
+def load(path=None):
     """Set of image paths relative to assets/images (e.g. 'bit/cheer_1.png'); empty without the file."""
     return {p for p in read(path).get("files", []) if isinstance(p, str)}
 
 
-def load_sources(path=PATH):
+def load_sources(path=None):
     """{image path: where it came from} (see above); empty without the file or the map."""
     src = read(path).get("sources", {})
     return {k: v for k, v in src.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(src, dict) else {}
@@ -61,10 +62,11 @@ def record(files, sources, rel, images):
     unmark(sources, rel)
 
 
-def save(files, sources=None, path=PATH):
+def save(files, sources=None, path=None):
     """Writes the list. sources: {file: note}; None keeps the map the file already has (for the files that are still
     listed), so an installer that only knows the files does not lose the notes of the others."""
     files = set(files)
+    path = path or PATH
     if sources is None:
         sources = {k: v for k, v in load_sources(path).items() if k in files}
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -79,7 +81,7 @@ def save(files, sources=None, path=PATH):
         f.write("\n")
 
 
-def rename(renamed, path=PATH):
+def rename(renamed, path=None):
     """Files were renamed ([(old, new)], tools/art/to_jpeg_backgrounds.py: x.png -> x.jpg): the list and the notes follow,
     and a file stays listed once (a text replace used to list the new name twice)."""
     files, sources = load(path), load_sources(path)

@@ -22,8 +22,8 @@ every 740 px and next to every gate (district 16 and 17 had it for a week: ChatG
 The picture can be a PNG or a JPEG, any size of the same 2:3 shape (it is scaled to 720x1080), opaque. A district with the
 producer's picture in assets/art_ready/map/map_bg_<id>.png is made from it, any other from its own file in assets/images/mapbg
 (bg_<id>.png or bg_<id>.jpg). A tile that has the feather already is left alone: running it again changes nothing. A JPEG
-tile becomes a PNG (the JPEG is deleted, assets/art_ready/installed.json follows). tools/art/install_district.py calls
-install_tile() for the tile of a new district, so the tile comes out feathered whatever the file was.
+tile becomes a PNG (the JPEG is deleted, assets/art_ready/installed.json follows). tools/art/install_district.py puts the
+tile of a new district through feather(), so it comes out feathered whatever the file was.
 """
 import glob
 import os
@@ -122,18 +122,6 @@ def make(did, ready=READY, out=OUT, state=inst.PATH):
     return changed or bool(gone)
 
 
-def install_tile(im, did, files, sources, images=IMAGES):
-    """Installs the picture as mapbg/bg_<did>.png with the feather (whatever it was: PNG, JPEG, opaque). files and sources are
-    the lists of tools/art/installed.py: the tile is listed once and is not a placeholder any more. Returns (path, tile)."""
-    rel = "mapbg/bg_%s.png" % did
-    tile = feather(im)
-    path = os.path.join(images, rel)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tile.save(path, optimize=True)
-    inst.record(files, sources, rel, images)
-    return rel, tile
-
-
 def main(argv):
     if argv[:1] == ["selftest"]:
         return selftest()
@@ -224,21 +212,10 @@ def selftest():
         except SystemExit:
             pass
 
-        # 5. install_tile: feathered, not a placeholder any more, an old JPEG of the tile is gone, listed once
+        # 5. to_jpeg_backgrounds never turns a map tile into a JPEG (a JPEG has no alpha); a room background it does
+        # (tools/art/install_district.py has its own self test: it installs a whole synthetic district)
         images = os.path.join(tmp, "images")
         os.makedirs(os.path.join(images, "mapbg"))
-        picture(9).save(os.path.join(images, "mapbg", "bg_cc.jpg"))
-        files = {"mapbg/bg_cc.jpg", "mapbg/gate_cc.png"}
-        sources = {"mapbg/bg_cc.jpg": "placeholder: night version of cafe", "mapbg/gate_cc.png": "placeholder: night version of cafe"}
-        rel, tile = install_tile(picture(10), "cc", files, sources, images)
-        check(rel == "mapbg/bg_cc.png" and tile.mode == "RGBA", "install_tile returns the tile")
-        saved = np.asarray(Image.open(os.path.join(images, rel)))
-        check(np.array_equal(saved[..., 3], mask()), "install_tile writes the feather")
-        check(not os.path.isfile(os.path.join(images, "mapbg", "bg_cc.jpg")), "install_tile deletes the old JPEG of the tile")
-        check(files == {"mapbg/bg_cc.png", "mapbg/gate_cc.png"}, "install_tile lists the tile once")
-        check(sources == {"mapbg/gate_cc.png": "placeholder: night version of cafe"}, "install_tile leaves the other notes")
-
-        # 6. to_jpeg_backgrounds never turns a map tile into a JPEG (a JPEG has no alpha); a room background it does
         big = os.path.join(images, "mapbg", "bg_big.png")
         Image.fromarray(np.random.RandomState(11).randint(0, 255, (H, W, 3), np.uint8)).save(big)   # opaque, > 200 KB
         os.makedirs(os.path.join(images, "districts", "cc"))
