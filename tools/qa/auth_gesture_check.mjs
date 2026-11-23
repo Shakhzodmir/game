@@ -134,11 +134,11 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 // 3b. a card nobody taps goes by itself as a plain "no", and the page is free again
 {
 	const f = fakeSdk(() => Promise.resolve({}));
-	const env = makeEnv({ nav: { userAgent: IOS_SAFARI }, test: { popupMs: 40 }, sdk: f.sdk });
+	const env = makeEnv({ nav: { userAgent: IOS_SAFARI }, test: { popupMs: 600 }, sdk: f.sdk }); // far from the 20 ms of the first look: a loaded PC cannot make it flaky
 	env.call(12, "sign_in_google");
 	await sleep(20);
 	assert.equal(env.cards().length, 1);
-	await sleep(100);
+	await sleep(900);
 	assert.equal(env.cards().length, 0);
 	assert.equal(lineOf(env.poll()).reason, "cancelled");
 	assert.equal(f.calls.popup, 0);
