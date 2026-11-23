@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<!-- GLOW: copy of builtins/manifests/web/engine_template.html (Defold 1.13.1); changes: the DPR cap in engine-setup, the two account scripts -->
+	<!-- GLOW: copy of builtins/manifests/web/engine_template.html (Defold 1.13.1); changes: the DPR cap in engine-setup, the two account scripts, the link-preview tags -->
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, minimal-ui, shrink-to-fit=no, viewport-fit=cover">
 	<meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,6 +14,27 @@
 	<link rel="icon" type="image/png" href="favicon.png">
 	<link rel="manifest" href="manifest.webmanifest">
 	<!-- The above 4 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+
+	<!-- The preview of a link to the game (a chat, a feed, a search result). The picture is web/og.png (tools/art/make_og_image.py makes it,
+	     tools/build_web.sh copies it next to index.html). The addresses are absolute on purpose: the programs that read these tags do not
+	     resolve relative ones. The text is English, the one language a single tag can hold; og:locale:alternate names the other two. -->
+	<meta name="description" content="Match three and hear every move play a note. Restore the town and add instruments to its track, layer by layer, up to the concert.">
+	<meta property="og:type" content="website">
+	<meta property="og:title" content="GLOW: Encore Town">
+	<meta property="og:description" content="Match three and hear every move play a note. Restore the town and add instruments to its track, layer by layer, up to the concert.">
+	<meta property="og:url" content="https://shakhzodmir.github.io/game/">
+	<meta property="og:image" content="https://shakhzodmir.github.io/game/og.png">
+	<meta property="og:image:width" content="1200">
+	<meta property="og:image:height" content="630">
+	<meta property="og:image:alt" content="The GLOW logo: a smiling round mascot in headphones above the word GLOW">
+	<meta property="og:locale" content="en_US">
+	<meta property="og:locale:alternate" content="ru_RU">
+	<meta property="og:locale:alternate" content="ko_KR">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="GLOW: Encore Town">
+	<meta name="twitter:description" content="Match three and hear every move play a note. Restore the town and add instruments to its track, layer by layer, up to the concert.">
+	<meta name="twitter:image" content="https://shakhzodmir.github.io/game/og.png">
+	<meta name="twitter:image:alt" content="The GLOW logo: a smiling round mascot in headphones above the word GLOW">
 
 	<title>{{project.title}} {{project.version}}</title>
 	<style type='text/css'>
