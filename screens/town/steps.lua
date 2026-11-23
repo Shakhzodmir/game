@@ -2,7 +2,7 @@
 --   M.task(town, task, res)        stars fly from the top bar to the card, a light
 --                                  flies to the item, the item lights up, the new
 --                                  stem fades in (a jukebox song that would drown it gives way to the town's track),
---                                  Bit cheers (2-3 s, tap to skip)
+--                                  Bit jumps, then listens to the new layer (2-3 s, tap to skip)
 --   M.concert(town, res)           the District Concert (gui/concert.lua)
 --   M.chest(town, params)          a chest reveal (gui/chest.lua), then its coins,
 --                                  boosters and unlimited lives fly to the HUD
@@ -25,6 +25,12 @@ local M = {}
 
 M.COIN_TRAIL = "#FFE066"
 M.STAR_TRAIL = "#FFF3A6"
+
+-- Bit listens to a layer that has just joined the track: the pose with the hands at the headphones
+-- (assets/images/bit/listen_*) starts LISTEN_AFTER s after the layer enters (the jump is over by then) and lasts
+-- LISTEN_FOR s. A skip drops the show's timers and starts the pose at once.
+M.LISTEN_AFTER = 1.2
+M.LISTEN_FOR = 3.5
 
 -- Flies `amount` of coins or stars from (x, y) (or fn) into the top bar.
 -- The counter grows as each icon lands; on_done() after the last.
@@ -112,6 +118,14 @@ function M.task(town, task, res)
 		end
 		audio.unlock_stem(res.district, res.stem)
 	end
+	local listening = false
+	-- Bit's headphones pose. mood_for plays the state whatever runs now (Bit:event("headphones") is refused while a
+	-- cheer, priority 2, is on). With reduced motion the pose is its still frame, the timing is the same.
+	local function listen()
+		if listening then return end
+		listening = true
+		town.bit:mood_for(M.LISTEN_FOR, "listen")
+	end
 	step.run = function(done)
 		local hud, fxi = town.hud, town.fx
 		fxi:sfx("button")
@@ -135,6 +149,7 @@ function M.task(town, task, res)
 				size = 46, outline = "#8B45FF", shadow = "#5220A6", dur = 1.6,
 			})
 			town.bit:cheer(2.2, 3)
+			fxi:after(M.LISTEN_AFTER, listen) -- after the jump, while the new layer plays
 			analytics.log("task_complete", { district = res.district, task = task.id, cost = task.cost, stem = task.stem })
 			fxi:after(0.3, function()
 				hud:build()
@@ -188,7 +203,9 @@ function M.task(town, task, res)
 		end
 		town.scene:refresh()
 		town.hud:build()
-		town.bit:cheer(1.5, 1)
+		-- the end state of the show: Bit listens (a skip has dropped the timer that would have started the pose, and
+		-- a pose that already runs is not started over)
+		listen()
 	end
 	step.after = function()
 		town:sync_disp()
