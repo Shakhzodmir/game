@@ -7,6 +7,13 @@ import assert from "node:assert/strict";
 
 const SRC = fs.readFileSync(new URL("../../web/glow_auth.js", import.meta.url), "utf8");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// the first answer the page gives (the poll text), waited for by polling
+async function pollLine(env, ms = 5000) {
+	const end = Date.now() + ms;
+	while (Date.now() < end) { const t = env.poll(); if (t) return t; await sleep(5); }
+	return "";
+}
+async function until(fn, ms = 5000) { const end = Date.now() + ms; while (Date.now() < end) { if (fn()) return true; await sleep(5); } return !!fn(); }
 const err = (code) => Object.assign(new Error(code), { code });
 
 const IOS_SAFARI = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1";
@@ -109,20 +116,18 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 	assert.equal(env.cards().length, 1, "the card stays while Google's window is out");
 	assert.match(tapCard(env).textContent, /Waiting for Google/);
 	cancelCard(env).click();
-	await sleep(80);
-	const r = lineOf(env.poll());
+	const r = lineOf(await pollLine(env));
 	assert.deepEqual([r.ok, r.reason], [false, "home_app"], "not silent: the player is told what to do");
 	assert.equal(env.notes().length, 1, "and the small diagnostic line is up");
 	assert.match(env.notes()[0].textContent, /glow\/cancel-waiting ios-home .*v2026/, "our own Cancel is told apart from the SDK's \"closed\" in the line");
 }
 {
 	const f = fakeSdk(() => new Promise(() => {}));
-	const env = makeEnv({ nav: { userAgent: IOS_HOME, standalone: true }, test: { popupMs: 40, homeLookMs: 30 }, sdk: f.sdk });
+	const env = makeEnv({ nav: { userAgent: IOS_HOME, standalone: true }, test: { popupMs: 500, homeLookMs: 30 }, sdk: f.sdk });
 	env.call(4, "sign_in_google");
 	await sleep(20);
 	tapCard(env).click();
-	await sleep(250);
-	const r = lineOf(env.poll());
+	const r = lineOf(await pollLine(env));
 	assert.deepEqual([r.ok, r.reason], [false, "home_app"], "a window that never answers ends by itself");
 	assert.equal(env.cards().length, 0);
 	// ... and the page is free again
@@ -149,8 +154,7 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 	const f = fakeSdk(() => Promise.reject(err("auth/popup-closed-by-user")));
 	const env = makeEnv({ sdk: f.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 30 } });
 	env.call(6, "sign_in_google");
-	await sleep(150);
-	assert.equal(lineOf(env.poll()).reason, "popup_closed");
+	assert.equal(lineOf(await pollLine(env)).reason, "popup_closed");
 	const g = fakeSdk(() => Promise.resolve({}));
 	const env2 = makeEnv({ nav: { userAgent: IOS_SAFARI }, sdk: g.sdk });
 	env2.call(7, "sign_in_google");
@@ -178,8 +182,7 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 	const env = makeEnv({ test: { sdkMs: 30 }, sdk: new Promise(() => {}) });
 	env.win.glowAuth._test.sdk = () => new Promise(() => {});
 	env.call(10, "sign_in_google");
-	await sleep(100);
-	assert.equal(lineOf(env.poll()).reason, "timeout");
+	assert.equal(lineOf(await pollLine(env)).reason, "timeout");
 	assert.match(env.notes()[0].textContent, /glow\/sdk-timeout/);
 }
 
@@ -194,14 +197,13 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 
 // 4b. the window closed, but the sign-in was being finished: the account is looked at again before "failed" is said
 {
-	const d = driftSdk((u, auth) => { setTimeout(() => { auth.currentUser = u; }, 120); return Promise.reject(err("auth/popup-closed-by-user")); });
-	const env = makeEnv({ sdk: d.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 600 } });
+	const d = driftSdk((u, auth) => { setTimeout(() => { auth.currentUser = u; }, 700); return Promise.reject(err("auth/popup-closed-by-user")); });
+	const env = makeEnv({ sdk: d.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 3000 } });
 	env.call(20, "sign_in_google");
 	await sleep(60);
 	assert.equal(env.poll(), "", "nothing is said while the account is looked at");
 	assert.equal(env.body.children.filter((c) => /Checking whether you signed in/.test(c.textContent)).length, 1, "a small line says it is being checked");
-	await sleep(900);
-	const out = env.poll();
+	const out = await pollLine(env);
 	assert.deepEqual([lineOf(out).ok, /uid=u2/.test(out), /google=1/.test(out)], [true, true, true], "a late sign-in counts as a sign-in");
 	assert.equal(env.notes().length, 0, "and no failure line");
 	assert.equal(env.body.children.filter((c) => /Checking/.test(c.textContent)).length, 0, "the checking line is gone");
@@ -209,51 +211,46 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 {
 	// the player cancelled the waiting card (a Home Screen app that lost the window) but the sign-in had gone through
 	const d = driftSdk((u, auth) => { setTimeout(() => { auth.currentUser = u; }, 10); return new Promise(() => {}); });
-	const env = makeEnv({ sdk: d.sdk, nav: { userAgent: IOS_HOME, standalone: true }, test: { cancelLookMs: 300 } });
+	const env = makeEnv({ sdk: d.sdk, nav: { userAgent: IOS_HOME, standalone: true }, test: { cancelLookMs: 3000 } });
 	env.call(21, "sign_in_google");
 	await sleep(20);
 	tapCard(env).click();
 	await sleep(20);
 	cancelCard(env).click();
-	await sleep(500);
-	assert.equal(lineOf(env.poll()).ok, true);
+	assert.equal(lineOf(await pollLine(env)).ok, true);
 }
 {
 	// linking: Google appears on the current user while the window reports "closed"
 	const base = { uid: "u9", email: "x@id.glow.invalid", emailVerified: false, displayName: "", providerData: [{ providerId: "password" }] };
 	const d = driftSdk((u, auth) => { setTimeout(() => { base.providerData.push({ providerId: "google.com", email: "x@gmail.com" }); }, 80); return Promise.reject(err("auth/popup-closed-by-user")); }, { first: base });
-	const env = makeEnv({ sdk: d.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 600 } });
+	const env = makeEnv({ sdk: d.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 3000 } });
 	env.call(22, "link_google");
-	await sleep(700);
-	const out = env.poll();
+	const out = await pollLine(env);
 	assert.deepEqual([lineOf(out).ok, /google=1/.test(out)], [true, true]);
 	// ... and a link that never happened is still a failure, after the look
 	const base2 = { uid: "u8", email: "y@id.glow.invalid", emailVerified: false, displayName: "", providerData: [{ providerId: "password" }] };
 	const d2 = driftSdk(() => Promise.reject(err("auth/popup-closed-by-user")), { first: base2 });
 	const env2 = makeEnv({ sdk: d2.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 40 } });
 	env2.call(23, "link_google");
-	await sleep(300);
-	assert.equal(lineOf(env2.poll()).reason, "popup_closed");
+	assert.equal(lineOf(await pollLine(env2)).reason, "popup_closed");
 }
 {
 	// a signed-in Google user who "signs in" again with a window that closes is not mistaken for a new sign-in
 	const f = fakeSdk(() => Promise.reject(err("auth/popup-closed-by-user")));
 	const env = makeEnv({ sdk: f.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 30 } });
 	env.call(24, "sign_in_google");
-	await sleep(200);
-	assert.equal(lineOf(env.poll()).reason, "popup_closed");
+	assert.equal(lineOf(await pollLine(env)).reason, "popup_closed");
 }
 
 // 4c. a Home Screen app that only says so by the display-mode query (WebKit bug 264218: "fullscreen")
 {
 	const f = fakeSdk(() => new Promise(() => {}));
-	const env = makeEnv({ nav: { userAgent: IOS_HOME }, media: ["fullscreen"], test: { popupMs: 40, homeLookMs: 20 }, sdk: f.sdk });
+	const env = makeEnv({ nav: { userAgent: IOS_HOME }, media: ["fullscreen"], test: { popupMs: 500, homeLookMs: 20 }, sdk: f.sdk });
 	env.call(25, "sign_in_google");
 	await sleep(20);
 	assert.equal(env.cards().length, 1, "not taken for an app's web view: the tap card, not the 'open in Safari' refusal");
 	tapCard(env).click();
-	await sleep(250);
-	const r = lineOf(env.poll());
+	const r = lineOf(await pollLine(env));
 	assert.deepEqual([r.ok, r.reason], [false, "home_app"]);
 	assert.match(env.notes()[0].textContent, /ios-home/);
 }
@@ -284,15 +281,14 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 	assert.deepEqual({ ...env.win.glowAuth.bounds }, { popup: 240000, homePopup: 90000, look: 5000, homeLook: 12000, cancelLook: 2000, waitCard: 10000, sdk: 30000 });
 }
 {
-	const home = makeEnv({ nav: { userAgent: IOS_HOME, standalone: true }, test: { popupMs: 3000, homePopupMs: 60, homeLookMs: 30 }, sdk: fakeSdk(() => new Promise(() => {})).sdk });
-	const tab = makeEnv({ nav: { userAgent: IOS_SAFARI }, test: { popupMs: 3000, homePopupMs: 60, homeLookMs: 30, lookMs: 30 }, sdk: fakeSdk(() => new Promise(() => {})).sdk });
+	const home = makeEnv({ nav: { userAgent: IOS_HOME, standalone: true }, test: { popupMs: 20000, homePopupMs: 60, homeLookMs: 30 }, sdk: fakeSdk(() => new Promise(() => {})).sdk });
+	const tab = makeEnv({ nav: { userAgent: IOS_SAFARI }, test: { popupMs: 20000, homePopupMs: 60, homeLookMs: 30, lookMs: 30 }, sdk: fakeSdk(() => new Promise(() => {})).sdk });
 	home.call(30, "sign_in_google");
 	tab.call(31, "sign_in_google");
 	await sleep(20);
 	tapCard(home).click();
 	tapCard(tab).click();
-	await sleep(500);
-	assert.equal(lineOf(home.poll()).reason, "home_app", "the Home Screen app ended at its own bound");
+	assert.equal(lineOf(await pollLine(home)).reason, "home_app", "the Home Screen app ended at its own bound");
 	assert.equal(tab.poll(), "", "an iOS Safari tab is still waiting: its bound is the long one");
 	assert.equal(tab.cards().length, 1);
 }
@@ -336,8 +332,7 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 	const d = driftSdk(() => { setTimeout(() => { d.auth.currentUser = other; }, 50); return Promise.reject(err("auth/popup-closed-by-user")); }, { first: base });
 	const env = makeEnv({ sdk: d.sdk, nav: { userActivation: { isActive: true } }, test: { lookMs: 250 } });
 	env.call(45, "link_google");
-	await sleep(500);
-	const r = lineOf(env.poll());
+	const r = lineOf(await pollLine(env));
 	assert.deepEqual([r.ok, r.reason], [false, "popup_closed"], "not taken for a link");
 }
 
@@ -371,18 +366,16 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 // 5f. desktop / Android with a live tap: no card at first; a window unanswered for a while gets the waiting card with Cancel
 {
 	const f = fakeSdk(() => new Promise(() => {}));
-	const env = makeEnv({ nav: { userActivation: { isActive: true } }, test: { waitCardMs: 250, cancelLookMs: 20 }, sdk: f.sdk });
+	const env = makeEnv({ nav: { userActivation: { isActive: true } }, test: { waitCardMs: 1500, cancelLookMs: 20 }, sdk: f.sdk });
 	env.call(48, "sign_in_google");
 	await sleep(40);
 	assert.equal(f.calls.popup, 1, "opened at once");
 	assert.equal(env.cards().length, 0, "no card yet");
-	await sleep(400);
-	assert.equal(env.cards().length, 1);
+	assert.ok(await until(() => env.cards().length === 1), "the waiting card comes up");
 	assert.match(tapCard(env).textContent, /Waiting for Google/);
 	assert.equal(tapCard(env).disabled, true);
 	cancelCard(env).click();
-	await sleep(150);
-	assert.equal(lineOf(env.poll()).reason, "popup_closed");
+	assert.equal(lineOf(await pollLine(env)).reason, "popup_closed");
 	assert.equal(env.cards().length, 0);
 	assert.match(env.notes()[0].textContent, /glow\/cancel-waiting android-tab/);
 	env.call(49, "sign_in_google"); // the page is free again: not "busy"
@@ -390,10 +383,9 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 	assert.equal(f.calls.popup, 2);
 	// a window that answers in time never shows the card
 	const g = fakeSdk((u) => new Promise((r) => setTimeout(() => r({ user: u }), 10)));
-	const env2 = makeEnv({ nav: { userActivation: { isActive: true } }, test: { waitCardMs: 500 }, sdk: g.sdk });
+	const env2 = makeEnv({ nav: { userActivation: { isActive: true } }, test: { waitCardMs: 3000 }, sdk: g.sdk });
 	env2.call(50, "sign_in_google");
-	await sleep(150);
-	assert.equal(lineOf(env2.poll()).ok, true);
+	assert.equal(lineOf(await pollLine(env2)).ok, true);
 	assert.equal(env2.cards().length, 0);
 }
 

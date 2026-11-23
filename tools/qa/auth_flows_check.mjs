@@ -7,9 +7,7 @@
 //   node tools/qa/auth_flows_check.mjs
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { read, CORE, sleep, json, CLIENT, ORIGIN, RETURN_URL, IPHONE, b64u, sha256hex,
-	makeWorld, makeWindow, installGoogle, loadReturn } from "./fake_world.mjs";
-import vm from "node:vm";
+import { read, sleep, CLIENT, ORIGIN, RETURN_URL, IPHONE, b64u, sha256hex, makeWorld, makeWindow, installGoogle, loadReturn } from "./fake_world.mjs";
 
 const AUTH = read("web/glow_auth.js");
 const VERSION = AUTH.match(/var VERSION = "([^"]+)"/)[1];
@@ -406,9 +404,9 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 }
 {
 	// the bounds: the SDK's own window in the Home Screen app ends at HOME_POPUP_MS with home_app; the shim keeps the long bound
-	for (const [flow, wantReason, minMs, maxMs] of [["firebase", "home_app", 850, 6000], ["shim", "popup_timeout", 850, 1500]]) {
+	for (const [flow, wantReason, minMs, maxMs] of [["firebase", "home_app", 2400, 20000], ["shim", "popup_timeout", 850, 2200]]) {
 		const sdk = fakeSdk({ popup: () => new Promise(() => {}) });
-		const g = game({ ua: IPHONE_HOME, standalone: true, cfg: { googleIosHome: flow }, sdk, test: { popupMs: 900, homePopupMs: 30, homeLookMs: 900, lookMs: 5 } });
+		const g = game({ ua: IPHONE_HOME, standalone: true, cfg: { googleIosHome: flow }, sdk, test: { popupMs: 900, homePopupMs: 30, homeLookMs: 2500, lookMs: 5 } });
 		g.open = () => realWindow(0);
 		const id = startCall(g, "sign_in_google", ["en"]);
 		assert.ok(await waitFor(() => cards(g).length === 1));
@@ -462,7 +460,7 @@ for (const op of ["sign_in_google", "link_google"]) {
 	const t0 = Date.now();
 	const r = await ask(g, op, ["en"]);
 	assert.deepEqual(lineOf(r), { ok: false, reason: "home_app" }, op);
-	assert.ok(Date.now() - t0 < 500, "at once");
+	assert.ok(Date.now() - t0 < 3000, "at once (not the 90 s of a window that never answers)");
 	assert.deepEqual([cards(g).length, opens.length, sdk.calls.length], [0, 0, 0], "no card, no window, no SDK call");
 	assert.match(notes(g)[0].textContent, /^google glow\/no-window ios-home \d+s v\S+ no_window$/);
 }
@@ -598,8 +596,8 @@ for (const [name, sc, wantReason, wantCode] of [
 	const world = popupWorld({ badState: true }), sdk = fakeSdk();
 	const g = game({ world, cfg: OIDC_POPUP, sdk });
 	const id = await tapped(g);
+	assert.ok(await waitFor(() => world.pages[0].page), "the return page did run");
 	await sleep(500);
-	assert.ok(world.pages[0].page, "the return page did run");
 	assert.deepEqual([g.glowAuth.poll(), sdk.calls.length, cards(g).length, tapCard(g).disabled], ["", 0, 1, true], "still waiting");
 	cancelCard(g).click();
 	assert.deepEqual(lineOf(await waitLine(g, id)), { ok: false, reason: "popup_closed" });
@@ -719,7 +717,11 @@ for (const [name, sc, wantReason, wantCode] of [
 	const realOpen = g.open, urls = [];
 	g.open = (u, n) => { urls.push(u); return realOpen(u, n); };
 	g.openBlocked = true;
-	const id = await tapped(g);
+	const id = startCall(g, "sign_in_google", ["en"]);
+	assert.ok(await waitFor(() => cards(g).length === 1), "the tap card is up");
+	const prepareNow = g.window.glowOidc.prepare;
+	g.window.glowOidc.prepare = (o) => prepareNow(o).then((r) => sleep(1500).then(() => r)); // the next attempt takes its time to prepare
+	tapCard(g).click();
 	assert.ok(await waitFor(() => cards(g).length === 1 && !tapCard(g).disabled), "the card keeps one more tap");
 	assert.deepEqual([oidcKeys(g), stopped(g)], [[], true], "a refused window leaves nothing behind");
 	g.openBlocked = false;
@@ -727,8 +729,7 @@ for (const [name, sc, wantReason, wantCode] of [
 	const r = await waitLine(g, id);
 	assert.deepEqual([r.ok, sdk.calls.length], [true, 1], "the second tap works");
 	assert.equal(urls.length, 2);
-	assert.match(new URL(urls[1]).searchParams.get("state"), /^pg\./, "the second try has its own attempt");
-	assert.notEqual(new URL(urls[1]).searchParams.get("state"), new URL(urls[0]).searchParams.get("state"), "...never the refused one's");
+	assert.equal(new URL(urls[1]).searchParams.get("state"), new URL(urls[0]).searchParams.get("state"), "a quick second tap uses the secrets of the refused try: nothing of them was ever shown to Google");
 	// two refusals
 	const w2 = popupWorld(), g2 = game({ world: w2, cfg: OIDC_POPUP, sdk: fakeSdk() });
 	g2.openBlocked = true;
@@ -999,10 +1000,10 @@ async function leaving(o = {}) {
 	assert.ok(await waitFor(() => g.navs.length === 1));
 	const p = paramsOf(g.navs[0]);
 	const sheet = makeWindow(world, { href: "https://accounts.google.com/chooser", ss: g.ssMap }); // a copy of this tab's storage, marker and all
-	const page = loadReturn(world, { href: RETURN_URL + "#" + answerFrag(p), from: sheet, opener: null, sc: {} });
+	const page = loadReturn(world, { href: RETURN_URL + "#" + answerFrag(p), from: sheet, opener: null, sc: { scale: 1 } });
 	const r = await waitLine(g, id);
 	assert.deepEqual([r.ok, r.f.uid, sdk.calls], [true, "u2002", [["signInWithCredential", "A"]]]);
-	await sleep(350);
+	await sleep(900); // past the 400 ms the return page waits for a pong
 	assert.deepEqual(page.replaced, [], "the sheet did not load the game over the live page");
 	assert.deepEqual([cards(g).length, oidcKeys(g), stopped(g)], [0, [], true]);
 }

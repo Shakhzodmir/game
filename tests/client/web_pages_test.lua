@@ -222,7 +222,7 @@ describe("the ways of Google's sign-in in the game page (web/glow_auth.js, web/a
 		assert_true(has(ci, "node tools/qa/auth_flows_check.mjs"))
 		assert_true(has(ci, "node tools/qa/auth_oidc_check.mjs"))
 		local check = slurp("tools/qa/auth_flows_check.mjs")
-		assert_true(has(check, "import { read, CORE, sleep") and has(check, "fake_world.mjs"), "the check shares the fake browser")
+		assert_true(has(check, 'from "./fake_world.mjs"'), "the check shares the fake browser")
 		slurp("tools/qa/fake_world.mjs")
 	end)
 end)
