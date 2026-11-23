@@ -1,0 +1,32 @@
+{
+  "id": 421, "version": 1,
+  "size": [9, 9],
+  "moves": 30,
+  "difficulty": "easy",
+  "colors": ["red", "orange", "yellow", "green", "purple"],
+  "goals": [
+    {"type": "chains", "count": 8},
+    {"type": "collect", "color": "red", "count": 36}
+  ],
+  "cells": [
+    ".#######.",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    "#########",
+    ".#######."
+  ],
+  "overlay": [
+    {"at": [1, 2], "type": "chain", "hp": 2},
+    {"at": [3, 2], "type": "chain", "hp": 2},
+    {"at": [5, 2], "type": "chain", "hp": 2},
+    {"at": [7, 2], "type": "chain", "hp": 2},
+    {"at": [1, 5], "type": "chain", "hp": 2},
+    {"at": [3, 5], "type": "chain", "hp": 2},
+    {"at": [5, 5], "type": "chain", "hp": 2},
+    {"at": [7, 5], "type": "chain", "hp": 2}
+  ]
+}

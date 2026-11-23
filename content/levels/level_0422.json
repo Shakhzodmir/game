@@ -1,0 +1,36 @@
+{
+  "id": 422, "version": 1,
+  "size": [8, 9],
+  "moves": 23,
+  "difficulty": "easy",
+  "colors": ["red", "yellow", "green", "blue", "purple"],
+  "goals": [
+    {"type": "chains", "count": 6},
+    {"type": "break", "item": "boombox", "count": 3},
+    {"type": "collect", "color": "green", "count": 40}
+  ],
+  "cells": [
+    ".######.",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    "########",
+    ".######."
+  ],
+  "slots": [
+    {"at": [2, 2], "type": "boombox", "hp": 3},
+    {"at": [5, 2], "type": "boombox", "hp": 3},
+    {"at": [3, 6], "type": "boombox", "hp": 3}
+  ],
+  "overlay": [
+    {"at": [3, 3], "type": "chain", "hp": 2},
+    {"at": [4, 3], "type": "chain", "hp": 2},
+    {"at": [1, 4], "type": "chain", "hp": 2},
+    {"at": [2, 4], "type": "chain", "hp": 2},
+    {"at": [5, 4], "type": "chain", "hp": 2},
+    {"at": [6, 4], "type": "chain", "hp": 2}
+  ]
+}
