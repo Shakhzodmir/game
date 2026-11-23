@@ -3,7 +3,8 @@
 -- tile (a JPEG, an RGB PNG, an RGBA PNG without the fade) shows a hard horizontal seam every 740 px and next to every
 -- gate: districts 16 and 17 had it for a week. tools/art/tile_check.py (standard library only: CI has no Pillow) reads
 -- the alpha of every tile; the tools that make and install tiles have self tests of their own (Pillow and numpy, run
--- here where they are installed and skipped where they are not).
+-- here where they are installed and skipped where they are not). The art brief's map tile prompts carry the stacking rule
+-- that keeps the picture free of objects where the tiles blend: one text in every prompt, in the words of the prompt.
 
 local assets = require("client.assets")
 local json = require("tools.lib.json")
@@ -134,5 +135,56 @@ describe("the art tools that make and install tiles", function()
 	it("feather every map tile an installer writes, and never turn one into a JPEG", function()
 		local jpeg = read("tools/art/to_jpeg_backgrounds.py")
 		assert_true(string.find(jpeg, 'LOOSE = ("districts", "backgrounds")', 1, true) ~= nil, "to_jpeg_backgrounds.py leaves mapbg alone")
+	end)
+end)
+
+-- docs/art-brief-chatgpt.md: every map_bg prompt for ChatGPT ends with the stacking rule. The game lays the tiles 740 px
+-- apart (a tile is 1080 px high) and blends the faded bottom 110 rows of one into the top of the next, so what ChatGPT
+-- draws in the top 35% and the bottom 12% must be plain; the rule says so in the words the prompt already uses.
+describe("the stacking rule in the map tile prompts of the art brief", function()
+	local brief = string.gsub(read("docs/art-brief-chatgpt.md"), "\r", "")
+	local rules, at = {}, 1
+	while true do
+		local s = string.find(brief, "The game stacks copies of this picture", at, true)
+		if not s then break end
+		local _, e = string.find(brief, "of the height.", s, true)
+		assert(e, "a stacking rule without its end")
+		local line_start = 1
+		for pos in string.gmatch(string.sub(brief, 1, s - 1), "()\n") do line_start = pos + 1 end
+		rules[#rules + 1] = { text = string.sub(brief, s, e), before = string.sub(brief, line_start, s - 1) }
+		at = e + 1
+	end
+
+	it("is in the generic template, the paste-as-is block and the prompts of C16.3, C17.3, C18.3 and C19.3, word for word", function()
+		assert_true(#rules >= 6, "found " .. #rules .. " stacking rules")
+		for i = 2, #rules do
+			assert_eq(rules[i].text, rules[1].text, "stacking rule " .. i .. " differs from the first one")
+		end
+	end)
+
+	it("speaks of the free band the prompt draws, never of a road the prompt does not mention", function()
+		local rule = rules[1].text
+		assert_true(string.find(string.lower(rule), "road", 1, true) == nil, "the rule says road, the prompt says free band")
+		assert_true(string.find(rule, "the free band in the middle", 1, true) ~= nil, "the rule names the free band")
+		for i, r in ipairs(rules) do
+			if #r.before > 0 then -- a prompt: it draws the band before the rule speaks of it
+				assert_true(string.find(r.before, "a free band in the middle for a winding path (do NOT draw the path)", 1, true) ~= nil,
+					"prompt " .. i .. " does not introduce the free band before the rule")
+			end
+		end
+	end)
+
+	it("covers the rows of the tile that are blended: the cross-fade under the tile above and the feather", function()
+		local map = json.decode(read("content/map.json"))
+		local rule = rules[1].text
+		local top, bottom = string.match(rule, "the top (%d+)%% and the bottom (%d+)%%")
+		local low, high = string.match(rule, "between (%d+)%% and (%d+)%% of the height")
+		top, bottom, low, high = tonumber(top), tonumber(bottom), tonumber(low), tonumber(high)
+		-- rows 230..339 of a tile are blended with the feather of the tile above, rows 970..1079 are its own feather
+		local blended_to = (map.tile_h - map.tile_step) / map.tile_h * 100
+		local feather = map.tile_feather / map.tile_h * 100
+		assert_true(top >= blended_to, "the top " .. top .. "% must cover the blended rows down to " .. blended_to .. "%")
+		assert_true(bottom >= feather, "the bottom " .. bottom .. "% must cover the feather of " .. feather .. "%")
+		assert_true(low == top and high == 100 - bottom, "the objects stand between " .. low .. "% and " .. high .. "%, the plain parts are " .. top .. "% and " .. bottom .. "%")
 	end)
 end)
