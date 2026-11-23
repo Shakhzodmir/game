@@ -152,18 +152,34 @@ describe("the Part 2 tag (client/app.lua)", function()
 	end
 
 	it("district 16 opens Part 2; Part 1 districts and the later Part 2 districts do not", function()
-		with_districts(to_thirty().districts, function()
+		local list = to_thirty().districts
+		local last = list[#list].id -- district 30: made up by to_thirty() while the shipped data ends earlier, real after
+		with_districts(list, function()
+			-- every id asked about is a district of the list: an id that is not there answers nil and proves nothing
+			for _, id in ipairs({ "cafe", "arcade", "midnight_cafe", "late_club", "nations_fest", "night_carnival", last }) do
+				assert_true(app.district(id) ~= nil, id .. " is a district of the list")
+			end
 			assert_eq(app.district_part("cafe"), 1)
 			assert_eq(app.district_part("arcade"), 1)
 			assert_eq(app.district_part("midnight_cafe"), 2)
-			assert_eq(app.district_part("p2_30"), 2)
+			assert_eq(app.district_part("late_club"), 2)
+			assert_eq(app.district_part("night_carnival"), 2)
+			assert_eq(app.district_part(last), 2)
 			assert_eq(app.district_part("nowhere"), 1)
 			assert_eq(app.part_opens("midnight_cafe"), 2)
 			assert_eq(app.part_opens("cafe"), nil)
 			assert_eq(app.part_opens("arcade"), nil)
-			assert_eq(app.part_opens("p2_17"), nil)
-			assert_eq(app.part_opens("p2_30"), nil)
+			assert_eq(app.part_opens("late_club"), nil)      -- district 17: Part 2 goes on, it does not open again
+			assert_eq(app.part_opens("nations_fest"), nil)
+			assert_eq(app.part_opens("night_carnival"), nil) -- district 22
+			assert_eq(app.part_opens(last), nil)
 			assert_eq(app.part_opens("nowhere"), nil)
+			-- over the whole list: exactly one district opens Part 2, the first one of it
+			local opening = {}
+			for _, d in ipairs(list) do
+				if app.part_opens(d.id) then opening[#opening + 1] = d.id .. "=" .. app.part_opens(d.id) end
+			end
+			assert_same(opening, { "midnight_cafe=2" })
 		end)
 	end)
 
