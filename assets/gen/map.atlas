@@ -847,6 +847,48 @@ animations {
   playback: PLAYBACK_NONE
 }
 animations {
+  id: "map_deco_sunset_bossa_1"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_1.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_2"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_2.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_3"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_3.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_4"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_4.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_5"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_5.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
+  id: "map_deco_sunset_bossa_6"
+  images {
+    image: "/assets/images/map/deco_sunset_bossa_6.png"
+  }
+  playback: PLAYBACK_NONE
+}
+animations {
   id: "map_node_concert_current"
   images {
     image: "/assets/images/map/node_concert_current.png"

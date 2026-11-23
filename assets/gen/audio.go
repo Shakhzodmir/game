@@ -844,6 +844,46 @@ embedded_components {
   data: "sound: \"/assets/music/stadium/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_sunset_bossa_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_flute"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/flute.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_guitar"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/guitar.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_keys"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/keys.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_party"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_perc"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/perc.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_shaker"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/shaker.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_sunset_bossa_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/sunset_bossa/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "note_blue_1"
   type: "sound"
   data: "sound: \"/assets/sounds/notes/blue_1.ogg\"\nlooping: 0\ngroup: \"notes\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1609,6 +1649,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/garage_sale_anthem.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_golden_hour_walk"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/golden_hour_walk.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_green_hill_jig"
   type: "sound"
   data: "sound: \"/assets/music/songs/green_hill_jig.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1669,9 +1714,19 @@ embedded_components {
   data: "sound: \"/assets/music/songs/lantern_stroll.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_lantern_tide"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/lantern_tide.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_laser_trance"
   type: "sound"
   data: "sound: \"/assets/music/songs/laser_trance.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_last_ferry_home"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/last_ferry_home.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_lightstick_wave"
@@ -1867,6 +1922,11 @@ embedded_components {
   id: "song_scat_parade"
   type: "sound"
   data: "sound: \"/assets/music/songs/scat_parade.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_sea_salt_samba"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/sea_salt_samba.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_silk_road_caravan"

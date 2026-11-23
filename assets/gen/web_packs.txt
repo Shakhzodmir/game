@@ -299,6 +299,21 @@ assets/images/districts/stadium/screens.png
 assets/images/districts/stadium/screens_ghost.png
 assets/images/districts/stadium/stage.png
 assets/images/districts/stadium/stage_ghost.png
+assets/images/districts/sunset_bossa/bg.jpg
+assets/images/districts/sunset_bossa/bg_concert.jpg
+assets/images/districts/sunset_bossa/dune_hammock.png
+assets/images/districts/sunset_bossa/dune_hammock_ghost.png
+assets/images/districts/sunset_bossa/lantern_palm.png
+assets/images/districts/sunset_bossa/lantern_palm_ghost.png
+assets/images/districts/sunset_bossa/level_bg.jpg
+assets/images/districts/sunset_bossa/sunset_bar.png
+assets/images/districts/sunset_bossa/sunset_bar_ghost.png
+assets/images/districts/sunset_bossa/sunset_cajon.png
+assets/images/districts/sunset_bossa/sunset_cajon_ghost.png
+assets/images/districts/sunset_bossa/tide_speaker.png
+assets/images/districts/sunset_bossa/tide_speaker_ghost.png
+assets/images/districts/sunset_bossa/veranda_guitar.png
+assets/images/districts/sunset_bossa/veranda_guitar_ghost.png
 assets/images/mapbg/bg_arcade.png
 assets/images/mapbg/bg_bazaar.png
 assets/images/mapbg/bg_beach.png
@@ -318,6 +333,7 @@ assets/images/mapbg/bg_ranch.png
 assets/images/mapbg/bg_skyclub.png
 assets/images/mapbg/bg_square.png
 assets/images/mapbg/bg_stadium.png
+assets/images/mapbg/bg_sunset_bossa.png
 assets/images/mapbg/gate_arcade.png
 assets/images/mapbg/gate_bazaar.png
 assets/images/mapbg/gate_beach.png
@@ -337,3 +353,4 @@ assets/images/mapbg/gate_ranch.png
 assets/images/mapbg/gate_skyclub.png
 assets/images/mapbg/gate_square.png
 assets/images/mapbg/gate_stadium.png
+assets/images/mapbg/gate_sunset_bossa.png
