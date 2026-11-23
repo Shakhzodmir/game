@@ -57,6 +57,29 @@ describe("client.i18n", function()
 		assert_eq(n, total)
 	end)
 
+	-- Korean cannot choose a particle for a variable: "트랙에 비트이(가) …" is what the player read on every task card
+	it("writes no literal particle pair after a Korean placeholder", function()
+		local ko = require("client.i18n_ko")
+		local PAIRS = { "이(가)", "을(를)", "은(는)", "과(와)", "(으)로", "(이)라", "(이)나", "(이)랑", "아(야)" }
+		local bad = {}
+		for key, text in pairs(ko) do -- order-free: sorted below
+			if string.find(text, "{", 1, true) then
+				for _, pair in ipairs(PAIRS) do
+					if string.find(text, pair, 1, true) then bad[#bad + 1] = key .. ": " .. pair end
+				end
+			end
+		end
+		table.sort(bad)
+		assert_same(bad, {})
+		-- the strings that had one now read cleanly with a real value in them
+		i18n.set_language("ko")
+		assert_eq(i18n.t("town.task_adds", { stem = i18n.t("stem.beat") }), "트랙에 추가: 리듬")
+		assert_eq(i18n.t("town.back_to", { name = "재즈 바" }), "돌아가기: 재즈 바")
+		assert_eq(i18n.t("start.selected", { name = "스틱" }), "가져가요: 스틱!")
+		assert_eq(i18n.t("jukebox.locked", { name = "로파이 카페" }), "“로파이 카페” 구역을 복구하면 열려요")
+		assert_eq(i18n.t("account.mail_sent", { email = "a@b.c" }), "메일을 보냈어요: a@b.c")
+	end)
+
 	-- Bit is the mascot (ru Бит, ko 비트); the first layer of five districts must not carry its name
 	it("calls the first layer of a district by a name of its own, not the mascot's", function()
 		local layer = { en = "Beat", ru = "Ударные", ko = "리듬" }
