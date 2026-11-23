@@ -318,6 +318,46 @@ describe("screens/map/map.gui_script", function()
 		end)
 	end)
 
+	-- The caption under the ribbon of the end sign: the tile behind it can be dark (district 19) and a building or a flag of the
+	-- tile cut into the dark text ("сыграть" was hard to read). It lies on a light translucent plate that holds all of it.
+	it("puts the caption of the 'new levels soon' sign on a light plate that holds it, in every language and window shape", function()
+		local A = require("tests.client.layout_audit")
+		local captions = {
+			en = { title = "New levels soon!", text = "Play the beaten levels again to win more stars." },
+			ru = { title = "Скоро новые уровни!", text = "Пройденные уровни можно сыграть снова ради звёзд." },
+			ko = { title = "새 레벨이 곧 나와요!", text = "깬 레벨을 다시 해서 별을 더 모아 보세요." },
+		}
+		for _, language in ipairs({ "en", "ru", "ko" }) do
+			for _, w in ipairs({ { 720, 1280 }, { 390, 844 }, { 1920, 970 }, { 360, 640 } }) do
+				with_map({ window = w, language = language }, function(c)
+					local label = language .. " " .. w[1] .. "x" .. w[2]
+					local last = require("meta.config").levels.count
+					c.E.bus.publish("map_qa", { action = "goto", level = last })
+					c.run(1)
+					local want = captions[language]
+					local caption, title
+					for _, row in ipairs(A.texts(c, { scene = c.map.scene })) do
+						if row.text == want.text then caption = row end
+						if row.text == want.title then title = row end
+					end
+					assert_true(caption ~= nil and title ~= nil, label .. ": the end sign is not on the screen: " .. table.concat(c.map:texts(true), "|"))
+					-- the caption is the text of a plate that holds all of it, with room to spare
+					assert_true(caption.box ~= nil, label .. ": the caption lies on no plate")
+					local r, b = caption.rect, caption.box
+					local room = math.min(r[1] - b[1], b[3] - r[3], r[2] - b[2], b[4] - r[4])
+					assert_true(room >= 8, label .. string.format(": the plate leaves %.1f px around the caption", room))
+					assert_true(caption.lines <= 3 and caption.font_px >= 15, label .. string.format(": %d lines at %.1f px", caption.lines, caption.font_px))
+					-- the plate is light and translucent (the tile shows through a little), like the pills of the top bar
+					local col = caption.node.parent.color
+					assert_true(col.x >= 0.9 and col.y >= 0.9 and col.z >= 0.9, label .. ": the plate is not light")
+					assert_true(col.w >= 0.6 and col.w < 1, label .. ": the plate is not translucent: " .. col.w)
+					-- and it hangs under the ribbon without covering its title
+					assert_true(b[4] <= title.rect[2] - 8, label .. string.format(": the plate (top %.0f) reaches the title (bottom %.0f)", b[4], title.rect[2]))
+				end)
+			end
+		end
+	end)
+
 	it("back goes to the town", function()
 		with_map({}, function(c)
 			tap_target(c, "back")

@@ -43,6 +43,11 @@ M.MAX_VIEW_H = 2600   -- tallest window (logical px) the pools are sized for; a 
 M.WALK_SPEED = 2.6    -- levels per second while Bit walks
 M.TOP_Y = 1214
 M.STAR_SIZE = 44
+-- the caption under the "new levels soon" ribbon and its plate (logical px): the text size and its wrap width, the line
+-- height the plate counts with, the padding, the gap under the visible bottom edge of the ribbon, the plate's width (the
+-- ribbon's) and its opacity
+M.SOON_TEXT_SIZE, M.SOON_TEXT_W, M.SOON_LINE_H, M.SOON_PAD = 28, 560, 40, 13
+M.SOON_PLATE_GAP, M.SOON_PLATE_W, M.SOON_PLATE_ALPHA = 66, 600, 0.92
 
 -- What the next opening of the map starts from (the level Bit stood on, the scroll position). Shared by the
 -- scripts of the app (one Lua state); the screen sets it when it closes.
@@ -180,8 +185,16 @@ function View:build_world()
 	s:text(self.c_nodes, i18n.t("map.soon"), 360, soon_y + 6, {
 		font = "button", size = 46, color = "white", shadow = "#6C32CF", max_width = 470,
 	})
-	s:text(self.c_nodes, i18n.t("map.soon_text"), 360, soon_y - 96, {
-		font = "body", size = 28, color = "text", width = 560, height = 80, max_width = 560,
+	-- its caption lies on a light plate under the ribbon: the tile behind it can be dark (district 19) and the buildings and
+	-- flags of the tile cut into dark text. The plate is as tall as the lines the caption takes in the language; the
+	-- text wraps, it is not shrunk (a shrink to max_width would be measured on the unwrapped line)
+	local caption = i18n.t("map.soon_text")
+	local lines = math.min(3, s:text_lines(caption, "body", M.SOON_TEXT_SIZE, M.SOON_TEXT_W))
+	local plate_h = lines * M.SOON_LINE_H + 2 * M.SOON_PAD
+	local plate = s:round(self.c_nodes, 360, soon_y - M.SOON_PLATE_GAP - plate_h / 2, M.SOON_PLATE_W, plate_h, "white",
+		{ alpha = M.SOON_PLATE_ALPHA, radius = 30 })
+	s:text(plate, caption, 0, 0, {
+		font = "body", size = M.SOON_TEXT_SIZE, color = "text", width = M.SOON_TEXT_W, height = lines * M.SOON_LINE_H,
 	})
 	self.sign = rib
 	self.dirty = true
