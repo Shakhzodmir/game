@@ -18,7 +18,8 @@
 -- The glow of the next item (views.item_glow, asked every frame by the town) lives in the glow layer of its room: the first
 -- child of the items layer, so it is drawn under every item, the coloured neighbours of the glowing one included (a halo
 -- over them would wash them). It travels with the room (paging, parallax), dies with the item when it is built or the room
--- is drawn again, and a room drawn while the glow is wanted gets it at once.
+-- is drawn again, and a room drawn while the glow is wanted gets it at once. It hugs its item: M.aura_size reaches out of the
+-- item by M.AURA.reach on each side at the most, so a wide item does not get a band across the room.
 -- A room is built in layers (bottom to top): bg (sky, the picture), mid, items, over, fg. While paging districts each
 -- layer slides by its own factor (content/rooms.json parallax: the foreground travels farthest) and mid / fg drift a
 -- few pixels; the living details of a room (blinking lights, steam, notes, specks: screens/town/life.lua) sit in
@@ -124,24 +125,37 @@ end
 M.item_motion = item_motion
 
 -- The soft glow behind the grey silhouette of the item the next star buys. No pictures: two soft discs of the UI
--- (px_soft) stretched to the item, size = the item's size * mul + pad. The halo is an ordinary alpha blend, so it tints
--- pale and cool rooms; the light inside it is additive, so it also lifts the warm floors, where a warm tint alone does
--- not show (checked on the cafe, the stadium, the sky club and the arcade rooms: a light floor, a green one, a white one,
--- a violet one). It breathes unless the player asked for less motion: the halo swells by `pulse` and the light brightens
--- from `dim` of its strength to all of it, once per `period` seconds (a full breath, there and back); with less motion it
--- is the same glow at its full strength, standing still. `swell`: seconds a glow takes to grow in when it is lit while the
--- room is on display (a room drawn with it, or a player who asked for less motion, gets it at once).
+-- (px_soft) stretched to the item, size = the item's size * mul + pad, reaching out of the item by `reach` px on each side
+-- at the most (a wide item, the square's garlands: a halo of 1.8 times its width was a band across the whole room and
+-- turned the window above it yellow; every item up to about 210 px keeps the size it was shown with). The halo is an
+-- ordinary alpha blend, so it tints pale and cool rooms; the light inside it is additive, so it also lifts the warm
+-- floors, where a warm tint alone does not show (checked on the cafe, the stadium, the sky club and the arcade rooms: a
+-- light floor, a green one, a white one, a violet one). It breathes unless the player asked for less motion: the halo
+-- swells by `pulse` and the light brightens from `dim` of its strength to all of it, once per `period` seconds (a full
+-- breath, there and back); with less motion it is the same glow at its full strength, standing still. `swell`: seconds a
+-- glow takes to grow in when it is lit while the room is on display (a room drawn with it, or a player who asked for less
+-- motion, gets it at once).
 M.AURA = {
 	halo = { color = "#FFC15E", alpha = 0.75, mul = 1.8, pad = 90 },
 	light = { color = "#FFD27A", alpha = 0.5, mul = 1.2, pad = 50, add = true },
+	reach = 130,
 	pulse = 0.06,
 	dim = 0.7,
 	period = 1.6,
 	swell = 0.5,
 }
 
+-- The size of the disc `p` (M.AURA.halo / .light) around an item w x h: size * mul + pad, but never reaching out of the item
+-- by more than M.AURA.reach on a side (each side of the item on its own: a wide, low item grows in height as any other).
+function M.aura_size(w, h, p)
+	local reach = M.AURA.reach
+	local function side(d) return d + 2 * math.min((d * (p.mul - 1) + p.pad) / 2, reach) end
+	return side(w), side(h)
+end
+
 local function aura_disc(s, parent, x, y, e, p)
-	local n = s:box(parent, x, y, e.w * p.mul + p.pad, e.h * p.mul + p.pad, { texture = "px_soft", color = p.color, alpha = p.alpha })
+	local w, h = M.aura_size(e.w, e.h, p)
+	local n = s:box(parent, x, y, w, h, { texture = "px_soft", color = p.color, alpha = p.alpha })
 	if p.add then gui.set_blend_mode(n, gui.BLEND_ADD) end
 	return n
 end

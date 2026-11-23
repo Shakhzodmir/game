@@ -1700,6 +1700,78 @@ describe("screens/town: the glow of the item the next star buys", function()
 		end)
 	end)
 
+	-- The size of the glow follows the size of the item, but only so far: a halo of 1.8 times the item and 90 px more made a
+	-- band 911 px wide (the room is 720) of the square's garlands, and the whole window above it turned yellow.
+	it("reaches out of an item by AURA.reach at most on each side: a wide item gets a halo that hugs it", function()
+		G.with_town({ town = false }, function(c)
+			local scene_mod = require("screens.town.scene")
+			local A = scene_mod.AURA
+			assert_true(A.reach >= 100 and A.reach <= 160, "a margin of one item's size or less: " .. tostring(A.reach))
+			-- the rule on its own: a small item is as it was, a wide one is held at the reach, each side on its own
+			local w, h = scene_mod.aura_size(147, 116, A.halo)
+			assert_near(w, 147 * A.halo.mul + A.halo.pad, 1e-6, "a small item: size * mul + pad")
+			assert_near(h, 116 * A.halo.mul + A.halo.pad, 1e-6)
+			w, h = scene_mod.aura_size(456, 182, A.halo)
+			assert_near(w, 456 + 2 * A.reach, 1e-6, "a wide item: the reach is the limit")
+			assert_near(h, 182 * A.halo.mul + A.halo.pad, 1e-6, "its height is under the limit: as it was")
+			w, h = scene_mod.aura_size(0, 0, A.halo)
+			assert_true(w >= 0 and h >= 0 and w <= 2 * A.reach and h <= 2 * A.reach, "no item at all: a spot, not a hole")
+			-- every item of every district, both discs of the glow
+			local items, capped = 0, 0
+			for did, lay in pairs(scene_mod.layouts()) do -- order-free: every item is looked at on its own
+				for id, it in pairs(lay.items) do
+					local iw, ih = it.w * it.scale, it.h * it.scale
+					local name = did .. "/" .. id
+					for _, p in ipairs({ A.halo, A.light }) do
+						local dw, dh = scene_mod.aura_size(iw, ih, p)
+						assert_true(dw >= iw and dh >= ih, name .. ": the disc covers the item")
+						assert_true(dw - iw <= 2 * A.reach + 1e-6 and dh - ih <= 2 * A.reach + 1e-6, name .. ": reach")
+						local ow, oh = iw * p.mul + p.pad, ih * p.mul + p.pad -- (the sizes before the limit)
+						if ow - iw <= 2 * A.reach and oh - ih <= 2 * A.reach then
+							assert_near(dw, ow, 1e-6, name .. ": within the reach, as it was")
+							assert_near(dh, oh, 1e-6, name .. ": within the reach, as it was")
+						else
+							capped = capped + 1
+						end
+					end
+					assert_true(select(1, scene_mod.aura_size(iw, ih, A.halo)) <= 720, name .. ": the halo is not wider than the room")
+					items = items + 1
+				end
+			end
+			assert_true(items >= 90, "the whole town: " .. items .. " items")
+			assert_true(capped >= 2 and capped <= 6, "only the wide ones feel the limit: " .. capped)
+		end)
+	end)
+
+	it("draws the glow of the square's garlands, the widest item of the town, inside the width of the room", function()
+		G.with_town({ setup = function(app)
+			G.build_tasks(app, "cafe")
+			G.build_tasks(app, "jazz")
+			G.build_tasks(app, "square", 1) -- the fountain
+			G.give_stars(app, 3)
+		end }, function(c)
+			local A = require("screens.town.scene").AURA
+			assert_eq(c.app.ui.district, "square")
+			assert_eq(c.app.meta:next_task().id, "garlands")
+			assert_eq(c.app.ui.glow, "garlands")
+			local halo = auras(c)[1]
+			local e = item_of(c, "garlands")
+			assert_true(e.w > 400, "the widest item of the town: " .. e.w)
+			assert_true(halo.size.x <= 720, "the glow is not a band wider than the room: " .. halo.size.x)
+			assert_near(halo.size.x, e.w + 2 * A.reach, 0.01)
+			assert_near(halo.size.y, e.h * A.halo.mul + A.halo.pad, 0.01, "the height is as it was")
+			local light = halo.children[1]
+			assert_true(light.size.x < halo.size.x and light.size.y < halo.size.y, "the light is inside the halo")
+		end)
+		-- the first silhouette of the game keeps the size it was shown with
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local A = require("screens.town.scene").AURA
+			local e, halo = item_of(c, "turntable"), auras(c)[1]
+			assert_near(halo.size.x, e.w * A.halo.mul + A.halo.pad, 0.01)
+			assert_near(halo.size.y, e.h * A.halo.mul + A.halo.pad, 0.01)
+		end)
+	end)
+
 	it("keeps the same glow through a change of language and counts no extra nodes", function()
 		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
 			local halo = auras(c)[1]
