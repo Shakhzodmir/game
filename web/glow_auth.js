@@ -3,6 +3,9 @@
 // finished operations with glowAuth.poll(): "<id>|<1|0>|<reason>|key=value&key=value" (values percent-encoded).
 // Passwords are typed into the form below and go straight to the Firebase SDK; they never reach the game.
 // The SDK is loaded from Google's CDN on first use, and only when web/auth_config.js is filled in.
+// Google's window can go five ways (googleFlow() below; "firebase" is today's and the default everywhere): the SDK's own
+// pop-up, the same with its "closed" signal ignored, our own request to Google in a window (web/glow_oidc.js, answered to
+// web/auth_return.html), the same with the whole page going to Google, or no window at all. See docs/handoff/google-signin-ios.md.
 (function () {
 	"use strict";
 	var cfg = window.GLOW_AUTH_CONFIG || {};
@@ -11,7 +14,7 @@
 	var ID_DOMAIN = "id.glow.invalid";
 	var RECENT_MS = 5 * 60 * 1000; // deleting an account needs a sign-in from the last five minutes
 	var MAX_CODE = 200000;
-	var VERSION = "2026-11-23c"; // printed in the small diagnostic line, so a screenshot says which script the phone runs
+	var VERSION = "2026-11-24a"; // printed in the small diagnostic line, so a screenshot says which script the phone runs
 	var T_ = (window.glowAuth && window.glowAuth._test) || {};
 	var POPUP_MS = T_.popupMs || 4 * 60 * 1000; // Google's window may stay open this long (a slow link, a code by SMS)
 	var HOME_POPUP_MS = T_.homePopupMs || T_.popupMs || 90 * 1000; // an iPhone Home Screen app: the SDK cannot see that window, so less
@@ -247,6 +250,71 @@
 		} catch (e2) { return false; }
 	}
 	function popupBound() { return isIOS() && isStandalone() ? HOME_POPUP_MS : POPUP_MS; }
+
+	// Which way Google's sign-in goes -------------------------------------------------------------------------------------
+	//   firebase       today's way: the SDK's own pop-up (signInWithPopup / linkWithPopup). Desktop and Android always use it.
+	//   shim           the same SDK call, but the window it opens never reads "closed" (the SDK gives up on that after 2 s)
+	//   oidc_popup     our own request to Google in a window; Google answers to web/auth_return.html, which hands the answer over
+	//                  without needing the link to the opener (web/glow_oidc.js), and Firebase gets a credential from it
+	//   oidc_redirect  the same, with the whole page going to Google and coming back (finished by "restore" after the reload)
+	//   no_window      an iPhone Home Screen app only: no window at all, the call fails at once with "home_app"
+	// The default is chosen per kind of page by web/auth_config.js (googleIos for a Safari tab, googleIosHome for the Home
+	// Screen app; absent or unknown = "firebase"), so nothing changes for anybody until a key is flipped there. For trying a
+	// way on one device without a release: ?google=<way> in the address (for this page; on an iPhone or iPad it is also kept
+	// for 7 days), ?google=auto forgets it. Only the NAME of a way ever comes from the address or from storage.
+	var FLOWS = ["firebase", "shim", "oidc_popup", "oidc_redirect", "no_window"];
+	var FLOW_KEY = "glow_google_flow"; // {f: way, t: ms}
+	var FLOW_KEEP_MS = 7 * 24 * 3600 * 1000;
+	function goodFlow(v) { return typeof v === "string" && FLOWS.indexOf(v) >= 0 ? v : ""; }
+	function queryParam(name) {
+		try {
+			var parts = String(window.location.search || "").replace(/^\?/, "").split("&"), i, kv;
+			for (i = 0; i < parts.length; i++) {
+				kv = parts[i].split("=");
+				if (kv[0] === name) return decodeURIComponent((kv[1] || "").replace(/\+/g, " "));
+			}
+		} catch (e) { /* no address (tests), or a broken escape */ }
+		return "";
+	}
+	var urlFlow = (function () {
+		var raw = queryParam("google");
+		if (!raw) return "";
+		if (raw === "auto") { store(FLOW_KEY, null); return ""; }
+		var f = goodFlow(raw);
+		if (f && isIOS()) store(FLOW_KEY, JSON.stringify({ f: f, t: Date.now() })); // kept for the next loads of this phone only
+		return f;
+	})();
+	function savedFlow() {
+		if (!isIOS()) return ""; // a saved choice never pins a desktop or an Android phone
+		var raw = stored(FLOW_KEY), o = null, f, t;
+		if (!raw) return "";
+		try { o = JSON.parse(raw); } catch (e) { o = null; }
+		f = o && goodFlow(o.f); t = o && Number(o.t);
+		if (!f || !(t > 0) || Date.now() - t > FLOW_KEEP_MS || t - Date.now() > 60000) { store(FLOW_KEY, null); return ""; }
+		return f;
+	}
+	function envFlow() {
+		if (!isIOS()) return "firebase";
+		return goodFlow(isStandalone() ? cfg.googleIosHome : cfg.googleIos) || "firebase";
+	}
+	// our own sign-in needs: the shared core, the public identifiers, a return page of THIS origin, crypto.subtle (https only),
+	// and storage that works (the answer travels through it)
+	function oidcUsable() {
+		try {
+			var loc = window.location, ret = String(cfg.googleReturn || "");
+			if (!(window.glowOidc && cfg.googleClientId && ret && loc && loc.origin && ret.indexOf(loc.origin + "/") === 0)) return false;
+			if (!(window.crypto && window.crypto.subtle)) return false;
+			localStorage.setItem("glow_probe", "1"); localStorage.removeItem("glow_probe");
+			sessionStorage.setItem("glow_probe", "1"); sessionStorage.removeItem("glow_probe");
+			return true;
+		} catch (e) { return false; }
+	}
+	function googleFlow() {
+		var f = urlFlow || savedFlow() || envFlow();
+		if ((f === "oidc_popup" || f === "oidc_redirect") && !oidcUsable()) return "firebase";
+		if (f === "no_window" && !(isIOS() && isStandalone())) return "firebase";
+		return f;
+	}
 
 	// the texts of the page's own pieces (the tap card, the "checking" line); the game's texts are in client/i18n.lua.
 	// The game says its language with every Google call (gameLang); the page's <html lang> is always "en" here, so it
@@ -592,7 +660,7 @@
 			// report back to such an app, and "try again" would not help; the game's text says what to do instead
 			if ((why === "popup_closed" || why === "popup_timeout") && isIOS() && isStandalone()) why = "home_app";
 			if (GOOGLE[op] && why !== "cancelled" && why !== "busy") {
-				note("google " + code.slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION, 15000);
+				note("google " + code.slice(0, 60) + " " + envLabel() + " " + Math.round((Date.now() - t0) / 1000) + "s v" + VERSION + " " + googleFlow(), 15000);
 			} else if (why === "error") {
 				note(op + ": " + code.slice(0, 80));
 			}
@@ -634,6 +702,7 @@
 	window.glowAuth.configured = configured;
 	window.glowAuth.version = VERSION;
 	window.glowAuth.bounds = { popup: POPUP_MS, homePopup: HOME_POPUP_MS, look: LOOK_MS, homeLook: HOME_LOOK_MS, cancelLook: CANCEL_LOOK_MS, waitCard: WAIT_CARD_MS, sdk: SDK_MS };
+	window.glowAuth.flow = googleFlow; // which way Google's sign-in goes on this page right now (the tests and the dark line read it)
 	window.glowAuth.call = call;
 	window.glowAuth.poll = poll;
 })();

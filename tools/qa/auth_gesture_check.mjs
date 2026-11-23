@@ -273,7 +273,7 @@ const cancelCard = (env) => env.cards()[0].children[0].children[1];
 	env.call(27, "sign_in_google");
 	await sleep(30);
 	assert.equal(lineOf(env.poll()).reason, "error");
-	assert.match(env.notes()[0].textContent, /^google auth\/internal-error android-tab 0s v\d{4}-\d\d-\d\d[a-z]$/);
+	assert.match(env.notes()[0].textContent, /^google auth\/internal-error android-tab 0s v\d{4}-\d\d-\d\d[a-z] firebase$/, "the way Google's sign-in went ends the line");
 	assert.match(env.win.glowAuth.version, /^\d{4}-\d\d-\d\d[a-z]$/);
 }
 
