@@ -2888,7 +2888,7 @@
         {
           "id": "drum_kit",
           "name": {
-            "ru": "Облезлая ударная установка",
+            "ru": "Облезлые барабаны",
             "en": "Beat-up drum kit",
             "ko": "낡은 드럼 세트"
           },
@@ -2899,7 +2899,7 @@
         {
           "id": "amp_stack",
           "name": {
-            "ru": "Стек усилителей в наклейках",
+            "ru": "Усилители в наклейках",
             "en": "Sticker-bombed amp stack",
             "ko": "스티커로 도배한 앰프 스택"
           },
@@ -2910,7 +2910,7 @@
         {
           "id": "bass_guitar",
           "name": {
-            "ru": "Бас с замотанным грифом",
+            "ru": "Бас в изоленте",
             "en": "Bass with a taped neck",
             "ko": "테이프 감은 베이스"
           },
@@ -3123,7 +3123,7 @@
           "id": "fireworks_mambo",
           "name": {
             "ru": "Мамбо под салютом",
-            "en": "Mambo Under the Rockets",
+            "en": "Mambo Under the Fireworks",
             "ko": "축포 아래 맘보"
           },
           "bpm": 152,
