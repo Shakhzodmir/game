@@ -529,9 +529,9 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	assert.equal(JSON.parse(st.world.ls.get("glow_oidc_t_ret")).pong, 0);
 	st = await starter({ mode: "r" }); // a live listener answers the ping
 	st.G.markOwn("t", st.rec.s, {});
-	page = retPage(st, { frag: fragFor(st.rec), opener: null, scale: 0.5 });
+	page = retPage(st, { frag: fragFor(st.rec), opener: null, scale: 1 });
 	await waitFor(() => (JSON.parse(st.world.ls.get("glow_oidc_t_ret") || "{}")).pong === 1, 4000);
-	await sleep(500); // longer than the whole pong wait of the page: nothing may navigate afterwards either
+	await sleep(900); // longer than the whole pong wait of the page (400 ms): nothing may navigate afterwards either
 	assert.deepEqual(page.navs, [], "a live starter: no second copy");
 	assert.match(textOf(page), /^Close this window/);
 	assert.equal(JSON.parse(st.world.ls.get("glow_oidc_t_ret")).pong, 1);
@@ -776,9 +776,9 @@ const verdict = (L, extra = {}) => json(L.G.validate(L.got.relay, L.rec, { clien
 	live.G.savePending(rec2, {}, { shared: true }); live.G.markOwn("t", rec2.s, {});
 	const seen = [];
 	const h2 = live.G.listen({ dest: "t", state: rec2.s, pollMs: 30, onRelay: (r, via) => seen.push(via) });
-	const sheet = retPage({ world: live.world, win: live.win }, { frag: fragFor(rec2), opener: null, ss: new Map(live.win.ssMap) });
+	const sheet = retPage({ world: live.world, win: live.win }, { frag: fragFor(rec2), opener: null, ss: new Map(live.win.ssMap), scale: 1 });
 	await waitFor(() => seen.length === 1);
-	await sleep(500);
+	await sleep(900); // past the 400 ms the page waits for a pong
 	assert.deepEqual(sheet.navs, [], "no second copy of the page next to the live one");
 	assert.equal(seen.length, 1, "the live page took the answer itself");
 	h2.stop();
