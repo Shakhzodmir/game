@@ -313,6 +313,7 @@ return {
 	["shop.lives"] = "하트",
 	["shop.lives_full"] = "하트가 가득해요",
 	["shop.minutes"] = "+{n}분",
+	["shop.more_later"] = "나중에 {n}개 더 열려요",
 	["shop.owned"] = "보유: {n}",
 	["shop.pack"] = "{name} ×{n}",
 	["shop.pack_got"] = "{name} +{n}!",

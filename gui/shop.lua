@@ -4,6 +4,9 @@
 -- free gift for watching a video (client/services/ads.lua, placement
 -- "shop_gift": debug only).
 -- params = {tab = "boosters" | "coins", focus = booster id to highlight}
+-- The boosters tab is a shelf, not the whole catalogue: every open pack and ONE closed pack (the one that opens next,
+-- with its "Unlocks at level N" plate) and under it how many more are still hidden (views.shop_shelf).
+-- QA targets: pack_<id> (an open pack only), refill, tab_boosters, tab_coins, product_<id>, gift, close.
 
 local app = require("client.app")
 local i18n = require("client.i18n")
@@ -20,7 +23,8 @@ M.rebuild_on_meta = true
 
 local W = 680
 -- The panel height follows the content (a tab with more cards or rows than fits gets a taller panel); the host
--- then slides and shrinks it onto the screen (e:fit through kit.panel opts.fit), so nothing is cut off.
+-- then slides and shrinks it onto the screen (e:fit through kit.panel opts.fit), so nothing is cut off. H_MIN is
+-- the floor of the coins tab; the boosters tab follows its shelf alone (boosters_height).
 local H_MIN = 900
 local HEAD = 156 -- from the panel top to the first content row (ribbon, coins pill, tabs)
 local FOOT = 30 -- free space kept under the last row
@@ -157,6 +161,7 @@ end
 -- boosters tab ------------------------------------------------------------------------------
 
 local CARD_W, CARD_H, CARD_STEP = 300, 214, 222
+local LATER_H = 48 -- room for the line "N more will unlock later" under the row of the closed pack
 local PRODUCT_STEP = 146
 
 -- One pack: the name on top (two lines when it is long), the picture, "x3" and the stock, the
@@ -207,17 +212,35 @@ local function refill_card(e, body, x, y)
 	end
 end
 
-local function build_boosters(e, body, top)
-	local list = views.shop_boosters(app.meta)
+-- The shelf of the boosters tab: every open pack and the one closed pack that opens next (views.shop_shelf), `later` =
+-- how many more closed ones are left out. Computed once per build: the panel height and the cards read the same shelf.
+local function shelf()
+	return views.shop_shelf(views.shop_boosters(app.meta))
+end
+
+-- Two cards a row, the lives card after the last pack. When packs are left out, a line under the row of the closed
+-- pack (the last card) says how many, and whatever comes below that row (the lives card) moves down by LATER_H.
+local function build_boosters(e, body, top, shown, later)
 	local focus = e.params.focus
-	local i = 0
-	for _, b in ipairs(list) do
-		local col = i % 2
+	local n = #shown
+	local last_row = math.floor((n - 1) / 2)
+	local function cell(i) -- i from 0
 		local row = math.floor(i / 2)
-		booster_card(e, body, b, col == 0 and -160 or 160, top - 116 - row * CARD_STEP, focus)
-		i = i + 1
+		local y = top - 116 - row * CARD_STEP
+		if later > 0 and row > last_row then y = y - LATER_H end
+		return i % 2 == 0 and -160 or 160, y
 	end
-	refill_card(e, body, i % 2 == 0 and -160 or 160, top - 116 - math.floor(i / 2) * CARD_STEP)
+	for i, b in ipairs(shown) do
+		local x, y = cell(i - 1)
+		booster_card(e, body, b, x, y, focus)
+	end
+	if later > 0 then
+		local _, y = cell(n - 1)
+		e.ui:text(body, i18n.t("shop.more_later", { n = later }), 0, y - CARD_H / 2 - LATER_H / 2 - 4, {
+			font = "small", size = 22, color = "text_soft", max_width = W - 120,
+		})
+	end
+	refill_card(e, body, cell(n))
 end
 
 -- coins tab -------------------------------------------------------------------------------------
@@ -324,10 +347,11 @@ local function build_coins(e, body, top)
 	gift_row(e, body, y)
 end
 
--- Panel height for the cards of the boosters tab (n packs + the lives card) and the rows of the coins tab.
-local function boosters_height(n)
+-- Panel height for the cards of the boosters tab (n packs shown + the lives card, and the line under the closed pack
+-- when `later` packs are left out) and the rows of the coins tab.
+local function boosters_height(n, later)
 	local rows = math.ceil((n + 1) / 2)
-	return HEAD + 116 + CARD_H / 2 + (rows - 1) * CARD_STEP + FOOT
+	return HEAD + 116 + CARD_H / 2 + (rows - 1) * CARD_STEP + FOOT + (later > 0 and LATER_H or 0)
 end
 
 local function coins_height(n)
@@ -339,10 +363,13 @@ function M.build(e)
 	local st = e.state
 	st.tab = st.tab or e.params.tab or "boosters"
 	local H = H_MIN
+	local shown, later
 	if st.tab == "coins" then
 		H = math.max(H, coins_height(#views.shop_products(iap.PRODUCTS, iap.available())))
 	else
-		H = math.max(H, boosters_height(#views.shop_boosters(app.meta)))
+		-- the boosters tab hugs its shelf: a new player (one closed pack) gets a short panel, not H_MIN
+		shown, later = shelf()
+		H = boosters_height(#shown, later)
 	end
 	local body, hh = kit.panel(e, W, H, { title = { key = "shop.title" }, fit = true })
 	e.pill = kit.coins_pill(e, body, -W / 2 + 150, hh - 96, e.shown_coins or app.meta:coins())
@@ -358,7 +385,7 @@ function M.build(e)
 	if st.tab == "coins" then
 		build_coins(e, body, top)
 	else
-		build_boosters(e, body, top)
+		build_boosters(e, body, top, shown, later)
 	end
 end
 

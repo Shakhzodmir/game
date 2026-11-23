@@ -81,7 +81,9 @@ describe("meta windows: layout in both languages and every window size", functio
 		local real = views.shop_boosters
 		local bad = {}
 		local SIZES = { { 720, 1280 }, { 1920, 970 }, { 1280, 720 }, { 390, 844 }, { 360, 640 } }
-		-- the shop with 8 .. 12 packs (the catalogue grows)
+		-- the shop with 8 .. 12 packs (the catalogue grows), all of them open (a save at level 31: the shelf shows every open
+		-- pack, so this is the tallest shop there can be), and the shelf of a new player and of level 9 and 14 (a closed
+		-- pack and the line "N more will unlock later": the lives card drops below it or stays beside the lock)
 		local function with_packs(n)
 			views.shop_boosters = function(meta)
 				local list = real(meta)
@@ -99,17 +101,19 @@ describe("meta windows: layout in both languages and every window size", functio
 		local ok, err = pcall(function()
 			for _, lang in ipairs({ "en", "ru" }) do
 				for _, w in ipairs(SIZES) do
-					for _, case in ipairs({ { "shop", { tab = "boosters" }, 8 }, { "shop", { tab = "boosters" }, 9 },
-						{ "shop", { tab = "boosters" }, 12 }, { "shop", { tab = "coins" }, 8 },
+					for _, case in ipairs({ { "shop", { tab = "boosters" }, 8, 30 }, { "shop", { tab = "boosters" }, 9, 30 },
+						{ "shop", { tab = "boosters" }, 12, 30 }, { "shop", { tab = "boosters" }, nil, 0 },
+						{ "shop", { tab = "boosters" }, nil, 8 }, { "shop", { tab = "boosters" }, nil, 13 },
+						{ "shop", { tab = "coins" }, 8 },
 						{ "start", nil }, { "lives", nil }, { "settings", nil }, { "jukebox", nil }, { "concert", { district = "cafe" } },
 						{ "chest", { kind = "level", level_id = 10, chest = { coins = 60, boosters = { "stick", "riff", "crossfader" }, infinite_minutes = 15 } } },
 						{ "gift", { id = "riff" } },
 						{ "confirm", { title = { key = "settings.reset_title" }, text = { key = "settings.reset_text" } } } }) do
 						if case[3] then with_packs(case[3]) else views.shop_boosters = real end
-						G.with_town({ language = lang, window = w, setup = function(app) G.win(app, 13) end }, function(c)
+						G.with_town({ language = lang, window = w, setup = function(app) G.win(app, case[4] or 13) end }, function(c)
 							open(c, case[1], case[2])
 							local label = case[1] .. (case[2] and case[2].tab and ("/" .. case[2].tab) or "") .. (case[3] and (" x" .. case[3]) or "")
-								.. " " .. lang .. " " .. w[1] .. "x" .. w[2]
+								.. (case[4] and (" @" .. case[4]) or "") .. " " .. lang .. " " .. w[1] .. "x" .. w[2]
 							for _, m in ipairs((G.overflows(c))) do bad[#bad + 1] = label .. ": " .. m end
 						end)
 					end
@@ -355,11 +359,105 @@ describe("meta windows: shop", function()
 			wtap(c, "pack_stick")
 			assert_eq(c.app.meta:booster_count("stick"), owned + 3)
 			assert_eq(c.app.meta:coins(), coins - 450)
-			-- the Disco ball opens at level 22: its pack shows the lock and has no buy button
-			assert_true(has(c, "Unlocks at level 22"))
+			-- level 14: three packs are open; of the five closed ones only the nearest, the Subwoofer (level 16), is on the
+			-- shelf, with its lock and no buy button, and a line says that four more come later
+			assert_true(has(c, "Unlocks at level 16"), texts(c))
+			assert_eq(c.app.ui.popup_targets.pack_sub, nil)
+			assert_true(has(c, "4 more will unlock later"), texts(c))
+			-- the Disco ball (level 22) is not drawn at all
+			assert_false(has(c, "Unlocks at level 22"))
+			assert_false(has(c, "Disco ball"))
 			assert_eq(c.app.ui.popup_targets.pack_disco, nil)
 			assert_same(c.E.audit(), {})
 		end)
+	end)
+
+	it("shows a new player the nearest closed pack and how many more come later, in every language", function()
+		local i18n = require("client.i18n")
+		local cases = {
+			{ "en", "Unlocks at level 8", "7 more will unlock later", "Refill lives" },
+			{ "ru", "Откроется на уровне 8", "Ещё 7 откроются позже", "Пополнить жизни" },
+			{ "ko", "8레벨에서 열려요", "나중에 7개 더 열려요", "하트 채우기" },
+		}
+		for _, case in ipairs(cases) do
+			G.with_town({ language = case[1] }, function(c)
+				open(c, "shop", { tab = "boosters" })
+				local label = case[1] .. ": " .. texts(c)
+				assert_true(has(c, case[2]), label)
+				assert_true(has(c, case[3]), label)
+				assert_true(has(c, case[4]), label)
+				assert_true(has(c, i18n.t("booster.stick")), label)
+				-- ONE lock plate: the other seven closed packs are not drawn
+				local plates = 0
+				for _, lvl in ipairs({ 8, 12, 14, 16, 18, 21, 22, 25 }) do
+					if has(c, i18n.t("start.locked", { n = lvl })) then plates = plates + 1 end
+				end
+				assert_eq(plates, 1, label)
+				for _, id in ipairs({ "riff", "row_light", "col_light", "swap", "sub", "disco", "remix" }) do
+					assert_false(has(c, i18n.t("booster." .. id)), id .. " is on the shelf of a new player")
+				end
+				-- the closed pack has no buy button; the lives card is there (full lives: a green badge, not a button)
+				assert_eq(c.app.ui.popup_targets.pack_stick, nil)
+				assert_eq(c.app.ui.popup_targets.refill, nil)
+				assert_same(c.E.audit(), {}, case[1]) -- every glyph of the new line is in the fonts
+			end)
+		end
+	end)
+
+	it("shows the closed pack that opens next, by level, and a line only when more are left out", function()
+		local views = require("client.views")
+		local function later_line(c) return texts(c):find("more will unlock later", 1, true) ~= nil end
+		-- level 9: the Drumstick (8) is open; the next closed pack is the Riff (12), not the Row spotlight (14), which comes
+		-- before it in the catalogue
+		G.with_town({ setup = function(app) G.win(app, 8) end }, function(c)
+			assert_eq(c.app.meta:level_to_play(), 9)
+			open(c, "shop", { tab = "boosters" })
+			assert_true(has(c, "Unlocks at level 12"), texts(c))
+			assert_true(has(c, "6 more will unlock later"), texts(c))
+			assert_false(has(c, "Unlocks at level 14"))
+			assert_true(c.app.ui.popup_targets.pack_stick ~= nil)
+			assert_eq(c.app.ui.popup_targets.pack_riff, nil)
+		end)
+		-- level 21: six packs open, the Disco ball (22) is the closed one, only the Remix (25) is left out
+		G.with_town({ setup = function(app) G.win(app, 20) end }, function(c)
+			open(c, "shop", { tab = "boosters" })
+			assert_true(has(c, "Unlocks at level 22"), texts(c))
+			assert_true(has(c, "1 more will unlock later"), texts(c))
+		end)
+		-- level 24: seven open, the Remix (25) is the one closed pack and nothing is left out: no line
+		G.with_town({ setup = function(app) G.win(app, 23) end }, function(c)
+			open(c, "shop", { tab = "boosters" })
+			assert_true(has(c, "Unlocks at level 25"), texts(c))
+			assert_false(later_line(c), texts(c))
+		end)
+		-- level 25: every pack is open and has its buy button; no closed one, no line
+		G.with_town({ setup = function(app) G.win(app, 24) end }, function(c)
+			open(c, "shop", { tab = "boosters" })
+			local list = views.shop_boosters(c.app.meta)
+			assert_eq(#list, 8)
+			for _, p in ipairs(list) do
+				assert_true(p.unlocked, p.id)
+				assert_true(c.app.ui.popup_targets["pack_" .. p.id] ~= nil, "no buy button for " .. p.id)
+			end
+			assert_false(later_line(c), texts(c))
+			assert_false(has(c, "Unlocks at level 25"))
+		end)
+	end)
+
+	it("hugs the shelf: a short panel for a new player, taller as packs open, the full height when all are open", function()
+		local heights = {}
+		for i, wins in ipairs({ 0, 13, 30 }) do
+			G.with_town({ setup = function(app) G.win(app, wins) end }, function(c)
+				open(c, "shop", { tab = "boosters" })
+				local bad, rect = G.overflows(c)
+				assert_same(bad, {}, wins .. " wins")
+				heights[i] = rect[4] - rect[2]
+			end)
+		end
+		-- one card row and the line (the old window was never under 900 px); then three rows; then every pack and the lives card
+		assert_true(heights[1] < 500, "a new player's shop is " .. heights[1] .. " px")
+		assert_true(heights[1] < heights[2] and heights[2] < heights[3], table.concat(heights, " < "))
+		assert_true(heights[3] > 1000, "all packs open: " .. heights[3])
 	end)
 
 	it("does not charge what the purse cannot pay and leads to the coins tab", function()

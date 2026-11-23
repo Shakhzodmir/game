@@ -418,4 +418,61 @@ describe("client.views (meta screens)", function()
 		for _, b in ipairs(starter.boosters) do ids[#ids + 1] = b.id end
 		assert_same(ids, { "stick", "riff", "sub" })
 	end)
+
+	it("lists the shop packs in the order they open, not in the catalogue's order", function()
+		local list = views.shop_boosters(H.new())
+		local ids, lvls = {}, {}
+		for i, p in ipairs(list) do ids[i], lvls[i] = p.id, p.unlock_level end
+		-- the catalogue (meta/config.lua) lists stick, row_light, col_light, remix, swap, riff, sub, disco
+		assert_same(ids, { "stick", "riff", "row_light", "sub", "col_light", "swap", "disco", "remix" })
+		assert_same(lvls, { 8, 12, 14, 16, 18, 21, 22, 25 })
+		for _, p in ipairs(list) do
+			assert_eq(p.size, config.pack_size)
+			assert_eq(p.icon, views.booster_icon(p.id))
+		end
+	end)
+
+	it("shows every open pack and ONE closed pack, the nearest, and counts the others", function()
+		local function shelf(level)
+			local m = H.new()
+			H.advance_to(m, level, T)
+			local shown, later = views.shop_shelf(views.shop_boosters(m))
+			local ids = {}
+			for i, p in ipairs(shown) do ids[i] = p.id end
+			return ids, later, shown
+		end
+		local ids, later, shown = shelf(1) -- a new player: nothing is open, the drumstick (8) is the one lock
+		assert_same(ids, { "stick" })
+		assert_eq(later, 7)
+		assert_false(shown[1].unlocked)
+		ids, later = shelf(8) -- the drumstick opens at 8 itself: the next lock is the Riff (12), not the Row spotlight (14)
+		assert_same(ids, { "stick", "riff" })
+		assert_eq(later, 6)
+		ids, later = shelf(14)
+		assert_same(ids, { "stick", "riff", "row_light", "sub" })
+		assert_eq(later, 4)
+		ids, later = shelf(22) -- the last pack is the one lock: nothing is left out
+		assert_same(ids, { "stick", "riff", "row_light", "sub", "col_light", "swap", "disco", "remix" })
+		assert_eq(later, 0)
+		ids, later, shown = shelf(25)
+		assert_eq(#ids, 8)
+		assert_eq(later, 0)
+		for _, p in ipairs(shown) do assert_true(p.unlocked, p.id) end
+	end)
+
+	it("puts the closed pack that opens first at the end of the shelf, whatever the order of the list", function()
+		local function pack(id, unlocked, level) return { id = id, unlocked = unlocked, unlock_level = level } end
+		local shown, later = views.shop_shelf({ pack("a", false, 30), pack("b", true, 5), pack("c", false, 12),
+			pack("d", true, 1), pack("e", false, 12) })
+		local ids = {}
+		for i, p in ipairs(shown) do ids[i] = p.id end
+		assert_same(ids, { "b", "d", "c" }) -- the open ones in the list's order, then the first of the two locks of level 12
+		assert_eq(later, 2)
+		shown, later = views.shop_shelf({})
+		assert_eq(#shown, 0)
+		assert_eq(later, 0)
+		shown, later = views.shop_shelf({ pack("x", true, 1), pack("y", true, 2) })
+		assert_eq(#shown, 2)
+		assert_eq(later, 0)
+	end)
 end)
