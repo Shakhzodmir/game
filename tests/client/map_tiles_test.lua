@@ -97,6 +97,28 @@ describe("the art tools that make and install tiles", function()
 		end
 	end)
 
+	it("install the producer's map tiles of districts 1-5 feathered (a plain install_ready run copied them opaque), with Pillow hidden too", function()
+		local ready = read("tools/art/install_ready.py")
+		assert_true(string.find(ready, "fm.write_tile(sp, dp)", 1, true) ~= nil, "install_ready.py installs a tile through feather_mapbg.write_tile")
+		assert_true(string.find(ready, "\nimport feather_mapbg", 1, true) == nil and string.find(ready, "\nfrom PIL", 1, true) == nil
+			and string.find(ready, "\nimport numpy", 1, true) == nil,
+			"install_ready.py imports Pillow only when a tile needs it (CI has none)")
+		-- a machine without Pillow and numpy (CI), also run where they are installed: no opaque tile gets in
+		local out = run("python3 -I -c \"import sys, runpy; sys.modules['PIL'] = None; sys.modules['numpy'] = None; "
+			.. "sys.argv = ['install_ready.py', 'selftest']; runpy.run_path('tools/art/install_ready.py', run_name='__main__')\"")
+		assert_true(out ~= nil, "python3 did not start")
+		assert_true(string.find(out, "install_ready selftest: ok", 1, true) ~= nil, out)
+		assert_true(string.find(out, "a map tile is never installed opaque (no Pillow)", 1, true) ~= nil, "the no-Pillow cases ran: " .. out)
+	end)
+
+	it("install the same tiles feathered, byte for byte what feather_mapbg.py makes, and put an old JPEG of a tile away", function()
+		if not have_pillow() then return end
+		local out = run("python3 -I tools/art/install_ready.py selftest")
+		assert_true(out ~= nil, "python3 did not start")
+		assert_true(string.find(out, "install_ready selftest: ok", 1, true) ~= nil, out)
+		assert_true(string.find(out, "a map tile is installed with the feather", 1, true) ~= nil, "the Pillow cases ran: " .. out)
+	end)
+
 	it("refuse a map picture that is not 2:3 (a square is stretched 1.5x otherwise) before a file of the district is written", function()
 		local district = read("tools/art/install_district.py")
 		local made = string.find(district, "tile = fm.feather(picture)", 1, true)
