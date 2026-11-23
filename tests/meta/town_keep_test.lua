@@ -341,11 +341,11 @@ describe("a rollback: the older build meets the save of a newer one", function()
 		assert_true(KEEP ~= nil, "meta/config.lua has the bounds (town_keep)")
 		local t = H.json_round_trip(H.new(3):serialize())
 		local x = 12345
-		local function noise(n) -- text that does not compress
+		local function noise(n) -- text that does not compress (every product stays below 2^53: the same on every VM)
 			local out = {}
 			for i = 1, n do
-				x = (x * 1103515245 + 12345) % 2147483648
-				out[i] = string.char(33 + math.floor(x / 65536) % 90)
+				x = (x * 16807) % 2147483647
+				out[i] = string.char(33 + x % 90)
 			end
 			return table.concat(out)
 		end
