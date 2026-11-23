@@ -295,8 +295,8 @@ assets/images/mapbg/bg_fan_meeting.png
 assets/images/mapbg/bg_garage.png
 assets/images/mapbg/bg_island.png
 assets/images/mapbg/bg_jazz.png
-assets/images/mapbg/bg_late_club.jpg
-assets/images/mapbg/bg_midnight_cafe.jpg
+assets/images/mapbg/bg_late_club.png
+assets/images/mapbg/bg_midnight_cafe.png
 assets/images/mapbg/bg_nations_fest.png
 assets/images/mapbg/bg_ranch.png
 assets/images/mapbg/bg_skyclub.png
