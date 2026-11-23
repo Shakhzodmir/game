@@ -8,7 +8,7 @@ Meters (`tools/audio/analysis.py`): **LUFS** = ITU-R BS.1770-4 loudness; **M-max
 **dBTP** = 4x oversampled true peak (what a resampling mixer can reach). SFX loudness targets use the
 generator's gated K-weighted meter with 50 ms windows (`dsp.loudness`).
 
-**Total size:** 33.14 MB: 17.16 MB of 30 MB budget (66 notes, 40 SFX, 176 music stems) + 15.97 MB of 24 MB for the 133 jukebox songs.
+**Total size:** 34.19 MB: 17.75 MB of 30 MB budget (66 notes, 40 SFX, 184 music stems) + 16.44 MB of 24 MB for the 137 jukebox songs.
 
 ## 1. Piece notes (synesthesia core)
 
@@ -839,6 +839,39 @@ Tension adds +0.8 LU, party +1.3 LU. Brightness of the task mix: centroid 1229 H
 | `keys` | dune_hammock (5) | -30.7 | -6.7 | +0.74 |
 | `flute` | lantern_palm (6) | -29.3 | -6.0 | +0.98 |
 
+### night_carnival — G major, 140 BPM, 8 bars
+
+Loop: 302400 samples at 22.05 kHz (604800 at 44.1 kHz) = 13.714286 s (exact 13.714286 s). Chords: G | C | D7 | G | G | C | D7 | D7. Mix seam step/beats 0.228, click/beats 0.419.
+
+| Combination | Peak dBFS | True peak dBTP | LUFS |
+|---|---|---|---|
+| tasks | -2.04 | -1.98 | -20.8 |
+| tasks+tension | -1.22 | -1.08 | -20.1 |
+| tasks+party | -1.67 | -1.62 | -19.9 |
+| all stems (never played together) | -0.87 | -0.73 | -19.3 |
+
+Tension adds +0.7 LU, party +0.9 LU. Brightness of the task mix: centroid 587 Hz, 2–8 kHz -7.7 dB and 8–16 kHz -14.0 dB vs 0.2–2 kHz, 56 % of the energy below 150 Hz. Key reading (Krumhansl, major vs relative minor): tasks 0.71 / 0.44 (best G maj); tasks+party 0.77 / 0.51 (best G maj); party alone 0.85 / 0.67 (best G maj); tension alone 0.86 / 0.30 (best G maj).
+
+| Stem | Task (cost) | Hz | Gain dB | Peak dBFS | dBTP | LUFS | In-scale % | Step/beats | Click/beats | Codec edge |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `beat` | timbales (1) | 22050 | -8.2 | -7.3 | -7.3 | -26.5 | 76.4 | 0.006 | 0.01 | 0.79 |
+| `shaker` | torches (4) | 44100 | -13.7 | -13.3 | -13.1 | -31.1 | 61.2 | 0.35 | 0.412 | 1.27 |
+| `bass` | feather_dancer (5) | 22050 | -17.1 | -16.4 | -16.4 | -28.5 | 98.3 | 0.023 | 0.001 | 0.24 |
+| `piano` | montuno_piano (5) | 22050 | -17.7 | -15.7 | -15.6 | -30.2 | 97.5 | 0.182 | 0.738 | 0.61 |
+| `congas` | night_congas (5) | 22050 | -12.2 | -11.6 | -11.5 | -28.0 | 87.8 | 0.002 | 0.0 | 0.38 |
+| `brass` | horn_section (6) | 22050 | -21.2 | -12.3 | -12.3 | -28.6 | 100.0 | 0.007 | 0.022 | 0.2 |
+| `tension` | level stem | 22050 | -17.1 | -14.4 | -14.3 | -28.7 | 99.7 | 0.075 | 0.003 | 0.79 |
+| `party` | level stem | 44100 | -13.3 | -10.5 | -10.4 | -27.2 | 98.8 | 0.072 | 0.918 | 0.78 |
+
+| Unlock order | Task (cost) | Stem LUFS | Stem vs mix LU | Δ mix LU |
+|---|---|---|---|---|
+| `beat` | timbales (1) | -26.5 | – | first layer |
+| `shaker` | torches (4) | -31.1 | -4.6 | +1.27 |
+| `bass` | feather_dancer (5) | -28.5 | -3.2 | +1.76 |
+| `piano` | montuno_piano (5) | -30.2 | -6.7 | +0.82 |
+| `congas` | night_congas (5) | -28.0 | -5.3 | +1.56 |
+| `brass` | horn_section (6) | -28.6 | -7.6 | +0.33 |
+
 ## 3b. Jukebox songs
 
 Every district is a jukebox genre; besides its layered theme (section 3) each genre has ready-made songs in the
@@ -939,6 +972,10 @@ the engine's layer calls are silent for it.
 | sunset_bossa | `last_ferry_home` | 76 | 8 | 25.3 | C | -19.9 | -3.67 | 0.0 | 99.9 | 740 | 127 | Cmaj7 Am7 Fmaj7 G7 Dm7 |
 | sunset_bossa | `sea_salt_samba` | 118 | 12 | 24.4 | C | -19.8 | -1.89 | 0.0 | 95.5 | 1113 | 153 | C F G7 Dm7 |
 | sunset_bossa | `lantern_tide` | 88 | 8 | 21.8 | C | -20.0 | -1.52 | -3.1 | 97.0 | 1077 | 120 | Cmaj7 Em7 Fmaj7 G7 Am7 Dm7 |
+| night_carnival | `fireworks_mambo` | 152 | 12 | 18.9 | G | -20.0 | -2.55 | 0.0 | 96.8 | 740 | 96 | G C D7 |
+| night_carnival | `torchlight_bolero` | 72 | 8 | 26.7 | G | -20.0 | -1.37 | -3.8 | 97.2 | 1278 | 137 | G Em C D7 |
+| night_carnival | `street_conga_line` | 126 | 12 | 22.9 | G | -19.8 | -1.99 | 0.0 | 96.7 | 1741 | 142 | G C D7 |
+| night_carnival | `last_dance_cha_cha` | 110 | 8 | 17.5 | G | -19.8 | -1.56 | 0.0 | 98.6 | 1350 | 98 | G Em Am7 D7 C |
 | classical | `salon_morning` | 80 | 8 | 24.0 | D | -20.0 | -1.77 | 0.0 | 99.7 | 460 | 83 | D F#m G A Bm Em7 A7 |
 | classical | `harpsichord_garden` | 112 | 12 | 25.7 | D | -20.0 | -1.32 | -1.9 | 99.8 | 1041 | 124 | D A Bm G Em A7 |
 | classical | `dawn_quartet` | 76 | 8 | 25.3 | D | -20.0 | -7.47 | 0.0 | 100.0 | 951 | 109 | D A Bm F#m G Em A7 |
@@ -1075,6 +1112,10 @@ the engine's layer calls are silent for it.
 | `last_ferry_home` | drums, keys, bass, lead | 0.93 / 0.68 (C maj) | 0.016 | 0.001 | 0.42 |
 | `sea_salt_samba` | drums, guitar, bass, lead | 0.42 / 0.21 (D min) | 0.263 | 0.155 | 0.64 |
 | `lantern_tide` | drums, guitar, vibes, bass, lead | 0.88 / 0.70 (C maj) | 0.043 | 0.405 | 0.75 |
+| `fireworks_mambo` | drums, keys, bass, brass, trumpet | 0.69 / 0.51 (G maj) | 0.174 | 0.053 | 0.49 |
+| `torchlight_bolero` | drums, guitar, bass, trumpet | 0.82 / 0.56 (G maj) | 0.08 | 0.592 | 1.09 |
+| `street_conga_line` | drums, bass, lead, gang | 0.81 / 0.41 (G maj) | 0.076 | 0.037 | 0.45 |
+| `last_dance_cha_cha` | drums, keys, bass, trumpet | 0.76 / 0.76 (E min) | 0.284 | 0.691 | 0.39 |
 | `salon_morning` | arp, keys | 0.83 / 0.48 (D maj) | 0.102 | 0.322 | 1.2 |
 | `harpsichord_garden` | keys, bass, arp, strings | 0.91 / 0.64 (D maj) | 0.02 | 0.235 | 0.94 |
 | `dawn_quartet` | lead, strings | 0.82 / 0.51 (D maj) | 0.004 | 0.003 | 0.1 |
@@ -1151,6 +1192,7 @@ the engine's layer calls are silent for it.
 - Music `fan_meeting`: 8 stems, identical duration (415059 samples at 22.05 kHz): PASS; worst realistic mix -1.06 dBTP / -1.06 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.08): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
 - Music `punk_garage`: 8 stems, identical duration (246140 samples at 22.05 kHz): PASS; worst realistic mix -1.34 dBTP / -1.35 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -4.48): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
 - Music `sunset_bossa`: 8 stems, identical duration (441000 samples at 22.05 kHz): PASS; worst realistic mix -1.07 dBTP / -1.08 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.15): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
+- Music `night_carnival`: 8 stems, identical duration (302400 samples at 22.05 kHz): PASS; worst realistic mix -1.08 dBTP / -1.22 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.30): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.
 - Songs `cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.6 … 28.2 s within 16–32: PASS; worst mix -1.17 dBTP / -1.31 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.6) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 89.7): PASS; seams clean: PASS.
 - Songs `jazz`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.1 … 29.1 s within 16–32: PASS; worst mix -1.23 dBTP / -1.23 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.5 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.19): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Songs `square`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.8 … 25.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.27 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.4) and ≤ 1 dB of the energy (max 0.04): PASS; in the key of the genre ≥ 85 % (min 94.5): PASS; seams clean: PASS.
@@ -1172,6 +1214,7 @@ the engine's layer calls are silent for it.
 - Songs `fan_meeting`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.5 … 26.7 s within 16–32: PASS; worst mix -1.51 dBTP / -1.58 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 99.4): PASS; seams clean: PASS.
 - Songs `punk_garage`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 16.4 … 22.9 s within 16–32: PASS; worst mix -1.26 dBTP / -1.41 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.30): PASS; in the key of the genre ≥ 85 % (min 92.0): PASS; seams clean: PASS.
 - Songs `sunset_bossa`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 21.8 … 27.7 s within 16–32: PASS; worst mix -1.50 dBTP / -1.52 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.1) and ≤ 1 dB of the energy (max 0.20): PASS; in the key of the genre ≥ 85 % (min 95.5): PASS; seams clean: PASS.
+- Songs `night_carnival`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.5 … 26.7 s within 16–32: PASS; worst mix -1.37 dBTP / -1.55 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.8) and ≤ 1 dB of the energy (max 0.16): PASS; in the key of the genre ≥ 85 % (min 96.7): PASS; seams clean: PASS.
 - Songs `classical`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 29.1 s within 16–32: PASS; worst mix -1.10 dBTP / -1.34 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.9) and ≤ 1 dB of the energy (max 0.23): PASS; in the key of the genre ≥ 85 % (min 98.4): PASS; seams clean: PASS.
 - Songs `folk`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.22 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.7) and ≤ 1 dB of the energy (max 0.08): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
 - Songs `latin`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 24.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.15 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.6 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.4) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 91.2): PASS; seams clean: PASS.
@@ -1187,8 +1230,8 @@ the engine's layer calls are silent for it.
 - Songs `ambient`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.7 … 30.0 s within 16–32: PASS; worst mix -4.46 dBTP / -4.46 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 91.8): PASS; seams clean: PASS.
 - Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.
 - Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.
-- Notes, SFX and district music 17.16 MB ≤ 30 MB: PASS.
-- Songs 133 files, 15.97 MB ≤ 24 MB: PASS.
+- Notes, SFX and district music 17.75 MB ≤ 30 MB: PASS.
+- Songs 137 files, 16.44 MB ≤ 24 MB: PASS.
 
 ## 5. Engine requirements and known limitations
 

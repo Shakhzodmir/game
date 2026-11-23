@@ -50,6 +50,7 @@ HI_RATE = {
     "fan_meeting": set(),  # every stem at 22.05 kHz: a soft ballad-and-dance mix, the arpeggio ends below 9 kHz
     "punk_garage": set(),  # every stem at 22.05 kHz: distorted guitars, a rock kit and claps, little lives above 10 kHz
     "sunset_bossa": {"shaker"},  # the brushed shaker keeps its sparkle, the rest is warm and soft
+    "night_carnival": {"shaker", "party"},  # the crackling maracas and the party mix keep their sparkle
 }
 
 
@@ -5335,6 +5336,149 @@ def sunset_bossa_flute(s):
     return room(s, b, 0.25, 1.5, "flute", damp=5000)
 
 
+# =========================== NIGHT CARNIVAL (G major) - Part 2
+
+def night_carnival_song(d):
+    # Part 2, district 22: the salsa of the carnival of district 7 on a night street, 140 BPM in G major: the
+    # guajeo I - IV - V7 - I | I - IV - V7 - V7 (a chord a bar: G | C | D7 | G | G | C | D7 | D7). The tonic is
+    # in the bass on three bars of eight and the D7 of the last two bars leads into it; no minor chord at all
+    # (Em would pull the loop to E minor).
+    G, C, D = 7, 0, 2
+    maj, dom7 = [0, 4, 7], [0, 4, 7, 10]
+    return Song(d, progression([
+        (4, G, maj, "G"), (4, C, maj, "C"), (4, D, dom7, "D7"), (4, G, maj, "G"),
+        (4, G, maj, "G"), (4, C, maj, "C"), (4, D, dom7, "D7"), (4, D, dom7, "D7"),
+    ]))
+
+
+NC_CLAVE = ((1.0, 2.0), (0.0, 1.5, 3.0))  # the 2-3 son clave over two bars (beats)
+
+
+def night_carnival_beat(s):
+    """The timbales: the cowbell (the bell of the carnival kit) on the beats with the off-beats ghosted, the 2-3
+    clave, a soft kick on one and three and a roll of timbale hits into bars four and eight. The first layer."""
+    k = kit("carnival", s.sr)
+    tb = kit("island", s.sr)["timbale"]
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, v in ((0, 0.8), (2, 0.55)):
+            hit(s, b, k["kick"], o + bt, v, r, 0.002)
+        for bt in NC_CLAVE[bar % 2]:
+            hit(s, b, k["clave"], o + bt, 0.55, r, 0.002)
+        for i in range(8):
+            hit(s, b, k["bell"], o + i * 0.5, 0.5 if i % 2 == 0 else 0.22, r, 0.003)
+        if bar in (3, 7):
+            for j in range(8):
+                hit(s, b, tb, o + 2 + j * 0.25, 0.35 + 0.08 * j, r, 0.002)
+    b = dsp.drive(b / dsp.peak(b) * 1.2, 1.3)
+    return room(s, b, 0.14, 0.8, "beat", damp=6000)
+
+
+def night_carnival_shaker(s):
+    """The torches: maracas on the 16ths that crackle (every fourth one stronger, random little accents) and the
+    guiro, a long scrape on beats 1 and 3 and two short ones on 2 and 4."""
+    k = kit("carnival", s.sr)
+    r = dsp.rng(s.id, "shaker")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for i in range(16):
+            v = 0.8 if i % 4 == 0 else (0.5 if i % 2 == 0 else 0.3)
+            hit(s, b, k["maraca"], o + i * 0.25, v * (1.0 + 0.2 * r.uniform(-1, 1)), r, 0.004)
+        for half in (0, 2):
+            hit(s, b, k["guiro"], o + half, 0.55, r, 0.004)
+            hit(s, b, k["guiro_short"], o + half + 1.0, 0.45, r, 0.004)
+            hit(s, b, k["guiro_short"], o + half + 1.5, 0.38, r, 0.004)
+    return room(s, b, 0.1, 0.8, "shaker", damp=7000)
+
+
+def night_carnival_bass(s):
+    """The feather dancer: the salsa tumbao, nothing on beat 1; the and of 2 plays the fifth (or the next chord) and
+    beat 4 already plays the root of the next bar (the anticipated bass), the notes of the carnival bass line."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "bass")
+    for j, (bt, du, m, v) in enumerate(carnival_bass_line(s)):
+        s.add(b, baby_bass(m, s.sec(du), s.sr, key=j % 3), bt, v, dt=r.normal(0.002, 0.003))
+    b = loop_filter(s, b, "lp", 1500)
+    return room(s, b, 0.06, 0.6, "bass", damp=2500)
+
+
+# The right hand of the montuno: the note played in octaves and the dyad inside the octave (the D7 keeps its F#).
+NC_MONTUNO = {"G": (67, (71, 74)), "C": (64, (67, 72)), "D7": (66, (69, 72))}
+
+
+def night_carnival_piano(s):
+    """The montuno piano in 2-3: the two-side bar starts on the beat (1, 2, the and of 2, of 3, of 4), the three-side
+    bar plays only the off-beats; octaves and inner dyads alternate, and the octaves on the and of 2 and of 4 already
+    belong to the next chord, like the bass."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "piano")
+    pats = (((0.0, "o"), (1.0, "i"), (1.5, "o"), (2.5, "i"), (3.5, "o")),
+            ((0.5, "i"), (1.5, "o"), (2.5, "i"), (3.5, "o")))
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, kind in pats[bar % 2]:
+            c = s.chord_at(o + bt + (0.5 if bt in (1.5, 3.5) else 0.0))
+            octave, dyad = NC_MONTUNO[c.name]
+            if kind == "o":
+                notes, du, vel = ((octave - 12, 0.55), (octave, 0.85), (octave + 12, 1.0)), 0.9, 0.8
+            else:
+                notes, du, vel = ((dyad[0] - 12, 0.5), (dyad[0], 0.9), (dyad[1], 1.0)), 0.45, 0.6
+            dt = r.normal(0.003, 0.003)
+            for j, (m, g) in enumerate(notes):
+                x = ins.piano(m, round(s.sec(du), 4), s.sr, vel=vel, bright=1.0, release=0.12, key=j)
+                s.add(b, x, o + bt, g, dt=dt + j * 0.003)
+    b = loop_filter(s, b, "hp", 180)
+    b = loop_eq(s, b, "peak", 2500, 3.0, 0.9)
+    return room(s, b, 0.12, 0.9, "piano", damp=5500)
+
+
+def night_carnival_congas(s):
+    """The night congas: the tumbao (heel-toe-slap-toe, two open tones on beat 4, the low drum answering on beat 3 of
+    the three-side bars) and a roll down the two drums into the repeat; a soft kick on one and three."""
+    k = kit("carnival", s.sr)
+    r = dsp.rng(s.id, "congas")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        three = bar % 2 == 1
+        for bt, v in ((0, 0.7), (2, 0.45)):
+            hit(s, b, k["kick"], o + bt, v, r, 0.002)
+        tumbao = [(0.0, "heel", 0.34), (0.5, "toe", 0.26), (1.0, "slap", 0.8), (1.5, "toe", 0.26),
+                  (2.0, "tumba", 0.85) if three else (2.0, "heel", 0.34),
+                  (2.5, "tumba", 0.7) if three else (2.5, "toe", 0.26),
+                  (3.0, "open", 0.95), (3.5, "open", 0.8)]
+        if bar == s.bars - 1:
+            tumbao = tumbao[:7] + [(3.25, "open", 0.6), (3.5, "tumba", 0.85), (3.75, "tumba", 0.7)]
+        for bt, name, v in tumbao:
+            hit(s, b, k[name], o + bt, v, r, 0.004)
+    b = dsp.drive(b / dsp.peak(b) * 1.2, 1.3)
+    b = loop_eq(s, b, "highshelf", 4000, 2.0)
+    return room(s, b, 0.12, 0.7, "congas", damp=6000)
+
+
+def night_carnival_brass(s):
+    """The horn section: big stabs that punch into the end of each four-bar phrase (the 2-3 rhythm: on one, the and of
+    two, three and four), a long chord on the first beat of bars four and eight and silence in the first two bars of
+    each phrase; voiced root at the bottom, 7th or 5th and the third on top."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "brass")
+    for bar in range(s.bars):
+        o = bar * 4
+        if bar % 4 < 2:
+            continue
+        pat = ((0.0, 0.4, 0.9), (1.5, 0.35, 0.8), (2.5, 0.35, 0.8), (3.0, 0.7, 1.0)) if bar % 4 == 2 else \
+              ((0.0, 1.6, 1.0), (3.5, 0.4, 0.8))
+        for bt, du, v in pat:
+            c = s.chord_at(o + bt)
+            for j, m in enumerate(party_voicing(c)):
+                s.add(b, ins.brass(m, s.sec(du), s.sr, vel=0.9, bright=1.0, key=j), o + bt, v,
+                      dt=r.normal(0, 0.004))
+    return room(s, b, 0.2, 1.3, "brass", damp=5000)
+
+
 # ============================================ tension / party (shared)
 
 # The drum kit of every district (kit() names), used by its tension and party layers.
@@ -5342,7 +5486,8 @@ KITS = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", 
         "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
         "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade",
         "midnight_cafe": "midnight", "late_club": "jazz", "nations_fest": "street", "fan_meeting": "dance",
-        "punk_garage": "rock", "sunset_bossa": "beach"}
+        "punk_garage": "rock", "sunset_bossa": "beach",
+        "night_carnival": "carnival"}
 
 # Districts whose theme sounds in the relative minor of their key (the night versions of Part 2,
 # docs/design/part2-districts.md): the tension layer holds the fifth of that minor tonic.
@@ -5385,7 +5530,7 @@ def tension_stem(s, style):
             x = ins.epiano(m, s.sec(0.25), s.sr, vel=0.6, bright=1.0, release=0.08)
         elif style in ("beach", "sunset_bossa"):  # palm-muted nylon string on the chord roots
             x = ins.guitar(m, s.sec(0.3), s.sr, bright=0.45, t60=0.55, pick=0.18, mute=0.04, key=7)
-        elif style == "carnival":  # the left hand of the piano, staccato
+        elif style in ("carnival", "night_carnival"):  # the left hand of the piano, staccato
             x = ins.piano(m, round(s.sec(0.25), 4), s.sr, vel=0.7, bright=0.8, release=0.06)
         elif style == "cinema":  # cellos and basses off the string (spiccato): the chase is on
             x = bowed(m, s.sec(0.2), s.sr, key=9, attack=0.012, release=0.07, vib=0.0, cutoff=1800.0)
@@ -5573,7 +5718,7 @@ def party_stem(s, style):
         if style in ("stadium", "garage", "square", "nations_fest", "fan_meeting", "punk_garage"):
             for bt in range(4):
                 hit(s, b, dk["kick"], o + bt, 0.5, r, 0.0)
-        if style == "carnival":  # the bongo bell of the mambo section: the beats, and the off-beats of 2 and 4
+        if style in ("carnival", "night_carnival"):  # the bongo bell of the mambo section: the beats, and the off-beats of 2 and 4
             for bt, v in ((0, 0.9), (1, 0.6), (1.5, 0.45), (2, 0.9), (3, 0.6), (3.5, 0.45)):
                 hit(s, b, k["bell"], o + bt, 0.4 * v, r, 0.002)
         if style == "bazaar":  # finger cymbals on every beat with a gallop into the next bar, the riq on the 8ths
@@ -5638,7 +5783,7 @@ def party_stem(s, style):
                 x = ins.vibes(m, s.sr, vel=0.6, dur=0.8, release=0.3)
             elif style in ("beach", "sunset_bossa"):  # a marimba on the beach instead of the glockenspiel
                 x = ins.marimba(m, s.sr, vel=0.8, dur=0.8)
-            elif style == "carnival":  # the top of the piano
+            elif style in ("carnival", "night_carnival"):  # the top of the piano
                 x = ins.piano(m, 0.3, s.sr, vel=0.8, bright=1.0, release=0.2)
             elif style == "bazaar":  # the top strings of the qanun
                 x = qanun(m, s.sr, key=i % 2, dur=0.6)
@@ -5728,6 +5873,9 @@ DISTRICTS = {
     "sunset_bossa": dict(song=sunset_bossa_song, stems={
         "perc": sunset_bossa_perc, "guitar": sunset_bossa_guitar, "bass": sunset_bossa_bass,
         "shaker": sunset_bossa_shaker, "keys": sunset_bossa_keys, "flute": sunset_bossa_flute}),
+    "night_carnival": dict(song=night_carnival_song, stems={
+        "beat": night_carnival_beat, "shaker": night_carnival_shaker, "bass": night_carnival_bass,
+        "piano": night_carnival_piano, "congas": night_carnival_congas, "brass": night_carnival_brass}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -5780,6 +5928,8 @@ LOUDNESS = {
                     "tension": -18, "party": -16},
     "sunset_bossa": {"perc": -17, "guitar": -18, "bass": -19, "shaker": -20, "keys": -20, "flute": -18,
                      "tension": -18, "party": -16},
+    "night_carnival": {"beat": -16, "shaker": -20, "bass": -19, "piano": -19, "congas": -17, "brass": -18,
+                       "tension": -18, "party": -16},
 }
 
 # Level of a whole district against the common peak target of gen_audio.py (dB, 0 = none). The block is dense on
