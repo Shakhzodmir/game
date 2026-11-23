@@ -74,10 +74,34 @@ describe("client.i18n", function()
 		-- the strings that had one now read cleanly with a real value in them
 		i18n.set_language("ko")
 		assert_eq(i18n.t("town.task_adds", { stem = i18n.t("stem.beat") }), "트랙에 추가: 리듬")
-		assert_eq(i18n.t("town.back_to", { name = "재즈 바" }), "돌아가기: 재즈 바")
+		assert_eq(i18n.t("town.go_to", { name = "재즈 바" }), "구역으로 가기: 재즈 바")
 		assert_eq(i18n.t("start.selected", { name = "스틱" }), "가져가요: 스틱!")
 		assert_eq(i18n.t("jukebox.locked", { name = "로파이 카페" }), "“로파이 카페” 구역을 복구하면 열려요")
 		assert_eq(i18n.t("account.mail_sent", { email = "a@b.c" }), "메일을 보냈어요: a@b.c")
+	end)
+
+	-- The card above the "Level N" button of a district that is not the one being built leads to the one being built. That
+	-- district lies after the one on display (the usual case: the player looks at a finished one, "Назад: Поздний клуб" read
+	-- as a step back in district 16 while district 17 is ahead) or, after a content update, before it: the words say neither.
+	it("words the card to the district being built without 'back' or 'next'", function()
+		local want = {
+			en = { name = "Jazz Bar", text = "Go to Jazz Bar" },
+			ru = { name = "Джаз-бар", text = "К району: Джаз-бар" },
+			ko = { name = "재즈 바", text = "구역으로 가기: 재즈 바" },
+		}
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			i18n.set_language(lang)
+			assert_eq(i18n.t("town.go_to", { name = want[lang].name }), want[lang].text, lang)
+		end
+		assert_eq(i18n.STRINGS["town.back_to"], nil, "the old 'back to' key is gone")
+		-- the old words are not in any language of the card
+		local entry = i18n.STRINGS["town.go_to"]
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			local s = entry[lang]
+			for _, word in ipairs({ "Back", "back", "Назад", "назад", "돌아가" }) do
+				assert_true(string.find(s, word, 1, true) == nil, lang .. ": '" .. s .. "' says " .. word)
+			end
+		end
 	end)
 
 	-- Bit is the mascot (ru Бит, ko 비트); the first layer of five districts must not carry its name

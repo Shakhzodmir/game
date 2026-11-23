@@ -37,6 +37,28 @@ local function popup_target(c, name)
 	return c.tap(t.x, t.y)
 end
 
+-- The arrow on the card that leads to the district being built (a child of the card: the ribbon has arrows of its own).
+local function card_arrow(c)
+	local anim = require("client.assets").image("ui/icons/arrow").anim
+	local card = c.town.self.t.hud.card
+	for _, n in ipairs(c.E.alive_nodes(c.town.scene)) do
+		if n.parent == card and n.anim == anim then return n end
+	end
+	return nil
+end
+
+-- Records the side the next rooms slide in from (Scene:slide_to's dir: 1 from the right, -1 from the left).
+local function record_slides(c)
+	local scene = c.town.self.t.scene
+	local slide = scene.slide_to
+	local dirs = {}
+	scene.slide_to = function(self, did, done, dir)
+		dirs[#dirs + 1] = dir
+		return slide(self, did, done, dir)
+	end
+	return dirs
+end
+
 describe("screens/town/town.gui_script", function()
 	it("builds the first town: top bar, task card, level button, navigation", function()
 		G.with_town({}, function(c)
@@ -235,7 +257,13 @@ describe("screens/town/town.gui_script", function()
 			assert_true(c.town:has_text("Lo-fi Café", true), G.dump(c.town))
 			assert_eq(c.app.ui.card, "back")
 			assert_eq(c.app.ui.focus, "jazz")
-			assert_true(c.town:has_text("Back to Jazz Bar", true), G.dump(c.town))
+			-- the card leads to the district being built, which lies AFTER the café: no "back" in the words, the arrow
+			-- points right and stands on the right
+			assert_true(c.town:has_text("Go to Jazz Bar", true), G.dump(c.town))
+			assert_false(c.town:has_text("Back to Jazz Bar", true))
+			local arrow = card_arrow(c)
+			assert_true(arrow ~= nil, "the card has its arrow")
+			assert_true(arrow.pos.x > 0 and (arrow.euler.z or 0) == 0, "the arrow points right: x " .. arrow.pos.x .. ", turned " .. tostring(arrow.euler.z))
 			-- the cafe plays its own track while it is on display
 			local music = c.E.posted("music", "main:/audio#audio")
 			assert_eq(music[#music].message.district, "cafe")
@@ -246,9 +274,11 @@ describe("screens/town/town.gui_script", function()
 			assert_eq(c.app.meta:view("jazz"), "day")
 			tap_target(c, "view")
 			c.run(1)
-			-- back to the district being built
+			-- on to the district being built: its room slides in from the right
+			local slides = record_slides(c)
 			tap_target(c, "back")
 			c.run(1.2)
+			assert_same(slides, { 1 })
 			assert_eq(c.app.ui.district, "jazz")
 			assert_eq(c.app.ui.card, "task")
 			-- a swipe to the right shows the previous district, a swipe left at the end of the street does nothing
@@ -261,6 +291,38 @@ describe("screens/town/town.gui_script", function()
 			c.step(2)
 			c.E.input(hash("touch"), c.E.touch_action(500, 700, false, true))
 			wait_for(c, function() return c.app.ui.district == "cafe" end, 3, "a swipe")
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	-- A content update can give a finished district a new task: it is the district being built again and the districts after
+	-- it stay open. The player then looks at a LATER district and the card leads to an EARLIER one.
+	it("leads the card the other way when the district being built lies before the one on display", function()
+		G.with_town({ setup = function(app)
+			G.build_tasks(app, "cafe") -- the café's chest opens the jazz bar
+			table.remove(app.meta.s.town.cafe.done) -- the café has one task to build again
+		end }, function(c)
+			assert_eq(c.app.ui.district, "cafe")
+			assert_eq(c.app.ui.focus, "cafe")
+			assert_eq(c.app.ui.nav.next, "jazz", "the jazz bar stays open after the reopened café")
+			assert_eq(c.app.ui.card, "task")
+			tap_target(c, "nav_next")
+			wait_for(c, function() return c.app.ui.district == "jazz" and not c.app.ui.sliding end, 3, "paging on to the jazz bar")
+			c.run(1)
+			assert_eq(c.app.ui.card, "back")
+			assert_true(c.town:has_text("Go to Lo-fi Café", true), G.dump(c.town))
+			-- the arrow points left and stands on the left side of the card
+			local arrow = card_arrow(c)
+			assert_true(arrow ~= nil, "the card has its arrow")
+			assert_true(arrow.pos.x < 0 and arrow.euler.z == 180, "the arrow points left: x " .. arrow.pos.x .. ", turned " .. tostring(arrow.euler.z))
+			assert_eq(#c.E.audit(), 0)
+			-- the café's room comes in from the left
+			local slides = record_slides(c)
+			tap_target(c, "back")
+			c.run(1.2)
+			assert_same(slides, { -1 })
+			assert_eq(c.app.ui.district, "cafe")
+			assert_eq(c.app.ui.card, "task")
 			assert_eq(#c.E.audit(), 0)
 		end)
 	end)

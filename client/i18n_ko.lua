@@ -423,7 +423,7 @@ return {
 	["town.all_done"] = "새 레벨이 곧 나와요!",
 	["town.room_loading"] = "동네를 불러오는 중... {pct}%",
 	["town.room_offline"] = "연결이 없어요. 그림은 나중에 받아요",
-	["town.back_to"] = "돌아가기: {name}",
+	["town.go_to"] = "구역으로 가기: {name}",
 	["town.concert"] = "콘서트",
 	["town.day"] = "낮",
 	["town.hard"] = "어려움",
