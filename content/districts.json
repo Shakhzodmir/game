@@ -2808,6 +2808,150 @@
           "stem_desc": "the chorus hook on a soft bell-like synth lead"
         }
       ]
+    },
+    {
+      "id": "punk_garage",
+      "part": 2,
+      "first": 381,
+      "last": 400,
+      "map_tint": "#C3B3DA",
+      "name": {
+        "ru": "Панк-гараж",
+        "en": "Punk Garage",
+        "ko": "펑크 차고"
+      },
+      "genre": {
+        "ru": "Поп-панк",
+        "en": "Pop Punk",
+        "ko": "팝 펑크"
+      },
+      "bpm": 172,
+      "key": "A",
+      "semitones_from_c": -3,
+      "bars": 8,
+      "mood": "fast and cheerful pop-punk in the garage: down-picked power chords, a bouncing eighth-note bass, handclaps, shouted hey and a bright lead hook",
+      "songs": [
+        {
+          "id": "three_chord_summer",
+          "name": {
+            "ru": "Три аккорда и лето",
+            "en": "Three Chords and Summer",
+            "ko": "세 코드와 여름"
+          },
+          "bpm": 188,
+          "bars": 16,
+          "mood": "fast skate-punk: a galloping kick, a bright power-chord riff, a shouted lead hook and hey on every phrase"
+        },
+        {
+          "id": "garage_sale_anthem",
+          "name": {
+            "ru": "Гимн гаражной распродажи",
+            "en": "Garage Sale Anthem",
+            "ko": "차고 세일 찬가"
+          },
+          "bpm": 148,
+          "bars": 12,
+          "mood": "a mid-tempo sing-along: crunchy chords, handclaps on the backbeat, a whoa-oh lead and a stomping kick"
+        },
+        {
+          "id": "loud_neighbours",
+          "name": {
+            "ru": "Громкие соседи",
+            "en": "Loud Neighbors",
+            "ko": "시끄러운 이웃"
+          },
+          "bpm": 176,
+          "bars": 8,
+          "mood": "stop-start punk: a riff that halts for a drum fill, a barking bass and shouted answers"
+        },
+        {
+          "id": "unplugged_garage",
+          "name": {
+            "ru": "Гараж без розетки",
+            "en": "Unplugged Garage",
+            "ko": "어쿠스틱 차고"
+          },
+          "bpm": 84,
+          "bars": 8,
+          "mood": "the garage with the amps off: strummed acoustic guitar, a box drum, soft claps and a gentle lead"
+        }
+      ],
+      "chest": {
+        "coins": 4000,
+        "boosters": [
+          "disco",
+          "riff",
+          "sub"
+        ]
+      },
+      "tasks": [
+        {
+          "id": "drum_kit",
+          "name": {
+            "ru": "Ударная установка",
+            "en": "Beat-up drum kit",
+            "ko": "낡은 드럼 세트"
+          },
+          "cost": 1,
+          "stem": "beat",
+          "stem_desc": "a fast punk beat: kick, snare on two and four, 8th hats, a crash on every phrase"
+        },
+        {
+          "id": "amp_stack",
+          "name": {
+            "ru": "Стек усилителей",
+            "en": "Amp stack",
+            "ko": "앰프 스택"
+          },
+          "cost": 4,
+          "stem": "rhythm",
+          "stem_desc": "down-picked power chords in 8ths, open on the downbeats and palm-muted between"
+        },
+        {
+          "id": "bass_guitar",
+          "name": {
+            "ru": "Бас-гитара",
+            "en": "Bass guitar",
+            "ko": "베이스 기타"
+          },
+          "cost": 5,
+          "stem": "bass",
+          "stem_desc": "a picked bass in driving 8ths with an octave jump at the end of a phrase"
+        },
+        {
+          "id": "garage_door",
+          "name": {
+            "ru": "Гаражные ворота",
+            "en": "Garage door",
+            "ko": "차고 문"
+          },
+          "cost": 5,
+          "stem": "claps",
+          "stem_desc": "handclaps on two and four and quick double claps into each phrase"
+        },
+        {
+          "id": "mic_stand",
+          "name": {
+            "ru": "Общий микрофон",
+            "en": "Shared mic",
+            "ko": "함께 쓰는 마이크"
+          },
+          "cost": 5,
+          "stem": "gang",
+          "stem_desc": "the gang shouts hey at the end of every phrase"
+        },
+        {
+          "id": "gig_posters",
+          "name": {
+            "ru": "Афиши концертов",
+            "en": "Gig posters",
+            "ko": "공연 포스터"
+          },
+          "cost": 6,
+          "stem": "lead",
+          "stem_desc": "a bright lead-guitar hook over the chords"
+        }
+      ]
     }
   ],
   "level_stems": {

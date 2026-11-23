@@ -194,6 +194,8 @@ def make(d, parent, files, sources, force=False):
     note = PLACEHOLDER + "%s version of %s" % (look, pid)
     for rel, (src, kind) in sorted(todo.items()):
         path = os.path.join(IMAGES, src)
+        if not os.path.isfile(path) and os.path.isfile(path[:-4] + ".jpg"):
+            path = path[:-4] + ".jpg"      # a big opaque background was turned into a JPEG (to_jpeg_backgrounds.py)
         if not os.path.isfile(path):
             sys.exit("%s: the parent picture %s is missing" % (did, src))
         with Image.open(path) as im:
