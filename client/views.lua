@@ -302,9 +302,14 @@ function M.refill(meta, now)
 	return { price = o.price, available = o.available, affordable = o.affordable, reason = o.reason }
 end
 
--- The jukebox: one genre per district (a tab) and the songs of each.
+-- The jukebox: one genre per district (a tab) and the songs of each, then the genres that are not districts.
 --   {tabs = {{id, index, genre = {en, ru}, name, color, state, count, prev_name, playing}},
 --    songs = {[district id] = {row, ...}}, chosen = the picked song id | nil}
+-- The tabs come OPEN FIRST: every tab that is not locked, then the locked ones; inside each of the two groups the
+-- order of the town stays (the districts, then the other genres in the order the districts open them). The window
+-- shows the row three tabs at a time: a player who has just begun gets the four tabs that play on the first two
+-- pages, not behind fourteen dark ones. tab.index is the place of a tab in the order of the town (a district's own
+-- number, which also picks its colour), not its place in the row: the row is the order of `tabs`.
 -- tab.state / row.state: "complete" (the finished district: its theme plays the full song, every stem + party),
 -- "current" (the district being built: its theme plays the stems built so far), "locked" (not open yet:
 -- a dark silhouette with what opens it). tab.playing: the picked song is in this genre.
@@ -355,8 +360,8 @@ function M.jukebox(meta, districts_by_id, genres_by_id)
 	-- the genres that are not districts (content/genres.json): classical, traditional, modern; a row per song and
 	-- no layered theme. state "open" | "locked" (the district that opens it is not available yet).
 	-- in the order the town opens them: the genres of the first district first (classical, folk, ambient), then the
-	-- second district's, and so on, so the open tabs sit together and the locked ones follow; inside a district the
-	-- file order of content/genres.json stays
+	-- second district's, and so on; inside a district the file order of content/genres.json stays (the open-first
+	-- split at the end moves the open ones in front of the dark districts)
 	local genres = {}
 	for i, g in ipairs(meta.genres and meta:genres() or {}) do genres[i] = { g = g, i = i } end
 	table.sort(genres, function(a, b)
@@ -385,7 +390,15 @@ function M.jukebox(meta, districts_by_id, genres_by_id)
 			prev_name = prev_name, playing = playing, group = g.group, icon = "ui/genres/" .. g.id,
 		}
 	end
-	return { tabs = tabs, songs = songs, chosen = chosen }
+	-- the open tabs first, the locked ones after them: a stable split (table.sort is not stable), so the order of the
+	-- town stays inside each group
+	local ordered, dark = {}, {}
+	for _, tab in ipairs(tabs) do
+		local group = tab.state == "locked" and dark or ordered
+		group[#group + 1] = tab
+	end
+	for _, tab in ipairs(dark) do ordered[#ordered + 1] = tab end
+	return { tabs = ordered, songs = songs, chosen = chosen }
 end
 
 -- "k/n layers" of the district being built (or the last one).

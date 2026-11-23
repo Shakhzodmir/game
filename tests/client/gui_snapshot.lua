@@ -19,6 +19,7 @@
 --   jukebox         one finished district: the genre tabs, its theme and songs, nothing picked
 --   jukebox_pick    a finished district, a song of the next genre picked (now playing, the way home lit)
 --   jukebox_locked  the tab of a genre that is not open yet: dark silhouettes and what opens it
+--   jukebox_new / jukebox_new_page2   a new player: the row of tabs, page 1 (the open tabs come first) and page 2
 --   chest_level / chest_level_open / chest_district / gift / gift_open
 --   concert         the district concert
 --   chart / chart_climb / chart_signin / profile   the chart (120 players, my row pinned; the climb; no account; the name picker)
@@ -149,8 +150,26 @@ end
 function S.jukebox_locked()
 	done_tasks_of_cafe()
 	popup(main, "jukebox")
+	-- the open tabs come first: turn the row to the page that holds the dark tab of the square
+	for _ = 1, app.ui.jukebox.tab_pages do
+		if app.ui.popup_targets.tab_square then break end
+		local turn = app.ui.popup_targets.tabs_next
+		E.tap(turn.x, turn.y)
+		E.step(5)
+	end
 	local tab = app.ui.popup_targets.tab_square
 	E.tap(tab.x, tab.y)
+	E.step(20)
+end
+function S.jukebox_new()
+	-- a new player: the open tabs come first (Lo-fi, Classical, Folk on page 1)
+	popup(main, "jukebox")
+end
+function S.jukebox_new_page2()
+	-- the fourth open tab, then the dark ones
+	popup(main, "jukebox")
+	local turn = app.ui.popup_targets.tabs_next
+	E.tap(turn.x, turn.y)
 	E.step(20)
 end
 function S.chest_level() popup(main, "chest", { kind = "level", level_id = 10, chest = { coins = 60, boosters = { "stick" }, infinite_minutes = 15 } }) end
