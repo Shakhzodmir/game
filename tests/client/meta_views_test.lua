@@ -458,6 +458,91 @@ describe("client.views (meta screens)", function()
 		assert_eq(views.town_hint(m2, nil), nil)
 	end)
 
+	-- the soft glow of the item the next star buys (ChatGPT review, section 1, row 1)
+	describe("item_glow: which item of the room on display glows", function()
+		it("glows the next item once its stars are in the purse, and not before", function()
+			local m = H.new()
+			assert_eq(m:stars(), 0)
+			assert_eq(views.item_glow(m, "cafe"), nil) -- 0 of 1 stars: the item is only a silhouette
+			H.give(m, "stars", 1)
+			assert_same(views.item_glow(m, "cafe"), { district = "cafe", id = "turntable" })
+			-- the cost counts, not the first star: the lamps cost 1, the piano 2
+			assert_true(m:complete_task("cafe", "turntable"))
+			assert_eq(views.item_glow(m, "cafe"), nil)
+			H.give(m, "stars", 1)
+			assert_same(views.item_glow(m, "cafe"), { district = "cafe", id = "lamps" })
+			assert_true(m:complete_task("cafe", "lamps"))
+			H.give(m, "stars", 1)
+			assert_eq(m:next_task().id, "piano")
+			assert_eq(views.item_glow(m, "cafe"), nil) -- 1 of 2
+			H.give(m, "stars", 1)
+			assert_same(views.item_glow(m, "cafe"), { district = "cafe", id = "piano" })
+		end)
+
+		it("follows the stars both ways: spending them puts the glow out", function()
+			local m = H.new()
+			H.give(m, "stars", 2)
+			assert_same(views.item_glow(m, "cafe"), { district = "cafe", id = "turntable" })
+			assert_true(m:complete_task("cafe", "turntable"))
+			assert_same(views.item_glow(m, "cafe"), { district = "cafe", id = "lamps" }) -- one star is left, the lamps cost one
+			assert_true(m:complete_task("cafe", "lamps"))
+			assert_eq(views.item_glow(m, "cafe"), nil)
+		end)
+
+		it("glows only in the district the item stands in", function()
+			local m = H.new()
+			H.give(m, "stars", 100)
+			for _, t in ipairs(m:district("cafe").tasks) do assert_true(m:complete_task("cafe", t.id)) end
+			-- jazz is being built: its first task is affordable, the finished cafe on display has nothing to light
+			assert_eq(m:next_task().district, "jazz")
+			assert_eq(views.item_glow(m, "cafe"), nil)
+			assert_same(views.item_glow(m, "jazz"), { district = "jazz", id = "stage_light" })
+			-- a district that is not open, or not a district at all, has none either
+			assert_eq(views.item_glow(m, "square"), nil)
+			assert_eq(views.item_glow(m, nil), nil)
+		end)
+
+		it("stays dark while the town is covered or a show runs", function()
+			local m = H.new()
+			H.give(m, "stars", 1)
+			local want = { district = "cafe", id = "turntable" }
+			assert_same(views.item_glow(m, "cafe", {}), want)
+			assert_same(views.item_glow(m, "cafe", { busy = false, covered = false }), want)
+			assert_eq(views.item_glow(m, "cafe", { busy = true }), nil) -- the purchase show (stars fly, the item lights up, a chest opens)
+			assert_eq(views.item_glow(m, "cafe", { covered = true }), nil) -- a window is open, the screen is leaving
+			assert_eq(views.item_glow(m, "cafe", { busy = true, covered = true }), nil)
+		end)
+
+		it("is not shown in the concert look", function()
+			local m = H.new()
+			H.give(m, "stars", 1)
+			assert_true(m:set_view("cafe", "concert"))
+			assert_eq(views.item_glow(m, "cafe"), nil)
+			assert_true(m:set_view("cafe", "day"))
+			assert_same(views.item_glow(m, "cafe"), { district = "cafe", id = "turntable" })
+		end)
+
+		it("has nothing to light in a complete town", function()
+			local m = H.new()
+			for _, d in ipairs(m:districts()) do
+				H.give(m, "stars", 100)
+				for _, t in ipairs(m:district(d.id).tasks) do assert_true(m:complete_task(d.id, t.id)) end
+			end
+			H.give(m, "stars", 100) -- plenty of stars and nothing left to buy
+			assert_eq(m:next_task(), nil)
+			for _, d in ipairs(m:districts()) do assert_eq(views.item_glow(m, d.id), nil) end
+		end)
+
+		it("asks nothing of the meta that changes it", function()
+			local m = H.new()
+			H.give(m, "stars", 1)
+			local rev, stars = m:revision(), m:stars()
+			for _ = 1, 3 do views.item_glow(m, "cafe") end
+			assert_eq(m:revision(), rev)
+			assert_eq(m:stars(), stars)
+		end)
+	end)
+
 	it("reads the regeneration rule and the time to the next life from the config", function()
 		assert_eq(views.regen_minutes(config), 20)
 		assert_eq(views.regen_minutes(nil), 20)
