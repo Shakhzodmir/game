@@ -64,7 +64,7 @@ end
 describe("the title of a song page", function()
 	it("is planned for every title of every district in en, ru and ko: all lines fit the box, nothing is shrunk below the minimum", function()
 		local titles = all_titles()
-		assert_true(#titles >= 300 * 3 / 1, "titles: " .. #titles)
+		assert_true(#titles >= 15 * 16 * 3, "titles: " .. #titles) -- the 15 districts of Part 1 alone give 720
 		local one, two = 0, 0
 		for _, t in ipairs(titles) do
 			local plan = layout.title(t.text, measure)

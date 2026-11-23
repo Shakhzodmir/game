@@ -169,7 +169,7 @@ describe("the title of a finished song on the songbook page", function()
 	for _, lang in ipairs({ "en", "ru", "ko" }) do
 		it("stays clear of the verses, the seal and the edges of the sheet, not smaller than " .. MIN_TITLE_PX .. " px: every title of every district in " .. lang, function()
 			local list, keys = titles_of(lang)
-			assert_true(#list >= 300, "titles in " .. lang .. ": " .. #list)
+			assert_true(#list >= 15 * 16, "titles in " .. lang .. ": " .. #list) -- the 15 districts of Part 1 alone give 240
 			local bad = {}
 			with_page(lang, function(c, song, set_title)
 				for _, text in ipairs(list) do
