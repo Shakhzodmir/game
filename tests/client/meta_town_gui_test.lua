@@ -2,6 +2,7 @@
 -- what it shows, what a tap does, the animated steps, district paging, hints, language, window sizes.
 
 local G = require("tests.client.meta_gui_helper")
+local A = require("tests.client.layout_audit")
 local analytics = require("client.services.analytics")
 local layout = require("client.layout")
 local bus = require("client.bus")
@@ -55,6 +56,52 @@ describe("screens/town/town.gui_script", function()
 			local music = c.E.posted("music", "main:/audio#audio")
 			assert_eq(music[#music].message.district, "cafe")
 		end)
+	end)
+
+	it("prints the track-layers caption of the ribbon in white on a dark capsule that covers it", function()
+		-- the ribbon face is up to #AA74F7 under the glyphs (3.2:1 for white, 2.7 for the old #F1E6FF) and the font "small" has
+		-- no shadow: the capsule is what brings the thin caption to 4.5:1
+		local lightest = { 0xAA / 255, 0x74 / 255, 0xF7 / 255 }
+		for lang, text in pairs({ en = "Track layers: 0/6", ru = "Слоёв трека: 0 из 6", ko = "트랙 레이어: 0/6" }) do
+			G.with_town({ language = lang }, function(c)
+				local E = c.E
+				local caption = c.town:find(text)
+				assert_true(caption ~= nil, lang .. ": " .. G.dump(c.town))
+				local col = caption.color
+				assert_true(col.x > 0.99 and col.y > 0.99 and col.z > 0.99, lang .. ": the caption is white")
+				-- the capsule: a box of the ribbon drawn before the caption, in the colour of the segments below
+				local capsule, order
+				for i, n in ipairs(caption.parent.children) do
+					if n == caption then order = i end
+				end
+				for i, n in ipairs(caption.parent.children) do
+					if n.kind == "box" and n.size.y == 22 and math.abs(n.color.x - 0x6C / 255) < 0.01 and math.abs(n.color.y - 0x32 / 255) < 0.01
+						and math.abs(n.color.z - 0xCF / 255) < 0.01 then
+						capsule = n
+						assert_true(i < order, lang .. ": the capsule is drawn under the caption")
+					end
+				end
+				assert_true(capsule ~= nil, lang .. ": no capsule under the caption")
+				local a = capsule.color.w
+				local r, g, b = lightest[1] + (capsule.color.x - lightest[1]) * a, lightest[2] + (capsule.color.y - lightest[2]) * a,
+					lightest[3] + (capsule.color.z - lightest[3]) * a
+				local ratio = A.contrast(1, 1, 1, r, g, b)
+				assert_true(ratio >= A.SOFT_NORM, string.format("%s: white on the capsule over the lightest ribbon pixel is %.2f:1", lang, ratio))
+				-- it covers the caption with a margin on both sides and sits on its middle line
+				local x0, y0, x1, y1 = E.rect(capsule)
+				local ax, ay = E.to_logical(x0, y0)
+				local bx, by = E.to_logical(x1, y1)
+				local cx0, cx1, cy0, cy1 = math.min(ax, bx), math.max(ax, bx), math.min(ay, by), math.max(ay, by)
+				for _, row in ipairs(A.texts(c)) do
+					if row.node == caption then
+						assert_true(cx0 <= row.rect[1] - 12 and cx1 >= row.rect[3] + 12, string.format("%s: the capsule %.0f-%.0f covers the text %.0f-%.0f", lang, cx0, cx1, row.rect[1], row.rect[3]))
+						-- (the stub places a text by a line-box model: within 3 px of the capsule's middle is what the engine shows centred)
+						local dy = math.abs((cy0 + cy1) / 2 - (row.rect[2] + row.rect[4]) / 2)
+						assert_true(dy <= 3 and cy1 - cy0 >= 20, string.format("%s: the capsule %.0f-%.0f sits on the text %.0f-%.0f", lang, cy0, cy1, row.rect[2], row.rect[4]))
+					end
+				end
+			end)
+		end
 	end)
 
 	it("shows the Hard tag of a level from its file and the streak notes", function()

@@ -214,9 +214,14 @@ function Hud:build_ribbon(parent)
 	self.ribbon = rib
 	s:text(rib, i18n.name(p.name), 0, 26, { font = "button", size = paged and 30 or 34, color = "white",
 		shadow = "#6C32CF", max_width = rw - 44 })
-	s:text(rib, i18n.t("town.layers", { done = p.done, total = p.total }), 0, -4, {
-		font = "small", size = 21, color = "#F1E6FF", max_width = rw - 64,
-	})
+	-- the caption: white on a dark translucent capsule. Under its glyphs the bare ribbon face is #9A5BF2 to #A66DF6, where the
+	-- thin 21 px text was 2.9:1 in #F1E6FF and is 3.4:1 in plain white; the font "small" has no shadow to help it, and a
+	-- heavier font is not for this change. The capsule (the shelf colour of the ribbon, the colour of the segments below)
+	-- takes white to 5.0:1 at its lightest row (5.6 at the bottom), measured in the web build.
+	local layers = i18n.t("town.layers", { done = p.done, total = p.total })
+	local layers_w = math.min(kit.text_width(ui.font_for("small", layers), layers, 21), rw - 64)
+	s:round(rib, 0, -6, layers_w + 36, 22, "#6C32CF", { alpha = 0.55, radius = 11 })
+	s:text(rib, layers, 0, -4, { font = "small", size = 21, color = "white", max_width = rw - 64 })
 	-- the track progress: one segment per layer
 	local n = math.max(1, p.total)
 	local bw = rw - 150
