@@ -1072,19 +1072,28 @@ describe("screens/town: the room while its pictures download (the web build)", f
 		require("client.packs")._reset()
 	end)
 
-	-- The gold "Part 2" tag hangs on the lower edge of the ribbon of every district of Part 2 (bottom edge y 1026); the note
-	-- under the ribbon had its top edge at 1028 and touched the tag. The note is anchored to the top like the ribbon, so the
-	-- gap holds in every window shape, with a phone's top inset too.
-	it("keeps the loading note clear of the Part 2 tag of the ribbon, in every window shape", function()
-		local shapes = {
-			{ w = { 720, 1280 } }, { w = { 390, 844 } }, { w = { 1920, 970 } },
-			{ w = { 360, 640 }, safe = { left = 0, top = 24, right = 0, bottom = 0 } },
-			{ w = { 720, 1280 }, safe = { left = 0, top = 48, right = 0, bottom = 30 } },
-		}
-		for _, shape in ipairs(shapes) do
+	-- The box of a node in logical px: x0, y0 (the bottom edge), x1, y1 (the top edge).
+	local function lbox(c, n)
+		local x0, y0, x1, y1 = c.E.rect(n)
+		local ax, ay = c.E.to_logical(x0, y0)
+		local bx, by = c.E.to_logical(x1, y1)
+		return math.min(ax, bx), math.min(ay, by), math.max(ax, bx), math.max(ay, by)
+	end
+
+	-- District 16 (the first of Part 2) on display while its pictures download, in every window shape of the game (a phone's
+	-- safe area too) and every language. mode "loading": nothing answers (the note says 0%); mode "offline": every download
+	-- fails (the note says that the pictures come later: the longest text). fn(c, label, plate, text): plate = the white
+	-- plate of the note, text = the text on it.
+	local ROOM_NOTE_SHAPES = {
+		{ w = { 720, 1280 } }, { w = { 390, 844 } }, { w = { 1920, 970 } },
+		{ w = { 360, 640 }, safe = { left = 0, top = 24, right = 0, bottom = 0 } },
+		{ w = { 720, 1280 }, safe = { left = 0, top = 48, right = 0, bottom = 30 } },
+	}
+	local function each_room_note(mode, fn)
+		for _, shape in ipairs(ROOM_NOTE_SHAPES) do
 			for _, lang in ipairs({ "en", "ru", "ko" }) do
 				local calls = {}
-				G.with_town({ window = shape.w, safe = shape.safe, language = lang, setup = function(app)
+				local ok, err = pcall(G.with_town, { window = shape.w, safe = shape.safe, language = lang, setup = function(app)
 					for _, d in ipairs(app.meta:districts()) do
 						if d.id == "midnight_cafe" then break end
 						G.build_tasks(app, d.id) -- district 16, the first of Part 2, is the one being built
@@ -1096,31 +1105,75 @@ describe("screens/town: the room while its pictures download (the web build)", f
 						request = function(url, done) calls[#calls + 1] = { url = url, done = done } end, -- nothing answers
 					})
 				end }, function(c)
-					local label = lang .. " " .. shape.w[1] .. "x" .. shape.w[2] .. (shape.safe and (" safe top " .. shape.safe.top) or "")
+					local label = mode .. " " .. lang .. " " .. shape.w[1] .. "x" .. shape.w[2] .. (shape.safe and (" safe top " .. shape.safe.top) or "")
+					local packs = require("client.packs")
 					local t = c.town.self.t
 					c.run(1)
 					assert_eq(c.app.ui.district, "midnight_cafe", label)
+					if mode == "offline" then
+						for _ = 1, 20 do
+							packs.update()
+							for i = 1, #calls do
+								if not calls[i].seen then
+									calls[i].seen = true
+									calls[i].done(0, nil) -- the download fails
+								end
+							end
+						end
+						c.run(1)
+						assert_true(packs.offline(), label .. ": the downloads did not give up")
+					end
 					assert_true(t.note ~= nil, label .. ": the note is not on the screen")
-					local tag = t.hud.part_tag
-					assert_true(tag ~= nil, label .. ": the ribbon has no Part 2 tag")
-					local plate
+					local plate, text
 					for _, n in ipairs(c.E.alive_nodes(c.town.scene)) do
-						if n.kind == "box" and n.parent == t.note then plate = n end
+						if n.parent == t.note then
+							if n.kind == "box" then plate = n elseif n.kind == "text" then text = n end
+						end
 					end
-					assert_true(plate ~= nil, label .. ": the plate of the note")
-					local function span(n) -- bottom and top edge in logical px
-						local x0, y0, x1, y1 = c.E.rect(n)
-						local _, ay = c.E.to_logical(x0, y0)
-						local _, by = c.E.to_logical(x1, y1)
-						return math.min(ay, by), math.max(ay, by)
-					end
-					local tag_bottom = span(tag)
-					local _, plate_top = span(plate)
-					assert_true(tag_bottom - plate_top >= 6, label .. string.format(": the tag (bottom %.1f) and the note (top %.1f) are %.1f px apart", tag_bottom, plate_top, tag_bottom - plate_top))
-					assert_true(tag_bottom - plate_top <= 30, label .. string.format(": the note hangs %.1f px under the tag", tag_bottom - plate_top))
+					assert_true(plate ~= nil and text ~= nil, label .. ": the plate and the text of the note")
+					fn(c, label, plate, text)
 				end)
 				require("client.packs")._reset()
+				if not ok then error(err, 0) end
 			end
+		end
+	end
+
+	-- The gold "Part 2" tag hangs on the lower edge of the ribbon of every district of Part 2 (bottom edge y 1026); the note
+	-- under the ribbon had its top edge at 1028 and touched the tag. The note is anchored to the top like the ribbon, so the
+	-- gap holds in every window shape, with a phone's top inset too.
+	it("keeps the loading note clear of the Part 2 tag of the ribbon, in every window shape", function()
+		each_room_note("loading", function(c, label, plate)
+			local tag = c.town.self.t.hud.part_tag
+			assert_true(tag ~= nil, label .. ": the ribbon has no Part 2 tag")
+			local _, tag_bottom = lbox(c, tag)
+			local _, _, _, plate_top = lbox(c, plate)
+			assert_true(tag_bottom - plate_top >= 6, label .. string.format(": the tag (bottom %.1f) and the note (top %.1f) are %.1f px apart", tag_bottom, plate_top, tag_bottom - plate_top))
+			assert_true(tag_bottom - plate_top <= 30, label .. string.format(": the note hangs %.1f px under the tag", tag_bottom - plate_top))
+		end)
+	end)
+
+	-- The songbook button (80 x 80, x 612-692, y 988-1068) hangs under the day / concert toggle at the right edge of the
+	-- screen, in the rows of the note (y 940-1016). The plate was 580 wide (x 70-650) and the button lay over its right end;
+	-- with the note anchored to the top like the button that happened in every window shape. Both are anchored to the top, so
+	-- the gap between them holds in every shape. The plate is narrower now, and the longest text ("no connection") still
+	-- sits on it at full size.
+	it("keeps the loading note off the songbook button, with its text on the plate, in every window shape", function()
+		for _, mode in ipairs({ "loading", "offline" }) do
+			each_room_note(mode, function(c, label, plate, text)
+				local btn = c.town.self.t.hud.notebook_btn
+				assert_true(btn ~= nil, label .. ": no songbook button")
+				local px0, py0, px1, py1 = lbox(c, plate)
+				local bx0, by0, bx1, by1 = lbox(c, btn)
+				-- the gap between the two boxes: the largest of the four distances (negative while they overlap)
+				local gap = math.max(bx0 - px1, px0 - bx1, by0 - py1, py0 - by1)
+				assert_true(gap >= 8, label .. string.format(": the note (x %.0f to %.0f, y %.0f to %.0f) and the songbook button (x %.0f to %.0f, y %.0f to %.0f) are %.1f px apart",
+					px0, px1, py0, py1, bx0, bx1, by0, by1, gap))
+				assert_true(px0 >= 16 and px1 <= 704, label .. string.format(": the note (x %.0f to %.0f) is closer than 16 px to the edge of the design area", px0, px1))
+				local tx0, _, tx1 = lbox(c, text)
+				assert_true(tx0 - px0 >= 10 and px1 - tx1 >= 10, label .. string.format(": the text (x %.0f to %.0f) is not inside the plate (x %.0f to %.0f) by 10 px", tx0, tx1, px0, px1))
+				assert_true(c.E.text_px(text) >= 26, label .. string.format(": the text is drawn at %.1f px (28 is its size)", c.E.text_px(text)))
+			end)
 		end
 	end)
 end)
