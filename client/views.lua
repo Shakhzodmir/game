@@ -10,6 +10,7 @@
 --   views.card(meta, viewing)                --> what the card above the level button shows
 --   views.browse(meta, viewing)              --> the open districts the player can page through
 --   views.town_hint(meta, task)              --> the hint to show over the town | nil
+--   views.item_glow(meta, viewing, state)    --> the item of the room on display that glows (the next star buys it) | nil
 --   views.level_button(meta, levels)         --> {level, tag, notes, all_done}
 --   views.start(meta, n, info, now, levels, free_up_to) --> the start window of level n
 --   views.start_boosters(meta, level)        --> the three pre-level slots
@@ -161,6 +162,21 @@ function M.town_hint(meta, task)
 		if d.done > 0 then return nil end
 	end
 	return { id = M.HINT_TASK, target = "task", text = { key = "tutorial.town" } }
+end
+
+-- The item of the room on display that glows: the grey silhouette the next star buys, once the stars suffice for it
+-- (the card's gold price chip says the same in words). Returns {district, id} or nil. It glows only in the district it
+-- stands in: another district on display (the player paged back) shows its own items and none of them is the
+-- next one. Never in the concert look (the room has its own light show), when the town is complete, or while the town is
+-- covered: state.busy = a show runs (the stars are flying, the item is being built, a chest opens), state.covered = a
+-- window is open or the screen is leaving. The screen asks every frame (screens/town/town.gui_script sync_glow).
+function M.item_glow(meta, viewing, state)
+	state = state or {}
+	if state.busy or state.covered then return nil end
+	local task = M.task(meta)
+	if not task or not task.affordable or task.district ~= viewing then return nil end
+	if meta:view(task.district) ~= "day" then return nil end
+	return { district = task.district, id = task.id }
 end
 
 -- The green "Level N" button: {level, difficulty, tag (i18n key or nil),
