@@ -10,7 +10,8 @@
 --   views.card(meta, viewing)                --> what the card above the level button shows
 --   views.browse(meta, viewing)              --> the open districts the player can page through
 --   views.town_hint(meta, task)              --> the hint to show over the town | nil
---   views.level_button(meta, levels)         --> {level, tag, notes, all_done}
+--   views.level_button(meta, levels)         --> {level, difficulty, tag, notes, streak, streak_active, all_done}
+--                                                notes is empty until the streak counts (level 12)
 --   views.start(meta, n, info, now, levels, free_up_to) --> the start window of level n
 --   views.start_boosters(meta, level)        --> the three pre-level slots
 --   views.shop_boosters(meta)                --> every booster pack, by the level it opens at
