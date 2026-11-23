@@ -356,7 +356,7 @@
   "355":{"kind":"normal","t":[43000,46800,52000],"best":58350,"witness":["strong",4134],"wins":18,"games":40,"share3":278,"sig":"5360cdf7526df08a"},
   "356":{"kind":"normal","t":[8400,9200,11000],"best":16960,"witness":["greedy",4105],"wins":36,"games":40,"share3":278,"sig":"7e807baa5c1f4ac3"},
   "357":{"kind":"normal","t":[21300,23800,30100],"best":42650,"witness":["greedy",4137],"wins":17,"games":40,"share3":294,"sig":"7f006df30badd815"},
-  "358":{"kind":"normal","t":[10900,14100,16100],"best":23060,"witness":["greedy",4135],"wins":29,"games":40,"share3":276,"sig":"28e4cfd47def1e8e"},
+  "358":{"kind":"normal","t":[10900,14600,17900],"best":24090,"witness":["greedy",4137],"wins":30,"games":40,"share3":267,"sig":"4259c50758ba2be0"},
   "359":{"kind":"normal","t":[8800,10800,12900],"best":16280,"witness":["strong",4134],"wins":32,"games":40,"share3":281,"sig":"7df1c13164c65f1f"},
   "360":{"kind":"concert","t":[32600,34000,39100],"best":42200,"witness":["strong",4102],"wins":22,"games":40,"share3":182,"sig":"2bc87bc75f8cc5c2"},
   "361":{"kind":"normal","t":[11100,12700,14700],"best":29330,"witness":["strong",4116],"wins":36,"games":40,"share3":278,"sig":"0e9eeff670a7a974"},
