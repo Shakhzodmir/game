@@ -624,6 +624,46 @@ embedded_components {
   data: "sound: \"/assets/music/nations_fest/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "music_night_carnival_bass"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_beat"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/beat.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_brass"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/brass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_congas"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/congas.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_party"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/party.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_piano"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/piano.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_shaker"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/shaker.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "music_night_carnival_tension"
+  type: "sound"
+  data: "sound: \"/assets/music/night_carnival/tension.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "music_punk_garage_bass"
   type: "sound"
   data: "sound: \"/assets/music/punk_garage/bass.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1634,6 +1674,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/festival_drop.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_fireworks_mambo"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/fireworks_mambo.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_flamenco_fire"
   type: "sound"
   data: "sound: \"/assets/music/songs/flamenco_fire.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -1722,6 +1767,11 @@ embedded_components {
   id: "song_laser_trance"
   type: "sound"
   data: "sound: \"/assets/music/songs/laser_trance.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_last_dance_cha_cha"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/last_dance_cha_cha.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_last_ferry_home"
@@ -1994,6 +2044,11 @@ embedded_components {
   data: "sound: \"/assets/music/songs/street_cipher.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
+  id: "song_street_conga_line"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/street_conga_line.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
   id: "song_summer_crush"
   type: "sound"
   data: "sound: \"/assets/music/songs/summer_crush.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
@@ -2042,6 +2097,11 @@ embedded_components {
   id: "song_three_chord_summer"
   type: "sound"
   data: "sound: \"/assets/music/songs/three_chord_summer.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
+}
+embedded_components {
+  id: "song_torchlight_bolero"
+  type: "sound"
+  data: "sound: \"/assets/music/songs/torchlight_bolero.ogg\"\nlooping: 1\ngroup: \"music\"\ngain: 1.0\npan: 0.0\nspeed: 1.0\nloopcount: 0\n"
 }
 embedded_components {
   id: "song_trap_playground"
