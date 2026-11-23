@@ -9,10 +9,10 @@
     {"type": "break", "item": "balloon", "count": 6}
   ],
   "cells": [
-    "#########",
-    "#########",
-    "#########",
-    "#########",
+    "##.......",
+    "####.....",
+    "######...",
+    "########.",
     "#########",
     "#########",
     "#########",
@@ -20,12 +20,8 @@
     "#########"
   ],
   "slots": [
-    {"at": [1, 4], "type": "balloon", "color": "purple"},
-    {"at": [3, 4], "type": "balloon", "color": "yellow"},
-    {"at": [5, 4], "type": "balloon", "color": "purple"},
-    {"at": [7, 4], "type": "balloon", "color": "yellow"},
-    {"at": [2, 6], "type": "balloon", "color": "purple"},
-    {"at": [6, 6], "type": "balloon", "color": "yellow"}
+    {"at": [1, 4], "type": "balloon", "color": "purple"}, {"at": [5, 4], "type": "balloon", "color": "purple"}, {"at": [2, 6], "type": "balloon", "color": "purple"},
+    {"at": [3, 4], "type": "balloon", "color": "yellow"}, {"at": [7, 4], "type": "balloon", "color": "yellow"}, {"at": [6, 6], "type": "balloon", "color": "yellow"}
   ],
   "mic": {"total": 3, "on_board_max": 2, "gap_moves": 2}
 }
