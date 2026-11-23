@@ -1053,7 +1053,7 @@ describe("screens/town: Bit listens to the layer that enters", function()
 		end)
 	end)
 
-	it("takes the pose of the headphones: the still frame shows the hands at the cups", function()
+	it("plays the listening animation of the headphones while it listens: the frames move", function()
 		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
 			local bit = c.town.self.t.bit
 			tap_target(c, "task")

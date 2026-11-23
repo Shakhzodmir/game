@@ -239,9 +239,10 @@ end
 
 -- Account prompts, never over another window and never while a reward is on show: the sync question (a
 -- decision of client/cloud.lua, asked again after "not now" only when a sync finds one), the first-launch
--- sign-in window (when sign-in is available, the player was not asked yet and has built a layer: layer_heard) and the
--- guest reminder (a soft toast after ten levels, which does not wait for the window: the window comes first at the
--- first purchase, and a player who has not made one yet still hears about the account).
+-- sign-in window (when sign-in is available, the player was not asked yet, is not signed in already (the settings
+-- offer the sign-in before the first purchase now) and has built a layer: layer_heard) and the guest reminder (a soft
+-- toast after ten levels, which does not wait for the window: the window comes first at the first purchase, and a
+-- player who has not made one yet still hears about the account).
 function Town:account_prompts()
 	if self.show:busy() or self.sliding or app.ui.popup or self.leaving then return end
 	local d = cloud.decision()
@@ -251,7 +252,7 @@ function Town:account_prompts()
 		return
 	end
 	if self.prompted then return end
-	local welcome = auth.available() and not cloud.welcomed()
+	local welcome = auth.available() and not cloud.welcomed() and auth.user() == nil
 	if welcome and self:layer_heard() then
 		self.prompted = true
 		self:open_popup("account", { mode = "choice" })
