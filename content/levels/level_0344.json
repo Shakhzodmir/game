@@ -1,32 +1,29 @@
 {
   "id": 344, "version": 1,
-  "size": [9, 9],
-  "moves": 28,
+  "size": [8, 7],
+  "moves": 25,
   "difficulty": "easy",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "ice", "count": 10},
-    {"type": "collect", "color": "blue", "count": 50}
+    {"type": "ice", "count": 6},
+    {"type": "collect", "color": "blue", "count": 30}
   ],
   "cells": [
-    "...####..",
-    ".#######.",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########"
-  ],
-  "overlay": [
-    {"at": [2, 5], "type": "ice", "hp": 2}, {"at": [4, 5], "type": "ice", "hp": 2}, {"at": [6, 5], "type": "ice", "hp": 2},
-    {"at": [1, 6], "type": "ice", "hp": 2}, {"at": [3, 6], "type": "ice", "hp": 2}, {"at": [5, 6], "type": "ice", "hp": 2},
-    {"at": [7, 6], "type": "ice", "hp": 2}, {"at": [2, 7], "type": "ice", "hp": 2}, {"at": [4, 7], "type": "ice", "hp": 2},
-    {"at": [6, 7], "type": "ice", "hp": 2}
+    "..####..",
+    "..####..",
+    ".######.",
+    ".######.",
+    "########",
+    "########",
+    "########"
   ],
   "slots": [
-    {"at": [2, 3], "type": "noise"}, {"at": [6, 3], "type": "noise"}, {"at": [0, 8], "type": "noise"},
-    {"at": [8, 8], "type": "noise"}, {"at": [4, 2], "type": "noise"}, {"at": [4, 8], "type": "noise"}
+    {"at": [2, 2], "type": "noise"}, {"at": [5, 2], "type": "noise"}, {"at": [1, 4], "type": "noise"},
+    {"at": [6, 4], "type": "noise"}, {"at": [3, 6], "type": "noise"}
+  ],
+  "overlay": [
+    {"at": [2, 4], "type": "ice", "hp": 2}, {"at": [4, 4], "type": "ice", "hp": 2}, {"at": [3, 5], "type": "ice", "hp": 2},
+    {"at": [5, 5], "type": "ice", "hp": 2}, {"at": [1, 5], "type": "ice", "hp": 2}, {"at": [6, 5], "type": "ice", "hp": 2},
+    {"at": [2, 6], "type": "ice", "hp": 2}, {"at": [5, 6], "type": "ice", "hp": 2}
   ]
 }

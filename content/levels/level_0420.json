@@ -1,41 +1,36 @@
 {
   "id": 420, "version": 1,
   "size": [9, 11],
-  "moves": 30,
+  "moves": 25,
   "difficulty": "super_hard",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "drop", "count": 8},
-    {"type": "break", "item": "record_box", "count": 4},
-    {"type": "collect", "color": "blue", "count": 44}
+    {"type": "carpet"},
+    {"type": "ice", "count": 8},
+    {"type": "drop", "count": 5}
   ],
   "cells": [
     "..#####..",
+    "..#####..",
+    "..#####..",
     ".#######.",
-    ".#######.",
-    ".........",
     ".#######.",
     "#########",
     "#########",
     "#########",
     "#########",
-    ".#######.",
-    "..#####.."
+    "#########",
+    "#########"
   ],
-  "slots": [
-    {"at": [2, 6], "type": "record_box", "hp": 3},
-    {"at": [6, 6], "type": "record_box", "hp": 3},
-    {"at": [2, 8], "type": "record_box", "hp": 3},
-    {"at": [6, 8], "type": "record_box", "hp": 3}
+  "overlay": [
+    {"at": [2, 3], "type": "ice", "hp": 2}, {"at": [4, 3], "type": "ice", "hp": 2}, {"at": [6, 3], "type": "ice", "hp": 2},
+    {"at": [1, 5], "type": "ice", "hp": 2}, {"at": [3, 5], "type": "ice", "hp": 2}, {"at": [5, 5], "type": "ice", "hp": 2},
+    {"at": [7, 5], "type": "ice", "hp": 2}, {"at": [2, 7], "type": "ice", "hp": 2}, {"at": [4, 7], "type": "ice", "hp": 2},
+    {"at": [6, 7], "type": "ice", "hp": 2}
   ],
-  "coconut": {"total": 8, "on_board_max": 2, "gap_moves": 2, "columns": [1, 2, 3, 4, 5, 6, 7]},
-  "portals": [
-    {"in": [1, 2], "out": [1, 4]},
-    {"in": [2, 2], "out": [2, 4]},
-    {"in": [3, 2], "out": [3, 4]},
-    {"in": [4, 2], "out": [4, 4]},
-    {"in": [5, 2], "out": [5, 4]},
-    {"in": [6, 2], "out": [6, 4]},
-    {"in": [7, 2], "out": [7, 4]}
+  "coconut": {"total": 6, "on_board_max": 2, "gap_moves": 2, "columns": [2, 3, 4, 5, 6]},
+  "carpet": [
+    [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8], [6, 8], [7, 8], [8, 8], [0, 9], [1, 9], [2, 9], [3, 9], [4, 9], [5, 9],
+    [6, 9], [7, 9], [8, 9], [0, 10], [1, 10], [2, 10], [3, 10], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10]
   ]
 }
