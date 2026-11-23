@@ -7,7 +7,9 @@
 --   * content/districts.json: every district has an id, `first` / `last` (the stretches follow each other from
 --     level 1, no gap, no overlap, at most C.songbook.pool levels each), names in ru / en / ko, a genre name in
 --     ru / en / ko, tasks (names in ru / en / ko), a chest and its songs (the rules of meta/town.lua); `part`
---     (optional, Part 2 = districts 16-30) is a whole number >= 1 and never goes down along the list
+--     (Part 2 = districts 16-30; districts 1-15 may leave it out) is a whole number >= 1, never goes down along the
+--     list, and once a district of Part 2 has appeared every district after it must have it (without it a district
+--     reads as Part 1, and the next Part 2 district would get a second "Part 2" gate tag)
 --   * content/levels/level_NNNN.json exists for every level 1..N, its id is NNNN, and there is no file beyond N
 --   * content/levels/stars.json has the thresholds of every level 1..N and of no other, and the concert levels
 --     (`kind` = "concert") are exactly the last level of every district (WP-14)
@@ -89,14 +91,20 @@ function Check.run(fs)
 			if d.map_tint ~= nil and (type(d.map_tint) ~= "string" or not d.map_tint:match("^#%x%x%x%x%x%x$")) then
 				add(errors, where .. ": map_tint must look like #RRGGBB")
 			end
-			if d.part ~= nil then
-				if not is_int(d.part) or d.part < 1 then
-					add(errors, where .. ": part must be a whole number >= 1")
-				elseif d.part < part_before then
-					add(errors, where .. ": part " .. d.part .. " comes after part " .. part_before .. " (the parts follow the list)")
-				else
-					part_before = d.part
+			if d.part == nil then
+				-- client/app.lua district_part reads a district without "part" as Part 1, and part_opens would then give
+				-- the next district of Part 2 the "Part 2" gate tag a second time: once a district of Part 2 has
+				-- appeared, every district after it must say its part
+				if part_before >= 2 then
+					add(errors, where .. ": no part, but the districts before it are in part " .. part_before
+						.. " (a district without part reads as Part 1: write \"part\": " .. part_before .. ")")
 				end
+			elseif not is_int(d.part) or d.part < 1 then
+				add(errors, where .. ": part must be a whole number >= 1")
+			elseif d.part < part_before then
+				add(errors, where .. ": part " .. d.part .. " comes after part " .. part_before .. " (the parts follow the list)")
+			else
+				part_before = d.part
 			end
 			for j, t in ipairs(type(d.tasks) == "table" and d.tasks or {}) do
 				if type(t) == "table" then localized(errors, where .. " task " .. j, t.name) end
