@@ -328,8 +328,8 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 }
 {
 	// the stand-in passes close() and focus() on, and says "not closed" only while the real one is alive and ours
-	const holder = {}; let given = null;
-	const sdk = fakeSdk({ popup: (...a) => sdkPopup(holder, { answerMs: 60, onOpen: (w) => { given = w; } })(...a) });
+	const holder = {}; let given = null, second = null;
+	const sdk = fakeSdk({ popup: (...a) => sdkPopup(holder, { answerMs: 60, onOpen: (w) => { given = w; second = holder.g.open("https://other.example/"); } })(...a) });
 	const g = game({ cfg: { googleIos: "shim" }, sdk });
 	holder.g = g;
 	const real = realWindow(5);
@@ -339,6 +339,7 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 	tapCard(g).click();
 	await waitFor(() => given !== null);
 	assert.notEqual(given, real, "the SDK got a stand-in");
+	assert.equal(second, real, "the shim is one-shot: the next window.open, while the SDK's call is still going, gets the real window");
 	assert.equal(given.closed, false); await sleep(30); assert.equal(given.closed, false, "it never says closed");
 	given.close(); assert.equal(real.closes, 1, "close() goes to the real window");
 	await waitLine(g, id);
@@ -695,6 +696,8 @@ for (const [name, sc, wantReason, wantCode] of [
 	// (i) the browser refuses the window: the secrets go back unused, one more tap is allowed, a second refusal is said
 	const world = popupWorld(), sdk = fakeSdk();
 	const g = game({ world, cfg: OIDC_POPUP, sdk });
+	const realOpen = g.open, urls = [];
+	g.open = (u, n) => { urls.push(u); return realOpen(u, n); };
 	g.openBlocked = true;
 	const id = await tapped(g);
 	assert.ok(await waitFor(() => cards(g).length === 1 && !tapCard(g).disabled), "the card keeps one more tap");
@@ -703,6 +706,9 @@ for (const [name, sc, wantReason, wantCode] of [
 	tapCard(g).click();
 	const r = await waitLine(g, id);
 	assert.deepEqual([r.ok, sdk.calls.length], [true, 1], "the second tap works");
+	assert.equal(urls.length, 2);
+	assert.match(new URL(urls[1]).searchParams.get("state"), /^pg\./, "the second try has its own attempt");
+	assert.notEqual(new URL(urls[1]).searchParams.get("state"), new URL(urls[0]).searchParams.get("state"), "...never the refused one's");
 	// two refusals
 	const w2 = popupWorld(), g2 = game({ world: w2, cfg: OIDC_POPUP, sdk: fakeSdk() });
 	g2.openBlocked = true;

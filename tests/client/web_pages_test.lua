@@ -137,6 +137,96 @@ describe("the sign-in scripts of the game page", function()
 	end)
 end)
 
+describe("the ways of Google's sign-in in the game page (web/glow_auth.js, web/auth_config.js, web/engine_template.html)", function()
+	local page = slurp("web/engine_template.html")
+	local js = slurp("web/glow_auth.js")
+	local cfg = slurp("web/auth_config.js")
+	local version = js:match('var VERSION = "([%d%-]+%a?)"')
+	local function key(name) return cfg:match(name .. ':%s*"([^"]*)"') end
+	local WAYS = { firebase = true, shim = true, oidc_popup = true, oidc_redirect = true, no_window = true }
+
+	it("loads the config, then the core, then the bridge, all three asking for the bridge's version", function()
+		local a = page:find('src="auth_config.js?v=' .. version .. '"', 1, true)
+		local o = page:find('src="glow_oidc.js?v=' .. version .. '"', 1, true)
+		local g = page:find('src="glow_auth.js?v=' .. version .. '"', 1, true)
+		assert_true(a and o and g, "all three tags carry ?v=" .. tostring(version))
+		assert_true(a < o and o < g, "the core is loaded before the bridge that reads window.glowOidc")
+	end)
+
+	it("keeps the keys of the ways in the config: public identifiers, known ways, the Home Screen way only for the Home Screen app", function()
+		assert_eq(key("googleClientId"), "956973883845-ct7e77188vteg5edv7m3sgp8j8iptd5r.apps.googleusercontent.com")
+		assert_eq(key("googleReturn"), "https://shakhzodmir.github.io/game/auth_return.html")
+		assert_true(WAYS[key("googleIos")] == true, "googleIos is one of the five ways: " .. tostring(key("googleIos")))
+		assert_true(WAYS[key("googleIosHome")] == true, "googleIosHome is one of the five ways: " .. tostring(key("googleIosHome")))
+		assert_true(key("googleIos") ~= "no_window", "a tab always has a window to use")
+		local ret = slurp("web/auth_return.html")
+		assert_true(ret ~= nil and key("googleReturn"):match("/auth_return%.html$") ~= nil, "the address names the return page that is shipped")
+		for _, bad in ipairs({ "GOCSPX-", "client_secret", "private_key", "BEGIN PRIVATE KEY" }) do assert_false(has(cfg, bad), "the config holds only public identifiers (" .. bad .. ")") end
+	end)
+
+	it("names the same two addresses in the producer's console steps and in the handoff note", function()
+		for _, path in ipairs({ "docs/handoff/google-signin-console-steps.md", "docs/handoff/google-signin-ios.md" }) do
+			local doc = slurp(path)
+			assert_true(has(doc, key("googleReturn")), path .. " names the return address")
+			assert_true(has(doc, "https://shakhzodmir.github.io"), path .. " names the origin")
+			assert_true(has(doc, "https://glow-dcd7e.firebaseapp.com/__/auth/handler"), path .. " says the old handler address stays")
+		end
+		assert_true(has(slurp("docs/handoff/google-signin-console-steps.md"), key("googleClientId"):sub(1, 17)), "and the client the steps open")
+	end)
+
+	it("has exactly the five ways, and the Firebase way is the same SDK call as before", function()
+		assert_true(has(js, 'var FLOWS = ["firebase", "shim", "oidc_popup", "oidc_redirect", "no_window"];'))
+		assert_true(has(js, "s.m.signInWithPopup(s.auth, new s.m.GoogleAuthProvider())"))
+		assert_true(has(js, "s.m.linkWithPopup(u, new s.m.GoogleAuthProvider())"))
+		assert_false(has(js, "signInWithRedirect") or has(js, "getRedirectResult"), "the SDK's redirect is not used (storage partitioning)")
+	end)
+
+	it("lets only an iPhone or iPad page read the keys and the saved choice: a desktop and an Android phone stay on the Firebase way", function()
+		assert_true(has(js, 'if (!isIOS()) return "firebase";\n\t\treturn goodFlow(isStandalone() ? cfg.googleIosHome : cfg.googleIos) || "firebase";')
+			or has(js, 'if (!isIOS()) return "firebase";\r\n\t\treturn goodFlow(isStandalone() ? cfg.googleIosHome : cfg.googleIos) || "firebase";'))
+		assert_eq(select(2, js:gsub("cfg%.googleIos", "")), 2, "the two keys are read in that one place")
+		assert_true(has(js, 'if (!isIOS()) return ""; // a saved choice never pins a desktop or an Android phone'))
+		assert_true(has(js, "if (f && isIOS()) store(FLOW_KEY,"), "the address choice is kept only on an iPhone or iPad")
+	end)
+
+	it("opens the one window and navigates once, in the tap, with nothing asynchronous before it, in this order: save, arm, open, mark", function()
+		local fn = js:match("function oidcStart%(.-\n\t// the whole operation")
+		assert_true(fn ~= nil, "oidcStart")
+		local open = fn:find("window.open(url", 1, true)
+		local listen, ending = fn:find("var h = G.listen(", 1, true), fn:find("tr.onEnd(function (ok) {", 1, true)
+		assert_true(open ~= nil and listen ~= nil and ending ~= nil and listen < ending and ending < open)
+		-- (what runs inside the listener's callback runs later, when an answer comes)
+		for _, part in ipairs({ fn:sub(1, listen), fn:sub(ending, open) }) do
+			for _, bad in ipairs({ "await", ".then(", "setTimeout(", "Promise.resolve", "fetch(", "import(" }) do
+				assert_false(has(part, bad), "nothing asynchronous before window.open (" .. bad .. ")")
+			end
+		end
+		local save, arm, mark = fn:find("G.savePending(", 1, true), fn:find("G.listen(", 1, true), fn:find("G.markOwn(", 1, true)
+		assert_true(save and arm and mark and save < arm and arm < open and open < mark, "save, arm, open, mark")
+		assert_eq(select(2, js:gsub("window%.open%(url", "")), 1, "one window.open of ours")
+		assert_eq(select(2, js:gsub("window%.location%.assign%(", "")), 1, "one navigation of ours")
+		assert_false(has(js, "location.hash") or has(js, "atob(") or has(js, "console.log("), "the bridge parses no address and logs nothing")
+	end)
+
+	it("names no address but the SDK's own files, and no token ever reaches a note, a log or the wire format", function()
+		local seen = {}
+		for url in js:gmatch("https?://[^%s\"'<>)]+") do seen[#seen + 1] = url end
+		assert_eq(#seen, 1, table.concat(seen, " "))
+		assert_eq(seen[1], "https://www.gstatic.com/firebasejs/")
+		assert_false(has(js, "idToken:") and has(js, "note(") and js:find("note%([^\n]*idToken") ~= nil, "no token in a note")
+		assert_true(js:find("note%([^\n]*accessToken") == nil and js:find("note%([^\n]*rec%.r") == nil, "no token or raw nonce in a note")
+	end)
+
+	it("is covered by a node check that CI runs", function()
+		local ci = slurp(".github/workflows/ci.yml")
+		assert_true(has(ci, "node tools/qa/auth_flows_check.mjs"))
+		assert_true(has(ci, "node tools/qa/auth_oidc_check.mjs"))
+		local check = slurp("tools/qa/auth_flows_check.mjs")
+		assert_true(has(check, "import { read, CORE, sleep") and has(check, "fake_world.mjs"), "the check shares the fake browser")
+		slurp("tools/qa/fake_world.mjs")
+	end)
+end)
+
 describe("web/auth_test.html: the phone-side check of the sign-in with Google", function()
 	local s = slurp("web/auth_test.html")
 
