@@ -160,6 +160,17 @@ describe("the level screen strings", function()
 			end }, function(c) c.tap(110, 72); c.run(0.8) end },
 			{ { level = 1, tutorials = { ["1"] = { steps = { step } } } }, function(c) c.run(1.5) end },
 			{ { level = 1, tutorials = { ["1"] = { steps = { { kind = "tip", text = "tutorial.record_box" } } } } }, function(c) c.run(1.5) end },
+			-- the hint of a goal tile: a colour goal, the dance floor, a blocker, and a goal that is done
+			{ { level = 1, attempt = false }, function(c) c.run(0.8); c.tap(c.app.ui.level.targets.goal1.x, c.app.ui.level.targets.goal1.y); c.step(3) end },
+			{ { level = 185, attempt = false }, function(c) c.run(0.8); c.tap(c.app.ui.level.targets.goal1.x, c.app.ui.level.targets.goal1.y); c.step(3) end },
+			{ { level = 40, attempt = false }, function(c) c.run(0.8); c.tap(c.app.ui.level.targets.goal1.x, c.app.ui.level.targets.goal1.y); c.step(3) end },
+			{ { level = 1, attempt = false }, function(c)
+				c.run(0.8)
+				require("client.bus").publish("level_goal", { index = 1, left = 0 })
+				c.step(3)
+				c.tap(c.app.ui.level.targets.goal1.x, c.app.ui.level.targets.goal1.y)
+				c.step(3)
+			end },
 		}
 		-- words that read the same in both languages
 		local SAME = {}

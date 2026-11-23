@@ -273,6 +273,118 @@ function Goals:progress(index)
 	return 1 - self.shown[index] / t
 end
 
+-- the hint of a goal (a tap on its tile explains it) ---------------------------------------------------------
+
+-- A tile is an icon and a number: on level 185 "a violet tile and 23" does not say what to do. A tap on it shows a pill
+-- under the panel with one line (screens/level/hud.lua draws it, screens/level/level.gui_script routes the tap).
+M.GOAL_HINT_SECONDS = 3.5   -- how long it stays when nothing else happens (the next press on anything else ends it)
+M.GOAL_TITLE_STRIP = 52     -- the top of the panel holds "Level N" and the difficulty: a press there is no tile
+M.GOAL_PANEL_EDGE = 18      -- the picture of the panel ends this far above the bottom of its node (the counters sit above it)
+M.GOAL_HINT_NOTCH = 12      -- the pointer of the pill: it reaches up to the panel's visible edge
+M.GOAL_HINT_TOP = M.GOAL_PANEL_EDGE - M.GOAL_HINT_NOTCH -- the pill's top edge, above the bottom of the panel's node
+M.GOAL_HINT_H = 46          -- one line of 26 px
+M.GOAL_HINT_MIN_H = 36      -- a board that crowds the panel thins the pill down to this, never further
+M.GOAL_HINT_MARGIN = 16     -- between the pill and the edge of the window
+
+-- The line of each goal kind (client/levels.lua `kind`; a `break` goal by its item): colour goals have a line of their own, every
+-- element says what the tutorial says for it (content/tutorials.json teaches it with the same line). The dance floor says the
+-- action (what the player does on the violet tile), because the tile and the number already say what is to be lit. Wires,
+-- portals, the conveyor and the curtain are board elements that no level takes for a goal (the levels have exactly the 15
+-- kinds of the rows below: tests/client/level_goal_hint_test.lua walks every level file), so they have no row. The keys are
+-- literal on purpose: tools/check_refs.lua reads them.
+M.GOAL_HINT = {
+	collect = "goal.collect", light = "tutorial.dancefloor_match", deliver = "tutorial.mic", drop = "tutorial.coconut",
+	chains = "tutorial.chain", carpet = "tutorial.carpet", ice = "tutorial.ice", fog = "tutorial.fog",
+}
+M.GOAL_HINT_BREAK = {
+	record_box = "tutorial.record_box", concrete = "tutorial.concrete", noise = "tutorial.noise", balloon = "tutorial.balloon",
+	column = "tutorial.column", boombox = "tutorial.boombox", hay = "tutorial.hay",
+}
+M.GOAL_DONE = "goal.done"
+
+-- What the hint of goal `def` (client/levels.lua goals(): {kind, item, label = {key}, color}) says while `left` of it remain: an
+-- i18n spec for i18n.tr ({key, vars}), or nil when there is nothing to say. A finished goal says so; a goal this table does
+-- not know yet says what it is by its name.
+function M.goal_hint(def, left)
+	if type(def) ~= "table" then return nil end
+	if (tonumber(left) or 0) <= 0 then return { key = M.GOAL_DONE } end
+	local key
+	if def.kind == "break" then key = M.GOAL_HINT_BREAK[def.item] else key = M.GOAL_HINT[def.kind] end
+	if not key then
+		return def.label and def.label.key and { key = def.label.key } or nil
+	end
+	if def.kind == "collect" then
+		return { key = key, vars = { n = left, name = def.label and def.label.key and { key = def.label.key } or "" } }
+	end
+	return { key = key }
+end
+
+-- Which goal tile (1..n) does the point (lx, ly), logical, press? l = layout(). The panel is cut into n columns; the strip
+-- of the title at its top and everything outside it are no tile. nil for none.
+function M.goal_at(l, n, lx, ly)
+	local g = l and l.goals
+	n = math.min(3, math.floor(tonumber(n) or 0))
+	if not g or n < 1 or not lx or not ly then return nil end
+	if lx < g.x0 or lx > g.x1 or ly < g.y0 or ly > g.y1 - M.GOAL_TITLE_STRIP then return nil end
+	local k = math.floor((lx - g.x0) / (g.w / n)) + 1
+	return math.max(1, math.min(n, k))
+end
+
+-- Where the pill of the hint of the tile at tile_x (logical, the tile's centre) stands, w wide: it hangs under the panel,
+-- its pointer on the panel's visible bottom edge, centred under the tile as far as the window allows, its bottom edge above
+-- the top of the board's cells (the tallest board of the game, 7x11, starts 44 px under the bottom of the panel's node and the
+-- pill hangs from 6 px above that edge: 50 px of room for a pill of 46, so it clears the cells by 4 px at the design size. The
+-- pill is a single line and thins to fit a board that is closer, it may stand on the frame of the board, which is a decoration,
+-- never on a cell; a board so close that the pill would be thinner than GOAL_HINT_MIN_H would get a pill that stands on its
+-- first cells rather than one too thin for its line). Returns the rectangle with `tail_x`, where the pointer stands (always
+-- under the tile, on the straight part of the pill).
+function M.goal_hint_rect(l, tile_x, w)
+	local g, safe = l.goals, l.safe
+	local top = g.y0 + M.GOAL_HINT_TOP
+	local h = M.GOAL_HINT_H
+	if l.board then h = max(M.GOAL_HINT_MIN_H, min(h, top - (l.board.y1 + 1))) end
+	w = min(w, safe.x1 - safe.x0 - 2 * M.GOAL_HINT_MARGIN)
+	local cx = max(safe.x0 + M.GOAL_HINT_MARGIN + w / 2, min(safe.x1 - M.GOAL_HINT_MARGIN - w / 2, tile_x))
+	local r = rect(cx, top - h / 2, w, h)
+	r.tail_x = max(r.x0 + 20, min(r.x1 - 20, tile_x))
+	return r
+end
+
+local GoalHint = {}
+GoalHint.__index = GoalHint
+
+-- The clock of the hint: one tile at a time, a few seconds.
+--   local h = level_hud.goal_hint_new()
+--   h:show(k)          -- tile k (another tile replaces the one shown; the same one renews the time)
+--   h:update(dt)       -- true when it has just run out (it is hidden now)
+--   h:shown()          -- the tile shown, or nil
+--   h:hide()           -- the tile that was shown, or nil
+function M.goal_hint_new()
+	return setmetatable({ k = nil, left = 0 }, GoalHint)
+end
+
+function GoalHint:show(k)
+	self.k, self.left = k, M.GOAL_HINT_SECONDS
+end
+
+function GoalHint:shown()
+	return self.k
+end
+
+function GoalHint:hide()
+	local was = self.k
+	self.k, self.left = nil, 0
+	return was
+end
+
+function GoalHint:update(dt)
+	if not self.k then return false end
+	self.left = self.left - dt
+	if self.left > 0 then return false end
+	self.k, self.left = nil, 0
+	return true
+end
+
 -- moves --------------------------------------------------------------------------------------------
 
 -- {low (pulse and redden), danger (the last two)}

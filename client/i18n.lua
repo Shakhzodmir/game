@@ -82,6 +82,10 @@ local S = {
 	["hud.pick_col"] = { en = "Pick a column", ru = "Выбери колонку" },
 	["hud.hard"] = { en = "Hard", ru = "Сложный" },
 	["hud.super_hard"] = { en = "Super Hard", ru = "Суперсложный" },
+	-- a tap on a goal tile of the level HUD explains it (screens/level/hud.lua): the colour goals say what and how many are
+	-- left (no noun after the number, so no plural forms), the element goals say the line of their tutorial (tutorial.*)
+	["goal.collect"] = { en = "{name}: collect {n} more", ru = "{name}: собери ещё {n}" },
+	["goal.done"] = { en = "This goal is done!", ru = "Эта цель выполнена!" },
 	["praise.1"] = { en = "Juicy!", ru = "Сочно!" },
 	["praise.2"] = { en = "Hit!", ru = "Хит!" },
 	["praise.3"] = { en = "Drive!", ru = "Драйв!" },

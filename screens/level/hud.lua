@@ -20,6 +20,11 @@
 --   hud:booster_rect(id), hud:goal_pos(k)  -- logical rectangles / positions (the tutorial, the flights)
 --   hud:pick_bit(action)                   -- a tap on Bit? (he jumps and plays a note)
 --   hud:set_bit_hidden(on), hud:bit_rect() -- the tutorial's bubble covers him: he steps aside
+--   hud:goal_at(action)                    -- the goal tile (1..3) a press is on, or nil
+--   hud:show_goal_hint(k), hud:hide_goal_hint()   -- the hint of a tile (a few seconds, one at a time); any other press, a
+--                                          -- window or the end of the level hides it; a toast hangs over its place, so it
+--                                          -- waits for the toast (not drawn, its time stands still)
+--   hud:goal_hint_shown(), hud:goal_hint_text()   -- what is on the screen (QA, tests): nil while it waits
 
 local app = require("client.app")
 local ui = require("client.ui")
@@ -31,6 +36,7 @@ local link = require("client.level_link")
 local level_hud = require("client.level_hud")
 local level_bit = require("client.level_bit")
 local fx = require("client.fx")
+local kit = require("gui.kit")
 
 local M = {}
 
@@ -47,6 +53,7 @@ function M.new(scene, opts)
 		ui = scene, fx = opts.fx, parent = opts.layer, actions = opts.actions or {},
 		moves = nil, goals = nil, state = "playing", target = nil,
 		feed = level_hud.score_feed(), pops = 0, sync_t = 0, bit_slot = nil, built = false,
+		ghint = level_hud.goal_hint_new(), hint_node = nil, hint_mark = nil, hint_wait = false,
 	}, Hud)
 	return self
 end
@@ -129,6 +136,8 @@ function Hud:_show_goal(k, pop)
 		gui.animate(gn.icon, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.3)
 		if done and not was then ui.pop_in(gn.check, 0, 0.3) end
 	end
+	-- the hint shown for this goal says what is left now
+	if self.ghint:shown() == k then self:_hint_show(k, false) end
 end
 
 function Hud:_moves(status)
@@ -192,6 +201,9 @@ function Hud:build(info, status, rect)
 	local s = self.ui
 	if self.layer then s:clear(self.layer) end
 	self.c_bit, self.c_target, self.cancel_btn, self.bit = nil, nil, nil, nil -- they went with the layer
+	self.hint_node, self.hint_mark = nil, nil -- ... and so did the hint of a goal (it is not drawn again: the language or the window changed)
+	self.ghint:hide()
+	self.hint_wait = false
 	self.layer = s:layer(self.parent, "hud")
 	self.info = info
 	self.l = level_hud.layout(s.fit, s.insets, rect)
@@ -226,6 +238,7 @@ function Hud:follow_board(rect)
 	if rect == self.rect_ref or not self.built then return false end
 	self.rect_ref = rect
 	self.l = level_hud.layout(self.ui.fit, self.ui.insets, rect)
+	self:hide_goal_hint() -- its place depends on the board
 	self:_bit()
 	return true
 end
@@ -265,6 +278,144 @@ function Hud:on_goal(p)
 			end
 		end,
 	})
+end
+
+-- the hint of a goal -------------------------------------------------------------------------------------------
+-- A press on a goal tile (screens/level/level.gui_script asks goal_at) shows a pill under the panel for a few seconds: the
+-- picture of the goal, one line (client/level_hud.lua GOAL_HINT: the tutorial's line for an element, "what and how many"
+-- for a colour) and a pointer under the tile. It is only drawn: nothing in the game hears of it (no pause, no move, no
+-- tutorial), there is one at a time, it never takes a press, and reduced motion draws it without a movement. The pill
+-- hangs on the panel's edge over the frame of the board (level_hud.goal_hint_rect keeps it off the cells).
+
+local HINT_SIZE = 26 -- px of the line
+local HINT_ICON = 34 -- the picture of the goal in the pill
+local HINT_PAD = 18  -- inside the pill, at its ends
+local HINT_TAIL = 20 -- the pointer: a square turned 45 degrees, half of it hidden behind the pill
+local HINT_RIM, HINT_FILL = "#D6C7F6", "#F6F1FF" -- the rim of the pill and the pointer (the panel's lavender, a little deeper), the inside
+local HINT_MIN_W, HINT_MAX_W = 260, 640
+
+-- The tile (1..n) under a press, or nil.
+function Hud:goal_at(action)
+	local defs = self.goal_defs
+	if not (self.built and defs and #defs > 0) then return nil end
+	local lx, ly = self.ui:logical(action)
+	return level_hud.goal_at(self.l, #defs, lx, ly)
+end
+
+-- Shows the hint of tile k (a press on it: the caller keeps that press from the board).
+function Hud:show_goal_hint(k)
+	if not self:_hint_show(k, true) then return false end
+	pcall(audio.sfx, "tap")
+	local gn = self.goal_nodes and self.goal_nodes[k]
+	if gn and not app.reduced_motion() then
+		-- the tile answers the touch (the bump of a counter that went down)
+		gui.cancel_animations(gn.icon, "scale")
+		gui.set_scale(gn.icon, vmath.vector3(1.2, 1.2, 1))
+		gui.animate(gn.icon, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.25)
+	end
+	return true
+end
+
+function Hud:hide_goal_hint()
+	self.ghint:hide()
+	self.hint_wait = false
+	self:_hint_clear()
+end
+
+-- The tile whose hint is on the screen, and the line it says, or nil (QA, tests). A hint that waits for a toast is not on it.
+function Hud:goal_hint_shown()
+	return self.hint_node and self.ghint:shown() or nil
+end
+
+function Hud:goal_hint_text()
+	return self.ghint:shown() and self.hint_text or nil
+end
+
+-- Is a toast on the screen? The overlay hangs its toasts in the band under the top bar (main/overlay.gui_script TOAST_Y, 620 px
+-- wide): the band the pill hangs in. A toast covers the pill, and a pill wider than the toast would peek out at its sides, so while
+-- a toast is up the pill is not drawn. The overlay shows the next toast in the call that takes the last one away: `toast` stays
+-- set through a chain of them.
+local function toast_up()
+	local o = app.overlay
+	return o ~= nil and o.toast ~= nil
+end
+
+function Hud:_hint_clear()
+	if self.hint_node then self.ui:clear(self.hint_node) end
+	if self.hint_mark then self.ui:clear(self.hint_mark) end
+	self.hint_node, self.hint_text, self.hint_rect, self.hint_mark = nil, nil, nil, nil
+end
+
+-- Draws (again) the hint of tile k; `fresh` = a new tap: the clock starts again and the pill pops in.
+function Hud:_hint_show(k, fresh)
+	local gdef = self.goal_defs and self.goal_defs[k]
+	local left = self.goals and self.goals.shown[k]
+	local spec = gdef and level_hud.goal_hint(gdef, left)
+	if not spec then
+		self:hide_goal_hint()
+		return false
+	end
+	if fresh then self.ghint:show(k) end
+	if toast_up() then
+		-- a toast hangs over the pill's place: nothing is drawn, the tap is answered when the toast has gone (Hud:_hint_tick)
+		self:_hint_clear()
+		self.hint_wait = true
+		return true
+	end
+	self.hint_wait = false
+	self:_hint_draw(k, gdef, spec, (left or 0) <= 0, fresh)
+	return true
+end
+
+-- The clock of the pill, once a frame. While a toast is up the pill waits: it is not drawn and its time stands still, so that it
+-- is seen for the whole of its time; when the toast has gone it is drawn again for the time it had left (no pop: it is not new).
+function Hud:_hint_tick(dt)
+	local k = self.ghint:shown()
+	if not k then return end
+	if toast_up() then
+		if self.hint_node then self:_hint_clear() end
+		self.hint_wait = true
+	elseif self.hint_wait then
+		self.hint_wait = false
+		self:_hint_show(k, false)
+	elseif self.ghint:update(dt) then
+		self:_hint_clear()
+	end
+end
+
+function Hud:_hint_draw(k, gdef, spec, done, pop)
+	local s = self.ui
+	self:_hint_clear()
+	local text = i18n.tr(spec)
+	local tw = kit.text_width(ui.font_for("body", text), text, HINT_SIZE)
+	local x = self.l.goals.cx + (self.goal_slots and self.goal_slots.xs[k] or 0)
+	local want = math.max(HINT_MIN_W, math.min(HINT_MAX_W, tw + HINT_ICON + 10 + 2 * HINT_PAD + 6))
+	local r = level_hud.goal_hint_rect(self.l, x, want)
+	local holder = s:layer(self.layer, "goal_hint")
+	local round = math.floor(r.h / 2)
+	s:round(holder, r.cx, r.cy - 3, r.w + 6, r.h + 6, "#5A3FA0", { alpha = 0.16, radius = round + 2 })
+	-- the pointer first: the pill covers its lower half, its tip touches the panel's edge above the tile
+	local tail = s:round(holder, r.tail_x, r.y1 + level_hud.GOAL_HINT_NOTCH - HINT_TAIL * 0.7071, HINT_TAIL, HINT_TAIL, HINT_RIM,
+		{ radius = 3 })
+	gui.set_euler(tail, vmath.vector3(0, 0, 45))
+	local pill = s:round(holder, r.cx, r.cy, r.w, r.h, HINT_RIM, { radius = round })
+	local inner = s:round(pill, 0, 0, r.w - 6, r.h - 6, HINT_FILL, { radius = math.floor((r.h - 6) / 2) })
+	local ix = -(r.w - 6) / 2 + HINT_PAD + HINT_ICON / 2
+	icon(s, inner, done and "ui/icons/check" or gdef.image, ix, 0, HINT_ICON, "lavender")
+	local left, right = ix + HINT_ICON / 2 + 10, (r.w - 6) / 2 - HINT_PAD
+	s:text(inner, text, (left + right) / 2, 1, { font = "body", size = HINT_SIZE, color = "text", max_width = right - left })
+	self.hint_node, self.hint_text, self.hint_rect = holder, text, r
+	-- a soft plate behind the tile that is explained, under its picture and number
+	local gn = self.goal_nodes and self.goal_nodes[k]
+	if gn and self.goals_panel then
+		self.hint_mark = s:round(self.goals_panel, gn.x, -15, math.min(150, self.l.goals.w / #self.goal_defs - 24), 100, "#F0E8FF",
+			{ radius = 24 })
+		gui.move_below(self.hint_mark, gn.icon)
+	end
+	if pop and not app.reduced_motion() then
+		gui.set_scale(pill, vmath.vector3(0.92, 0.92, 1))
+		gui.animate(pill, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBACK, 0.16)
+	end
 end
 
 -- moves --------------------------------------------------------------------------------------------------------
@@ -605,6 +756,7 @@ local POP_STYLE = {
 }
 
 function Hud:update(dt)
+	self:_hint_tick(dt)
 	if self.bit then self.bit:update(dt) end
 	if self.bit_machine then
 		self.bit_machine:update(dt)
