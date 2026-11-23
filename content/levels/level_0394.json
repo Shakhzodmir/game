@@ -1,13 +1,13 @@
 {
   "id": 394, "version": 1,
   "size": [9, 9],
-  "moves": 23,
+  "moves": 24,
   "difficulty": "medium",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
     {"type": "fog"},
     {"type": "break", "item": "boombox", "count": 3},
-    {"type": "collect", "color": "yellow", "count": 36}
+    {"type": "collect", "color": "yellow", "count": 54}
   ],
   "cells": [
     "#########",

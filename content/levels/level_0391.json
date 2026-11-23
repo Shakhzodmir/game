@@ -6,7 +6,7 @@
   "colors": ["red", "yellow", "green", "blue", "purple"],
   "goals": [
     {"type": "fog"},
-    {"type": "collect", "color": "blue", "count": 40}
+    {"type": "collect", "color": "blue", "count": 24}
   ],
   "cells": [
     "###...###",

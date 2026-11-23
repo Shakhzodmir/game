@@ -1,13 +1,13 @@
 {
   "id": 395, "version": 1,
   "size": [9, 9],
-  "moves": 25,
+  "moves": 26,
   "difficulty": "hard",
   "colors": ["red", "orange", "yellow", "blue", "purple"],
   "goals": [
     {"type": "fog"},
     {"type": "break", "item": "column", "count": 2},
-    {"type": "break", "item": "concrete", "count": 5}
+    {"type": "break", "item": "concrete", "count": 3}
   ],
   "cells": [
     "#########",
@@ -24,8 +24,8 @@
     {"at": [3, 1], "type": "concrete", "hp": 2},
     {"at": [5, 1], "type": "concrete", "hp": 2},
     {"at": [4, 2], "type": "concrete", "hp": 2},
-    {"at": [1, 3], "type": "column", "hp": 12},
-    {"at": [6, 3], "type": "column", "hp": 12},
+    {"at": [1, 3], "type": "column", "hp": 8},
+    {"at": [6, 3], "type": "column", "hp": 8},
     {"at": [3, 5], "type": "concrete", "hp": 2},
     {"at": [5, 5], "type": "concrete", "hp": 2}
   ],

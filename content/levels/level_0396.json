@@ -1,7 +1,7 @@
 {
   "id": 396, "version": 1,
   "size": [8, 8],
-  "moves": 22,
+  "moves": 21,
   "difficulty": "easy",
   "colors": ["red", "orange", "green", "blue", "purple"],
   "goals": [
@@ -19,7 +19,7 @@
     "########"
   ],
   "slots": [
-    {"at": [2, 3], "type": "column", "hp": 7}
+    {"at": [2, 3], "type": "column", "hp": 12}
   ],
   "overlay": [
     {"at": [2, 2], "type": "chain", "hp": 2},

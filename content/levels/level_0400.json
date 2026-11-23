@@ -7,7 +7,7 @@
   "goals": [
     {"type": "fog"},
     {"type": "break", "item": "column", "count": 2},
-    {"type": "collect", "color": "blue", "count": 56}
+    {"type": "collect", "color": "blue", "count": 100}
   ],
   "cells": [
     "##.###.##",

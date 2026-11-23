@@ -6,7 +6,7 @@
   "colors": ["red", "yellow", "green", "blue", "purple"],
   "goals": [
     {"type": "chains", "count": 6},
-    {"type": "collect", "color": "green", "count": 36}
+    {"type": "collect", "color": "green", "count": 16}
   ],
   "cells": [
     "..####..",

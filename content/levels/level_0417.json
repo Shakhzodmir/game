@@ -1,12 +1,12 @@
 {
   "id": 417, "version": 1,
   "size": [9, 11],
-  "moves": 24,
+  "moves": 22,
   "difficulty": "super_hard",
   "colors": ["red", "orange", "yellow", "blue", "purple"],
   "goals": [
     {"type": "drop", "count": 8},
-    {"type": "collect", "color": "purple", "count": 52}
+    {"type": "collect", "color": "purple", "count": 100}
   ],
   "cells": [
     "..#####..",
