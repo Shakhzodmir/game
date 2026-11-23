@@ -349,6 +349,17 @@ function Town:finger_down()
 	return (self.press_age or 0) < 1
 end
 
+-- Is something about to cover the town or run a show on it, in the first second of the visit? The rewards and the chests a
+-- level brought back are queued 0.45 s after the entry (the stars are in the meta long before), and the song the notebook
+-- offers opens its window at 1 s: the glow waits for them, or it would light up and go out again at once. (Only the offers
+-- of the entry: a window that comes later simply covers the town, and the glow goes out under it.)
+function Town:entry_pending()
+	if self.enter_t > 1.0 then return false end
+	if not self.rewards_started and (rewards.count() > 0 or #app.meta:pending_chests() > 0) then return true end
+	local song = app.meta:songbook_pending()
+	return song ~= nil and self.offered_song ~= song
+end
+
 -- The soft glow of the item the next star buys (views.item_glow: the stars suffice, the district and the look on display
 -- are the item's, no show runs, no window covers the town). Asked every frame, but worked out again only when something
 -- it reads has changed: the meta, the district on display, a show, a window, the screen leaving (a reset drops the memory
@@ -356,7 +367,7 @@ end
 -- carries it by itself.
 function Town:sync_glow()
 	local meta = app.meta
-	local busy = self.show:busy()
+	local busy = self.show:busy() or self:entry_pending()
 	local covered = self.leaving or self.popups:count() > 0
 	local rev = meta:revision()
 	if meta == self.glow_meta and rev == self.glow_rev and self.district == self.glow_district

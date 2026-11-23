@@ -1430,10 +1430,19 @@ describe("screens/town: the glow of the item the next star buys", function()
 		c.town:ctx(function() c.town.self.t.scene:set_glow(spec) end)
 	end
 
-	-- the silhouette that shares a holder with a glow
-	local function silhouette_of(halo)
-		for _, n in ipairs(halo.parent.children) do
-			if n ~= halo then return n end
+	-- the room (the child of the scene container) a node is in
+	local function room_of(c, node)
+		local scene_root = c.town.self.t.c_scene
+		local p = node
+		while p and p.parent ~= scene_root do p = p.parent end
+		return p
+	end
+
+	-- the grey silhouette (picture `<district>/<item>_ghost`) in the same room as a glow
+	local function silhouette_of(c, halo, key)
+		local room = room_of(c, halo)
+		for _, n in ipairs(c.E.alive_nodes(c.E.scene(SCENE))) do
+			if n.texture == "img:districts/" .. key .. "_ghost" and room_of(c, n) == room then return n end
 		end
 	end
 
@@ -1446,7 +1455,7 @@ describe("screens/town: the glow of the item the next star buys", function()
 		return false
 	end
 
-	it("glows the first silhouette once the first star is in the purse: right under it, warm, soft, and the hint stays", function()
+	it("glows the first silhouette once the first star is in the purse: under it, warm, soft, and the hint stays", function()
 		G.with_town({}, function(c)
 			assert_eq(#auras(c), 0, "no star yet: only grey silhouettes")
 			assert_eq(c.app.ui.glow, nil)
@@ -1459,13 +1468,16 @@ describe("screens/town: the glow of the item the next star buys", function()
 			assert_eq(t.scene:glowing(), "turntable")
 			local halo, e = halos[1], item_of(c, "turntable")
 			assert_eq(e.aura, halo)
-			-- in the holder of the item, on its centre, drawn right under its grey silhouette
-			assert_eq(halo.parent, e.holder)
+			-- on the centre of the item, in the glow layer: the first child of the items layer, so under EVERY item of the room
+			assert_eq(halo.parent, t.scene.glow_layer)
+			assert_eq(t.scene.glow_layer.parent, t.scene.items_layer)
+			assert_eq(t.scene.items_layer.children[1], t.scene.glow_layer)
 			assert_near(halo.pos.x, e.x, 0.01)
 			assert_near(halo.pos.y, e.y, 0.01)
-			local order = {}
-			for i, n in ipairs(e.holder.children) do order[n] = i end
-			assert_true(order[halo] < order[e.node], "the glow is drawn under the silhouette, never over it")
+			for id, item in pairs(t.scene.items) do -- order-free: every item is checked
+				assert_true(item.holder.parent == t.scene.items_layer and item.holder ~= t.scene.glow_layer, id)
+			end
+			assert_eq(#t.scene.items_layer.children, 1 + 6, "the glow layer and one holder for each of the six items")
 			assert_true(c.E.visible(e.node))
 			assert_near(e.node.color.w, 1, 0.01, "the silhouette is as it was")
 			-- a soft disc (no edge), warm, not opaque, bigger than the item but not the room
@@ -1494,14 +1506,20 @@ describe("screens/town: the glow of the item the next star buys", function()
 			c.step(3)
 			assert_eq(#auras(c), 1)
 			assert_eq(c.app.ui.glow, "piano")
+			local t = c.town.self.t
 			local halo = auras(c)[1]
-			assert_eq(halo.parent, item_of(c, "piano").holder)
+			assert_eq(halo.parent, t.scene.glow_layer)
 			assert_near(halo.pos.x, 160, 0.01)
 			assert_near(halo.pos.y, 1280 - 690, 0.01)
-			-- the restored items have their own gold glow and none of this one
+			-- the restored items have their own gold glow and none of this one; the glow layer is under their holders, so
+			-- the halo never washes the coloured neighbours of the piano
 			assert_eq(item_of(c, "turntable").aura, nil)
 			assert_eq(item_of(c, "lamps").aura, nil)
 			assert_true(item_of(c, "turntable").glow ~= nil)
+			assert_eq(t.scene.items_layer.children[1], t.scene.glow_layer)
+			for _, id in ipairs({ "turntable", "lamps" }) do
+				assert_true(item_of(c, id).holder.parent == t.scene.items_layer, id)
+			end
 		end)
 	end)
 
@@ -1607,6 +1625,10 @@ describe("screens/town: the glow of the item the next star buys", function()
 			assert_eq(c.app.ui.glow, "lamps")
 			assert_eq(item_of(c, "turntable").aura, nil, "the item that was just built has its own gold glow")
 			assert_true(item_of(c, "turntable").glow ~= nil)
+			-- the item the show has just drawn again is over the halo of the next one, like every other item
+			local t = c.town.self.t
+			assert_eq(t.scene.items_layer.children[1], t.scene.glow_layer)
+			assert_eq(auras(c)[1].parent, t.scene.glow_layer)
 		end)
 		-- one star only: the turntable is built and the lamps (1 star) are out of reach: nothing glows at the end
 		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
@@ -1769,8 +1791,8 @@ describe("screens/town: the glow of the item the next star buys", function()
 			-- every glow stays on its own item, however the rooms slide
 			local function on_their_items()
 				for _, halo in ipairs(auras(c)) do
-					local sil = silhouette_of(halo)
-					assert_true(sil ~= nil, "a glow with no silhouette beside it")
+					local sil = silhouette_of(c, halo, "jazz/stage_light")
+					assert_true(sil ~= nil, "a glow with no silhouette in its room")
 					local ax, ay = c.E.centre(halo)
 					local sx, sy = c.E.centre(sil)
 					assert_near(ax, sx, 0.5, "the glow follows its item")
@@ -1806,7 +1828,8 @@ describe("screens/town: the glow of the item the next star buys", function()
 			c.run(0.5)
 			assert_eq(#auras(c), 1)
 			assert_eq(c.app.ui.glow, "stage_light")
-			assert_eq(auras(c)[1].parent, t.scene.items.stage_light.holder)
+			assert_eq(auras(c)[1].parent, t.scene.glow_layer)
+			assert_eq(t.scene.items_layer.children[1], t.scene.glow_layer)
 			assert_eq(#c.E.audit(), 0)
 		end)
 	end)
@@ -1823,6 +1846,94 @@ describe("screens/town: the glow of the item the next star buys", function()
 			assert_eq(c.app.ui.glow, nil)
 			for _, d in ipairs(c.app.meta:district("cafe").tasks) do
 				assert_eq(item_of(c, d.id).aura, nil, d.id)
+			end
+		end)
+	end)
+
+	it("waits for the rewards of the win it came back with: lit once, after their show, not before and out again", function()
+		-- the real way to the first purchase: the level pushes its reward, the town loads with the star already in the meta,
+		-- and the stars fly in 0.45 s later. The glow must not light on the first frame only to go out when the show starts.
+		G.with_town({ town = false, setup = function(app)
+			app.push_reward(G.win(app, 1))
+		end }, function(c)
+			local t
+			c.town = c.E.script("screens/town/town.gui_script", "/screens/town/town.gui")
+			c.town:init()
+			c.app.set_screen("town", {})
+			t = c.town.self.t
+			assert_true(c.app.meta:next_task().affordable, "the star is in the meta from the start")
+			local on, was_on, shows, first_glow = 0, false, 0, nil
+			for frame = 1, 60 * 9 do
+				c.step(1)
+				local now = #auras(c) > 0
+				if now and not was_on then
+					on = on + 1
+					first_glow = first_glow or frame
+				end
+				if was_on and not now then shows = shows + 1 end
+				was_on = now
+				if now then
+					assert_false(c.app.ui.busy, "no glow while the show runs (frame " .. frame .. ")")
+					assert_true(t.rewards_started, "no glow before the rewards are queued (frame " .. frame .. ")")
+				end
+			end
+			assert_false(c.app.ui.busy)
+			assert_eq(on, 1, "the glow lit up once")
+			assert_eq(shows, 0, "and never went out again")
+			assert_true(first_glow > 60 * 1, "after the stars have landed: frame " .. tostring(first_glow))
+			assert_eq(c.app.ui.glow, "turntable")
+			assert_eq(c.app.ui.disp.stars, 1)
+		end)
+	end)
+
+	it("does not blink for a level chest that is waiting to be opened either", function()
+		G.with_town({ town = false, setup = function(app)
+			G.win(app, 9)
+			assert(require("client.flow").debug_win(3, true)) -- level 10's chest stays in the meta, as after a win on the board
+			app.commit("test")
+		end }, function(c)
+			c.town = c.E.script("screens/town/town.gui_script", "/screens/town/town.gui")
+			c.town:init()
+			c.app.set_screen("town", {})
+			assert_true(#c.app.meta:pending_chests() > 0)
+			assert_true(c.app.meta:next_task().affordable)
+			for frame = 1, 60 * 0.44 do
+				c.step(1)
+				assert_eq(#auras(c), 0, "no glow before the chest is offered (frame " .. frame .. ")")
+			end
+		end)
+	end)
+
+	it("is not asked to wait for anything when the town has no rewards to bring: the glow is there from the first frame", function()
+		G.with_town({ town = false, setup = function(app) G.win(app, 1) end }, function(c)
+			c.town = c.E.script("screens/town/town.gui_script", "/screens/town/town.gui")
+			c.town:init()
+			c.app.set_screen("town", {})
+			c.step(2)
+			assert_eq(#auras(c), 1)
+			assert_eq(c.app.ui.glow, "turntable")
+		end)
+	end)
+
+	it("is gone, with its animations, when the screen is left", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			c.run(1)
+			assert_eq(#auras(c), 1)
+			local halo = auras(c)[1]
+			assert_true(anims_of(c, halo) > 0)
+			bus.publish("screen_leaving", { from = "town", to = "level" })
+			c.step(3)
+			assert_eq(#auras(c), 0, "no glow node")
+			assert_eq(c.town.self.t.scene:glowing(), nil)
+			assert_eq(c.app.ui.glow, nil)
+			assert_true(halo.dead == true, "the old halo is deleted, not just hidden")
+			for _, a in ipairs(c.E.scene(SCENE).anims) do
+				assert_true(a.node.id ~= "aura" and not (a.node.parent and a.node.parent.id == "aura"), "an animation of the glow is still running")
+			end
+			-- and the screen goes away for good: nothing of the glow is left to run in its own right
+			c.town:final()
+			for _, a in ipairs(c.E.scene(SCENE).anims) do
+				assert_true(a.node.id ~= "aura" and not (a.node.parent and a.node.parent.id == "aura"))
 			end
 		end)
 	end)

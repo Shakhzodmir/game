@@ -15,8 +15,9 @@
 --   scene:set_glow(spec)             -- {district, id} | nil: the grey item the next star buys glows softly (see M.AURA)
 --   scene:glowing()                  --> the id of the item that glows in the room on display | nil
 --   scene:keep()                     --> loose images to keep in memory
--- The glow of the next item (views.item_glow, asked every frame by the town) is a child of the item's own holder, right
--- under its silhouette: it travels with the room (paging, parallax), dies with the item when it is built or the room
+-- The glow of the next item (views.item_glow, asked every frame by the town) lives in the glow layer of its room: the first
+-- child of the items layer, so it is drawn under every item, the coloured neighbours of the glowing one included (a halo
+-- over them would wash them). It travels with the room (paging, parallax), dies with the item when it is built or the room
 -- is drawn again, and a room drawn while the glow is wanted gets it at once.
 -- A room is built in layers (bottom to top): bg (sky, the picture), mid, items, over, fg. While paging districts each
 -- layer slides by its own factor (content/rooms.json parallax: the foreground travels farthest) and mid / fg drift a
@@ -156,15 +157,14 @@ local function aura_wanted(self, did, id, done)
 	return g ~= nil and not done and g.district == did and g.id == id and app.meta:view(did) == "day"
 end
 
--- Puts the glow under the silhouette of item entry `e` (one that has a picture: nothing to glow behind otherwise).
--- swell: grows in softly when it is lit on a room that is on display.
-local function add_aura(self, e, swell)
-	if e.aura or not e.node then return end
+-- Puts the glow of item entry `e` into `glow_layer`, the glow layer of its room (an item that has a picture: nothing to
+-- glow behind otherwise). swell: grows in softly when it is lit on a room that is on display.
+local function add_aura(self, e, glow_layer, swell)
+	if e.aura or not e.node or not glow_layer then return end
 	local A = M.AURA
-	local halo = aura_disc(self.ui, e.holder, e.x, e.y, e, A.halo)
+	local halo = aura_disc(self.ui, glow_layer, e.x, e.y, e, A.halo)
 	local light = aura_disc(self.ui, halo, 0, 0, e, A.light)
 	gui.set_id(halo, "aura")
-	gui.move_below(halo, e.node)
 	e.aura = halo
 	if fx.reduced() then return end -- the same glow at its full strength, standing still
 	-- a breath starts from the low of the light (the halo at its rest size) and climbs to the peak at half the period
@@ -194,11 +194,14 @@ local function drop_aura(self, e)
 	e.aura = nil
 end
 
--- Draws one item in its restored / not restored look into holder.
-local function draw_item(self, layer, did, t, it, items)
+-- Draws one item in its restored / not restored look into holder (a grey one that is to glow gets its glow in glow_layer).
+local function draw_item(self, layer, did, t, it, items, glow_layer)
 	local s = self.ui
 	local old = items[t.id]
-	if old then s:clear(old.holder) end
+	if old then
+		drop_aura(self, old) -- (the glow is not in the holder)
+		s:clear(old.holder)
+	end
 	local holder = s:layer(layer)
 	local x, y = it.x, 1280 - it.y
 	local w, h = it.w * it.scale, it.h * it.scale
@@ -222,7 +225,7 @@ local function draw_item(self, layer, did, t, it, items)
 				gui.set_color(e.node, grey and vmath.vector4(1, 1, 1, 0.75) or vmath.vector4(0.92, 0.92, 1, 0.45))
 			end
 		end
-		if aura_wanted(self, did, t.id, false) then add_aura(self, e, false) end
+		if aura_wanted(self, did, t.id, false) then add_aura(self, e, glow_layer, false) end
 	end
 	items[t.id] = e
 	return e
@@ -231,7 +234,7 @@ end
 local PARTS = { "mid", "items", "over", "fg" } -- the layers that slide with their own factor
 
 -- Builds a room. opts.fade: the picture starts transparent (a crossfade; the living details wait for done_fade()).
--- Returns a table {layer, parts, items_layer, items, view, life, drift}.
+-- Returns a table {layer, parts, items_layer, glow_layer, items, view, life, drift}.
 local function build_layer(self, did, opts)
 	opts = opts or {}
 	local s = self.ui
@@ -242,6 +245,7 @@ local function build_layer(self, did, opts)
 	local bg = s:layer(layer, "bg")
 	R.parts.mid = s:layer(layer, "mid")
 	R.items_layer = s:layer(layer, "items")
+	R.glow_layer = s:layer(R.items_layer, "glow") -- the first child of the items layer: whatever it holds is under every item
 	R.parts.items = R.items_layer
 	R.parts.over = s:layer(layer, "over")
 	R.parts.fg = s:layer(layer, "fg")
@@ -258,7 +262,7 @@ local function build_layer(self, did, opts)
 	if lay and lay.items then
 		for _, t in ipairs(app.meta:district(did).tasks) do
 			local it = lay.items[t.id]
-			if it then draw_item(self, R.items_layer, did, t, it, items) end
+			if it then draw_item(self, R.items_layer, did, t, it, items, R.glow_layer) end
 			if t.done then done[t.id] = true end
 		end
 	end
@@ -284,6 +288,7 @@ end
 
 local function adopt(self, R)
 	self.layer, self.items_layer, self.items, self.view, self.room = R.layer, R.items_layer, R.items, R.view, R
+	self.glow_layer = R.glow_layer
 end
 
 -- Slow neon spotlights over the concert look of a district (still under
@@ -367,7 +372,7 @@ function Scene:refresh()
 		local it = lay.items[t.id]
 		local have = self.items[t.id]
 		if it and (not have or have.done ~= t.done) then
-			draw_item(self, self.items_layer, self.district, t, it, self.items)
+			draw_item(self, self.items_layer, self.district, t, it, self.items, self.glow_layer)
 			if t.done and self.room and self.room.life then self.room.life:wake(t.id) end
 		end
 	end
@@ -384,7 +389,7 @@ function Scene:set_glow(spec)
 	if not room then return end
 	for id, e in pairs(self.items or {}) do -- order-free: every item is looked at on its own
 		if aura_wanted(self, room.did, id, e.done) then
-			add_aura(self, e, true)
+			add_aura(self, e, self.glow_layer, true)
 		else
 			drop_aura(self, e)
 		end
@@ -441,7 +446,7 @@ function Scene:light_up(task_id)
 		if t.id == task_id then task = t end
 	end
 	if not task then return end
-	local e = draw_item(self, self.items_layer, self.district, task, it, self.items)
+	local e = draw_item(self, self.items_layer, self.district, task, it, self.items, self.glow_layer)
 	local room = self.room
 	if room and room.life then
 		room.life:wake(task_id)          -- the details that belong to this item start
