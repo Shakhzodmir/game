@@ -5,9 +5,13 @@
 -- its unlimited lives start; left unopened it is offered again by the next results window and the town),
 -- new boosters, boosters the core could not place and returned. "Next level" opens the start window of the next level (Play there starts it), "To town"
 -- goes back. Stars, coins and Bit are animated once; a rebuild (language) shows the final state.
+-- The town line, last, over the buttons (lw.town_line): how many stars the next task of the town still needs ("2 more stars
+-- to «Piano»"), or, in green, that it can be bought now; none in a practice run or when the town is complete. While the
+-- player has never done a task of the town and can do one now, the buttons swap emphasis (lw.swap_buttons): "To town" is
+-- the big green one, "Next level" the small white one (lw.FIRST_WIN_TO_TOWN switches it off).
 -- The window always fits the screen: the stars note is the one block that goes when the window would be too tall
--- for it, and a window that is still too tall slides down and shrinks (kit.panel fit, popups Entry:fit), so the
--- title ribbon and Bit never leave the design area.
+-- for it (with the town line it may shrink a little to keep it: NOTE_FIT), and a window that is still too tall slides
+-- down and shrinks (kit.panel fit, popups Entry:fit), so the title ribbon and Bit never leave the design area.
 -- params = {view = level_windows.result(...), refund = {[id] = count} | nil, standalone}
 -- Result: "town" | {action = "next", level} (a debug level: no start window).
 
@@ -32,6 +36,9 @@ local BIT_UP = 104       -- how far Bit's head sticks out above the panel (the r
 local SONG_H = 100       -- the songbook strip: the line written, or the finished song
 local CHEST_H = 212      -- the chest strip: the picture, the title, the contents and an Open button of 88 px
 local OPEN_H = 88        -- the touch target of the kit
+local TOWN_H = 56        -- the town line: how far the next task of the town is (lw.town_line), just over the buttons
+local DOWN = 20          -- how far the window's shadow reaches below the panel (the default of Entry:fit)
+local NOTE_FIT = 0.95    -- with the town line: the stars note stays while the window has to shrink no more than this to keep it (1: the note goes as it did)
 local TAKEN_HOLD = 1.2   -- seconds a chest just taken stays on show while another one waits
 
 -- names of boosters as "Riff, Subwoofer"
@@ -410,6 +417,25 @@ local function blocks(e, body, v, animate, alive, note)
 			})
 		end)
 	end
+
+	-- the next task of the town, last, right over the buttons: how many stars are still missing, or that the ones in
+	-- the purse are enough (the player must always see how close the next item is). The name is the card's own.
+	if v.town then
+		add(TOWN_H + GAP, function(y)
+			local t = v.town
+			local sw, cy = W - 80, y - GAP / 2
+			local text = { key = t.kind == "ready" and "win.town_ready" or "win.town_need", vars = { n = t.need, item = t.name } }
+			if t.kind == "ready" then
+				-- a thing to do: a green rim round a mint plate, a green tick, dark green ink (6:1 on the plate)
+				local rim = s:round(body, 0, cy, sw, TOWN_H, "green", { radius = TOWN_H / 2 })
+				lkit.note(e, rim, 0, 0, sw - 8, { text = text, icon = "ui/icons/check", fallback = "green", size = 26, h = TOWN_H - 8,
+					color = "#0B6B34", fill = "#E8FBEF" })
+			else
+				lkit.note(e, body, 0, cy, sw, { text = text, icon = "ui/icons/star", fallback = "yellow", size = 26, h = TOWN_H,
+					color = "text" })
+			end
+		end)
+	end
 	return list
 end
 
@@ -421,13 +447,26 @@ local function next_level(e, v)
 	e:open("start", { level = v.next_level })
 end
 
+-- The tallest window that keeps the stars note: one the screen has room for, or, when the town line is on it (it is
+-- what made the window taller), one that has to shrink by NOTE_FIT at most. A window with no line is the window it was
+-- before the line existed: the note goes as soon as it does not fit. (layout.fit_window gives k = 2 * half / (h + up +
+-- down); room is where k = 1.)
+local function note_room(e, v)
+	local span = e:room(BIT_UP, DOWN) + BIT_UP + DOWN
+	return span / (v.town and NOTE_FIT or 1) - BIT_UP - DOWN
+end
+
 function M.build(e)
 	local s = e.ui
 	local v = e.params.view
+	local has_next = v.next_level ~= nil
+	-- the first win points at the town: "To town" is the big button, "Next level" the small one (lw.swap_buttons)
+	local swap = lw.swap_buttons(v.town, has_next, e.params.back)
 	-- what QA reads from the state snapshot (tools/qa/web_screens.mjs)
 	app.ui.result = { level = v.level_id, stars = v.stars, best = v.best, gained = v.gained, score = v.score,
 		concert = v.concert, super_gained = v.super_gained, super_total = v.super_total,
 		to_next = v.scale and v.scale.left or nil, standalone = v.standalone,
+		town = v.town and { kind = v.town.kind, need = v.town.need, first = v.town.first } or nil, swap = swap,
 		song = v.song and { district = v.song.district, pos = v.song.pos, total = v.song.total, ready = v.song.ready } or nil }
 	local st = e.state
 	local animate = e.first and not st.played
@@ -435,9 +474,9 @@ function M.build(e)
 	local alive = lkit.token(e)
 
 	-- the heights first (nothing is drawn yet). The stars note is the block that goes when the window would be too
-	-- tall for the screen with it: by the time the streak, a chest and a new booster crowd the window the player
-	-- has read it many times. What is left and still too tall is shrunk by kit.panel (fit).
-	local has_next = v.next_level ~= nil
+	-- tall for the screen with it (with the town line it may shrink a little to keep it: NOTE_FIT): by the time the streak, a chest and a
+	-- new booster crowd the window the player has read it many times. What is left and still too tall is shrunk by
+	-- kit.panel (fit).
 	local function height(list)
 		local h = 70 + (has_next and 290 or 250)
 		for _, b in ipairs(list) do h = h + b.h end
@@ -446,7 +485,7 @@ function M.build(e)
 	local note = true
 	local list = blocks(e, nil, v, false, alive, note)
 	local H = height(list)
-	if H > e:room(BIT_UP) then
+	if H > note_room(e, v) then
 		note = false
 		list = blocks(e, nil, v, false, alive, note)
 		H = height(list)
@@ -464,7 +503,19 @@ function M.build(e)
 	if animate and e.bit then e.bit:cheer(4, 4) end
 
 	-- the buttons
-	if has_next then
+	if has_next and swap then
+		-- the first star is still to be spent and can be: the way to the town is the big green button (it pulses), the
+		-- next level the small white one. The same two targets for QA and the tests; they trade places.
+		local ny = -hh + 214
+		local tb = s:button({ parent = body, x = 0, y = ny, w = 460, h = 124, style = "green", icon = "ui/icons/home", icon_size = 64,
+			text = i18n.t("win.town"), text_size = 44, on_click = function() e:close("town") end })
+		e:target("town", 0, ny)
+		lkit.pulse(tb.node, 0.03, 0.9)
+		local ty = -hh + 80
+		s:button({ parent = body, x = 0, y = ty, w = 440, h = 92, style = "white", icon = "ui/icons/play", icon_size = 50,
+			text = i18n.t("win.next"), text_size = 34, on_click = function() next_level(e, v) end })
+		e:target("next", 0, ty)
+	elseif has_next then
 		local ny = -hh + 214
 		local nb = s:button({ parent = body, x = 0, y = ny, w = 460, h = 124, style = "green", icon = "ui/icons/play", icon_size = 64,
 			text = i18n.t("win.next"), text_size = 44, on_click = function() next_level(e, v) end })

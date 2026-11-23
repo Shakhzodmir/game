@@ -5,6 +5,7 @@
 -- decides a rule: the rules are in the meta and the core, which these tests only watch being called.
 
 local G = require("tests.client.level_gui_helper")
+local T = require("tests.client.meta_gui_helper")
 local flow = require("client.flow")
 local i18n = require("client.i18n")
 local layout = require("client.layout")
@@ -74,6 +75,15 @@ local function ui(c) return c.app.ui.level end
 local function win_until(n, keep)
 	return function(app)
 		while app.meta:level_to_play() < n do assert(flow.debug_win(3, keep)) end
+	end
+end
+
+-- the first task of the town done before the wins: the first star is spent, so the results keep the usual buttons ("Next
+-- level" big, "To town" small); a player who has bought nothing gets them the other way round (gui/result.lua, lw.swap_buttons)
+local function with_first_task(setup)
+	return function(app)
+		setup(app)
+		T.build_tasks(app, "cafe", 1)
 	end
 end
 
@@ -1157,9 +1167,11 @@ describe("level screen: the results", function()
 	end)
 
 	it("does not let the second tap of a double tap on Collect fall through to Next level", function()
-		-- Collect of the chest window lies at the same place as "Next level" of this tall results window
-		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
+		-- Collect of the chest window lies at the same place as "Next level" of this tall results window (a player who has
+		-- bought a task: tests/client/result_town_test.lua has the same for the first win, where that place is "To town")
+		G.with_level({ level = 20, setup = with_first_task(win_until(20, true)) }, function(c)
 			win(c)
+			assert_false(c.app.ui.result.swap, "the usual buttons")
 			local meta = c.app.meta
 			local next_at = c.app.ui.popup_targets.next
 			c.tap_target("chest")
@@ -1190,13 +1202,18 @@ describe("level screen: the results", function()
 	it("opens the chest from its whole strip: the picture, the title and the row, and Open is an 88 px target", function()
 		G.with_level({ level = 10 }, function(c)
 			win(c)
-			-- Open: a touch target of at least 88 px (gui/kit.lua), hit off centre too
+			-- Open: a touch target of at least 88 px (gui/kit.lua), hit off centre too. It is 88 px at the window's own scale: the
+			-- town line (70 px) makes this window 56 px too tall for the screen (it was 14 px below the limit), so it shrinks by 4%
+			-- and the button is 84 px high on the design area (the stars note, which NOTE_FIT would keep, is not in this window:
+			-- it went before the line already)
 			local label = c.hud:find("Open")
 			assert_true(label ~= nil)
 			local x0, y0, x1, y1 = c.E.rect(label.parent)
 			local lx0, ly0 = c.E.to_logical(x0, y0)
 			local lx1, ly1 = c.E.to_logical(x1, y1)
-			assert_true(math.abs(ly1 - ly0) >= 88 - 0.5, "the Open button is " .. math.abs(ly1 - ly0) .. " px high")
+			local k = popups(c):find("result").fit_k or 1
+			assert_true(k >= 0.95, "the window shrank to " .. k)
+			assert_true(math.abs(ly1 - ly0) >= 88 * k - 0.5, "the Open button is " .. math.abs(ly1 - ly0) .. " px high")
 			local open = c.app.ui.popup_targets.chest
 			local function opens(what, x, y)
 				c.tap(x, y)
@@ -1206,10 +1223,11 @@ describe("level screen: the results", function()
 				c.step(40)
 				assert_eq(top(c), "result")
 			end
+			-- (the offsets are in the window's own px: the window is shrunk by k)
 			opens("the Open button", open.x, open.y)
-			opens("the top of the Open button", open.x, open.y + 40)
-			opens("the bottom of the Open button", open.x, open.y - 40)
-			opens("the side of the Open button", open.x + 120, open.y)
+			opens("the top of the Open button", open.x, open.y + 40 * k)
+			opens("the bottom of the Open button", open.x, open.y - 40 * k)
+			opens("the side of the Open button", open.x + 120 * k, open.y)
 			for _, find in ipairs({
 				function() return c.hud:find("Chest!") end, -- the title
 				function() return c.hud:find("×60") end,    -- the row
@@ -1227,7 +1245,7 @@ describe("level screen: the results", function()
 				end
 			end
 			-- a tap beside the strip opens nothing
-			c.tap(open.x, open.y + 150)
+			c.tap(open.x, open.y + 150 * k)
 			c.step(30)
 			assert_eq(top(c), "result")
 			assert_eq(#c.app.meta:pending_chests(), 1, "nothing was paid by any of it")
@@ -1346,16 +1364,25 @@ describe("level screen: the results window fits the screen", function()
 		{ level = 24, keep = true, older = 10, unlock = "remix" },
 		{ level = 30, keep = false, ru = true },
 		{ level = 30, keep = true, older = 10 },
+		-- the first task of the town bought: the usual buttons, the town line over them (the cases above are first wins, with
+		-- the buttons the other way round)
+		{ level = 13, keep = true, older = 10, unlock = "row_light", bought = true },
+		{ level = 20, keep = true, older = 10, unlock = "swap", bought = true, ru = true },
 	}
 	for _, lang in ipairs({ "en", "ru" }) do
 		for _, case in ipairs(CASES) do
 			if lang == "en" or case.ru then
 				local name = "keeps the title and Bit on the screen at level " .. case.level
-					.. (case.keep and " with the chest of level 10 unopened" or "") .. " (" .. lang .. ")"
+					.. (case.keep and " with the chest of level 10 unopened" or "") .. (case.bought and ", the first task bought" or "")
+					.. " (" .. lang .. ")"
 				it(name, function()
-					G.with_level({ level = case.level, language = lang, setup = win_until(case.level, case.keep) }, function(c)
+					local setup = win_until(case.level, case.keep)
+					G.with_level({ level = case.level, language = lang, setup = case.bought and with_first_task(setup) or setup }, function(c)
 						win(c)
 						assert_eq(top(c), "result")
+						-- the town line is on every one of them, and the buttons are swapped only for the first win
+						assert_true(c.app.ui.result.town ~= nil, "the town line")
+						assert_eq(c.app.ui.result.swap, not case.bought)
 						-- the case is the crowded window it claims to be
 						assert_true(c.hud:find(i18n.t("win.streak", { n = "" }), true) ~= nil, "the hit streak strip")
 						assert_true(c.has("Open") or c.has(i18n.t("win.chest_open")), "the chest strip")
@@ -1376,18 +1403,19 @@ describe("level screen: the results window fits the screen", function()
 			win(c)
 			assert_true(c.has(i18n.t("win.stars_note")), "an early win explains the stars")
 			local e = popups(c):find("result")
-			-- the score scale is one more strip: the window may slide a little, it does not shrink
-			assert_eq(e.fit_k, 1)
-			assert_true(e.fit_dy <= 0 and e.fit_dy > -40, "slid by " .. tostring(e.fit_dy))
+			-- the score scale and the town line are more strips: the window slides and shrinks a little to keep the note (by 5%
+			-- at most: gui/result.lua NOTE_FIT), it does not drop it
+			assert_true(e.fit_k >= 0.95 and e.fit_k <= 1, "shrunk to " .. tostring(e.fit_k))
+			assert_true(e.fit_dy <= 0 and e.fit_dy > -45, "slid by " .. tostring(e.fit_dy))
 		end)
 		G.with_level({ level = 20, setup = win_until(20, true) }, function(c)
 			win(c)
 			assert_false(c.has(i18n.t("win.stars_note")), "the streak, an older chest and a new booster crowd the window")
 			-- the score scale, the songbook strip (a finished song at level 20) and the super stars of the concert (level 20
-			-- ends the first district, WP-14) are more strips: a crowded window shrinks a little (kit.panel fit), never
-			-- below 80%
+			-- ends the first district, WP-14) and the town line are more strips: a crowded window shrinks (kit.panel fit), never
+			-- below 77% (it was 81% before the town line, which is 70 px of it)
 			local k = popups(c):find("result").fit_k
-			assert_true(k > 0.8 and k <= 1, "and without the note it shrinks only a little: " .. tostring(k))
+			assert_true(k > 0.77 and k <= 1, "and without the note it shrinks only a little: " .. tostring(k))
 		end)
 	end)
 

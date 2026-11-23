@@ -202,6 +202,70 @@ describe("client.i18n", function()
 		assert_eq(i18n.t("shop.more_later", { n = 7 }), "나중에 7개 더 열려요")
 	end)
 
+	-- the line of the results window about the next town task (gui/result.lua, lw.town_line): the stars it still needs, in the
+	-- plural form of each language, or that it can be bought; {item} is the name the task card of the town shows
+	it("tells how many stars the next town task needs with the plural forms of each language, and the name in quotes", function()
+		i18n.set_language("ru")
+		assert_eq(i18n.t("win.town_need", { n = 1, item = "Пианино" }), "Ещё 1 звезда до «Пианино»")
+		assert_eq(i18n.t("win.town_need", { n = 2, item = "Пианино" }), "Ещё 2 звезды до «Пианино»")
+		assert_eq(i18n.t("win.town_need", { n = 4, item = "Пианино" }), "Ещё 4 звезды до «Пианино»")
+		assert_eq(i18n.t("win.town_need", { n = 5, item = "Пианино" }), "Ещё 5 звёзд до «Пианино»")
+		assert_eq(i18n.t("win.town_need", { n = 7, item = "Пианино" }), "Ещё 7 звёзд до «Пианино»")
+		assert_eq(i18n.t("win.town_ready", { item = "Пианино" }), "Можно купить «Пианино»")
+		i18n.set_language("en")
+		assert_eq(i18n.t("win.town_need", { n = 1, item = "Piano" }), "1 more star to “Piano”")
+		assert_eq(i18n.t("win.town_need", { n = 2, item = "Piano" }), "2 more stars to “Piano”")
+		assert_eq(i18n.t("win.town_need", { n = 7, item = "Piano" }), "7 more stars to “Piano”")
+		assert_eq(i18n.t("win.town_ready", { item = "Piano" }), "You can buy “Piano”")
+		i18n.set_language("ko")
+		assert_eq(i18n.t("win.town_need", { n = 1, item = "피아노" }), "“피아노”까지 별 1개 남았어요")
+		assert_eq(i18n.t("win.town_need", { n = 7, item = "피아노" }), "“피아노”까지 별 7개 남았어요")
+		assert_eq(i18n.t("win.town_ready", { item = "피아노" }), "“피아노” 살 수 있어요")
+	end)
+
+	-- One line of 26 px shrunk to the room of its row (the Lua side draws one line per label), and then by the window it is in
+	-- (a window the screen cannot hold shrinks as a whole). The line of every task name of the game, with every number the
+	-- town can ask, must stay readable in the windows it meets: above 18 px in a first win, which keeps its stars note at a
+	-- shrink of 5% (gui/result.lua NOTE_FIT), and above the 15 px floor of the layout audit in the busiest window of the game
+	-- (level 20: a ready song, the streak, an older chest, a new booster, the super stars), which shrinks to 78% at the most
+	-- (tests/client/level_screen_test.lua pins it above 77%, tests/client/result_town_test.lua measures the line in it). The
+	-- longest Russian names come out under 18 px in every window that shrinks below 87% (18 / 20.7: the busiest one is 78%, level 30
+	-- with a chest 88%), where "Слушать" is 12 px and "15 мин" 17 px in the busiest already: decisions.md 7e.
+	it("keeps the town line readable for every task name of the game, in every language, with every number the town can ask", function()
+		local A = require("tests.client.layout_audit")
+		local advances = require("tests.client.font_advances")
+		local f = assert(io.open("content/districts.json", "r"))
+		local data = json.decode(f:read("*a"))
+		f:close()
+		local SIZE, ROOM = 26, 468 -- the size of the text and the room it has in its row (gui/level_kit.lua note: 560 - 56 - 36)
+		local function fitted(font, text)
+			local _, w = A.wrap(font, text, 1e9) -- one line: its width at the size the font is baked at
+			local px = w * SIZE / advances[font].size
+			return px > ROOM and SIZE * ROOM / px or SIZE
+		end
+		local worst, worst_what, names = 1e9, nil, 0
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			i18n.set_language(lang)
+			local font = lang == "ko" and "button_ko" or "button"
+			for _, d in ipairs(data.districts) do
+				for _, t in ipairs(d.tasks) do
+					names = names + 1
+					local name = i18n.name(t.name)
+					local texts = { i18n.t("win.town_ready", { item = name }) }
+					for n = 1, 7 do texts[#texts + 1] = i18n.t("win.town_need", { n = n, item = name }) end
+					for _, text in ipairs(texts) do
+						local px = fitted(font, text)
+						if px < worst then worst, worst_what = px, lang .. ": " .. text end
+					end
+				end
+			end
+		end
+		assert_true(names >= 3 * 98, "every task name of the game was measured (" .. names .. ")")
+		local FIRST_WIN_K, BUSIEST_K = 0.95, 0.77 -- how far the window the line is in shrinks (see above)
+		assert_true(worst * FIRST_WIN_K >= 18, string.format("in a first win the line is %.1f px (%s)", worst * FIRST_WIN_K, tostring(worst_what)))
+		assert_true(worst * BUSIEST_K >= 15, string.format("in the busiest window the line is %.1f px (%s)", worst * BUSIEST_K, tostring(worst_what)))
+	end)
+
 	it("formats numbers and durations", function()
 		assert_eq(i18n.number(0), "0")
 		assert_eq(i18n.number(999), "999")

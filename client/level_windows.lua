@@ -9,7 +9,9 @@
 --   lw.pause(meta, now)                       --> {moved, at_stake, leave, lines, run}
 --   lw.out_of_moves(meta, status, now, opts)  --> {stuck, offer, lines, boosters, ad, coins, ...}
 --   lw.defeat(meta, res, status, goals, now)  --> {life_lost, streak_lost, goals, close, lives, ...}
---   lw.result(meta, res, core_result, now)    --> {stars, coins, score, moves_left, streak, chest, progress, ...}
+--   lw.result(meta, res, core_result, now)    --> {stars, coins, score, moves_left, streak, chest, progress, town, ...}
+--   lw.town_line(meta, standalone)            --> the next town task for the results: {kind, name, need, first, ...} | nil
+--   lw.swap_buttons(town, has_next, back)     --> does the first win point at the town (the buttons swap emphasis)?
 --   lw.stake(meta, now)                       --> what leaving or giving up would cost right now
 --
 -- A meta without an attempt (a debug level) has nothing at stake.
@@ -17,6 +19,7 @@
 local config = require("meta.config")
 local levels = require("client.levels")
 local stars = require("meta.stars")
+local views = require("client.views")
 
 local M = {}
 
@@ -212,6 +215,38 @@ local function song_view(meta, song)
 	return out
 end
 
+-- The next task of the town as the results window tells it (the review of the first minutes: the player must always see
+-- how close the next item of the town is): nil when nothing is paid (a practice run, a replay) or the town is complete;
+-- otherwise {kind = "need" (the stars do not reach the price) | "ready" (they do), name (the item's name table: the one
+-- the task card of the town shows), need (the stars still missing, 0 when ready), cost, district, task, first (the
+-- player has never done a task of the town: the first star is still to be spent)}. The stars are the wallet's now, the
+-- win's own already in it.
+function M.town_line(meta, standalone)
+	if standalone or not meta then return nil end
+	local task = views.task(meta)
+	if not task then return nil end
+	local first = true
+	for _, d in ipairs(meta:districts()) do
+		if d.done > 0 then first = false end
+	end
+	return {
+		kind = task.affordable and "ready" or "need", name = task.name, need = task.need, cost = task.cost,
+		district = task.district, task = task.id, first = first,
+	}
+end
+
+-- The producer has not decided it yet: while the player has never done a task of the town and can do one now, the
+-- first win points at the town ("To town" is the big green button, "Next level" the small white one). One constant
+-- switches it off (the buttons are then the same for everyone); tests flip it and put it back.
+M.FIRST_WIN_TO_TOWN = true
+
+-- Is the emphasis of the two buttons of the results swapped? Only where the second button leads to the town (a level
+-- started from the map goes back to the map: that button is not the way to the first purchase) and a next level
+-- exists (the last level has the one button, "To town", already).
+function M.swap_buttons(town, has_next, back)
+	return (M.FIRST_WIN_TO_TOWN and town ~= nil and town.first and town.kind == "ready" and has_next and back ~= "map") and true or false
+end
+
 function M.result(meta, res, core_result, now)
 	core_result = core_result or {}
 	local sv = meta:streak()
@@ -243,6 +278,7 @@ function M.result(meta, res, core_result, now)
 		next_level = res.next_level,
 		all_done = res.next_level == nil,
 		standalone = res.standalone and true or false,
+		town = M.town_line(meta, res.standalone),
 	}
 end
 

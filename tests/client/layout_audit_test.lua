@@ -197,6 +197,31 @@ describe("text layout audit: town windows", function()
 	end)
 end)
 
+-- The widest town line of the language in use, by measurement: over every task of content/districts.json (and, for "need", every
+-- number of stars the town can ask, 1-7: the plural word changes the width) the one whose line is the longest on one line, as
+-- the results window draws it. Returns the name table of that task and the number (0 for "ready").
+local function widest_town_task(kind)
+	local json = require("tools.lib.json")
+	local advances = require("tests.client.font_advances")
+	local font = i18n.language() == "ko" and "button_ko" or "button"
+	assert_true(advances[font] ~= nil, "no font advances for " .. font)
+	local f = assert(io.open("content/districts.json", "r"))
+	local data = json.decode(f:read("*a"))
+	f:close()
+	local best, best_w, best_n
+	for _, d in ipairs(data.districts) do
+		for _, t in ipairs(d.tasks) do
+			for n = (kind == "need" and 1 or 0), (kind == "need" and 7 or 0) do
+				local item = i18n.name(t.name)
+				local text = kind == "need" and i18n.t("win.town_need", { n = n, item = item }) or i18n.t("win.town_ready", { item = item })
+				local _, w = A.wrap(font, text, 1e9)
+				if not best_w or w > best_w then best, best_w, best_n = t.name, w, n end
+			end
+		end
+	end
+	return best, best_n
+end
+
 -- level windows: opened on the level screen
 local function open_level(c, name, extra)
 	local l = c.hud.self.l
@@ -224,6 +249,16 @@ local function open_level(c, name, extra)
 		end
 		local view = lw.result(meta, res, { score = extra == "concert" and 21000 or 99999999, moves_at_win = 99, stars = 3 }, c.app.now())
 		if extra == "concert" then assert_true(view.scale ~= nil and view.concert, "the audit must draw the score scale and the super stars") end
+		-- the town line: the other cases have what the meta says (a first win, "You can buy" in green, the buttons swapped); these
+		-- two have the widest line of the language by measurement (the longest name, and for "need" the number whose plural word is
+		-- the widest: «Флажки папель-пикадо» with 2 stars is the longest of the Russian lines, longer than the ranch washboard,
+		-- which tests/client/result_town_test.lua puts in the busiest window), and with the first task bought (the usual buttons,
+		-- the line in green)
+		if extra == "need" or extra == "bought" then
+			local kind = extra == "need" and "need" or "ready"
+			local name, n = widest_town_task(kind)
+			view.town = { kind = kind, name = name, need = n, cost = 7, first = false, district = "cafe", task = "sign" }
+		end
 		local refund
 		if extra ~= "norefund" then
 			refund = {}
@@ -238,7 +273,7 @@ end
 
 local LEVEL_CASES = {
 	{ "pause" }, { "moves" }, { "defeat" }, { "defeat", "nolives" },
-	{ "result", "four" }, { "result", "norefund" }, { "result", "concert" },
+	{ "result", "four" }, { "result", "norefund" }, { "result", "concert" }, { "result", "need" }, { "result", "bought" },
 	{ "booster_buy", "first" }, { "booster_buy", "last" }, { "shop" },
 }
 
