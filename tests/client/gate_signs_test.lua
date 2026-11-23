@@ -51,15 +51,22 @@ describe("tools/art/gate_signs.py (the place of the district name on a gate)", f
 		assert_true(string.find(out, "map gates ok", 1, true) ~= nil, out)
 	end)
 
-	it("has a place for the name on the gate of every district: dx, dy, w and h, as wide as a gate picture at most", function()
+	it("has a place for the name on every gate that is drawn: dx, dy, w and h, as wide as a gate picture at most", function()
 		local gates = json.decode(read("content/map_gates.json"))
+		local drawn = 0
 		for _, d in ipairs(json.decode(read("content/districts.json")).districts) do
-			local g = gates[d.id]
-			assert_true(type(g) == "table", d.id .. " has no entry in content/map_gates.json (python3 tools/art/gate_signs.py)")
-			for _, key in ipairs({ "dx", "dy", "w", "h" }) do
-				assert_true(type(g[key]) == "number", d.id .. "." .. key .. " is not a number")
+			local f = io.open("assets/images/mapbg/gate_" .. d.id .. ".png", "rb")
+			if f then -- a district whose gate is not drawn yet writes its name on the plain default sign of the map
+				f:close()
+				drawn = drawn + 1
+				local g = gates[d.id]
+				assert_true(type(g) == "table", d.id .. " has a gate picture but no entry in content/map_gates.json (python3 tools/art/gate_signs.py; by hand when it finds no board)")
+				for _, key in ipairs({ "dx", "dy", "w", "h" }) do
+					assert_true(type(g[key]) == "number", d.id .. "." .. key .. " is not a number")
+				end
+				assert_true(g.w > 0 and g.w <= 720 and g.h > 0 and g.h <= 480, d.id .. ": the board is " .. g.w .. "x" .. g.h)
 			end
-			assert_true(g.w > 0 and g.w <= 720 and g.h > 0 and g.h <= 480, d.id .. ": the board is " .. g.w .. "x" .. g.h)
 		end
+		assert_true(drawn >= 22, "the gates of districts 1-22 are drawn: " .. drawn)
 	end)
 end)

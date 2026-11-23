@@ -14,7 +14,8 @@ A gate picture in which the finder sees no board KEEPS the entry its district al
 the file is not the finder's alone. That is the normal case of a placeholder gate (tools/art/make_part2_placeholders.py
 copies the place of the board of the parent gate, and the warmer "day" recolour of a gate, district 21, makes a tinted
 board too saturated for the finder) and of a place written by hand. A gate without a board and without an entry gets
-none: the map then writes the name on its plain default sign. To drop an entry on purpose, delete it from the file.
+none: the map then writes the name on its plain default sign (tests/client/gate_signs_test.lua insists that every gate
+that is drawn has an entry, so write one by hand). To drop an entry on purpose, delete it from the file.
 Entries of districts that have no gate picture are dropped. Pillow and numpy are imported only where a picture is read.
 """
 import glob
