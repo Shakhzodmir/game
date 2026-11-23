@@ -62,7 +62,8 @@ describe("screens/town/town.gui_script", function()
 		-- the ribbon face is up to #AA74F7 under the glyphs (3.2:1 for white, 2.7 for the old #F1E6FF) and the font "small" has
 		-- no shadow: the capsule is what brings the thin caption to 4.5:1
 		local lightest = { 0xAA / 255, 0x74 / 255, 0xF7 / 255 }
-		for lang, text in pairs({ en = "Track layers: 0/6", ru = "Слоёв трека: 0 из 6", ko = "트랙 레이어: 0/6" }) do
+		for _, case in ipairs({ { "en", "Track layers: 0/6" }, { "ru", "Слоёв трека: 0 из 6" }, { "ko", "트랙 레이어: 0/6" } }) do
+			local lang, text = case[1], case[2]
 			G.with_town({ language = lang }, function(c)
 				local E = c.E
 				local caption = c.town:find(text)
