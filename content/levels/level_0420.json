@@ -1,34 +1,34 @@
 {
   "id": 420, "version": 1,
   "size": [9, 11],
-  "moves": 32,
+  "moves": 26,
   "difficulty": "super_hard",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
     {"type": "drop", "count": 8},
     {"type": "break", "item": "record_box", "count": 4},
-    {"type": "collect", "color": "blue", "count": 50}
+    {"type": "collect", "color": "blue", "count": 44}
   ],
   "cells": [
-    ".#######.",
+    "..#####..",
     ".#######.",
     ".#######.",
     ".........",
+    ".#######.",
     "#########",
     "#########",
     "#########",
     "#########",
-    "#########",
-    "#########",
-    "#########"
+    ".#######.",
+    "..#####.."
   ],
   "slots": [
-    {"at": [1, 9], "type": "record_box", "hp": 3},
-    {"at": [3, 9], "type": "record_box", "hp": 3},
-    {"at": [5, 9], "type": "record_box", "hp": 3},
-    {"at": [7, 9], "type": "record_box", "hp": 3}
+    {"at": [2, 6], "type": "record_box", "hp": 3},
+    {"at": [6, 6], "type": "record_box", "hp": 3},
+    {"at": [2, 8], "type": "record_box", "hp": 3},
+    {"at": [6, 8], "type": "record_box", "hp": 3}
   ],
-  "coconut": {"total": 8, "on_board_max": 2, "gap_moves": 3, "columns": [1, 2, 3, 4, 5, 6, 7]},
+  "coconut": {"total": 8, "on_board_max": 2, "gap_moves": 2, "columns": [1, 2, 3, 4, 5, 6, 7]},
   "portals": [
     {"in": [1, 2], "out": [1, 4]},
     {"in": [2, 2], "out": [2, 4]},

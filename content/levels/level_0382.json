@@ -1,31 +1,28 @@
 {
   "id": 382, "version": 1,
   "size": [8, 9],
-  "moves": 20,
+  "moves": 22,
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [
     {"type": "break", "item": "column", "count": 1},
-    {"type": "break", "item": "boombox", "count": 5},
-    {"type": "collect", "color": "orange", "count": 58}
+    {"type": "collect", "color": "orange", "count": 44}
   ],
   "cells": [
+    "###..###",
+    "###..###",
+    "########",
+    "########",
+    "########",
+    "########",
     ".######.",
-    "########",
-    "########",
-    "########",
-    "########",
-    "########",
-    "########",
-    "########",
-    ".######."
+    "..####..",
+    "..####.."
   ],
   "slots": [
-    {"at": [1, 2], "type": "boombox", "hp": 3},
-    {"at": [6, 2], "type": "boombox", "hp": 3},
-    {"at": [2, 4], "type": "boombox", "hp": 3},
-    {"at": [3, 4], "type": "column", "hp": 12},
-    {"at": [1, 7], "type": "boombox", "hp": 3},
-    {"at": [6, 7], "type": "boombox", "hp": 3}
+    {"at": [1, 3], "type": "column", "hp": 10},
+    {"at": [5, 3], "type": "boombox", "hp": 3},
+    {"at": [3, 5], "type": "boombox", "hp": 3},
+    {"at": [5, 5], "type": "boombox", "hp": 3}
   ]
 }

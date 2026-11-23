@@ -1,26 +1,26 @@
 {
   "id": 385, "version": 1,
-  "size": [9, 9],
-  "moves": 21,
+  "size": [9, 8],
+  "moves": 22,
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "blue", "purple"],
   "goals": [
-    {"type": "break", "item": "column", "count": 2},
+    {"type": "break", "item": "boombox", "count": 3},
     {"type": "collect", "color": "yellow", "count": 44}
   ],
   "cells": [
-    ".#######.",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    ".#######."
+    ".......##",
+    "......###",
+    ".....####",
+    "....#####",
+    "...######",
+    "..#######",
+    ".########",
+    "#########"
   ],
   "slots": [
-    {"at": [2, 2], "type": "column", "hp": 8},
-    {"at": [5, 2], "type": "column", "hp": 8}
+    {"at": [5, 3], "type": "boombox", "hp": 3},
+    {"at": [3, 5], "type": "boombox", "hp": 3},
+    {"at": [6, 6], "type": "boombox", "hp": 3}
   ]
 }

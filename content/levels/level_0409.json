@@ -1,6 +1,6 @@
 {
   "id": 409, "version": 1,
-  "size": [9, 10],
+  "size": [9, 9],
   "moves": 24,
   "difficulty": "medium",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
@@ -9,29 +9,24 @@
     {"type": "break", "item": "record_box", "count": 2}
   ],
   "cells": [
-    ".#######.",
-    ".#######.",
-    ".#######.",
+    "...###...",
+    "...###...",
+    "...###...",
     ".........",
     "#########",
     "#########",
     "#########",
-    "#########",
-    "#########",
-    "#########"
+    ".#######.",
+    "..#####.."
   ],
   "slots": [
-    {"at": [3, 8], "type": "record_box", "hp": 1},
-    {"at": [5, 8], "type": "record_box", "hp": 1}
+    {"at": [1, 5], "type": "record_box", "hp": 1},
+    {"at": [7, 5], "type": "record_box", "hp": 1}
   ],
-  "coconut": {"total": 5, "on_board_max": 2, "gap_moves": 3, "columns": [1, 2, 3, 4, 5, 6, 7]},
+  "coconut": {"total": 5, "on_board_max": 2, "gap_moves": 2, "columns": [3, 4, 5]},
   "portals": [
-    {"in": [1, 2], "out": [1, 4]},
-    {"in": [2, 2], "out": [2, 4]},
     {"in": [3, 2], "out": [3, 4]},
     {"in": [4, 2], "out": [4, 4]},
-    {"in": [5, 2], "out": [5, 4]},
-    {"in": [6, 2], "out": [6, 4]},
-    {"in": [7, 2], "out": [7, 4]}
+    {"in": [5, 2], "out": [5, 4]}
   ]
 }

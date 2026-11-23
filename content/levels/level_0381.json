@@ -6,7 +6,7 @@
   "colors": ["red", "orange", "yellow", "green", "purple"],
   "goals": [
     {"type": "break", "item": "column", "count": 1},
-    {"type": "collect", "color": "red", "count": 44}
+    {"type": "collect", "color": "red", "count": 40}
   ],
   "cells": [
     ".######.",
@@ -19,6 +19,6 @@
     ".######."
   ],
   "slots": [
-    {"at": [3, 3], "type": "column", "hp": 8}
+    {"at": [2, 3], "type": "column", "hp": 8}
   ]
 }
