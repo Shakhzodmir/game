@@ -26,6 +26,15 @@ local function last_music(c)
 	return m[#m] and m[#m].message
 end
 
+-- The title is on the page as one text, or as two when it is too long for one line (client/notebook_layout.lua).
+local function title_shown(c, title)
+	if c.town:has_text(title, true) then return true end
+	for at in string.gmatch(title, "()%s") do
+		if c.town:has_text(string.sub(title, 1, at - 1), true) and c.town:has_text(string.sub(title, at + 1), true) then return true end
+	end
+	return false
+end
+
 describe("songbook window", function()
 	it("shows an empty page of the first district before any level is won", function()
 		G.with_town({ language = "en" }, function(c)
@@ -85,7 +94,8 @@ describe("songbook window", function()
 			assert_eq(nb.district, "cafe")
 			assert_true(nb.title ~= nil)
 			local songbook = require("client.songbook")
-			assert_true(c.town:has_text(songbook.title("cafe", nb.title), true), "no title")
+			assert_true(title_shown(c, songbook.title("cafe", nb.title)), "no title")
+			assert_true(nb.title_lines == 1 or nb.title_lines == 2, "the QA status says how many lines the title takes")
 			assert_true(c.town:has_text("Chorus", true))
 			assert_true(c.town:has_text("Verse 1", true))
 			assert_true(c.town:has_text("Listen", true))

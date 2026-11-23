@@ -1,7 +1,8 @@
 -- The songbook window: a sheet of music paper with the lines of the song of one district, written by Bit one per
 -- beaten level (meta/songbook.lua, texts client/songbook.lua). The pages are the districts (arrows at the top).
 -- A page that is not finished shows the lines so far, empty rows for the levels still to play and a pencil on the
--- next one. A finished page is the whole song: its title in big letters, the verses and choruses, a golden seal,
+-- next one. A finished page is the whole song: its title in big letters (one line, or two for a long title: the
+-- verses then start lower, client/notebook_layout.lua), the verses and choruses, a golden seal,
 -- confetti and Bit cheering; "Listen" plays the song of the district (the one music slot of the game; stopping or
 -- closing hands the music back to the town) and lights the line that is being sung, on the beats of the track.
 -- Nothing here pays anything: the songbook is decoration.
@@ -10,7 +11,8 @@
 -- was just finished: seal and confetti at once)}. The page and the playing state live in e.state (they survive a
 -- rebuild: a language change).
 -- QA targets: page_prev, page_next, play (Listen / Stop), close.
--- QA status (app.ui.notebook): {page, district, count, total, ready, playing, active (the line that is lit), title}.
+-- QA status (app.ui.notebook): {page, district, count, total, ready, playing, active (the line that is lit), title,
+-- title_lines (1 or 2, a finished page only)}.
 
 local app = require("client.app")
 local i18n = require("client.i18n")
@@ -18,14 +20,16 @@ local songbook = require("client.songbook")
 local songbook_model = require("meta.songbook")
 local config = require("meta.config")
 local audio = require("client.audio")
+local ui = require("client.ui")
+local layout = require("client.notebook_layout")
 local kit = require("gui.kit")
 
 local M = {}
 
 local W, H = 660, 1120
-local PAPER_W, PAPER_H = 556, 790
-local STEP = 28                -- px between two lines of the song
-local GROUP_GAP = 12           -- extra space between the verses
+local PAPER_W, PAPER_H = layout.PAPER_W, layout.PAPER_H
+local STEP = layout.STEP       -- px between two lines of the song
+local GROUP_GAP = layout.GROUP_GAP -- extra space between the verses
 local TEXT_X = -PAPER_W / 2 + 104
 local TEXT_W = PAPER_W - 104 - 64
 local INK, INK_CHORUS = "#3B3355", "#6A2BD1"
@@ -123,15 +127,24 @@ function M.build(e)
 	local cy = py - 56 - PAPER_H / 2 - 4
 	local paper = s:image(body, "notebook/paper_sheet", 0, cy, { w = PAPER_W, h = PAPER_H })
 		or s:round(body, 0, cy, PAPER_W - 24, PAPER_H - 24, "#FFF6DD", { radius = 16 })
-	local top = PAPER_H / 2 - 48 -- y of the first row inside the paper
+	local top = layout.TOP -- y of the first row inside the paper
 	local y = top
 	st.rows = {}
 	local nodes = st.rows
+	local title_lines
 	if song.ready then
-		kit.label(e, paper, songbook.title(song.id, song.title), -26, y, {
-			font = "title", size = 40, color = INK_CHORUS, max_width = PAPER_W - 220, lines = 2,
-		})
-		y = y - 54
+		-- the title: one line while it can be shrunk to a readable size (client/notebook_layout.lua), else two lines
+		-- and the verses start lower; it is measured in the font that draws it (Korean has a font of its own)
+		local title = songbook.title(song.id, song.title)
+		local font = ui.font_for("title", title)
+		local plan = layout.title(title, function(str, size) return kit.text_width(font, str, size) end)
+		for i, line in ipairs(plan.lines) do
+			s:text(paper, line, layout.TITLE_X, plan.ys[i], {
+				font = "title", size = plan.size, color = INK_CHORUS, max_width = layout.TITLE_W,
+			})
+		end
+		title_lines = #plan.lines
+		y = plan.first_row
 		local stamp = s:image(paper, "notebook/stamp_ready", PAPER_W / 2 - 78, top + 4, { w = 104, h = 104 })
 		if stamp then
 			gui.set_euler(stamp, vmath.vector3(0, 0, -12))
@@ -229,7 +242,7 @@ function M.build(e)
 	end
 
 	app.ui.notebook = { page = st.page, district = song.id, count = song.count, total = song.total, ready = song.ready,
-		playing = playing, active = st.hl, title = song.title, rows = #nodes }
+		playing = playing, active = st.hl, title = song.title, title_lines = title_lines, rows = #nodes }
 end
 
 -- every frame: Bit, and the line that is being sung lights up (a move only when it changes)
