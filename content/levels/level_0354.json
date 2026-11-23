@@ -1,6 +1,6 @@
 {
   "id": 354, "version": 1,
-  "size": [9, 10],
+  "size": [7, 8],
   "moves": 22,
   "difficulty": "medium",
   "colors": ["red", "orange", "yellow", "green", "purple"],
@@ -9,20 +9,18 @@
     {"type": "break", "item": "noise", "count": 6}
   ],
   "cells": [
-    "...####..",
-    "..#####..",
-    ".#######.",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########"
+    "#######",
+    "#######",
+    "#######",
+    "#######",
+    ".#####.",
+    ".#####.",
+    "..###..",
+    "...#..."
   ],
   "slots": [
-    {"at": [1, 4], "type": "noise"}, {"at": [4, 4], "type": "noise"}, {"at": [7, 4], "type": "noise"},
-    {"at": [0, 7], "type": "noise"}, {"at": [4, 7], "type": "noise"}, {"at": [8, 7], "type": "noise"}
+    {"at": [1, 2], "type": "noise"}, {"at": [5, 2], "type": "noise"}, {"at": [3, 3], "type": "noise"},
+    {"at": [1, 4], "type": "noise"}, {"at": [5, 4], "type": "noise"}, {"at": [3, 5], "type": "noise"}
   ],
   "mic": {"total": 4, "on_board_max": 2, "gap_moves": 2}
 }

@@ -6,6 +6,7 @@
   "colors": ["red", "orange", "yellow", "green", "purple"],
   "goals": [
     {"type": "carpet"},
+    {"type": "ice", "count": 3},
     {"type": "collect", "color": "purple", "count": 18}
   ],
   "cells": [
@@ -17,5 +18,11 @@
     "..###..",
     "..###.."
   ],
-  "carpet": [[2, 5], [3, 5], [4, 5], [2, 6], [3, 6], [4, 6]]
+  "overlay": [
+    {"at": [1, 2], "type": "ice", "hp": 1}, {"at": [5, 2], "type": "ice", "hp": 1}, {"at": [0, 3], "type": "ice", "hp": 1},
+    {"at": [6, 3], "type": "ice", "hp": 1}
+  ],
+  "carpet": [
+    [2, 5], [3, 5], [4, 5], [2, 6], [3, 6], [4, 6]
+  ]
 }

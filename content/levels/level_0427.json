@@ -5,7 +5,8 @@
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "blue"],
   "goals": [
-    {"type": "collect", "color": "orange", "count": 44}
+    {"type": "chains", "count": 4},
+    {"type": "collect", "color": "orange", "count": 40}
   ],
   "cells": [
     "#########",
@@ -16,6 +17,11 @@
     "..#####..",
     "...###...",
     "...###..."
+  ],
+  "overlay": [
+    {"at": [1, 2], "type": "chain", "hp": 1}, {"at": [7, 2], "type": "chain", "hp": 1},
+    {"at": [2, 4], "type": "chain", "hp": 1}, {"at": [6, 4], "type": "chain", "hp": 1},
+    {"at": [3, 6], "type": "chain", "hp": 1}
   ],
   "curtain": {"covers": [[3, 3], [4, 3], [5, 3], [3, 4], [4, 4], [5, 4]], "closed_moves": 2, "open_moves": 3, "start": "open"}
 }
