@@ -942,6 +942,16 @@ for (const [name, sc, wantReason, wantCode] of [
 	s3.auth.currentUser = pwUser("P9");
 	assert.deepEqual(lineOf(await waitLine(g3, id3)), { ok: false, reason: "no_user" });
 	assert.equal(s3.calls.length, 0, "the SDK was never asked to link");
+	// ... also when the game has meanwhile been told about the other account (a restore of its own): then only the link's own check
+	// of whose link it is stands in the way
+	const s5 = fakeSdk({ current: pwUser("P5") });
+	const g5 = game({ world: popupWorld({ delay: 300 }), cfg: OIDC_POPUP, sdk: s5 });
+	await ask(g5, "restore");
+	const id5 = await tapped(g5, "link_google");
+	s5.auth.currentUser = pwUser("P6");
+	assert.equal((await ask(g5, "restore")).f.uid, "P6", "the game now knows P6");
+	assert.deepEqual(lineOf(await waitLine(g5, id5)), { ok: false, reason: "no_user" });
+	assert.equal(s5.calls.length, 0, "nothing was linked to the wrong account");
 	// the game's own told rule at the start: a current user it does not know is refused before any window
 	const s4 = fakeSdk({ current: pwUser("P4") });
 	const g4 = game({ world: popupWorld(), cfg: OIDC_POPUP, sdk: s4 });
