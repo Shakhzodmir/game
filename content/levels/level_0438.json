@@ -23,11 +23,11 @@
     "..#####.."
   ],
   "slots": [
-    {"at": [2, 1], "type": "balloon", "color": "yellow"},
-    {"at": [4, 1], "type": "balloon", "color": "blue"},
-    {"at": [6, 1], "type": "balloon", "color": "yellow"},
-    {"at": [3, 2], "type": "balloon", "color": "blue"},
-    {"at": [5, 2], "type": "balloon", "color": "blue"},
+    {"at": [3, 1], "type": "balloon", "color": "yellow"},
+    {"at": [5, 1], "type": "balloon", "color": "blue"},
+    {"at": [2, 2], "type": "balloon", "color": "yellow"},
+    {"at": [4, 2], "type": "balloon", "color": "blue"},
+    {"at": [6, 2], "type": "balloon", "color": "blue"},
     {"at": [2, 6], "type": "balloon", "color": "yellow"},
     {"at": [4, 6], "type": "balloon", "color": "blue"},
     {"at": [6, 6], "type": "balloon", "color": "yellow"},
