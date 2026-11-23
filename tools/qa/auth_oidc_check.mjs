@@ -1,6 +1,8 @@
-// Checks our own sign-in with Google (web/glow_oidc.js, web/auth_return.html, the inline script of web/auth_test.html) in
-// a small fake browser (no real browser, no network): the request, the answer checks, the three hand-over channels, the
-// return page in every state it can meet, and the whole loop with a fake Google and a fake Firebase SDK.
+// Checks our own sign-in with Google (web/glow_oidc.js, web/auth_return.html, and that web/auth_test.html compiles and loads
+// the core by its own version) in a small fake browser (no real browser, no network): the request, the answer checks, the
+// three hand-over channels, the return page in every state it can meet, and the whole loop with a fake Google and a fake
+// Firebase SDK (the nonce rule and the order of credentials). The test page itself is run in real browsers by hand:
+// the script of the phone-test work (Playwright, Chromium and WebKit) is not part of the repository.
 //   node tools/qa/auth_oidc_check.mjs
 import fs from "node:fs";
 import vm from "node:vm";
@@ -173,7 +175,7 @@ function loadReturn(world, { href, from, opener, sc = {} }) {
 	win.close = win.handle.close;
 	win.gone = false;
 	if (sc.noOpenerPost) win.opener = null;
-	const scale = sc.scale || 0.1;
+	const scale = sc.scale || 0.2;
 	win.ctx.setTimeout = (f, ms) => setTimeout(f, ms * scale); win.ctx.setInterval = (f, ms) => setInterval(f, Math.max(5, ms * scale));
 	win.run(RETURN_JS);
 	return win;
@@ -406,11 +408,11 @@ async function armed(opts = {}) {
 	await sleep(5);
 	const ch = new a.other.BroadcastChannel("glow_oidc_t");
 	ch.postMessage(mkRelay(a.rec.s));
-	await sleep(20);
+	await waitFor(() => a.log.relay.length === 1);
 	assert.deepEqual(json(a.log.relay), [{ via: "bc", hidden: false }]);
 	// ... and a duplicate through the mailbox is "seen", but the answer is delivered once
 	a.other.localStorage.setItem(a.key, JSON.stringify(mkRelay(a.rec.s)));
-	await sleep(60);
+	await waitFor(() => a.log.seen.length >= 2);
 	assert.equal(a.log.relay.length, 1, "one answer, once");
 	assert.ok(a.log.seen.length >= 2, "every arrival is logged for the diagnosis");
 	assert.deepEqual(a.log.seen.map((x) => x.via).slice(0, 2), ["bc", "st"], "the storage event tells the other window's write first");
@@ -423,37 +425,37 @@ async function armed(opts = {}) {
 	a.other.localStorage.setItem("glow_oidc_t_res:pt.otherstate12", JSON.stringify(mkRelay("pt.otherstate12")));
 	a.other.localStorage.setItem(a.key, "{broken");
 	a.win._receive(mkRelay("pt.otherstate12"), ORIGIN, a.other.handle, ORIGIN);
-	await sleep(120);
+	await sleep(250);
 	assert.equal(a.log.seen.length, 0, "nothing of ours arrived");
 	// the broken mailbox is replaced by the real answer: it still arrives
 	a.other.localStorage.setItem(a.key, JSON.stringify(mkRelay(a.rec.s)));
-	await sleep(80);
+	await waitFor(() => a.log.relay.length === 1);
 	assert.equal(a.log.relay.length, 1);
 	a.h.stop();
 
 	// message events: our origin only; from the pop-up only while it is alive
 	a = await armed();
 	a.win._receive(mkRelay(a.rec.s), ORIGIN, a.other.handle, "https://evil.example");
-	await sleep(15);
+	await sleep(60);
 	assert.equal(a.log.relay.length, 0, "a message from another origin is dropped");
 	a.win._receive(mkRelay(a.rec.s), ORIGIN, a.other.handle, ORIGIN);
-	await sleep(15);
+	await waitFor(() => a.log.relay.length === 1);
 	assert.deepEqual(a.log.relay.map((x) => x.via), ["pm"], "no pop-up reference yet: any same-origin window may answer");
 	a.h.stop();
 	{
 		const popup = makeWindow(a.world, { href: "https://accounts.google.com/x" });
 		a = await armed({ win: popup.handle });
 		a.win._receive(mkRelay(a.rec.s), ORIGIN, a.other.handle, ORIGIN); // a window that is not the pop-up
-		await sleep(15);
+		await sleep(60);
 		assert.equal(a.log.relay.length, 0, "while the pop-up is alive only the pop-up may answer by message");
 		a.win._receive(mkRelay(a.rec.s), ORIGIN, popup.handle, ORIGIN);
-		await sleep(15);
+		await waitFor(() => a.log.relay.length === 1);
 		assert.equal(a.log.relay.length, 1);
 		a.h.stop();
 		const dead = makeWindow(a.world, { href: "https://accounts.google.com/x", sever: true }); // closed reads true: severed
 		a = await armed({ win: dead.handle });
 		a.win._receive(mkRelay(a.rec.s), ORIGIN, a.other.handle, ORIGIN);
-		await sleep(15);
+		await waitFor(() => a.log.relay.length === 1);
 		assert.equal(a.log.relay.length, 1, "a pop-up that reads closed no longer vetoes: its link may be cut");
 		a.h.stop();
 	}
@@ -461,7 +463,7 @@ async function armed(opts = {}) {
 	// the mailbox without any event: the first look, the re-read on visibility, pageshow and focus, the 300 ms re-read
 	a = await armed({ pollMs: 100000 });
 	a.world.ls.set(a.key, JSON.stringify(mkRelay(a.rec.s))); // no storage event: written under the page's feet
-	await sleep(15);
+	await waitFor(() => a.log.relay.length === 1);
 	assert.deepEqual(a.log.relay.map((x) => x.via), ["load"], "an answer that is already there is found at once");
 	a.h.stop();
 	const fires = [
@@ -471,19 +473,19 @@ async function armed(opts = {}) {
 	];
 	for (const [via, fire] of fires) {
 		a = await armed({ pollMs: 100000 });
-		await sleep(10);
+		await sleep(40);
 		a.win.document.hidden = true; a.win.document.visibilityState = "hidden";
 		a.world.ls.set(a.key, JSON.stringify(mkRelay(a.rec.s)));
-		if (via === "vis") { a.win.dispatchDoc("visibilitychange", {}); await sleep(10); assert.equal(a.log.relay.length, 0, "still hidden: not yet"); }
+		if (via === "vis") { a.win.dispatchDoc("visibilitychange", {}); await sleep(40); assert.equal(a.log.relay.length, 0, "still hidden: not yet"); }
 		fire(a.win);
-		await sleep(10);
+		await waitFor(() => a.log.relay.length === 1);
 		assert.deepEqual(json(a.log.relay), [{ via, hidden: via !== "vis" }], via + ": whether the page was hidden at that moment is reported");
 		a.h.stop();
 	}
 	a = await armed({ pollMs: 30 });
-	await sleep(10);
+	await sleep(40);
 	a.world.ls.set(a.key, JSON.stringify(mkRelay(a.rec.s)));
-	await sleep(80);
+	await waitFor(() => a.log.relay.length === 1);
 	assert.deepEqual(a.log.relay.map((x) => x.via), ["poll"], "the 300 ms re-read is the net under all of it");
 	a.h.stop();
 
@@ -492,7 +494,7 @@ async function armed(opts = {}) {
 	a.h.stop(); a.h.stop();
 	const ch3 = new a.other.BroadcastChannel("glow_oidc_t"); ch3.postMessage(mkRelay(a.rec.s));
 	a.other.localStorage.setItem(a.key, JSON.stringify(mkRelay(a.rec.s)));
-	await sleep(100);
+	await sleep(250);
 	assert.equal(a.log.seen.length, 0, "a stopped wait hears nothing");
 
 	// ack: the BroadcastChannel and the pop-up get it, with the origin
@@ -502,20 +504,21 @@ async function armed(opts = {}) {
 	a = await armed({ win: popup2.handle });
 	const peer = new a.other.BroadcastChannel("glow_oidc_t"); const bcHeard = []; peer.onmessage = (ev) => bcHeard.push(ev.data);
 	a.h.ack("bc");
-	await sleep(20);
+	await waitFor(() => bcHeard.length >= 1 && heard.length >= 1);
 	assert.deepEqual(json(bcHeard), [{ k: "glow_oidc_ack", s: a.rec.s, via: "bc" }]);
 	assert.deepEqual(heard.map((x) => [x.d.k, x.d.s, x.o]), [["glow_oidc_ack", a.rec.s, ORIGIN]]);
 	// a live starter answers the return page's ping (and only for its own state)
 	peer.postMessage({ k: "glow_oidc_ping", s: "pt.otherstate12" });
 	peer.postMessage({ k: "glow_oidc_ping", s: a.rec.s });
-	await sleep(20);
+	await waitFor(() => bcHeard.length >= 2);
+	await sleep(60);
 	assert.deepEqual(json(bcHeard.slice(1)), [{ k: "glow_oidc_pong", s: a.rec.s }], "pong for our state only, and a ping is no answer");
 	assert.equal(a.log.seen.length, 0);
 	a.h.stop();
 	// a page without timers: the other channels still work
 	a = await armed({ setInterval: null });
 	a.other.localStorage.setItem(a.key, JSON.stringify(mkRelay(a.rec.s)));
-	await sleep(20);
+	await waitFor(() => a.log.relay.length === 1);
 	assert.equal(a.log.relay.length, 1);
 	a.h.stop();
 }
@@ -537,7 +540,7 @@ function retPage(st, o = {}) {
 	const copy = o.ss || new Map(st.win.ssMap);
 	const win = makeWindow(st.world, { href: RETURN_URL + (o.search || "") + (o.frag === undefined ? "" : "#" + o.frag), ss: copy, opener: o.opener === undefined ? st.win : o.opener, noBC: o.noBC, lang: o.lang === undefined ? "en" : o.lang,
 		standalone: o.standalone, noLocalStorage: o.noLS, framed: o.framed, hl: 3, refuseClose: o.refuseClose, dm: o.dm });
-	const scale = o.scale || 0.1, realST = setTimeout;
+	const scale = o.scale || 0.2, realST = setTimeout;
 	win.ctx.setTimeout = (f, ms) => realST(f, ms * scale); win.ctx.setInterval = (f, ms) => setInterval(f, Math.max(5, ms * scale));
 	if (o.beforeRun) o.beforeRun(win);
 	win.run(RETURN_JS);
@@ -552,7 +555,7 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	const seenMsg = [];
 	st.win.addEventListener("message", (ev) => seenMsg.push(ev));
 	const frag = fragFor(st.rec);
-	const page = retPage(st, { frag });
+	const page = retPage(st, { frag, scale: 0.5 });
 	assert.equal(page.history.calls.length, 1); assert.equal(page.history.calls[0].url, "/game/auth_return.html");
 	assert.equal(page.history.calls[0].hashBefore, "#" + frag, "the call saw the answer in the address..."); assert.equal(page.location.hash, "", "...and wiped it");
 	assert.equal(page.history.calls[0].at, 0, "wiped before anything was posted");
@@ -560,14 +563,14 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	assert.deepEqual([mail.k, mail.v, mail.h, mail.q], ["glow_oidc", 1, frag, ""], "the raw answer, not parsed, not changed");
 	assert.deepEqual(json(mail.d), { op: 1, sa: 0, dm: "browser", ss: 1, ls: 1, own: 0, hl: 3, vs: "visible", c: "tab" });
 	assert.deepEqual(page.posted.filter((p) => p.bc).map((p) => [p.bc, p.data.k, p.data.h === frag]), [["glow_oidc_t", "glow_oidc", true]]);
-	await sleep(120);
+	await waitFor(() => st.log.relay.length === 1);
 	assert.equal(st.log.relay.length, 1, "the starter got it"); assert.ok(["bc", "pm", "st", "poll", "load"].includes(st.log.relay[0].via));
 	assert.ok(seenMsg.length >= 1 && seenMsg[0].origin === ORIGIN && seenMsg[0].data.k === "glow_oidc", "the opener was told by postMessage");
 	assert.deepEqual(st.world.blocked, [], "the target origin of every postMessage was our own: nothing was refused as foreign, nothing was sent to *");
 	assert.match(textOf(page), /Done\. Close this window and go back to the test page\./);
 	assert.equal(page.closeCalls, 0, "it waits for the starter's word first");
 	st.h.ack("bc");
-	await sleep(60);
+	await waitFor(() => page.closeCalls === 1);
 	assert.equal(page.closeCalls, 1, "closed after the ack"); assert.equal(page.gone, true);
 	const ret = JSON.parse(st.world.ls.get("glow_oidc_t_ret"));
 	assert.deepEqual([ret.s, ret.ack, ["bc", "pm"].includes(ret.via), ret.ct, ret.d.op, ret.rep], [st.rec.s, 1, true, 1, 1, 0], "the return record tells the test page what happened here");
@@ -577,7 +580,7 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	// no ack at all: it closes after a short wait anyway, and says so; a window that refuses to close shows the way back (test page only)
 	const st = await starter({ noListen: true });
 	const page = retPage(st, { frag: fragFor(st.rec), refuseClose: true });
-	await sleep(400);
+	await waitFor(() => page.closeCalls === 1 && !page.document.getElementById("b").hidden, 6000);
 	assert.equal(page.closeCalls, 1);
 	const ret = JSON.parse(st.world.ls.get("glow_oidc_t_ret"));
 	assert.deepEqual([ret.ack, ret.via, ret.ct], [0, "", 1]);
@@ -588,7 +591,8 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	// the game's pop-up has no such button: a stray window must never start a second copy of the game
 	const g = await starter({ dest: "g", noListen: true });
 	const gp = retPage(g, { frag: fragFor(g.rec), refuseClose: true });
-	await sleep(400);
+	await waitFor(() => gp.closeCalls === 1, 6000);
+	await sleep(500);
 	assert.equal(gp.document.getElementById("b").hidden, true);
 	assert.equal(g.world.ls.get("glow_oidc_t_ret"), undefined, "no return record for the game");
 	assert.match(textOf(gp), /Done\. Go back to the game\./);
@@ -639,7 +643,7 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	// mode r in a window that is not the starter's: says "close this window", never navigates; "another storage" when nothing is known
 	const st = await starter({ mode: "r", noListen: true });
 	const page = retPage(st, { frag: fragFor(st.rec), opener: null, ss: new Map() /* a context that shares no tab storage */ });
-	await sleep(60);
+	await sleep(150);
 	assert.deepEqual(page.navs, []);
 	assert.match(textOf(page), /^Close this window \(the Done or Close button\) and go back to the test page\. \|/, "it finds the record in the shared storage, so no 'another storage'");
 	const p2 = retPage(st, { frag: fragFor({ ...st.rec }, "", { state: "rt.neverstarted1234567" }), opener: null, ss: new Map() });
@@ -678,13 +682,14 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	st.G.markOwn("t", st.rec.s, {});
 	let page = retPage(st, { frag: fragFor(st.rec), opener: null });
 	assert.deepEqual(page.navs, [], "it waits for a pong first");
-	await sleep(120);
+	await waitFor(() => page.replaced.length === 1, 4000);
 	assert.deepEqual(page.replaced, ["auth_test.html"]);
 	assert.equal(JSON.parse(st.world.ls.get("glow_oidc_t_ret")).pong, 0);
 	st = await starter({ mode: "r" }); // a live listener answers the ping
 	st.G.markOwn("t", st.rec.s, {});
-	page = retPage(st, { frag: fragFor(st.rec), opener: null });
-	await sleep(150);
+	page = retPage(st, { frag: fragFor(st.rec), opener: null, scale: 0.5 });
+	await waitFor(() => (JSON.parse(st.world.ls.get("glow_oidc_t_ret") || "{}")).pong === 1, 4000);
+	await sleep(500); // longer than the whole pong wait of the page: nothing may navigate afterwards either
 	assert.deepEqual(page.navs, [], "a live starter: no second copy");
 	assert.match(textOf(page), /^Close this window/);
 	assert.equal(JSON.parse(st.world.ls.get("glow_oidc_t_ret")).pong, 1);
@@ -695,14 +700,14 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 		st = await starter({ mode: "r", noListen: true, c: "home" });
 		st.G.markOwn("t", st.rec.s, {});
 		page = retPage(st, { frag: fragFor(st.rec), opener: null, standalone });
-		await sleep(120);
+		if (goes) await waitFor(() => page.navs.length === 1, 4000); else await sleep(700);
 		assert.equal(page.navs.length === 1, goes, "home attempt, standalone=" + standalone);
 	}
 	for (const [standalone, goes] of [[false, false], [true, true]]) {
 		st = await starter({ mode: "p", noListen: true, c: "home" });
 		st.G.markOwn("t", st.rec.s, {});
 		page = retPage(st, { frag: fragFor(st.rec), opener: null, standalone });
-		await sleep(30);
+		await sleep(100);
 		assert.equal(page.navs.length === 1, goes, "pop-up mode, home attempt, standalone=" + standalone);
 	}
 }
@@ -725,18 +730,18 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	// each channel alone, from the return page's side: no BroadcastChannel and no opener -> the mailbox; no storage -> channel / message
 	let st = await starter();
 	retPage(st, { frag: fragFor(st.rec), noBC: true, opener: null });
-	await sleep(120);
+	await waitFor(() => st.log.relay.length >= 1);
 	assert.ok(["st", "poll", "load"].includes(st.log.relay[0].via), "mailbox only: " + (st.log.relay[0] || {}).via);
 	st.h.stop();
 	st = await starter();
 	retPage(st, { frag: fragFor(st.rec), noLS: true, opener: null });
-	await sleep(120);
+	await waitFor(() => st.log.relay.length >= 1);
 	assert.equal(st.log.relay[0].via, "bc", "broadcast only (the page cannot see its storage: the answer is not stored)");
 	assert.equal(st.world.ls.get(st.key), undefined);
 	st.h.stop();
 	st = await starter();
 	retPage(st, { frag: fragFor(st.rec), noLS: true, noBC: true });
-	await sleep(120);
+	await waitFor(() => st.log.relay.length >= 1);
 	assert.equal(st.log.relay[0].via, "pm", "opener.postMessage only");
 	st.h.stop();
 }
@@ -759,7 +764,7 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 }
 
 // 8. the whole loop: a starter that opens Google's window, a fake Google, the return page ---------------------------------------
-async function waitFor(fn, ms = 1500) { const end = Date.now() + ms; while (Date.now() < end) { if (fn()) return true; await sleep(10); } return !!fn(); }
+async function waitFor(fn, ms = 3000) { const end = Date.now() + ms; while (Date.now() < end) { if (fn()) return true; await sleep(10); } return !!fn(); }
 async function loop(sc, o = {}) {
 	const w = coreWorld(o.win || {});
 	installGoogle(w.world, sc);
@@ -791,7 +796,7 @@ const verdict = (L, extra = {}) => json(L.G.validate(L.got.relay, L.rec, { clien
 	const v = verdict(L);
 	assert.equal(v.ok, true); assert.equal(v.claims.email, "anna@gmail.com"); assert.equal(v.rawNonce, L.rec.r);
 	assert.equal(await L.G.checkAtHash(v.claims, v.accessToken, { crypto: webcrypto }), "ok");
-	await sleep(200);
+	await waitFor(() => L.world.pages[0].page && L.world.pages[0].page.closeCalls === 1, 4000);
 	assert.equal(L.world.pages[0].page.closeCalls, 1, "the return page closed itself after the ack");
 	assert.equal(L.handle.closed, true);
 	assert.equal(JSON.parse(L.world.ls.get("glow_oidc_t_ret")).ack, 1);
@@ -867,7 +872,7 @@ const verdict = (L, extra = {}) => json(L.G.validate(L.got.relay, L.rec, { clien
 	// the real answer arrives later (the player is slow)
 	const real = { k: "glow_oidc", v: 1, h: fragFor(L.rec), q: "", t: Date.now(), d: {} };
 	L.world.ls.set("glow_oidc_t_res:" + L.rec.s, JSON.stringify(real));
-	assert.equal(await waitFor(() => L.got.relay, 300), true);
+	assert.equal(await waitFor(() => L.got.relay, 3000), true);
 	assert.equal(verdict(L).ok, true); L.h.stop();
 	// a pending mailbox entry of ANOTHER attempt is left alone by the listener and swept by age
 	assert.equal(L.G.sweep("t", { clock: () => Date.now() + 200_000 }) >= 0, true);
@@ -920,7 +925,7 @@ const verdict = (L, extra = {}) => json(L.G.validate(L.got.relay, L.rec, { clien
 	h.stop(); // the page leaves: nothing of it is alive any more
 	w.win.gone = true;
 	const page = retPage({ world: w.world, win: w.win }, { frag: fragFor(rec), opener: null, ss: w.win.ssMap });
-	await sleep(120);
+	await waitFor(() => page.replaced.length === 1, 4000);
 	assert.deepEqual(page.replaced, ["auth_test.html"], "back to the starter's page, which takes the answer at load");
 	assert.ok(w.world.ls.get("glow_oidc_t_res:" + rec.s));
 	// the copy of the starter in a SHEET over a live page: the marker was copied with the storage, but the live page answers the ping
@@ -930,10 +935,90 @@ const verdict = (L, extra = {}) => json(L.G.validate(L.got.relay, L.rec, { clien
 	const seen = [];
 	const h2 = live.G.listen({ dest: "t", state: rec2.s, pollMs: 30, onRelay: (r, via) => seen.push(via) });
 	const sheet = retPage({ world: live.world, win: live.win }, { frag: fragFor(rec2), opener: null, ss: new Map(live.win.ssMap) });
-	await sleep(150);
+	await waitFor(() => seen.length === 1);
+	await sleep(500);
 	assert.deepEqual(sheet.navs, [], "no second copy of the page next to the live one");
 	assert.equal(seen.length, 1, "the live page took the answer itself");
 	h2.stop();
+}
+
+// 8b. the tokens of the loop go through a fake Firebase SDK: the nonce rule (the backend wants sha256(rawNonce) == the id_token's nonce) and the order of credentials
+function fakeSdk(mode = {}) {
+	const calls = [];
+	const claimsOf = (t) => JSON.parse(Buffer.from(t.split(".")[1], "base64url").toString("utf8"));
+	const err = (code) => Object.assign(new Error(code), { code });
+	return {
+		calls,
+		async signInWithCredential(cred) {
+			calls.push(cred.kind);
+			await sleep(1);
+			if (mode[cred.kind]) throw err(mode[cred.kind]);
+			if (cred.kind === "A" && sha256hex(cred.rawNonce) !== claimsOf(cred.idToken).nonce) throw err("auth/missing-or-invalid-nonce");
+			return { user: { uid: "u-" + cred.kind } };
+		},
+	};
+}
+const credOf = (kind, v) => (kind === "A" ? { kind, idToken: v.idToken, rawNonce: v.rawNonce } : kind === "B" ? { kind, idToken: v.idToken } : { kind, accessToken: v.accessToken });
+async function viaSdk(L, sdk, { mode = "auto", kind = "popup", aFailed = false } = {}) {
+	const v = L.G.validate(L.got.relay, L.rec, { clientId: CLIENT });
+	assert.equal(v.ok, true, "the loop's answer is valid");
+	const ath = await L.G.checkAtHash(v.claims, v.accessToken, { crypto: webcrypto });
+	const order = json(L.G.credOrder(mode, { kind, aFailed, access: !!v.accessToken, ath }));
+	const x = await L.G.exchange({ order, attempt: (k) => sdk.signInWithCredential(credOf(k, v)) });
+	return { order, ath, x: json({ ok: x.ok, cred: x.cred, results: x.results, fatal: !!x.fatal }) };
+}
+{
+	// the nonce of our request is what the backend's rule wants: credential A signs in on the very first try
+	let L = await loop({});
+	let sdk = fakeSdk();
+	let r = await viaSdk(L, sdk);
+	assert.deepEqual([r.order, r.x.ok, r.x.cred, sdk.calls, r.ath], [["A", "T"], true, "A", ["A"], "ok"]);
+	assert.equal(r.x.results.T, "skip", "T is not tried once A has signed in");
+	L.h.stop();
+	// a wrong raw nonce is refused by the same rule (so the check above really checks something)
+	L = await loop({});
+	const v = L.G.validate(L.got.relay, L.rec, { clientId: CLIENT });
+	sdk = fakeSdk();
+	await assert.rejects(() => sdk.signInWithCredential({ kind: "A", idToken: v.idToken, rawNonce: v.rawNonce + "x" }), (e) => e.code === "auth/missing-or-invalid-nonce");
+	L.h.stop();
+	// the backend refuses A for the nonce: the access token T is the next credential, and only when the id_token vouches for it
+	L = await loop({});
+	sdk = fakeSdk({ A: "auth/missing-or-invalid-nonce" });
+	r = await viaSdk(L, sdk);
+	assert.deepEqual([r.x.ok, r.x.cred, sdk.calls, r.x.results.A], [true, "T", ["A", "T"], "auth/missing-or-invalid-nonce"]);
+	L.h.stop();
+	L = await loop({ badAccess: true });
+	sdk = fakeSdk({ A: "auth/missing-or-invalid-nonce" });
+	r = await viaSdk(L, sdk);
+	assert.deepEqual([r.order, r.ath, r.x.ok, sdk.calls], [["A"], "bad", false, ["A"]], "an access token the id_token does not vouch for is never submitted");
+	L.h.stop();
+	// the second attempt of a sign-in whose A failed before goes B first, then T (a fresh token, a different credential)
+	L = await loop({});
+	sdk = fakeSdk({ B: "auth/invalid-credential" });
+	r = await viaSdk(L, sdk, { kind: "redirect", aFailed: true });
+	assert.deepEqual([r.order, r.x.cred, sdk.calls], [["B", "T"], "T", ["B", "T"]]);
+	L.h.stop();
+	// ?cred=B asks for B only, ?cred=T for T only
+	L = await loop({});
+	sdk = fakeSdk(); r = await viaSdk(L, sdk, { mode: "B" });
+	assert.deepEqual([r.x.cred, sdk.calls], ["B", ["B"]]);
+	sdk = fakeSdk(); r = await viaSdk(L, sdk, { mode: "T" });
+	assert.deepEqual([r.x.cred, sdk.calls], ["T", ["T"]]);
+	L.h.stop();
+	// a network error ends the chain at once; the narrowed response types
+	L = await loop({});
+	sdk = fakeSdk({ A: "auth/network-request-failed" });
+	r = await viaSdk(L, sdk);
+	assert.deepEqual([r.x.ok, r.x.fatal, sdk.calls], [false, true, ["A"]]);
+	L.h.stop();
+	L = await loop({}, { responseType: "id_token" });
+	sdk = fakeSdk(); r = await viaSdk(L, sdk);
+	assert.deepEqual([r.order, r.x.cred], [["A"], "A"], "response_type=id_token: A only, there is no access token");
+	L.h.stop();
+	L = await loop({}, { responseType: "token" });
+	const vt = L.G.validate(L.got.relay, L.rec, { clientId: CLIENT });
+	assert.deepEqual([vt.ok, vt.tokenOnly, json(L.G.credOrder("auto", { access: !!vt.accessToken, ath: "none" }))], [true, true, ["A", "T"]], "token-only is a state-only protection: the caller decides to use it");
+	L.h.stop();
 }
 
 // 9. the phone test page: it compiles, loads the core with the core's own version, and its pinned facts hold -----------------------------

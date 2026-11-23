@@ -34,6 +34,7 @@
 -->
 <style>
 	* { box-sizing: border-box; }
+	[hidden] { display: none !important; }
 	body { margin: 0; padding: 16px; padding-top: max(16px, env(safe-area-inset-top)); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; background: #F4EEFF; color: #2B2345; }
 	h1 { font-size: 21px; margin: 0 0 8px; }
 	h1 small { font-size: 12px; color: #9A8FC0; font-weight: normal; }
@@ -310,7 +311,7 @@
 	log("flags: googleIos=" + word(cfg.googleIos) + " googleIosHome=" + word(cfg.googleIosHome) + " saved=" + word(lsGet("glow_google_flow")) + " cred=" + credMode + " origin=" + (originOk ? "ok" : "other") + " oidc=" + (G ? G.version : "none"));
 
 	// run discipline: one test at a time, every test ends with a RESULT line -------------------------------------------------
-	var current = null, qState = null, ready = { sdk: false, p: false, r: false };
+	var current = null, qState = null, ready = { sdk: false, p: false, r: false }, runSeq = 0;
 	var NEEDS_SDK = { b1: 1, b2: 1, b5: 1, b7: 1, b8: 1, b9: 1 };
 	function btnReady(id) {
 		if (NEEDS_SDK[id] && !ready.sdk) return false;
@@ -330,6 +331,7 @@
 	}
 	function beginRun(n, title, abortFn) {
 		if (current || qState) return null;
+		runSeq++;
 		current = { n: String(n), title: title, t0: Date.now(), abortFn: abortFn || null, ended: false, vis: 0, navigating: false };
 		lsSet("glow_diag_run", JSON.stringify({ n: current.n, load: loadN, t: current.t0, hb: Date.now() }));
 		setLocked();
@@ -483,10 +485,11 @@
 			try { url = typeof input === "string" ? input : String((input && input.url) || ""); } catch (e) { url = ""; }
 			if (!/identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com/.test(url)) return of.apply(window, arguments);
 			var name = shortUrl(url), tt = Date.now(), idp = /signInWithIdp/.test(url);
-			if (idp) { net.idpStart++; log("fetch " + name + ": старт, страница " + vis()); }
+			if (idp) net.idpStart++;
+			log("fetch " + name + ": старт, страница " + vis());
 			var p = of.apply(window, arguments);
-			p.then(function (r) { if (idp) { net.idpEnd++; log("fetch " + name + ": ответ " + r.status + " за " + sec(tt) + " с, страница " + vis()); } },
-				function () { if (idp) log("fetch " + name + ": сеть не ответила за " + sec(tt) + " с"); });
+			p.then(function (r) { if (idp) net.idpEnd++; log("fetch " + name + ": ответ " + r.status + " за " + sec(tt) + " с, страница " + vis()); },
+				function () { log("fetch " + name + ": сеть не ответила за " + sec(tt) + " с"); });
 			return p;
 		};
 	})();
@@ -637,11 +640,11 @@
 		try { if (user && user.metadata && user.metadata.creationTime) created = new Date(user.metadata.creationTime).toISOString(); } catch (e2) { /* none */ }
 		return [["new", info ? (info.isNewUser ? 1 : 0) : "na"], ["uid", tail(user && user.uid, 6)], ["mail", mask(user && user.email)], ["created", created]];
 	}
-	function watchUser(ms, onUser) { // a sign-in that shows up after the call has given up
-		var off = null, timer;
+	function watchUser(ms, onUser) { // a sign-in that shows up after the call has given up (and only while no other test has started: it would be that test's)
+		var off = null, timer, seq = runSeq, uid0 = auth && auth.currentUser ? auth.currentUser.uid : "";
 		function stop() { clearTimeout(timer); try { if (off) off(); } catch (e) { /* none */ } off = null; }
 		timer = setTimeout(stop, ms);
-		try { off = m.onAuthStateChanged(auth, function (u) { if (u) { stop(); onUser(u); } }); } catch (e) { stop(); }
+		try { off = m.onAuthStateChanged(auth, function (u) { if (runSeq !== seq) return stop(); if (u && u.uid !== uid0) { stop(); onUser(u); } }); } catch (e) { stop(); }
 		return stop;
 	}
 
@@ -649,7 +652,7 @@
 	function firebasePopup(n, title, kind) {
 		if (!auth || current) return;
 		var masked = kind === "masked" || (kind === "shim" && standalone), restoreMask = noop;
-		var safety = null, tickFn = null, win = null, ww = null;
+		var safety = null, tickFn = null, win = null, ww = null, called = false;
 		var idp0 = net.idpStart, idpEnd0 = net.idpEnd;
 		var run = beginRun(n, title, cleanup);
 		if (!run) return;
@@ -663,7 +666,7 @@
 		wrapped = function () {
 			restoreOpen(); // one shot: the SDK's own call is the only one that is seen
 			var w = realOpen.apply(window, arguments);
-			win = w;
+			win = w; called = true;
 			ww = winWatch("окно", function () { return w; });
 			log("Firebase вызвал window.open: " + (w ? "окно открыто" : "окно НЕ открыто (вернулось пусто)") + ", прошло " + sec(started) + " с");
 			restoreMask();
@@ -683,7 +686,7 @@
 			if (ww) setTimeout(ww.stop, 4000);
 		}
 		function common() {
-			return [["flip", ww && ww.flip() !== null ? ww.flip() : "none"], ["idp", net.idpStart > idp0 ? 1 : 0], ["idpend", net.idpEnd > idpEnd0 ? 1 : 0], ["open", win ? "win" : "null"]];
+			return [["flip", ww && ww.flip() !== null ? ww.flip() : "none"], ["idp", net.idpStart > idp0 ? 1 : 0], ["idpend", net.idpEnd > idpEnd0 ? 1 : 0], ["open", !called ? "nocall" : win ? "win" : "null"]];
 		}
 		var p;
 		try { p = m.signInWithPopup(auth, new m.GoogleAuthProvider()); } catch (e) { p = Promise.reject(e); } // called synchronously in the tap: the best case
@@ -716,7 +719,13 @@
 					endRun(run, false, [["why", "no_answer"], ["vis", Math.round(run.vis)]].concat(common()),
 						"Тест 7: ответа нет: страница была видна " + Math.round(run.vis) + " с, запроса signInWithIdp не было. Ждём молча до " + SHIM_LIMIT_S + " с на случай позднего ответа.");
 				}
-				if (el >= SHIM_LIMIT_S) { removeTick(); restoreOpen(); restoreMask(); if (ww) ww.stop(); }
+				if (el >= SHIM_LIMIT_S) {
+					removeTick(); restoreOpen(); restoreMask(); if (ww) ww.stop();
+					watchUser(30000, function (u) { // a sign-in that shows up after the wait gave up
+						lateResult(n, true, [["why", "late_user"]].concat(common(), [["uid", tail(u.uid, 6)], ["mail", mask(u.email)]]), "Тест 7: после ожидания в течение 30 с появился вход: " + mask(u.email) + ".", started);
+						try { m.signOut(auth); } catch (e2) { /* none */ }
+					});
+				}
 				return;
 			}
 			if (run.ended) { removeTick(); return; }
@@ -897,13 +906,13 @@
 		}
 		var late = f.run.ended;
 		var d = (f.relay && f.relay.d) || {}, ret = readRet(f.rec.s) || {};
-		var common = [["credmode", f.rec.cm || credMode]], phRec = jparse(ssGet("glow_diag_ph"));
+		var common = [["credmode", f.rec.cm || credMode], ["resumed", f.resumed || "no"]], phRec = jparse(ssGet("glow_diag_ph"));
 		if (f.n === 8) {
 			common = common.concat([["ch", f.seen.map(function (s) { return s.via; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(",") || "none"],
 				["hid", f.seen.filter(function (s) { return s.hidden; }).map(function (s) { return s.via; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(",") || "none"],
 				["ret", f.relay && f.relay.d ? 1 : 0], ["ret.opener", d.op == null ? "na" : d.op], ["ret.ss", d.ss == null ? "na" : d.ss], ["ret.ls", d.ls == null ? "na" : d.ls], ["ret.sa", d.sa == null ? "na" : d.sa], ["ret.own", d.own == null ? "na" : d.own],
 				["ack", ret.ack == null ? "na" : ret.ack], ["ackms", ret.ms == null ? "na" : ret.ms], ["rep", ret.rep == null ? "na" : ret.rep],
-				["open", f.win ? "win" : "null"], ["flip", f.ww && f.ww.flip() !== null ? f.ww.flip() : "none"], ["via", f.via || "none"]]);
+				["open", f.resumed ? "na" : f.win ? "win" : "null"], ["flip", f.ww && f.ww.flip() !== null ? f.ww.flip() : "none"], ["via", f.via || "none"]]);
 		} else {
 			common = common.concat([["starter", f.starter == null ? "na" : f.starter ? 1 : 0], ["own", f.ownMarker ? 1 : 0], ["widmatch", f.widMatch ? 1 : 0], ["alive10s", f.aliveLogged ? 1 : 0], ["ph", f.ph || (phRec && phRec.s === f.rec.s ? phRec.ph : "none")],
 				["src", f.src || "-"], ["ret.opener", d.op == null ? "na" : d.op], ["ret.ss", d.ss == null ? "na" : d.ss], ["ret.ls", d.ls == null ? "na" : d.ls], ["ret.sa", d.sa == null ? "na" : d.sa], ["ret.own", d.own == null ? "na" : d.own],
@@ -1047,9 +1056,10 @@
 			var rec = p.rec;
 			if (flows[rec.s] || handled[rec.s] || p.beacon) return;
 			if (mails.some(function (mm) { return mm.state === rec.s; })) return;
-			handled[rec.s] = 1;
 			var age = (Date.now() - (rec.t || 0)) / 1000;
 			var n = rec.m === "r" ? 9 : 8;
+			if (p.src !== "ss" && age < 60) return; // a copy of another page's attempt, and a young one: that page may be running it
+			handled[rec.s] = 1;
 			if (n === 9) {
 				// we went to Google and came back to a page load with no answer: wait a little, in case the answer is being written
 				var run = beginRun("9", "возврат на страницу без ответа Google (" + trigger + ")", null);
