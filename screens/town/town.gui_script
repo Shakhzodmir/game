@@ -219,9 +219,30 @@ function Town:songbook_offer()
 	self:open_popup("notebook", { district = id, celebrate = true })
 end
 
+-- Has the player built something in the town (a task of any district), and has the layer had its moment? The
+-- first-launch sign-in window waits for this (producer, 23.11.2026): the first star, the first layer and the first music
+-- of the game are the player's own and must not be covered by a question. "Built" comes from the meta, no save field:
+-- some district has a task done (read again only after the meta changed). The moment is the time Bit listens to the
+-- new layer after the show that built it, and a little more; a town entered with a layer built before has no wait.
+function Town:layer_heard()
+	if self.built == nil then
+		self.built = false
+		for _, d in ipairs(app.meta:districts()) do
+			if d.done > 0 then
+				self.built = true
+				break
+			end
+		end
+	end
+	return self.built and self.enter_t - (self.built_t or -math.huge) >= steps.LISTEN_FOR + 0.5
+end
+
 -- Account prompts, never over another window and never while a reward is on show: the sync question (a
 -- decision of client/cloud.lua, asked again after "not now" only when a sync finds one), the first-launch
--- sign-in window (when sign-in is available and the player was not asked yet) and the guest reminder.
+-- sign-in window (when sign-in is available, the player was not asked yet, is not signed in already (the settings
+-- offer the sign-in before the first purchase now) and has built a layer: layer_heard) and the guest reminder (a soft
+-- toast after ten levels, which does not wait for the window: the window comes first at the first purchase, and a
+-- player who has not made one yet still hears about the account).
 function Town:account_prompts()
 	if self.show:busy() or self.sliding or app.ui.popup or self.leaving then return end
 	local d = cloud.decision()
@@ -231,11 +252,14 @@ function Town:account_prompts()
 		return
 	end
 	if self.prompted then return end
-	self.prompted = true
-	if auth.available() and not cloud.welcomed() then
+	local welcome = auth.available() and not cloud.welcomed() and auth.user() == nil
+	if welcome and self:layer_heard() then
+		self.prompted = true
 		self:open_popup("account", { mode = "choice" })
 		return
 	end
+	-- (a window still to come keeps the visit open: asked again every frame until the first layer has been heard)
+	if not welcome then self.prompted = true end
 	local n = app.beaten_count()
 	if cloud.guest_reminder_due(n) then
 		cloud.mark_reminded(n)
@@ -440,6 +464,7 @@ local function on_bus(self, topic, p)
 		if p and (p.key == "reduced_motion" or p.key == "*") then self.dirty_scene, self.dirty_ui = true, true end
 	elseif topic == "meta_changed" then
 		self.dirty_ui = true
+		self.built = nil -- (layer_heard reads the tasks done again)
 	elseif topic == "lives_tick" then
 		if not self.show:busy() then self.hud:tick() end
 	elseif topic == "save_reset" then
@@ -447,6 +472,7 @@ local function on_bus(self, topic, p)
 		self.show:clear()
 		self.fx:clear()
 		self.hold.coins, self.hold.stars, self.hold.infinite = 0, 0, 0
+		self.built, self.built_t = nil, nil -- a new save: nothing built, no layer waiting to be heard
 		self.dirty_scene, self.dirty_ui = true, true
 	elseif topic == "screen_leaving" then
 		self.leaving = true

@@ -291,7 +291,7 @@ describe("screens/town/town.gui_script", function()
 		end)
 		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
 			assert_eq(c.app.ui.hint, "town_first_task")
-			assert_true(c.town:has_text("Spend stars to bring the town back to life", true), G.dump(c.town))
+			assert_true(c.town:has_text("Buy the first layer: the town will play music!", true), G.dump(c.town))
 			c.app.set_setting("language", "ru") -- rebuilds the bars: the hint is still one analytics event
 			c.step(5)
 			assert_eq(count_events("tutorial_step"), 1)
@@ -301,7 +301,7 @@ describe("screens/town/town.gui_script", function()
 			wait_for(c, function() return not c.app.ui.busy end, 6, "the task")
 			assert_eq(c.app.ui.hint, nil)
 			assert_true(c.app.meta:tutorial_seen("town_first_task"))
-			assert_false(c.town:has_text("Spend stars to bring the town back to life", true))
+			assert_false(c.town:has_text("Buy the first layer: the town will play music!", true))
 		end)
 		-- the hint is remembered: a new visit does not show it again
 		G.with_town({ setup = function(app)
@@ -311,6 +311,36 @@ describe("screens/town/town.gui_script", function()
 		end }, function(c)
 			assert_eq(c.app.ui.hint, nil)
 		end)
+	end)
+
+	-- The first purchase is the first music a new player hears (nothing plays before it): the bubble over the very first
+	-- task says so. It sits in a bubble of two lines.
+	it("promises music in the hint over the first task, in every language, within the bubble", function()
+		local want = {
+			en = "Buy the first layer: the town will play music!",
+			ru = "Купи первый слой: в городе зазвучит музыка!",
+			ko = "첫 레이어를 추가하면 마을에 음악이 울려 퍼져요!",
+		}
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			G.with_town({ language = lang, setup = function(app) G.win(app, 1) end }, function(c)
+				assert_eq(c.app.ui.hint, "town_first_task", lang)
+				local node = c.town:find(want[lang])
+				assert_true(node ~= nil, lang .. ": the hint is on the screen: " .. G.dump(c.town))
+				-- no shrinking to a whisper: the bubble holds two lines of 28 px
+				local px = c.E.text_px(node)
+				assert_true(px >= 24, lang .. ": the hint is only " .. string.format("%.1f", px) .. " px")
+				-- ...and the words wrap into two lines at most in the width of the bubble (490 logical px), in the font the
+				-- text really uses
+				local lines = c.town:ctx(function()
+					local font = gui.get_font_resource(gui.get_font(node))
+					local one = resource.get_text_metrics(font, "Ag").height
+					local m = resource.get_text_metrics(font, want[lang], { width = 490, line_break = true })
+					return math.floor(m.height / one + 0.5)
+				end)
+				assert_true(lines <= 2, lang .. ": the hint takes " .. lines .. " lines")
+				assert_eq(#c.E.audit(), 0, lang .. ": every glyph of the hint is in the font")
+			end)
+		end
 	end)
 
 	it("rebuilds the town and its windows when the language changes", function()
@@ -978,5 +1008,132 @@ describe("screens/town: the room while its pictures download (the web build)", f
 			assert_same(c.E.audit(), {})
 		end)
 		require("client.packs")._reset()
+	end)
+end)
+
+-- When a layer enters the track Bit jumps with joy and then LISTENS to it (hands at the headphones, assets/images/bit/
+-- listen_*). Bit:event("headphones") would be refused while the cheer runs (priority 2 against 0), so steps.lua asks
+-- for the pose by name; a skip drops the show's timers, so it starts the pose itself.
+describe("screens/town: Bit listens to the layer that enters", function()
+	-- (the town's steps need the engine globals of the stub: required inside the tests, not when the file loads)
+	local function steps() return require("screens.town.steps") end
+
+	-- steps the frames of `seconds`; the poses Bit goes through: {{mood, at}}, the first is the pose it is in now
+	local function watch(c, seconds)
+		local bit = c.town.self.t.bit
+		local out = { { mood = bit.mood, at = c.E.clock } }
+		for _ = 1, math.ceil(seconds * 60) do
+			c.step(1)
+			if bit.mood ~= out[#out].mood then out[#out + 1] = { mood = bit.mood, at = c.E.clock } end
+		end
+		return out
+	end
+
+	local function moods(list)
+		local out = {}
+		for _, m in ipairs(list) do out[#out + 1] = m.mood end
+		return out
+	end
+
+	local function when(list, mood)
+		for _, m in ipairs(list) do
+			if m.mood == mood then return m.at end
+		end
+		return nil
+	end
+
+	it("jumps with joy as the layer lights up, listens to it for 3.5 s after the jump, then rests", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			tap_target(c, "task")
+			local list = watch(c, 7)
+			assert_same(moods(list), { "happy", "cheer", "listen", "idle" })
+			assert_near(when(list, "listen") - when(list, "cheer"), steps().LISTEN_AFTER, 0.1, "the pose follows the jump")
+			assert_near(when(list, "idle") - when(list, "listen"), steps().LISTEN_FOR, 0.1, "it lasts 3.5 s")
+			assert_false(c.app.ui.busy)
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	it("plays the listening animation of the headphones while it listens: the frames move", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local bit = c.town.self.t.bit
+			tap_target(c, "task")
+			local seen = {}
+			for _ = 1, 60 * 5 do
+				c.step(1)
+				if bit.mood == "listen" then seen[bit.player:image()] = true end
+			end
+			local n = 0
+			for key in pairs(seen) do -- order-free: a count and a check
+				n = n + 1
+				assert_true(string.find(key, "^bit/listen_[1-4]$") ~= nil, "a frame of the listen animation: " .. key)
+			end
+			assert_true(n >= 2, "the frames move while it listens")
+		end)
+	end)
+
+	it("listens at once when a tap skips the show, for the same 3.5 s, and a late timer cannot start it again", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local bit = c.town.self.t.bit
+			tap_target(c, "task")
+			c.run(0.25) -- the stars still fly
+			assert_true(c.app.ui.busy)
+			assert_true(bit.mood ~= "listen")
+			c.tap(360, 800) -- anywhere
+			c.step(3)
+			local t0 = c.E.clock
+			assert_false(c.app.ui.busy)
+			assert_eq(bit.mood, "listen")
+			assert_eq(#c.E.posted("unlock_stem", "main:/audio#audio"), 1)
+			c.run(3.2)
+			assert_eq(bit.mood, "listen", "still at 3.2 s")
+			c.run(0.5)
+			assert_eq(bit.mood, "idle", "done at 3.7 s: " .. string.format("%.2f", c.E.clock - t0))
+			-- nothing fires later: the show's timers were dropped with its effects
+			c.run(1)
+			assert_eq(bit.mood, "idle")
+			assert_false(c.app.ui.busy)
+		end)
+	end)
+
+	it("does not start the pose over when the tap comes while it already runs", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local bit = c.town.self.t.bit
+			tap_target(c, "task")
+			local t_listen
+			for _ = 1, 60 * 4 do
+				c.step(1)
+				if bit.mood == "listen" then t_listen = c.E.clock break end
+			end
+			assert_true(t_listen ~= nil, "Bit listens")
+			-- the pose starts 0.3 s before the show ends (1.2 s after the light-up, the show lasts 1.5 s): a tap now skips the
+			-- last moments of it
+			c.run(0.2)
+			assert_true(c.app.ui.busy, "the show is still on")
+			c.tap(360, 800)
+			c.step(3)
+			assert_false(c.app.ui.busy)
+			assert_eq(bit.mood, "listen")
+			-- 3.5 s after the START of the pose it is over: a restart at the tap would have kept it 0.25 s longer
+			c.run(math.max(0, t_listen + steps().LISTEN_FOR + 0.1 - c.E.clock))
+			assert_eq(bit.mood, "idle")
+		end)
+	end)
+
+	it("keeps the pose as a still frame with reduced motion, with the same timing", function()
+		G.with_town({ setup = function(app) G.win(app, 1); app.set_setting("reduced_motion", true) end }, function(c)
+			local bit = c.town.self.t.bit
+			assert_true(c.app.reduced_motion())
+			tap_target(c, "task")
+			local frames, list = {}, { { mood = bit.mood, at = c.E.clock } }
+			for _ = 1, 60 * 8 do
+				c.step(1)
+				if bit.mood ~= list[#list].mood then list[#list + 1] = { mood = bit.mood, at = c.E.clock } end
+				if bit.mood == "listen" then frames[bit.player:image()] = true end
+			end
+			assert_same(moods(list), { "happy", "cheer", "listen", "idle" })
+			assert_near(when(list, "idle") - when(list, "listen"), steps().LISTEN_FOR, 0.1)
+			assert_same(frames, { ["bit/listen_2"] = true }) -- the rest frame, hands at the headphones, no animation
+		end)
 	end)
 end)
