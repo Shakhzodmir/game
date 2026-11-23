@@ -729,9 +729,10 @@ local S = {
 	["nav.chart"] = { en = "Chart", ru = "Чарт" },
 	["nav.jukebox"] = { en = "Jukebox", ru = "Автомат" },
 	["nav.soon"] = { en = "Soon", ru = "Скоро" },
+	-- (the bubble over the very first task of the town: it promises the first music, two lines at most)
 	["tutorial.town"] = {
-		en = "Spend stars to bring the town back to life",
-		ru = "Трать звёзды, чтобы вернуть городу жизнь",
+		en = "Buy the first layer: the town will play music!",
+		ru = "Купи первый слой: в городе зазвучит музыка!",
 	},
 
 	-- lives window -----------------------------------------------------------------------------------------------------

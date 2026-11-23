@@ -481,7 +481,7 @@ return {
 	["tutorial.swap_booster"] = "크로스페이더로 아무 조각 두 개를 바꿔 보세요!",
 	["tutorial.tap_continue"] = "눌러서 계속하기",
 	["tutorial.tap_special"] = "특수 조각을 누르면 발동해요",
-	["tutorial.town"] = "별을 써서 마을에 활기를 되찾아 주세요",
+	["tutorial.town"] = "첫 레이어를 추가하면 마을에 음악이 울려 퍼져요!",
 	["tutorial.wires"] = "전선을 끊어서 조각을 풀어 주세요!",
 	["tutorial.wires_free"] = "전선이 끊어졌어요. 조각이 다시 자유예요!",
 	["tutorial.wires_match"] = "전선에 묶인 조각은 움직일 수 없지만 매치는 돼요",
