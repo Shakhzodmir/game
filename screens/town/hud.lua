@@ -18,6 +18,7 @@ local rewards = require("client.rewards")
 local levels = require("client.levels")
 local assets = require("client.assets")
 local analytics = require("client.services.analytics")
+local social = require("client.services.social")
 local kit = require("gui.kit")
 
 local M = {}
@@ -31,13 +32,38 @@ M.NAV_Y = 40
 M.LIVES_X, M.COINS_X, M.STARS_X, M.GEAR_X = 118, 334, 528, 662
 M.BIT_X, M.BIT_Y = 660, 398
 
-M.NAV = {
-	{ id = "shop", icon = "ui/icons/shop", label = "nav.shop" },
-	{ id = "band", icon = "ui/icons/team", label = "nav.band" },
-	{ id = "town", icon = "ui/icons/city", label = "nav.town", active = true },
-	{ id = "chart", icon = "ui/icons/chart", label = "nav.chart" },
-	{ id = "jukebox", icon = "ui/icons/jukebox", label = "nav.jukebox" },
-}
+-- The tabs of the bottom navigation, left to right. Band and Chart need the server behind client/services/social.lua:
+-- while none is connected (`online` false: the web build today) they are not shown at all, because their windows
+-- could only say "not connected", and the songbook has a tab of its own in their place. With a server the five tabs
+-- are as they always were (the songbook then keeps its small button under the day / concert toggle,
+-- Hud:build_notebook_button). A tab with soon = true is dimmed, wears the "Soon" badge and answers with a toast
+-- (Town:on_nav); none uses it now. Town:on_nav opens the window of any other tab by its id.
+function M.nav_items(online)
+	if online then
+		return {
+			{ id = "shop", icon = "ui/icons/shop", label = "nav.shop" },
+			{ id = "band", icon = "ui/icons/team", label = "nav.band" },
+			{ id = "town", icon = "ui/icons/city", label = "nav.town", active = true },
+			{ id = "chart", icon = "ui/icons/chart", label = "nav.chart" },
+			{ id = "jukebox", icon = "ui/icons/jukebox", label = "nav.jukebox" },
+		}
+	end
+	return {
+		{ id = "shop", icon = "ui/icons/shop", label = "nav.shop" },
+		{ id = "town", icon = "ui/icons/city", label = "nav.town", active = true },
+		{ id = "notebook", icon = "ui/icons/notebook", label = "nav.notebook" },
+		{ id = "jukebox", icon = "ui/icons/jukebox", label = "nav.jukebox" },
+	}
+end
+
+-- The plate of the navigation (Hud:build_nav) is 700 px wide; its tabs share 690 of them: 138 px each for five (the
+-- step the bar always had), 172 for four. A tab is 132 px wide whatever their number.
+M.NAV_SPAN, M.NAV_TAB_W = 690, 132
+
+-- x of tab i of n, from the centre of the plate
+function M.nav_x(i, n)
+	return (i - (n + 1) / 2) * math.floor(M.NAV_SPAN / n)
+end
 
 local Hud = {}
 Hud.__index = Hud
@@ -249,11 +275,14 @@ function Hud:build_ribbon(parent)
 	end
 	s:anchor(toggle.node, "top")
 	self:target("view", self:top(652, M.RIBBON_Y))
-	self:build_notebook_button(parent)
+	-- the songbook has its own tab in the navigation unless Band and Chart take the room (a server is connected)
+	if self.online then self:build_notebook_button(parent) end
 end
 
--- The songbook (WP-9): a small button under the day / concert toggle (the art keeps its zone free: UI_ZONES in
--- tools/art/gen_art.py). A dot says a finished song is waiting to be looked at.
+-- The songbook (WP-9) in a town that shows the five tabs (Band and Chart: a server is connected): a small button
+-- under the day / concert toggle (the art keeps its zone free: UI_ZONES in tools/art/gen_art.py). A dot says a
+-- finished song is waiting to be looked at. Without a server the songbook is a tab of the navigation instead
+-- (Hud:build_nav) and this button is not drawn.
 M.NOTEBOOK_X, M.NOTEBOOK_Y = 652, 1028
 function Hud:build_notebook_button(parent)
 	local s, town = self.ui, self.town
@@ -268,6 +297,7 @@ function Hud:build_notebook_button(parent)
 	if app.meta:songbook_pending() then
 		local dot = s:circle(b.node, 30, 26, 26, "pink")
 		if dot and not fx.reduced() then ui.pulse(dot, 0.15, 0.6) end
+		self.notebook_dot = dot
 	end
 	self:target("notebook", self:top(M.NOTEBOOK_X, M.NOTEBOOK_Y))
 end
@@ -510,9 +540,10 @@ function Hud:build_nav(parent)
 	local bar = s:round(parent, 360, NAV_CY, 700, 136, "#FAF6FF", { radius = 46 }) -- (not pure white: the window layout tests take a pure white box for a panel)
 	s:anchor(bar, "bottom")
 	self.nav = {}
-	for i, item in ipairs(M.NAV) do
-		local x = -276 + (i - 1) * 138
-		local b = s:button({ parent = bar, x = x, y = 0, w = 132, h = 112, style = item.active and "purple" or "flat",
+	local items = M.nav_items(self.online and true or false)
+	for i, item in ipairs(items) do
+		local x = M.nav_x(i, #items)
+		local b = s:button({ parent = bar, x = x, y = 0, w = M.NAV_TAB_W, h = 112, style = item.active and "purple" or "flat",
 			icon = item.icon, icon_size = 60, sfx = item.soon and "tap" or "button",
 			on_click = function() town:on_nav(item, self.nav[item.id]) end })
 		if b.icon then
@@ -528,6 +559,14 @@ function Hud:build_nav(parent)
 		end
 		self.nav[item.id] = b.node
 		self:target("nav_" .. item.id, self:bottom(360 + x, NAV_CY))
+		if item.id == "notebook" then
+			-- a dot at the corner of the icon says a finished song is waiting to be looked at
+			if app.meta:songbook_pending() then
+				self.notebook_dot = s:circle(b.node, 34, 42, 26, "pink")
+				if self.notebook_dot and not fx.reduced() then ui.pulse(self.notebook_dot, 0.15, 0.6) end
+			end
+			self:target("notebook", self:bottom(360 + x, NAV_CY)) -- the name the QA tools know the songbook by
+		end
 	end
 end
 
@@ -538,6 +577,10 @@ function Hud:build()
 	if self.layer then s:clear(self.layer) end
 	self.layer = s:layer(self.town.c_ui)
 	self.targets = {}
+	self.notebook_dot = nil
+	-- a server is connected: the five tabs with Band and Chart (see M.nav_items); decided once per drawing, so the
+	-- ribbon and the navigation always agree about where the songbook is
+	self.online = social.available()
 	self:build_top(self.layer)
 	self:build_ribbon(self.layer)
 	self:build_task(self.layer)

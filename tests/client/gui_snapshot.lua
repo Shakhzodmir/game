@@ -6,7 +6,9 @@
 --   python3 tests/client/gui_snapshot.py <out.json> <out.png> [scale = 0.75]
 --
 -- Run from the repository root. Scenarios:
---   town            a fresh save: the first task, "Level 1", the navigation
+--   town            a fresh save: the first task, "Level 1", the navigation (four tabs: no server, so no Band and Chart)
+--   town_social     the same with a (mock) server connected: Band and Chart are back, the songbook has its small button
+--   town_song       a finished song waits: the pink dot on the songbook tab
 --   town_ready      one star in the purse: the task card pulses
 --   town_streak     level 14 with a hit streak (notes lit, Hard / Super Hard tag when the level has it)
 --   town_concert    the same district in its concert look
@@ -15,6 +17,8 @@
 --   start_streak    level 14, a streak of two (free boosters), stock in the purse
 --   lives_full / lives_empty / lives_infinite
 --   shop_boosters / shop_coins / shop_coins_debug (a debug build: test purchases and the video gift)
+--   shop_boosters_new / shop_boosters_mid / shop_boosters_late   the boosters shelf of a new player, of level 14, of level 22
+--   shop_boosters_wins_<n>   the shelf after n won levels (shop_boosters_wins_8: the drumstick open, the Riff the one lock)
 --   settings / confirm (the reset question)
 --   jukebox         one finished district: the genre tabs, its theme and songs, nothing picked
 --   jukebox_pick    a finished district, a song of the next genre picked (now playing, the way home lit)
@@ -92,6 +96,19 @@ function S.town_streak()
 	win(2)
 	app.commit("snapshot")
 end
+-- the navigation when a server is connected: Band and Chart come back (five tabs, the songbook keeps its small button)
+function S.town_social()
+	require("client.services.social").set_provider(require("client.services.social_mock").new())
+	main.self.t.dirty_ui = true
+end
+-- a finished song waits to be looked at: the pink dot sits on the songbook tab (the town would offer the song by
+-- itself and open the notebook over it: it is told it did)
+function S.town_song()
+	for _ = 1, 20 do assert(flow.debug_win(3, false, true)) end
+	rewards.clear()
+	main.self.t.offered_song = app.meta:songbook_pending()
+	app.commit("snapshot")
+end
 function S.town_concert()
 	require("client.bus").publish("meta_qa", { action = "view", view = "concert" }) -- as the QA command does
 end
@@ -127,6 +144,17 @@ function S.lives_infinite()
 end
 function S.shop_boosters()
 	win(25)
+	popup(main, "shop", { tab = "boosters" })
+end
+-- the shop shelf at three stages: a new player (one lock and "N more later"), level 14 (three open, one lock, four
+-- more later), level 22 (seven open, the last lock, nothing more to say)
+function S.shop_boosters_new() popup(main, "shop", { tab = "boosters" }) end
+function S.shop_boosters_mid()
+	win(13)
+	popup(main, "shop", { tab = "boosters" })
+end
+function S.shop_boosters_late()
+	win(21)
 	popup(main, "shop", { tab = "boosters" })
 end
 function S.shop_coins() popup(main, "shop", { tab = "coins" }) end
@@ -268,6 +296,14 @@ function S.splash()
 	scene_paths = { "/screens/splash/splash.gui", "/main/overlay.gui" }
 end
 
+-- shop_boosters_wins_<n>: the boosters shelf after n won levels (any stage of the shelf, not just the three above)
+local wins = string.match(scenario, "^shop_boosters_wins_(%d+)$")
+if wins and not S[scenario] then
+	S[scenario] = function()
+		win(tonumber(wins))
+		popup(main, "shop", { tab = "boosters" })
+	end
+end
 local fn = S[scenario]
 if not fn then
 	print("unknown scenario " .. scenario)

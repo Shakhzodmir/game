@@ -38,13 +38,34 @@ local function popup_target(c, name)
 	return c.tap(t.x, t.y)
 end
 
+-- Runs fn(c) on a town with a (mock) server connected: the navigation then has Band and Chart. The provider is
+-- global state: it is taken away again whatever happens, or the next test would meet five tabs.
+local function with_server(fn, setup)
+	local social = require("client.services.social")
+	local social_engine = require("client.social")
+	local ok, err = pcall(function()
+		G.with_town({ setup = function(app, c)
+			social_engine.reset()
+			social.set_provider(require("client.services.social_mock").new())
+			if setup then setup(app, c) end
+		end }, fn)
+	end)
+	social.set_provider(nil)
+	social_engine.reset()
+	if not ok then error(err, 0) end
+end
+
 describe("screens/town/town.gui_script", function()
 	it("builds the first town: top bar, task card, level button, navigation", function()
 		G.with_town({}, function(c)
 			local t = c.town
 			for _, text in ipairs({ "Full", "500", "0", "Lo-fi Café", "Track layers: 0/6", "Concert", "Turntable",
-				"Adds Beat to the track", "Level 1", "Shop", "Band", "Town", "Chart", "Jukebox" }) do
+				"Adds Beat to the track", "Level 1", "Shop", "Town", "Songbook", "Jukebox" }) do
 				assert_true(t:has_text(text, true), "no '" .. text .. "' in: " .. G.dump(t))
+			end
+			-- no server is connected: Band and Chart would only say so, they are not on the navigation at all
+			for _, text in ipairs({ "Band", "Chart" }) do
+				assert_false(t:has_text(text, true), "'" .. text .. "' is shown without a server")
 			end
 			assert_eq(#c.E.audit(), 0)
 			assert_true(t:stats().nodes < 400, "node count " .. t:stats().nodes)
@@ -550,18 +571,30 @@ describe("screens/town/town.gui_script", function()
 		end)
 	end)
 
-	it("opens the band and chart windows (no server: they say so) and the shop and the jukebox", function()
+	it("has four tabs without a server (Shop, Town, Songbook, Jukebox), spread over the plate, and each opens its window", function()
 		G.with_town({}, function(c)
-			tap_target(c, "nav_band")
+			local tg = c.app.ui.targets
+			local hud = c.town.self.t.hud
+			assert_false(hud.online)
+			-- Band and Chart are not there: nothing drawn, nothing to tap
+			assert_eq(tg.nav_band, nil)
+			assert_eq(tg.nav_chart, nil)
+			assert_eq(hud.nav.band, nil)
+			assert_eq(hud.nav.chart, nil)
+			-- the four tabs share the plate (centre x = 360) 172 px apart, the town one second from the left
+			for i, id in ipairs({ "shop", "town", "notebook", "jukebox" }) do
+				assert_true(tg["nav_" .. id] ~= nil, "no tab '" .. id .. "'")
+				assert_near(tg["nav_" .. id].x, 360 + (i - 2.5) * 172, 0.01, id)
+				assert_near(tg["nav_" .. id].y, tg.nav_shop.y, 0.01, id)
+			end
+			-- the small songbook button under the concert toggle is gone: its tab is the one place (and the QA name `notebook`)
+			assert_eq(hud.notebook_btn, nil)
+			assert_near(tg.notebook.x, tg.nav_notebook.x, 0.01)
+			assert_near(tg.notebook.y, tg.nav_notebook.y, 0.01)
+			tap_target(c, "nav_notebook")
 			c.run(0.7)
-			assert_eq(c.app.ui.popup, "band")
-			assert_eq(c.app.ui.band.stage, "unavailable")
-			c.app.close_popup()
-			c.run(0.6)
-			tap_target(c, "nav_chart")
-			c.run(0.7)
-			assert_eq(c.app.ui.popup, "chart")
-			assert_eq(c.app.ui.chart.stage, "unavailable")
+			assert_eq(c.app.ui.popup, "notebook")
+			assert_eq(c.app.ui.notebook.district, "cafe")
 			c.app.close_popup()
 			c.run(0.6)
 			tap_target(c, "nav_shop")
@@ -574,6 +607,10 @@ describe("screens/town/town.gui_script", function()
 			assert_eq(c.app.ui.popup, "jukebox")
 			c.app.close_popup()
 			c.run(0.6)
+			-- the town tab is the one we are on: no window
+			tap_target(c, "nav_town")
+			c.run(0.6)
+			assert_eq(c.app.ui.popup, nil)
 			-- the coins "+" opens the shop on the coins tab, the lives pill the lives window, the gear the settings
 			tap_target(c, "coins_plus")
 			c.run(0.6)
@@ -589,6 +626,155 @@ describe("screens/town/town.gui_script", function()
 			tap_target(c, "settings")
 			c.run(0.6)
 			assert_eq(c.app.ui.popup, "settings")
+		end)
+	end)
+
+	it("shows the five tabs again when a server is connected: Band and Chart work, the songbook keeps its small button", function()
+		with_server(function(c)
+			local tg = c.app.ui.targets
+			local hud = c.town.self.t.hud
+			assert_true(hud.online)
+			-- Shop | Band | Town | Chart | Jukebox, 138 px apart around the centre of the plate: as the bar always had them
+			for i, id in ipairs({ "shop", "band", "town", "chart", "jukebox" }) do
+				assert_true(tg["nav_" .. id] ~= nil, "no tab '" .. id .. "'")
+				assert_near(tg["nav_" .. id].x, 360 + (i - 3) * 138, 0.01, id)
+			end
+			assert_near(tg.nav_shop.x, 84, 0.01)
+			assert_near(tg.nav_jukebox.x, 636, 0.01)
+			for _, text in ipairs({ "Shop", "Band", "Town", "Chart", "Jukebox" }) do
+				assert_true(c.town:has_text(text, true), "no '" .. text .. "'")
+			end
+			-- the songbook has no tab here: its small button under the concert toggle stays, so it is never out of reach
+			assert_eq(tg.nav_notebook, nil)
+			assert_false(c.town:has_text("Songbook", true))
+			assert_true(hud.notebook_btn ~= nil)
+			assert_near(tg.notebook.x, 652, 0.01)
+			tap_target(c, "nav_band")
+			c.run(0.7)
+			assert_eq(c.app.ui.popup, "band")
+			assert_eq(c.app.ui.band.stage, "signin") -- a server, but nobody signed in
+			c.app.close_popup()
+			c.run(0.6)
+			tap_target(c, "nav_chart")
+			c.run(0.7)
+			assert_eq(c.app.ui.popup, "chart")
+			assert_eq(c.app.ui.chart.stage, "signin")
+			c.app.close_popup()
+			c.run(0.6)
+			tap_target(c, "notebook")
+			c.run(0.7)
+			assert_eq(c.app.ui.popup, "notebook")
+			c.app.close_popup()
+			c.run(0.6)
+			tap_target(c, "nav_shop")
+			c.run(0.6)
+			assert_eq(c.app.ui.popup, "shop")
+			c.app.close_popup()
+			c.run(0.6)
+			tap_target(c, "nav_jukebox")
+			c.run(0.6)
+			assert_eq(c.app.ui.popup, "jukebox")
+		end)
+	end)
+
+	it("builds the navigation by the server flag: four tabs, then five, then four again", function()
+		local hud_mod = require("screens.town.hud")
+		local function ids(list)
+			local out = {}
+			for i, item in ipairs(list) do out[i] = item.id end
+			return out
+		end
+		assert_same(ids(hud_mod.nav_items(false)), { "shop", "town", "notebook", "jukebox" })
+		assert_same(ids(hud_mod.nav_items(true)), { "shop", "band", "town", "chart", "jukebox" })
+		-- Town is the lit tab, the songbook one is an ordinary tab with its own icon and label
+		local notebook
+		for _, item in ipairs(hud_mod.nav_items(false)) do
+			if item.id == "town" then assert_true(item.active) end
+			if item.id == "notebook" then notebook = item end
+		end
+		assert_eq(notebook.icon, "ui/icons/notebook")
+		assert_eq(notebook.label, "nav.notebook")
+		-- the five tabs sit where the bar always put them; four are spread over the same plate
+		for i = 1, 5 do assert_eq(hud_mod.nav_x(i, 5), -276 + (i - 1) * 138) end
+		for i = 1, 4 do assert_eq(hud_mod.nav_x(i, 4), -258 + (i - 1) * 172) end
+		-- the same town, a server connecting while it is open: the next drawing has Band and Chart
+		G.with_town({}, function(c)
+			local social = require("client.services.social")
+			local social_engine = require("client.social")
+			local hud = c.town.self.t.hud
+			assert_eq(c.app.ui.targets.nav_band, nil)
+			local ok, err = pcall(function()
+				social.set_provider(require("client.services.social_mock").new())
+				c.town.self.t.dirty_ui = true
+				c.step(3)
+				assert_true(hud.online)
+				assert_true(c.app.ui.targets.nav_band ~= nil and c.app.ui.targets.nav_chart ~= nil)
+				assert_eq(c.app.ui.targets.nav_notebook, nil)
+			end)
+			social.set_provider(nil)
+			social_engine.reset()
+			if not ok then error(err, 0) end
+			c.town.self.t.dirty_ui = true
+			c.step(3)
+			assert_false(hud.online)
+			assert_eq(c.app.ui.targets.nav_band, nil)
+			assert_true(c.app.ui.targets.nav_notebook ~= nil)
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	it("keeps the 'Soon' mechanism for a tab that is not ready: dimmed, a badge, a toast, no window", function()
+		local hud_mod = require("screens.town.hud")
+		local real = hud_mod.nav_items
+		hud_mod.nav_items = function(online)
+			local list = real(online)
+			for _, item in ipairs(list) do
+				if item.id == "notebook" then item.soon = true end
+			end
+			return list
+		end
+		local ok, err = pcall(function()
+			G.with_town({}, function(c)
+				assert_true(c.town:has_text("Soon", true), "the badge of a tab that is not ready")
+				tap_target(c, "nav_notebook")
+				c.run(0.7)
+				assert_eq(c.app.ui.popup, nil)
+				assert_eq(c.app.overlay.toast, "Coming soon!")
+			end)
+		end)
+		hud_mod.nav_items = real
+		if not ok then error(err, 0) end
+	end)
+
+	it("keeps the dot of a finished song on the small songbook button while the five tabs are shown", function()
+		local flow = require("client.flow")
+		with_server(function(c)
+			local hud = c.town.self.t.hud
+			assert_true(hud.online)
+			assert_true(c.app.meta:songbook_pending() ~= nil)
+			assert_true(hud.notebook_btn ~= nil)
+			assert_true(hud.notebook_dot ~= nil, "no dot on the small button")
+			assert_eq(c.app.ui.targets.nav_notebook, nil)
+		end, function(app)
+			for _ = 1, 20 do assert(flow.debug_win(3, false, true)) end
+		end)
+	end)
+
+	it("puts the dot of a finished song on the songbook tab, and takes it away when the song was looked at", function()
+		local flow = require("client.flow")
+		G.with_town({ setup = function(app)
+			for _ = 1, 20 do assert(flow.debug_win(3, false, true)) end -- the song of the cafe is finished and not offered yet
+		end }, function(c)
+			local hud = c.town.self.t.hud
+			assert_true(c.app.meta:songbook_pending() ~= nil)
+			-- the songbook tab carries the dot (a pink disc at the corner of its icon), the small button is not there to carry it
+			assert_true(hud.notebook_dot ~= nil, "no dot on the tab")
+			assert_eq(hud.notebook_btn, nil)
+			c.run(2.5) -- the finished song is offered: the notebook opens on it and marks it as seen
+			assert_eq(c.app.ui.popup, "notebook")
+			assert_eq(c.app.meta:songbook_pending(), nil)
+			assert_eq(hud.notebook_dot, nil, "the dot is gone once the song was seen")
+			assert_eq(#c.E.audit(), 0)
 		end)
 	end)
 

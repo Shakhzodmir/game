@@ -728,6 +728,7 @@ local S = {
 	["nav.chart"] = { en = "Chart", ru = "Чарт" },
 	["nav.jukebox"] = { en = "Jukebox", ru = "Автомат" },
 	["nav.soon"] = { en = "Soon", ru = "Скоро" },
+	["nav.notebook"] = { en = "Songbook", ru = "Блокнот" }, -- the tab that stands where Band and Chart are not shown (en as the window's title)
 	["tutorial.town"] = {
 		en = "Spend stars to bring the town back to life",
 		ru = "Трать звёзды, чтобы вернуть городу жизнь",
@@ -824,6 +825,11 @@ local S = {
 	["shop.gift_unavailable"] = { en = "No videos in the web demo", ru = "В веб-демо нет видео" },
 	["shop.lives_full"] = { en = "Lives are full", ru = "Жизни полные" },
 	["shop.infinite_on"] = { en = "Unlimited lives are on", ru = "Жизни бесконечны" },
+	-- under the one closed pack the booster shelf shows: how many more are still hidden (n = their number)
+	["shop.more_later"] = {
+		en = { one = "{n} more will unlock later", other = "{n} more will unlock later" },
+		ru = { one = "Ещё {n} откроется позже", few = "Ещё {n} откроются позже", many = "Ещё {n} откроются позже" },
+	},
 
 	-- settings ---------------------------------------------------------------------------------------------------------
 	["settings.account_guest"] = { en = "Guest", ru = "Гость" },

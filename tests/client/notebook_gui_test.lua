@@ -145,10 +145,12 @@ describe("songbook window", function()
 		end)
 	end)
 
-	it("has a button in the town, with a dot while a finished song waits", function()
+	it("has a tab in the navigation of the town (the dot of a finished song: tests/client/meta_town_gui_test.lua)", function()
 		G.with_town({ language = "en" }, function(c)
-			local t = c.app.ui.targets.notebook
-			assert_true(t ~= nil, "no notebook button")
+			local t = c.app.ui.targets.nav_notebook
+			assert_true(t ~= nil, "no songbook tab")
+			local qa = c.app.ui.targets.notebook -- the name the QA tools (tools/qa/web_screens.mjs) tap it by
+			assert_true(qa ~= nil and qa.x == t.x and qa.y == t.y, "the QA name points elsewhere")
 			c.tap(t.x, t.y)
 			c.step(40)
 			assert_eq(c.app.ui.popup, "notebook")

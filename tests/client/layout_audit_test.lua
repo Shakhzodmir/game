@@ -145,6 +145,7 @@ local CASES = {
 	{ "start" }, { "start", nil, "rich" }, { "start", nil, "nolives" }, { "start", nil, "late" }, { "start", nil, "fresh" },
 	{ "lives" }, { "lives", nil, "rich" }, { "lives", nil, "fresh" }, { "lives", nil, "somelives" }, { "lives", nil, "nolives" }, { "lives", nil, "infinite" },
 	{ "shop", { tab = "boosters" } }, { "shop", { tab = "boosters" }, "rich" }, { "shop", { tab = "boosters" }, "late" },
+	{ "shop", { tab = "boosters" }, "fresh" }, -- a new player: one closed pack beside the lives card, the line "N more" under both
 	{ "shop", { tab = "coins" } }, { "shop", { tab = "coins" }, "rich" }, { "shop", { tab = "coins" }, "nolives" },
 	{ "settings" }, { "settings", nil, "fresh" },
 	{ "account", nil, "acct_guest" }, { "account", { mode = "choice" }, "acct_guest" }, { "account", nil, "acct_id" }, { "account", nil, "acct_id_nomail" },

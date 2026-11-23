@@ -13,7 +13,8 @@
 --   views.level_button(meta, levels)         --> {level, tag, notes, all_done}
 --   views.start(meta, n, info, now, levels, free_up_to) --> the start window of level n
 --   views.start_boosters(meta, level)        --> the three pre-level slots
---   views.shop_boosters(meta)                --> every booster pack
+--   views.shop_boosters(meta)                --> every booster pack, by the level it opens at
+--   views.shop_shelf(packs)                  --> the open packs and the nearest closed one, how many are left out
 --   views.shop_products(products, available) --> coin packs of the store
 --   views.refill(meta, now)                  --> the refill button
 --   views.jukebox(meta, districts_by_id, genres_by_id) --> the genre tabs and the songs of each
@@ -253,8 +254,9 @@ function M.start(meta, n, info, now, levels, free_up_to)
 	}
 end
 
--- Every booster pack of the shop: {id, icon, kind, count, unlocked,
--- unlock_level, price, size, affordable}.
+-- Every booster pack of the shop, in the order they open (by unlock level; the catalogue's own order is the one of
+-- the inventory and means nothing to a player): {id, icon, kind, count, unlocked, unlock_level, price, size,
+-- affordable}.
 function M.shop_boosters(meta)
 	local coins = meta:coins()
 	local out = {}
@@ -265,7 +267,31 @@ function M.shop_boosters(meta)
 			price = b.pack_price, size = b.pack_size, affordable = coins >= b.pack_price,
 		}
 	end
+	-- table.sort is not stable: two packs of one level keep the catalogue's order through their position
+	local at = {}
+	for i, b in ipairs(out) do at[b] = i end
+	table.sort(out, function(a, b)
+		if a.unlock_level ~= b.unlock_level then return a.unlock_level < b.unlock_level end
+		return at[a] < at[b]
+	end)
 	return out
+end
+
+-- What the shop window shows of those packs: every open pack, then ONE closed pack, the one that opens first (a new
+-- player meets a single lock, not a wall of eight); the other closed packs are only counted. Returns the packs to
+-- draw (the closed one is always the last) and how many closed packs were left out.
+function M.shop_shelf(packs)
+	local shown, near, closed = {}, nil, 0
+	for _, b in ipairs(packs) do
+		if b.unlocked then
+			shown[#shown + 1] = b
+		else
+			closed = closed + 1
+			if near == nil or b.unlock_level < near.unlock_level then near = b end
+		end
+	end
+	if near then shown[#shown + 1] = near end
+	return shown, math.max(0, closed - 1)
 end
 
 -- Coin packs of the store for the shop: {id, name (i18n key), price (store
