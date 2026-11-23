@@ -19,11 +19,13 @@ every 740 px and next to every gate (district 16 and 17 had it for a week: ChatG
     python3 tools/art/feather_mapbg.py --check          # only look: tools/art/tile_check.py (standard library)
     python3 tools/art/feather_mapbg.py selftest         # the checks of this script (Pillow and numpy)
 
-The picture can be a PNG or a JPEG, any size of the same 2:3 shape (it is scaled to 720x1080), opaque. A district with the
-producer's picture in assets/art_ready/map/map_bg_<id>.png is made from it, any other from its own file in assets/images/mapbg
-(bg_<id>.png or bg_<id>.jpg). A tile that has the feather already is left alone: running it again changes nothing. A JPEG
-tile becomes a PNG (the JPEG is deleted, assets/art_ready/installed.json follows). tools/art/install_district.py puts the
-tile of a new district through feather(), so it comes out feathered whatever the file was.
+The picture can be a PNG or a JPEG, any size of the same 2:3 shape (it is scaled to 720x1080), opaque. A picture of another
+shape (a 1024x1024 square is the usual mistake) is refused: scaling it to 2:3 would stretch the whole tile. A district with
+the producer's picture in assets/art_ready/map/map_bg_<id>.png is made from it, any other from its own file in
+assets/images/mapbg (bg_<id>.png or bg_<id>.jpg). A tile that has the feather already is left alone: running it again
+changes nothing. A JPEG tile becomes a PNG (the JPEG is deleted, assets/art_ready/installed.json follows).
+tools/art/install_district.py and tools/art/install_ready.py put every map tile they install through feather()/write_tile(),
+so it comes out feathered whatever the file was.
 """
 import glob
 import os
@@ -42,6 +44,7 @@ OUT = os.path.join(IMAGES, "mapbg")
 W, H = 720, 1080
 FEATHER = 110   # the same as tools/gen_map.py TILE_FEATHER; tools/art/tile_check.py compares the files with content/map.json
 EXTS = (".png", ".jpg", ".jpeg")
+RATIO_TOLERANCE = 0.02   # how far width/height of a picture may be from 2:3: the rounding of a resize, never a square
 
 
 def mask():
@@ -66,8 +69,12 @@ def is_feathered(im):
 
 def feather(im):
     """The tile made of a picture: RGBA 720x1080, the bottom FEATHER px fading to transparent. The picture is opaque (a PNG
-    or a JPEG, any mode); a tile that is feathered already comes out the same (feather(feather(x)) == feather(x)). A picture
-    with transparency of its own is refused: the game would show the hole."""
+    or a JPEG, any mode) and of the 2:3 shape; a tile that is feathered already comes out the same (feather(feather(x)) ==
+    feather(x)). A picture of another shape is refused (it would be stretched) and so is one with transparency of its own
+    (the game would show the hole): ValueError."""
+    if abs(im.width / float(im.height) - W / float(H)) > RATIO_TOLERANCE:
+        raise ValueError("the map picture is %dx%d: a map tile is portrait 2:3 (1024x1536 from ChatGPT), scaling it to 2:3 "
+                         "would stretch the whole tile: ask for a 2:3 picture or crop this one" % im.size)
     a = alpha_of(im)
     if a is not None and a.min() < 250 and not is_feathered(im):
         raise ValueError("the map picture has transparency of its own (a map tile is drawn on the whole canvas; the game "
@@ -80,6 +87,18 @@ def feather(im):
 def same_pixels(path, tile):
     with Image.open(path) as old:
         return old.size == tile.size and bool(np.array_equal(np.asarray(old.convert("RGBA")), np.asarray(tile)))
+
+
+def write_tile(src, dst):
+    """Makes the tile dst (a PNG path) of the picture file src with feather(). True when dst changed: a dst that is that tile
+    already is not written again (its bytes and its time stamp stay)."""
+    with Image.open(src) as im:
+        tile = feather(im)
+    if os.path.isfile(dst) and same_pixels(dst, tile):
+        return False
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    tile.save(dst, optimize=True)
+    return True
 
 
 def own_files(did, out=OUT):
@@ -107,13 +126,8 @@ def make(did, ready=READY, out=OUT, state=inst.PATH):
         if not own:
             raise SystemExit("no picture of the tile of %s: neither %s nor mapbg/bg_%s.png|jpg" % (did, src, did))
         src = own[0]
-    with Image.open(src) as im:
-        tile = feather(im)
     dst = os.path.join(out, "bg_%s.png" % did)
-    changed = not (os.path.isfile(dst) and same_pixels(dst, tile))
-    if changed:
-        os.makedirs(out, exist_ok=True)
-        tile.save(dst, optimize=True)
+    changed = write_tile(src, dst)
     gone = [p for p in own if p != dst]
     for p in gone:                       # a JPEG tile (no alpha) is replaced by the PNG
         os.remove(p)
@@ -211,6 +225,27 @@ def selftest():
             check(False, "bg_two.png and bg_two.jpg together are refused")
         except SystemExit:
             pass
+
+        # 4b. a picture that is not 2:3 is refused, not stretched (a 1024x1024 square from ChatGPT would come out 1.5x too
+        # tall); a picture a little off 2:3 (the rounding of a resize) is accepted. The refused file is not touched.
+        for size in ((1024, 1024), (1536, 1024), (1024, 1792), (720, 1280)):
+            try:
+                feather(picture(20, size=size))
+                check(False, "a %dx%d picture is refused" % size)
+            except ValueError as e:
+                check("2:3" in str(e) and ("%dx%d" % size) in str(e), "the refusal names the shape and the size: %s" % e)
+        for size in ((1024, 1536), (1000, 1500), (1024, 1500), (1024, 1560), (700, 1080)):
+            check(feather(picture(21, size=size)).size == (W, H), "a %dx%d picture is accepted" % size)
+        square = os.path.join(out, "bg_sq.png")
+        picture(22, size=(1024, 1024)).save(square)
+        kept = open(square, "rb").read()
+        try:
+            make("sq", ready, out, state)
+            check(False, "a square tile file is refused")
+        except ValueError:
+            pass
+        check(open(square, "rb").read() == kept and "mapbg/bg_sq.png" not in inst.load(state),
+              "a refused tile is left as it was and is not listed")
 
         # 5. to_jpeg_backgrounds never turns a map tile into a JPEG (a JPEG has no alpha); a room background it does
         # (tools/art/install_district.py has its own self test: it installs a whole synthetic district)

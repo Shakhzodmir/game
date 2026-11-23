@@ -97,10 +97,19 @@ describe("the art tools that make and install tiles", function()
 		end
 	end)
 
-	it("feather every map tile an installer writes, and never turn one into a JPEG", function()
+	it("refuse a map picture that is not 2:3 (a square is stretched 1.5x otherwise) before a file of the district is written", function()
 		local district = read("tools/art/install_district.py")
-		assert_true(string.find(district, 'save(fm.feather(Image.open(src("map_bg_" + name))), "mapbg/bg_%s.png" % did)', 1, true) ~= nil,
-			"install_district.py installs the tile through feather_mapbg.feather")
+		local made = string.find(district, "tile = fm.feather(picture)", 1, true)
+		assert_true(made ~= nil, "install_district.py makes the tile with feather_mapbg.feather")
+		assert_true(string.find(district, 'save(tile, "mapbg/bg_%s.png" % did)', 1, true) ~= nil, "install_district.py installs that tile")
+		local first_save = string.find(district, 'save(Image.open(src("room_', 1, true)
+		assert_true(first_save ~= nil and made < first_save,
+			"the tile is made before the first picture is saved: a refused map picture must not leave a half-installed district")
+		-- the shape is checked in one place, the function every installer calls
+		assert_eq(tonumber(string.match(read("tools/art/feather_mapbg.py"), "\nRATIO_TOLERANCE = ([%d.]+)")), 0.02, "feather_mapbg.py RATIO_TOLERANCE")
+	end)
+
+	it("feather every map tile an installer writes, and never turn one into a JPEG", function()
 		local jpeg = read("tools/art/to_jpeg_backgrounds.py")
 		assert_true(string.find(jpeg, 'LOOSE = ("districts", "backgrounds")', 1, true) ~= nil, "to_jpeg_backgrounds.py leaves mapbg alone")
 	end)

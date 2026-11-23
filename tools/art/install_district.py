@@ -16,7 +16,8 @@ w = width on screen). content/district_layouts.json gets the district; the files
 assets/art_ready/installed.json. Run python3 tools/gen_defold.py afterwards.
 
 The map tile is made 720x1080 RGBA with the bottom 110 rows faded out whatever the picture was (PNG or JPEG, opaque, any size
-of the 2:3 shape): tools/art/feather_mapbg.py. The pictures may be .png, .jpg or .jpeg. A picture that replaces a placeholder
+of the 2:3 shape): tools/art/feather_mapbg.py. A map picture of another shape (a square) or with transparency of its own is
+refused BEFORE anything is written. The pictures may be .png, .jpg or .jpeg. A picture that replaces a placeholder
 of tools/art/make_part2_placeholders.py stops being one (its note in installed.json goes, an older .jpg/.png of the same
 key is deleted).
 
@@ -213,12 +214,19 @@ def main(argv=None):
                 return os.path.join(folder, n + ext)
         return os.path.join(folder, n + ".png")
 
+    # the map tile: 720x1080 RGBA with the bottom 110 rows faded out (the map overlaps the tiles of a district: an opaque
+    # tile shows a hard seam every 740 px), whatever the picture was: tools/art/feather_mapbg.py. It is made FIRST: a picture
+    # that is refused (not 2:3, transparent) must stop the install before the rooms are written (save() deletes the old
+    # .jpg of a key and the list is saved only at the end)
+    try:
+        with Image.open(src("map_bg_" + name)) as picture:
+            tile = fm.feather(picture)
+    except ValueError as e:
+        sys.exit("map_bg_%s: %s" % (name, e))
     for view, key in (("day", "bg"), ("concert", "bg_concert")):
         save(Image.open(src("room_%s_%s" % (name, view))).convert("RGB").resize((720, 1280), Image.LANCZOS),
              "districts/%s/%s.png" % (did, key))
-    # the map tile: 720x1080 RGBA with the bottom 110 rows faded out (the map overlaps the tiles of a district: an opaque
-    # tile shows a hard seam every 740 px), whatever the picture was: tools/art/feather_mapbg.py
-    save(fm.feather(Image.open(src("map_bg_" + name))), "mapbg/bg_%s.png" % did)
+    save(tile, "mapbg/bg_%s.png" % did)
 
     color, alpha = keyed(src("gate_" + name))
     h, w = alpha.shape
@@ -311,6 +319,28 @@ def selftest():
             for rel in ("mapbg/bg_zz_test.jpg", "districts/zz_test/bg.jpg"):
                 with open(os.path.join(images, rel), "wb") as f:
                     f.write(b"placeholder")
+
+            # a map picture that is not 2:3 (a square from ChatGPT) is refused BEFORE anything is written: no room JPEG is
+            # deleted, installed.json and the layouts stay as they were (the rooms are installed ahead of the tile)
+            def snapshot():
+                kept = {}
+                for dp, _, fns in os.walk(root):
+                    for fn in fns:
+                        with open(os.path.join(dp, fn), "rb") as fh:
+                            kept[os.path.relpath(os.path.join(dp, fn), root)] = fh.read()
+                return kept
+            good_tile = open(tile_jpeg, "rb").read()
+            Image.fromarray(rng.randint(0, 255, (1024, 1024, 3), np.uint8)).save(tile_jpeg, quality=90)
+            before = snapshot()
+            try:
+                main(["zz_test", folder, "zz"])
+                check(False, "a square map picture is refused")
+            except SystemExit as e:
+                check("map_bg_zz" in str(e.code) and "2:3" in str(e.code), "the refusal names the picture and the shape: %s" % e.code)
+            check(snapshot() == before, "a refused map picture leaves the project as it was (nothing written, no JPEG deleted)")
+            with open(tile_jpeg, "wb") as f:
+                f.write(good_tile)
+
             main(["zz_test", folder, "zz"])
 
             tile = Image.open(os.path.join(images, "mapbg", "bg_zz_test.png"))
