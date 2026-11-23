@@ -280,7 +280,7 @@ end
 M.GOAL_HINT_SECONDS = 3.5   -- how long it stays when nothing else happens (the next press on anything else ends it)
 M.GOAL_TITLE_STRIP = 52     -- the top of the panel holds "Level N" and the difficulty: a press there is no tile
 M.GOAL_PANEL_EDGE = 18      -- the picture of the panel ends this far above the bottom of its node (the counters sit above it)
-M.GOAL_HINT_NOTCH = 10      -- the pointer of the pill: it reaches up to the panel's visible edge
+M.GOAL_HINT_NOTCH = 12      -- the pointer of the pill: it reaches up to the panel's visible edge
 M.GOAL_HINT_TOP = M.GOAL_PANEL_EDGE - M.GOAL_HINT_NOTCH -- the pill's top edge, above the bottom of the panel's node
 M.GOAL_HINT_H = 46          -- one line of 26 px
 M.GOAL_HINT_MIN_H = 36      -- a board that crowds the panel thins the pill down to this, never further

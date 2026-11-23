@@ -88,6 +88,7 @@ function Level:on_popups()
 		self.paused = open
 		link.pause(open)
 		self.tutv:set_visible(not open)
+		if open then self.hud:hide_goal_hint() end
 	end
 end
 
@@ -98,6 +99,10 @@ end
 -- Pause only while the level is being played: once the last goal is down the win is certain, and a leave
 -- from the finale would be booked as a loss.
 local PAUSABLE = { playing = true, out_of_moves = true }
+
+-- A press on a goal tile explains the goal only while the level is being played. In the finale (won_wait, concert) the
+-- board takes any press as the skip of the concert: a press over the panel must reach it.
+local EXPLAINS = { playing = true, out_of_moves = true }
 
 function Level:open_pause()
 	if self.ended or not self.ctx or self.popups:count() > 0 or not PAUSABLE[self.state] then return end
@@ -188,6 +193,7 @@ function Level:on_result(result)
 	self.ended = true
 	link.cancel_booster()
 	self.hud:set_target(nil)
+	self.hud:hide_goal_hint()
 	if self.tutorial then
 		self.tutorial:update(0) -- it hears the end of the level
 	end
@@ -337,7 +343,9 @@ function Level:update_tutorial(dt)
 		return
 	end
 	local rect = link.board_rect()
-	self.tutv:set(t:view(), rect)
+	local view = t:view()
+	if view then self.hud:hide_goal_hint() end -- a lesson is on the screen: its bubble speaks, the hint of a goal does not
+	self.tutv:set(view, rect)
 	if t.blocked ~= self.blocked_seen then
 		self.blocked_seen = t.blocked
 		self.tutv:shake()
@@ -363,6 +371,7 @@ end
 function Level:on_state(p)
 	self.state = p.state
 	self.hud:set_state(p.state)
+	if not EXPLAINS[p.state] then self.hud:hide_goal_hint() end
 	guard(self, "bit", self.hud.bit_event, self.hud, "level_state", p)
 	if p.state == "out_of_moves" then
 		self:open_moves()
@@ -443,8 +452,10 @@ function Level:publish()
 	else
 		l.tutorial = nil
 	end
-	-- where to tap (logical coordinates, for the QA bridge): the pause button and the five boosters; rebuilt only
-	-- when the HUD was laid out again
+	-- the hint of a goal on show (the tile's number and its line), for QA and the tests
+	l.goal_hint, l.goal_hint_text = self.hud:goal_hint_shown(), self.hud:goal_hint_text()
+	-- where to tap (logical coordinates, for the QA bridge): the pause button, the five boosters and the goal tiles
+	-- (goal1 .. goal3); rebuilt only when the HUD was laid out again
 	local layout = self.hud.l
 	if layout and layout ~= self.pub_layout then
 		self.pub_layout = layout
@@ -453,6 +464,10 @@ function Level:publish()
 		for _, id in ipairs(level_hud.BOOSTERS) do
 			local r = self.hud:booster_rect(id)
 			if r then tg[id] = { x = r.cx, y = r.cy } end
+		end
+		for k = 1, math.min(3, #(self.hud.goal_defs or {})) do
+			local x, y = self.hud:goal_pos(k)
+			tg["goal" .. k] = { x = x, y = y }
 		end
 		self.pub_targets = tg
 	end
@@ -487,6 +502,13 @@ function Level:update(dt)
 	self:publish()
 end
 
+-- May a press on a goal tile explain the goal now? While the level is played, with no window and no lesson on the screen.
+function Level:can_explain()
+	if self.ended or not self.ctx or self.popups:count() > 0 or not EXPLAINS[self.state] then return false end
+	local t = self.tutorial
+	return not (t and t:view())
+end
+
 function Level:on_input(action_id, action)
 	if self.popups:on_input(action_id, action) then return true end
 	if action_id == BACK then
@@ -497,6 +519,13 @@ function Level:on_input(action_id, action)
 	if self.swallow then
 		if action.released then self.swallow = false end
 		return true
+	end
+	-- Any press that is not on a goal tile ends the hint of a goal (the board, a booster, the pause button): the press itself
+	-- is not touched, it goes where it was meant. A press on a tile is taken below, and only that one.
+	local tile = nil
+	if action.pressed then
+		tile = self:can_explain() and self.hud:goal_at(action) or nil
+		if not tile then self.hud:hide_goal_hint() end
 	end
 	if self.ui:on_input(action_id, action) then return true end
 	if action.pressed then
@@ -509,6 +538,12 @@ function Level:on_input(action_id, action)
 			return true
 		end
 		if self.hud:pick_bit(action) then
+			self.swallow = not action.released
+			return true
+		end
+		if tile then
+			-- the tile explains itself; the board never hears of this touch (no selection lost, no booster disarmed)
+			self.hud:show_goal_hint(tile)
 			self.swallow = not action.released
 			return true
 		end

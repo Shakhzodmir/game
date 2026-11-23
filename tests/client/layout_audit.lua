@@ -174,12 +174,12 @@ function A.window_root(c)
 	return top and top.holder or nil
 end
 
--- All measured visible texts of the scene of context c (of the top window only, when opts.window): {node, text,
--- rect, lines, font_px, box (rect or nil)}.
+-- All measured visible texts of the scene of context c (of the top window only, when opts.window; of the nodes under
+-- opts.root only, when that is given: a hint, a bubble): {node, text, rect, lines, font_px, box (rect or nil)}.
 function A.texts(c, opts)
 	local E = c.E
 	local rows = {}
-	local panel = opts and opts.window and A.window_root(c)
+	local panel = opts and (opts.root or (opts.window and A.window_root(c)))
 	if opts and opts.window and not panel then error("layout_audit: no window on the screen") end
 	for _, n in ipairs(E.alive_nodes((opts and opts.scene) or (c.town or c.hud).scene)) do
 		if n.kind == "text" and (not panel or under(n, panel)) and (n.text or "") ~= "" and E.visible(n) and E.opacity(n) > 0.05 then

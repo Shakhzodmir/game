@@ -369,3 +369,111 @@ describe("text layout audit: overlay", function()
 		fail_on(bad, "toast texts")
 	end)
 end)
+
+-- The hint of a goal tile (screens/level/hud.lua): one line in a pill under the goals panel. Every kind of goal the levels have,
+-- in every language, must read at 18 px or more, inside its pill, and the pill must stay inside the window, off the cells of the
+-- board (level 185 is the tallest board: 44 px under the panel) and off the counters of the panel.
+describe("text layout audit: goal hints", function()
+	local level_hud = require("client.level_hud")
+	local link = require("client.level_link")
+	local MIN_PX = 18
+
+	local function hud(c) return c.hud.self.l.hud end
+
+	-- shows the hint of tile k and measures the texts of the pill: the problems, the rows
+	local function show(c, k)
+		local t = c.app.ui.level.targets["goal" .. k]
+		assert_true(t ~= nil, "no tap target for goal " .. k)
+		c.tap(t.x, t.y)
+		c.step(3)
+		local root = hud(c).hint_node
+		assert_true(root ~= nil, "the tap showed no hint")
+		return A.check(c, { root = root }), A.texts(c, { root = root })
+	end
+
+	it("keeps the line of every kind of goal inside its pill and readable, in every language", function()
+		local first, order = G.first_goal_levels()
+		local bad = {}
+		for _, lang in ipairs(LANGS) do
+			for _, what in ipairs(order) do
+				local n, k = first[what][1], first[what][2]
+				G.with_level({ level = n, attempt = false, language = lang }, function(c)
+					c.run(0.8)
+					local problems, rows = show(c, k)
+					for _, m in ipairs(problems) do bad[#bad + 1] = string.format("level %d %s %s: %s", n, what, lang, m) end
+					if #rows ~= 1 then bad[#bad + 1] = string.format("level %d %s %s: %d texts in the pill", n, what, lang, #rows) end
+					for _, r in ipairs(rows) do
+						if r.font_px < MIN_PX - 0.01 then
+							bad[#bad + 1] = string.format("level %d %s %s: '%s' is only %.1f px tall", n, what, lang, r.text, r.font_px)
+						end
+						if r.lines ~= 1 then bad[#bad + 1] = string.format("level %d %s %s: the line wraps", n, what, lang) end
+					end
+				end)
+			end
+		end
+		fail_on(bad, "goal hint texts")
+	end)
+
+	it("says a goal that is done, and a colour goal with the biggest number, at a readable size too", function()
+		local bus = require("client.bus")
+		local bad = {}
+		for _, lang in ipairs(LANGS) do
+			G.with_level({ level = 178, attempt = false, language = lang }, function(c)
+				c.run(0.8)
+				bus.publish("level_goal", { index = 1, left = 99999 })
+				bus.publish("level_goal", { index = 1, left = 0 })
+				c.step(3)
+				local problems, rows = show(c, 1)
+				for _, m in ipairs(problems) do bad[#bad + 1] = lang .. " done: " .. m end
+				for _, r in ipairs(rows) do
+					if r.font_px < MIN_PX - 0.01 then bad[#bad + 1] = string.format("%s done: '%s' is only %.1f px", lang, r.text, r.font_px) end
+				end
+			end)
+			-- the longest name of a piece with a number of four digits (a level may ask for a lot)
+			G.with_level({ level = 190, attempt = false, language = lang }, function(c) -- three colour goals of 45
+				c.run(0.8)
+				for k = 1, 3 do
+					local problems, rows = show(c, k)
+					for _, m in ipairs(problems) do bad[#bad + 1] = string.format("%s 190/%d: %s", lang, k, m) end
+					for _, r in ipairs(rows) do
+						if r.font_px < MIN_PX - 0.01 then bad[#bad + 1] = string.format("%s 190/%d: '%s' is only %.1f px", lang, k, r.text, r.font_px) end
+					end
+				end
+			end)
+		end
+		fail_on(bad, "goal hint texts")
+	end)
+
+	it("keeps the pill inside every window shape, off the cells and the counters, under the tile it explains", function()
+		local bad = {}
+		-- 185: the tallest board (7x11, 44 px under the panel); 60: three goals; 178: two goals on a shaped 9x9 board
+		for _, lang in ipairs(LANGS) do
+			for _, w in ipairs(SIZES) do
+				for _, level in ipairs({ 185, 60, 178 }) do
+					G.with_level({ level = level, attempt = false, language = lang, window = w }, function(c)
+						c.run(0.8)
+						local goals = #c.app.ui.level.goals
+						for k = 1, goals do
+							local what = string.format("level %d %s %dx%d tile %d", level, lang, w[1], w[2], k)
+							local problems, rows = show(c, k)
+							for _, m in ipairs(problems) do bad[#bad + 1] = what .. ": " .. m end
+							for _, r in ipairs(rows) do
+								if r.font_px < MIN_PX - 0.01 then bad[#bad + 1] = string.format("%s: '%s' is only %.1f px", what, r.text, r.font_px) end
+							end
+							local h = hud(c)
+							local r, b = h.hint_rect, link.board_rect()
+							if r.y0 < b.y1 + 0.5 then bad[#bad + 1] = string.format("%s: the pill (bottom %.1f) covers the cells (top %.1f)", what, r.y0, b.y1) end
+							if r.x0 < h.l.safe.x0 - 0.5 or r.x1 > h.l.safe.x1 + 0.5 then bad[#bad + 1] = what .. ": the pill is outside the window" end
+							if r.y1 + level_hud.GOAL_HINT_NOTCH > h.l.goals.y0 + level_hud.GOAL_PANEL_EDGE + 0.5 then
+								bad[#bad + 1] = what .. ": the pointer is over the counters"
+							end
+							local x = h:goal_pos(k)
+							if math.abs(r.tail_x - x) > 0.5 then bad[#bad + 1] = string.format("%s: the pointer (%.1f) is not under the tile (%.1f)", what, r.tail_x, x) end
+						end
+					end)
+				end
+			end
+		end
+		fail_on(bad, "goal hint places")
+	end)
+end)

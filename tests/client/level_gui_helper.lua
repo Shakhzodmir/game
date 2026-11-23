@@ -14,6 +14,30 @@ local fake_board = require("tests.client.level_fake_board")
 
 local G = {}
 
+-- The first level of each kind of goal the level files have, read from content/levels:
+--   local first, order = G.first_goal_levels()
+--   first["collect"] / first["light"] / first["break:concrete"] ... = {level, tile (the goal's place on the HUD), def (client/levels.lua goal)}
+--   order = the kinds in the order they first appear
+function G.first_goal_levels()
+	local json = require("tools.lib.json")
+	local levels = require("client.levels")
+	local first, order = {}, {}
+	for n = 1, 1000 do
+		local f = io.open(string.format("content/levels/level_%04d.json", n), "r")
+		if not f then break end
+		local data = json.decode(f:read("*a"))
+		f:close()
+		for k, def in ipairs(levels.goals(data)) do
+			local what = def.kind .. (def.item and (":" .. def.item) or "")
+			if not first[what] then
+				first[what] = { n, k, def }
+				order[#order + 1] = what
+			end
+		end
+	end
+	return first, order
+end
+
 -- Wins `n` levels through the meta without a board.
 function G.win(app, n)
 	local flow = require("client.flow")
