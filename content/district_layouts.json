@@ -1290,5 +1290,66 @@
         "h": 239
       }
     }
+  },
+  "sunset_bossa": {
+    "bg": "assets/images/districts/sunset_bossa/bg.jpg",
+    "bg_concert": "assets/images/districts/sunset_bossa/bg_concert.jpg",
+    "bg_scale": 1.0,
+    "items": {
+      "sunset_cajon": {
+        "image": "assets/images/districts/sunset_bossa/sunset_cajon.png",
+        "ghost": "assets/images/districts/sunset_bossa/sunset_cajon_ghost.png",
+        "x": 478,
+        "y": 772,
+        "scale": 0.7,
+        "w": 169,
+        "h": 246
+      },
+      "veranda_guitar": {
+        "image": "assets/images/districts/sunset_bossa/veranda_guitar.png",
+        "ghost": "assets/images/districts/sunset_bossa/veranda_guitar_ghost.png",
+        "x": 384,
+        "y": 700,
+        "scale": 0.7,
+        "w": 126,
+        "h": 256
+      },
+      "tide_speaker": {
+        "image": "assets/images/districts/sunset_bossa/tide_speaker.png",
+        "ghost": "assets/images/districts/sunset_bossa/tide_speaker_ghost.png",
+        "x": 668,
+        "y": 694,
+        "scale": 0.7,
+        "w": 123,
+        "h": 271
+      },
+      "sunset_bar": {
+        "image": "assets/images/districts/sunset_bossa/sunset_bar.png",
+        "ghost": "assets/images/districts/sunset_bossa/sunset_bar_ghost.png",
+        "x": 250,
+        "y": 688,
+        "scale": 0.7,
+        "w": 300,
+        "h": 281
+      },
+      "dune_hammock": {
+        "image": "assets/images/districts/sunset_bossa/dune_hammock.png",
+        "ghost": "assets/images/districts/sunset_bossa/dune_hammock_ghost.png",
+        "x": 596,
+        "y": 800,
+        "scale": 0.7,
+        "w": 286,
+        "h": 206
+      },
+      "lantern_palm": {
+        "image": "assets/images/districts/sunset_bossa/lantern_palm.png",
+        "ghost": "assets/images/districts/sunset_bossa/lantern_palm_ghost.png",
+        "x": 76,
+        "y": 694,
+        "scale": 0.7,
+        "w": 214,
+        "h": 235
+      }
+    }
   }
 }

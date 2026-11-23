@@ -62,7 +62,7 @@ TASK_FROM = {
 }
 
 # district id -> "night" (the default) or "day" (a sunny version of the genre: the festival look)
-LOOK = {"nations_fest": "day"}
+LOOK = {"nations_fest": "day", "sunset_bossa": "day"}
 
 # the level background (night look): rgb -> M @ rgb + offset, the light lavender sky of district 16
 LEVEL_TINT = np.array([[0.685, -0.057, -0.017], [-0.028, 0.697, -0.015], [-0.027, -0.053, 1.106]], np.float32)

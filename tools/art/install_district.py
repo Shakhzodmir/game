@@ -158,6 +158,15 @@ ROOMS = {
         ("mic_stand", 636, 690, 65),
         ("gig_posters", 112, 430, 111),
     ]),
+    # district 21: the places of the beach items its placeholders borrow (the tasks go in the order of the beach)
+    "sunset_bossa": ("3x2", [
+        ("sunset_cajon", 478, 772, 118),
+        ("veranda_guitar", 384, 700, 88),
+        ("tide_speaker", 668, 694, 86),
+        ("sunset_bar", 250, 688, 210),
+        ("dune_hammock", 596, 800, 200),
+        ("lantern_palm", 76, 694, 150),
+    ]),
 }
 
 
