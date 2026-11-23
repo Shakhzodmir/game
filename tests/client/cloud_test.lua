@@ -95,6 +95,32 @@ describe("cloudsync rules", function()
 		assert_eq(cloudsync.compare(sum(6, 8), sum(5, 12)), "branch")
 	end)
 
+	it("reads stars spent on a town task as progress, not as a step back", function()
+		local m1 = H.new()
+		for _ = 1, 4 do H.win(m1, H.T0) end
+		local before = cloudsync.summarize(m1:serialize(), H.districts())
+		local d = H.districts().districts[1]
+		assert_true(m1:complete_task(d.id, d.tasks[1].id))
+		local after = cloudsync.summarize(m1:serialize(), H.districts())
+		assert_true(after.stars < before.stars, "the wallet went down")
+		assert_eq(after.earned, before.earned, "the stars ever earned did not")
+		assert_eq(after.tasks, before.tasks + 1)
+		assert_eq(cloudsync.compare(after, before), "a", "the save with the purchase is ahead")
+		assert_eq(cloudsync.compare(before, after), "b")
+		assert_eq(cloudsync.plan(after, before, "same").action, "offer_upload")
+		assert_eq(cloudsync.plan(before, after, "same").action, "offer_download", "and the other way round")
+		assert_eq(cloudsync.background(after, before), "upload", "the background check lets the purchase go up")
+		-- a win on top of the purchase is ahead of both
+		H.win(m1, H.T0)
+		local later = cloudsync.summarize(m1:serialize(), H.districts())
+		assert_eq(cloudsync.compare(later, after), "a")
+		-- the same wins and the same purchase on another copy are level, not a branch
+		local m2 = H.new()
+		for _ = 1, 4 do H.win(m2, H.T0) end
+		assert_true(m2:complete_task(d.id, d.tasks[1].id))
+		assert_eq(cloudsync.compare(cloudsync.summarize(m2:serialize(), H.districts()), after), "equal")
+	end)
+
 	it("treats different salts as branches unless one side is a fresh game", function()
 		assert_eq(cloudsync.compare(sum(5, 10, 5, 1), sum(3, 5, 3, 2)), "branch")
 		assert_eq(cloudsync.compare(sum(0, 0, 0, 1), sum(3, 5, 3, 2)), "b")
@@ -997,6 +1023,33 @@ describe("services.auth", function()
 		m.flush()
 		assert_true(first)
 		auth.sign_out(function() error("boom") end)
+	end)
+end)
+
+describe("client.cloud: stars spent on the town", function()
+	-- The producer's screenshot of 2026-11-20 (device: 54 levels, 1235 coins, 46 stars; account: 54 levels, 1235 coins,
+	-- 50 stars) was this: four stars had gone into a town task, and the sync read "fewer stars" as "the account is ahead".
+	it("a task bought with stars is progress: the account's copy from before it does not roll it back", function()
+		local m = new_server()
+		boot_device()
+		sign_in_google(m)
+		wins(4)
+		T = T + 5
+		cloud.tick(T) -- the upload that follows a win
+		local d = H.districts().districts[1]
+		local task = d.tasks[1]
+		local stars_before = app.meta:stars()
+		assert_true(stars_before >= task.cost, "stars to spend")
+		assert_eq(cloud_summary(m).stars, stars_before, "the account holds them")
+		assert_true(app.meta:complete_task(d.id, task.id))
+		app.commit("task")
+		assert_eq(app.meta:district(d.id).done, 1)
+		T = T + 70 -- the once-a-minute check
+		cloud.tick(T)
+		assert_eq(cloud.decision(), nil)
+		assert_eq(app.meta:district(d.id).done, 1, "the purchase stays")
+		assert_eq(app.meta:stars(), stars_before - task.cost, "and the stars stay spent")
+		assert_eq(cloud_summary(m).tasks, 1, "the account has the purchase too")
 	end)
 end)
 

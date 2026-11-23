@@ -3,28 +3,45 @@
 -- time: a save with less progress never replaces one with more without the player's explicit word, and
 -- whatever loses is kept (the "previous" slot on the device, the "previous" field in the cloud).
 --
---   local a = cloudsync.summarize(meta:serialize(), districts)    -- {beaten, coins, stars, wins, salt, checksum}
+--   local a = cloudsync.summarize(meta:serialize(), districts)    -- {beaten, coins, stars, earned, tasks, wins, salt, checksum}
 --   local plan = cloudsync.plan(a, b, "same")                     -- b = cloud summary or nil
 --   plan.action: "none" | "upload" | "offer_upload" | "offer_download" | "choose" | "foreign"
 --
 -- Progress order (same player = same salt): save x is ahead of y when it has at least as many levels beaten,
--- stars and wins and more of one of them. Mixed (more levels, fewer stars) or different salts (two games
--- started independently) are separate branches: the player chooses and sees both summaries.
+-- stars EARNED, town tasks done and wins, and more of one of them. Mixed (more levels, fewer tasks) or different
+-- salts (two games started independently) are separate branches.
+-- The stars of the wallet are NOT a measure of progress: they are spent on town tasks. A save that bought a task has
+-- fewer stars than the copy from before it, and read by the wallet it looked "behind" and was rolled back (the
+-- producer's screenshot of 2026-11-20: 54 levels, 46 stars against the account's 54 levels, 50 stars). `earned`
+-- (the wallet plus what the done tasks cost) never goes down, `tasks` counts the done tasks.
 
 local save = require("meta.save")
 local town = require("meta.town")
 
 local M = {}
 
--- Save table -> {beaten, coins, stars, wins, salt, checksum}; nil and a reason for a table that is no save.
+-- Save table -> {beaten, coins, stars (the wallet, for display), earned, tasks, wins, salt, checksum}; nil and a
+-- reason for a table that is no save.
 function M.summarize(tbl, districts)
 	if type(tbl) ~= "table" then return nil, "missing" end
-	local state, info = save.load(tbl, nil, town.validate(districts))
+	local data = town.validate(districts)
+	local state, info = save.load(tbl, nil, data)
 	if not state then return nil, (info.errors and info.errors.current) or "bad_save" end
+	local spent, tasks = 0, 0
+	for _, d in ipairs(data.list) do
+		for _, task in ipairs(d.tasks) do
+			if town.is_done(state.town, d, task) then
+				spent = spent + task.cost
+				tasks = tasks + 1
+			end
+		end
+	end
 	return {
 		beaten = state.progress.beaten,
 		coins = state.wallet.coins,
 		stars = state.wallet.stars,
+		earned = state.wallet.stars + spent,
+		tasks = tasks,
 		wins = state.stats.wins,
 		salt = state.salt,
 		checksum = tbl.checksum,
@@ -43,8 +60,10 @@ function M.compare(a, b)
 		if empty(b) then return "a" end
 		return "branch"
 	end
-	local ge_a = a.beaten >= b.beaten and a.stars >= b.stars and a.wins >= b.wins
-	local ge_b = b.beaten >= a.beaten and b.stars >= a.stars and b.wins >= a.wins
+	local ea, eb = a.earned or a.stars, b.earned or b.stars -- a summary without `earned` (written by hand) counts its stars
+	local ta, tb = a.tasks or 0, b.tasks or 0
+	local ge_a = a.beaten >= b.beaten and ea >= eb and ta >= tb and a.wins >= b.wins
+	local ge_b = b.beaten >= a.beaten and eb >= ea and tb >= ta and b.wins >= a.wins
 	if ge_a and ge_b then return "equal" end
 	if ge_a then return "a" end
 	if ge_b then return "b" end
@@ -53,8 +72,10 @@ end
 
 -- Which save the player is advised to keep when the branches differ: the one further along, or nil.
 local function recommend(loc, cloud)
+	local el, ec = loc.earned or loc.stars, cloud.earned or cloud.stars
 	if loc.beaten ~= cloud.beaten then return loc.beaten > cloud.beaten and "local" or "cloud" end
-	if loc.stars ~= cloud.stars then return loc.stars > cloud.stars and "local" or "cloud" end
+	if el ~= ec then return el > ec and "local" or "cloud" end
+	if (loc.tasks or 0) ~= (cloud.tasks or 0) then return (loc.tasks or 0) > (cloud.tasks or 0) and "local" or "cloud" end
 	if loc.wins ~= cloud.wins then return loc.wins > cloud.wins and "local" or "cloud" end
 	return nil
 end
