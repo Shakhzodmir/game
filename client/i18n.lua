@@ -726,7 +726,9 @@ local S = {
 		ru = "Суперзвёзды: {n}. Их дают уровни-концерты. На что их тратить, скоро узнаем.",
 	},
 	["town.item_wait"] = { en = "{item}: coming soon to the track", ru = "{item}: скоро зазвучит в треке" },
-	["town.back_to"] = { en = "Back to {name}", ru = "Назад: {name}" },
+	-- (the card of another district on display: it leads to the district being built, which lies after the one on display or,
+	-- when a content update reopened an earlier district, before it: no "back" and no "next" in the words)
+	["town.go_to"] = { en = "Go to {name}", ru = "К району: {name}" },
 	["nav.shop"] = { en = "Shop", ru = "Магазин" },
 	["nav.band"] = { en = "Band", ru = "Группа" },
 	["nav.town"] = { en = "Town", ru = "Город" },

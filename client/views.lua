@@ -130,14 +130,18 @@ end
 
 -- What the card above the "Level N" button shows while district `viewing` is on display:
 --   {kind = "task", task}         the next task of the district being built
---   {kind = "back", district, name}  another district is on display: a way back to the one being built
+--   {kind = "back", district, name, dir}  another district is on display: a way to the one being built. dir = 1: that
+--                                 district lies after the one on display (the usual case: the player looks at a finished
+--                                 one), -1: before it (a content update gave a finished district a new task: it is being
+--                                 built again, and the districts after it stay open)
 --   {kind = "done"}               the whole town is complete
 function M.card(meta, viewing)
 	local task = M.task(meta)
 	if not task then return { kind = "done" } end
 	if viewing and task.district ~= viewing then
 		local d = meta:district(task.district)
-		return { kind = "back", district = task.district, name = d.name }
+		local ok, shown = pcall(meta.district, meta, viewing)
+		return { kind = "back", district = task.district, name = d.name, dir = (ok and shown.index > d.index) and -1 or 1 }
 	end
 	return { kind = "task", task = task }
 end

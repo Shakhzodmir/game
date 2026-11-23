@@ -318,6 +318,46 @@ describe("screens/map/map.gui_script", function()
 		end)
 	end)
 
+	-- The caption under the ribbon of the end sign: the tile behind it can be dark (district 19) and a building or a flag of the
+	-- tile cut into the dark text ("сыграть" was hard to read). It lies on a light translucent plate that holds all of it.
+	it("puts the caption of the 'new levels soon' sign on a light plate that holds it, in every language and window shape", function()
+		local A = require("tests.client.layout_audit")
+		local captions = {
+			en = { title = "New levels soon!", text = "Play the beaten levels again to win more stars." },
+			ru = { title = "Скоро новые уровни!", text = "Пройденные уровни можно сыграть снова ради звёзд." },
+			ko = { title = "새 레벨이 곧 나와요!", text = "깬 레벨을 다시 해서 별을 더 모아 보세요." },
+		}
+		for _, language in ipairs({ "en", "ru", "ko" }) do
+			for _, w in ipairs({ { 720, 1280 }, { 390, 844 }, { 1920, 970 }, { 360, 640 } }) do
+				with_map({ window = w, language = language }, function(c)
+					local label = language .. " " .. w[1] .. "x" .. w[2]
+					local last = require("meta.config").levels.count
+					c.E.bus.publish("map_qa", { action = "goto", level = last })
+					c.run(1)
+					local want = captions[language]
+					local caption, title
+					for _, row in ipairs(A.texts(c, { scene = c.map.scene })) do
+						if row.text == want.text then caption = row end
+						if row.text == want.title then title = row end
+					end
+					assert_true(caption ~= nil and title ~= nil, label .. ": the end sign is not on the screen: " .. table.concat(c.map:texts(true), "|"))
+					-- the caption is the text of a plate that holds all of it, with room to spare
+					assert_true(caption.box ~= nil, label .. ": the caption lies on no plate")
+					local r, b = caption.rect, caption.box
+					local room = math.min(r[1] - b[1], b[3] - r[3], r[2] - b[2], b[4] - r[4])
+					assert_true(room >= 8, label .. string.format(": the plate leaves %.1f px around the caption", room))
+					assert_true(caption.lines <= 3 and caption.font_px >= 15, label .. string.format(": %d lines at %.1f px", caption.lines, caption.font_px))
+					-- the plate is light and translucent (the tile shows through a little), like the pills of the top bar
+					local col = caption.node.parent.color
+					assert_true(col.x >= 0.9 and col.y >= 0.9 and col.z >= 0.9, label .. ": the plate is not light")
+					assert_true(col.w >= 0.6 and col.w < 1, label .. ": the plate is not translucent: " .. col.w)
+					-- and it hangs under the ribbon without covering its title
+					assert_true(b[4] <= title.rect[2] - 8, label .. string.format(": the plate (top %.0f) reaches the title (bottom %.0f)", b[4], title.rect[2]))
+				end)
+			end
+		end
+	end)
+
 	it("back goes to the town", function()
 		with_map({}, function(c)
 			tap_target(c, "back")
@@ -386,6 +426,7 @@ describe("screens/map/map.gui_script", function()
 			assert_true(standins(tile) > 0, "the tiles of the player's district are plain while they download")
 			assert_eq(standins(gate), 1, "and its gate is a sign")
 			assert_true(c.map:has_text("Street Band Square", true), "the sign has the district's name")
+			assert_false(c.map:has_text("Part 2", true), "an ordinary gate carries no Part 2 tag")
 			packs.update()
 			for _, call in ipairs(calls) do
 				for _, key in ipairs({ tile, gate }) do
@@ -397,6 +438,76 @@ describe("screens/map/map.gui_script", function()
 			assert_eq(standins(tile), 0, "the tiles came: drawn again with the picture")
 			assert_eq(standins(gate), 0)
 			assert_true(v.ui.images[tile] ~= nil, "the tile picture is decoded and on the GPU")
+			assert_same(c.E.audit(), {})
+		end)
+		require("client.packs")._reset()
+	end)
+
+	-- The gate of the first district of Part 2 wears a gold "Part 2" tag. The tag did not wait for the picture: the plain sign
+	-- drawn while the web build downloads it had none, and the tag popped up with the picture.
+	it("draws the Part 2 tag on the plain gate sign of district 16 while its picture downloads, and on its board after", function()
+		local A = require("tests.client.layout_audit")
+		local calls = {}
+		with_map({ setup = function(app)
+			G.win(app, 300) -- level 301, the first of district 16, is the next one: its gate is in view
+			local assets = require("client.assets")
+			require("client.packs").init({
+				base = "https://host/game/", clock = function() return 0 end,
+				images = assets.index.images, groups = assets.index.packs,
+				request = function(url, done) calls[#calls + 1] = { url = url, done = done } end,
+			})
+		end }, function(c)
+			local packs = require("client.packs")
+			local assets = require("client.assets")
+			local v = c.map.self.m.view
+			local gate = "mapbg/gate_midnight_cafe"
+			assert_true(assets.image(gate).remote ~= nil, "the web build downloads the gate picture of district 16")
+			local seg
+			for i, sg in ipairs(v.model.segments) do
+				if sg.district == "midnight_cafe" then seg = i end
+			end
+			assert_true(seg ~= nil, "district 16 is on the map")
+			assert_eq(v.gate_standins[seg], gate, "its gate is a plain sign while the picture downloads")
+			local function tags()
+				local n = 0
+				for _, t in ipairs(c.map:texts(true)) do
+					if t == "Part 2" then n = n + 1 end
+				end
+				return n
+			end
+			assert_eq(tags(), 1, "the plain sign wears the tag")
+			-- the tag sits just above the plate of the name, inside the window, and covers nothing
+			local function rows()
+				local tag, name
+				for _, row in ipairs(A.texts(c, { scene = c.map.scene })) do
+					if row.text == "Part 2" then tag = row end
+					if row.text == "Midnight Café" then name = row end
+				end
+				assert_true(tag ~= nil and name ~= nil, "the tag and the name: " .. table.concat(c.map:texts(true), "|"))
+				return tag, name
+			end
+			local tag, name = rows()
+			assert_true(tag.box ~= nil, "the text of the tag lies on the gold plate")
+			local plate -- the plain sign: the box next to the name, made by the same holder
+			for _, n in ipairs(c.E.alive_nodes(c.map.scene)) do
+				if n.kind == "box" and n.parent == name.node.parent and n.size.x == 560 then plate = n end
+			end
+			assert_true(plate ~= nil, "the plain sign of the gate")
+			local x0, y0, x1, y1 = c.E.rect(plate)
+			local _, ay = c.E.to_logical(x0, y0)
+			local _, by = c.E.to_logical(x1, y1)
+			local top = math.max(ay, by)
+			assert_true(tag.box[2] >= top + 2, string.format("the tag (bottom %.0f) covers the sign (top %.0f)", tag.box[2], top))
+			assert_true(tag.box[2] - top <= 20, string.format("the tag floats %.0f px over the sign", tag.box[2] - top))
+			-- the picture comes: the gate is drawn again with its board, and the tag stays (once)
+			packs.update()
+			for _, call in ipairs(calls) do
+				local e = assets.image(gate)
+				if call.url == "https://host/game/" .. e.remote then call.done(200, string.rep("x", e.bytes)) end
+			end
+			c.step(3)
+			assert_eq(v.gate_standins[seg], nil, "the picture came")
+			assert_eq(tags(), 1, "the tag is on the board of the picture")
 			assert_same(c.E.audit(), {})
 		end)
 		require("client.packs")._reset()

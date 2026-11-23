@@ -153,6 +153,19 @@ describe("client.views (meta screens)", function()
 		end
 		assert_eq(ids[16], "midnight_cafe")
 		assert_same(vm.tabs[16].genre, { en = "Night Lo-fi", ru = "Ночной лоу-фай", ko = "나이트 로파이" })
+		assert_same(vm.tabs[17].genre, { en = "Cool Jazz", ru = "Кул-джаз", ko = "쿨 재즈" })
+		assert_same(vm.tabs[18].genre, { en = "World Parade", ru = "Парад наций", ko = "월드 퍼레이드" })
+		-- (district 19: the tab is 130 px wide; "K-pop: баллада и данс" was drawn at 10 px, and a plain "K-pop" would read
+		-- like the tab of the K-pop stadium)
+		assert_same(vm.tabs[19].genre, { en = "K-pop Lite", ru = "К-поп лайт", ko = "발라드와 댄스" })
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			local seen = {}
+			for i = 1, #all do
+				local name = vm.tabs[i].genre[lang]
+				assert_true(seen[name] == nil, lang .. ": the tabs of " .. tostring(seen[name]) .. " and " .. vm.tabs[i].id .. " are both named '" .. name .. "'")
+				seen[name] = vm.tabs[i].id
+			end
+		end
 		local night = {}
 		for i, r in ipairs(vm.songs.midnight_cafe) do night[i] = r.id end
 		assert_same(night, { "midnight_cafe", "night_tram", "neon_puddles", "three_am_tea", "rooftop_stars" })
@@ -337,6 +350,7 @@ describe("client.views (meta screens)", function()
 		-- the district being built is cafe: nothing else is open, so jazz is not browsable yet
 		assert_eq(views.card(m, "jazz").kind, "back")
 		assert_eq(views.card(m, "jazz").district, "cafe")
+		assert_eq(views.card(m, "jazz").dir, -1, "the café being built lies before the jazz bar on display")
 		-- a finished town has only the closing card, whatever is on display
 		for _, d in ipairs(m:districts()) do
 			local dd = m:district(d.id)
@@ -345,6 +359,35 @@ describe("client.views (meta screens)", function()
 		end
 		assert_eq(views.card(m, "garage").kind, "done")
 		assert_eq(views.card(m, "cafe").kind, "done")
+	end)
+
+	-- The card leads to the district being built. It lies after the district on display when the player looks at a finished
+	-- one (the usual case, where the old words "Назад: <next district>" were wrong); after a content update that reopens an
+	-- earlier district it lies before the later one the player looks at.
+	it("tells which way the card to the district being built leads", function()
+		local Meta = require("meta.meta")
+		local m = H.new()
+		H.give(m, "stars", 100)
+		for _, t in ipairs(m:district("cafe").tasks) do assert_true(m:complete_task("cafe", t.id)) end
+		local cv = views.card(m, "cafe")
+		assert_eq(cv.kind, "back")
+		assert_eq(cv.district, "jazz")
+		assert_eq(cv.dir, 1, "the jazz bar lies after the café on display")
+		-- a district the meta does not know (a stale id of the screen) still gets a card that leads on
+		assert_eq(views.card(m, "no_such_district").dir, 1)
+		-- the card of the district being built itself has no way to go
+		assert_eq(views.card(m, "jazz").kind, "task")
+		-- an update gives the finished café one more task: it is being built again, the jazz bar after it stays open
+		local data = H.districts_copy()
+		table.insert(data.districts[1].tasks, { id = "extra", name = { ru = "Ещё", en = "More", ko = "더" }, cost = 1, stem = "pad" })
+		local again = Meta.load(data, m:serialize(), nil, 1, T)
+		assert_eq(again:current_district(), "cafe")
+		assert_true(again:district("jazz").available, "the jazz bar stays open")
+		cv = views.card(again, "jazz")
+		assert_eq(cv.kind, "back")
+		assert_eq(cv.district, "cafe")
+		assert_eq(cv.dir, -1, "the café lies before the jazz bar on display")
+		assert_same(cv.name, again:district("cafe").name)
 	end)
 
 	it("lists the open districts to page through and where the district on display stands", function()

@@ -43,6 +43,11 @@ M.MAX_VIEW_H = 2600   -- tallest window (logical px) the pools are sized for; a 
 M.WALK_SPEED = 2.6    -- levels per second while Bit walks
 M.TOP_Y = 1214
 M.STAR_SIZE = 44
+-- the caption under the "new levels soon" ribbon and its plate (logical px): the text size and its wrap width, the line
+-- height the plate counts with, the padding, the gap under the visible bottom edge of the ribbon, the plate's width (the
+-- ribbon's) and its opacity
+M.SOON_TEXT_SIZE, M.SOON_TEXT_W, M.SOON_LINE_H, M.SOON_PAD = 28, 560, 40, 13
+M.SOON_PLATE_GAP, M.SOON_PLATE_W, M.SOON_PLATE_ALPHA = 66, 600, 0.92
 
 -- What the next opening of the map starts from (the level Bit stood on, the scroll position). Shared by the
 -- scripts of the app (one Lua state); the screen sets it when it closes.
@@ -180,8 +185,16 @@ function View:build_world()
 	s:text(self.c_nodes, i18n.t("map.soon"), 360, soon_y + 6, {
 		font = "button", size = 46, color = "white", shadow = "#6C32CF", max_width = 470,
 	})
-	s:text(self.c_nodes, i18n.t("map.soon_text"), 360, soon_y - 96, {
-		font = "body", size = 28, color = "text", width = 560, height = 80, max_width = 560,
+	-- its caption lies on a light plate under the ribbon: the tile behind it can be dark (district 19) and the buildings and
+	-- flags of the tile cut into dark text. The plate is as tall as the lines the caption takes in the language; the
+	-- text wraps, it is not shrunk (a shrink to max_width would be measured on the unwrapped line)
+	local caption = i18n.t("map.soon_text")
+	local lines = math.min(3, s:text_lines(caption, "body", M.SOON_TEXT_SIZE, M.SOON_TEXT_W))
+	local plate_h = lines * M.SOON_LINE_H + 2 * M.SOON_PAD
+	local plate = s:round(self.c_nodes, 360, soon_y - M.SOON_PLATE_GAP - plate_h / 2, M.SOON_PLATE_W, plate_h, "white",
+		{ alpha = M.SOON_PLATE_ALPHA, radius = 30 })
+	s:text(plate, caption, 0, 0, {
+		font = "body", size = M.SOON_TEXT_SIZE, color = "text", width = M.SOON_TEXT_W, height = lines * M.SOON_LINE_H,
 	})
 	self.sign = rib
 	self.dirty = true
@@ -413,10 +426,14 @@ function View:make_gate(seg)
 		-- no picture (or the web build is still downloading it, client/packs.lua): the name on a plain sign where
 		-- the board of the gate would be
 		if packs.remote(sg.gate) then self.gate_standins[seg] = sg.gate end
-		s:round(holder, 360, sg.gate_y + 116, 560, 96, "#9B5CFF", { radius = 40 })
-		s:text(holder, name, 360, sg.gate_y + 118, {
+		local plate_y, plate_h = sg.gate_y + 116, 96
+		s:round(holder, 360, plate_y, 560, plate_h, "#9B5CFF", { radius = 40 })
+		s:text(holder, name, 360, plate_y + 2, {
 			font = "button", size = 38, color = "white", outline = false, shadow = "#6C32CF", max_width = 500,
 		})
+		-- the "Part 2" tag does not wait for the picture: it sits 28 px over the top edge of the plain sign, as it sits over
+		-- the top edge of the board of the picture
+		self:part_tag(holder, sg, 360, plate_y + plate_h / 2 + 28)
 		return holder
 	end
 	-- the name sits in the middle of the blank signboard of the gate picture (content/map.json `sign`, found by
@@ -425,15 +442,19 @@ function View:make_gate(seg)
 	s:text(holder, name, 360 + sign.dx, sg.gate_y + sign.dy, {
 		font = "button", size = size, color = "text", outline = false, shadow = false, max_width = sign.w,
 	})
-	-- the first district of Part 2 (district 16) wears a gold "Part 2" tag above its signboard
-	if app.part_opens and app.part_opens(sg.district) == 2 then
-		local ty = sg.gate_y + sign.dy + math.floor((sign.h or 60) / 2) + 28
-		s:round(holder, 360 + sign.dx, ty, 196, 46, "#FFC93C", { radius = 23 })
-		s:text(holder, i18n.t("part2.title"), 360 + sign.dx, ty, {
-			font = "button", size = 26, color = "white", shadow = "#C77A00", max_width = 172,
-		})
-	end
+	self:part_tag(holder, sg, 360 + sign.dx, sg.gate_y + sign.dy + math.floor((sign.h or 60) / 2) + 28)
 	return holder
+end
+
+-- The first district of Part 2 (district 16) wears a gold "Part 2" tag above its signboard, on the gate picture's board
+-- and on the plain sign drawn while the picture downloads (x, y: the centre of the tag).
+function View:part_tag(holder, sg, x, y)
+	if not (app.part_opens and app.part_opens(sg.district) == 2) then return end
+	local s = self.ui
+	local tag = s:round(holder, x, y, 196, 46, "#FFC93C", { radius = 23 })
+	s:text(tag, i18n.t("part2.title"), 0, 0, {
+		font = "button", size = 26, color = "white", shadow = "#C77A00", max_width = 172,
+	})
 end
 
 function View:make_deco(seg, j)

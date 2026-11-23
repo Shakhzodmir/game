@@ -37,6 +37,28 @@ local function popup_target(c, name)
 	return c.tap(t.x, t.y)
 end
 
+-- The arrow on the card that leads to the district being built (a child of the card: the ribbon has arrows of its own).
+local function card_arrow(c)
+	local anim = require("client.assets").image("ui/icons/arrow").anim
+	local card = c.town.self.t.hud.card
+	for _, n in ipairs(c.E.alive_nodes(c.town.scene)) do
+		if n.parent == card and n.anim == anim then return n end
+	end
+	return nil
+end
+
+-- Records the side the next rooms slide in from (Scene:slide_to's dir: 1 from the right, -1 from the left).
+local function record_slides(c)
+	local scene = c.town.self.t.scene
+	local slide = scene.slide_to
+	local dirs = {}
+	scene.slide_to = function(self, did, done, dir)
+		dirs[#dirs + 1] = dir
+		return slide(self, did, done, dir)
+	end
+	return dirs
+end
+
 describe("screens/town/town.gui_script", function()
 	it("builds the first town: top bar, task card, level button, navigation", function()
 		G.with_town({}, function(c)
@@ -235,7 +257,13 @@ describe("screens/town/town.gui_script", function()
 			assert_true(c.town:has_text("Lo-fi Café", true), G.dump(c.town))
 			assert_eq(c.app.ui.card, "back")
 			assert_eq(c.app.ui.focus, "jazz")
-			assert_true(c.town:has_text("Back to Jazz Bar", true), G.dump(c.town))
+			-- the card leads to the district being built, which lies AFTER the café: no "back" in the words, the arrow
+			-- points right and stands on the right
+			assert_true(c.town:has_text("Go to Jazz Bar", true), G.dump(c.town))
+			assert_false(c.town:has_text("Back to Jazz Bar", true))
+			local arrow = card_arrow(c)
+			assert_true(arrow ~= nil, "the card has its arrow")
+			assert_true(arrow.pos.x > 0 and (arrow.euler.z or 0) == 0, "the arrow points right: x " .. arrow.pos.x .. ", turned " .. tostring(arrow.euler.z))
 			-- the cafe plays its own track while it is on display
 			local music = c.E.posted("music", "main:/audio#audio")
 			assert_eq(music[#music].message.district, "cafe")
@@ -246,9 +274,11 @@ describe("screens/town/town.gui_script", function()
 			assert_eq(c.app.meta:view("jazz"), "day")
 			tap_target(c, "view")
 			c.run(1)
-			-- back to the district being built
+			-- on to the district being built: its room slides in from the right
+			local slides = record_slides(c)
 			tap_target(c, "back")
 			c.run(1.2)
+			assert_same(slides, { 1 })
 			assert_eq(c.app.ui.district, "jazz")
 			assert_eq(c.app.ui.card, "task")
 			-- a swipe to the right shows the previous district, a swipe left at the end of the street does nothing
@@ -261,6 +291,38 @@ describe("screens/town/town.gui_script", function()
 			c.step(2)
 			c.E.input(hash("touch"), c.E.touch_action(500, 700, false, true))
 			wait_for(c, function() return c.app.ui.district == "cafe" end, 3, "a swipe")
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	-- A content update can give a finished district a new task: it is the district being built again and the districts after
+	-- it stay open. The player then looks at a LATER district and the card leads to an EARLIER one.
+	it("leads the card the other way when the district being built lies before the one on display", function()
+		G.with_town({ setup = function(app)
+			G.build_tasks(app, "cafe") -- the café's chest opens the jazz bar
+			table.remove(app.meta.s.town.cafe.done) -- the café has one task to build again
+		end }, function(c)
+			assert_eq(c.app.ui.district, "cafe")
+			assert_eq(c.app.ui.focus, "cafe")
+			assert_eq(c.app.ui.nav.next, "jazz", "the jazz bar stays open after the reopened café")
+			assert_eq(c.app.ui.card, "task")
+			tap_target(c, "nav_next")
+			wait_for(c, function() return c.app.ui.district == "jazz" and not c.app.ui.sliding end, 3, "paging on to the jazz bar")
+			c.run(1)
+			assert_eq(c.app.ui.card, "back")
+			assert_true(c.town:has_text("Go to Lo-fi Café", true), G.dump(c.town))
+			-- the arrow points left and stands on the left side of the card
+			local arrow = card_arrow(c)
+			assert_true(arrow ~= nil, "the card has its arrow")
+			assert_true(arrow.pos.x < 0 and arrow.euler.z == 180, "the arrow points left: x " .. arrow.pos.x .. ", turned " .. tostring(arrow.euler.z))
+			assert_eq(#c.E.audit(), 0)
+			-- the café's room comes in from the left
+			local slides = record_slides(c)
+			tap_target(c, "back")
+			c.run(1.2)
+			assert_same(slides, { -1 })
+			assert_eq(c.app.ui.district, "cafe")
+			assert_eq(c.app.ui.card, "task")
 			assert_eq(#c.E.audit(), 0)
 		end)
 	end)
@@ -1008,6 +1070,111 @@ describe("screens/town: the room while its pictures download (the web build)", f
 			assert_same(c.E.audit(), {})
 		end)
 		require("client.packs")._reset()
+	end)
+
+	-- The box of a node in logical px: x0, y0 (the bottom edge), x1, y1 (the top edge).
+	local function lbox(c, n)
+		local x0, y0, x1, y1 = c.E.rect(n)
+		local ax, ay = c.E.to_logical(x0, y0)
+		local bx, by = c.E.to_logical(x1, y1)
+		return math.min(ax, bx), math.min(ay, by), math.max(ax, bx), math.max(ay, by)
+	end
+
+	-- District 16 (the first of Part 2) on display while its pictures download, in every window shape of the game (a phone's
+	-- safe area too) and every language. mode "loading": nothing answers (the note says 0%); mode "offline": every download
+	-- fails (the note says that the pictures come later: the longest text). fn(c, label, plate, text): plate = the white
+	-- plate of the note, text = the text on it.
+	local ROOM_NOTE_SHAPES = {
+		{ w = { 720, 1280 } }, { w = { 390, 844 } }, { w = { 1920, 970 } },
+		{ w = { 360, 640 }, safe = { left = 0, top = 24, right = 0, bottom = 0 } },
+		{ w = { 720, 1280 }, safe = { left = 0, top = 48, right = 0, bottom = 30 } },
+	}
+	local function each_room_note(mode, fn)
+		for _, shape in ipairs(ROOM_NOTE_SHAPES) do
+			for _, lang in ipairs({ "en", "ru", "ko" }) do
+				local calls = {}
+				local ok, err = pcall(G.with_town, { window = shape.w, safe = shape.safe, language = lang, setup = function(app)
+					for _, d in ipairs(app.meta:districts()) do
+						if d.id == "midnight_cafe" then break end
+						G.build_tasks(app, d.id) -- district 16, the first of Part 2, is the one being built
+					end
+					local assets = require("client.assets")
+					require("client.packs").init({
+						base = "https://host/game/", clock = function() return 0 end,
+						images = assets.index.images, groups = assets.index.packs,
+						request = function(url, done) calls[#calls + 1] = { url = url, done = done } end, -- nothing answers
+					})
+				end }, function(c)
+					local label = mode .. " " .. lang .. " " .. shape.w[1] .. "x" .. shape.w[2] .. (shape.safe and (" safe top " .. shape.safe.top) or "")
+					local packs = require("client.packs")
+					local t = c.town.self.t
+					c.run(1)
+					assert_eq(c.app.ui.district, "midnight_cafe", label)
+					if mode == "offline" then
+						for _ = 1, 20 do
+							packs.update()
+							for i = 1, #calls do
+								if not calls[i].seen then
+									calls[i].seen = true
+									calls[i].done(0, nil) -- the download fails
+								end
+							end
+						end
+						c.run(1)
+						assert_true(packs.offline(), label .. ": the downloads did not give up")
+					end
+					assert_true(t.note ~= nil, label .. ": the note is not on the screen")
+					local plate, text
+					for _, n in ipairs(c.E.alive_nodes(c.town.scene)) do
+						if n.parent == t.note then
+							if n.kind == "box" then plate = n elseif n.kind == "text" then text = n end
+						end
+					end
+					assert_true(plate ~= nil and text ~= nil, label .. ": the plate and the text of the note")
+					fn(c, label, plate, text)
+				end)
+				require("client.packs")._reset()
+				if not ok then error(err, 0) end
+			end
+		end
+	end
+
+	-- The gold "Part 2" tag hangs on the lower edge of the ribbon of every district of Part 2 (bottom edge y 1026); the note
+	-- under the ribbon had its top edge at 1028 and touched the tag. The note is anchored to the top like the ribbon, so the
+	-- gap holds in every window shape, with a phone's top inset too.
+	it("keeps the loading note clear of the Part 2 tag of the ribbon, in every window shape", function()
+		each_room_note("loading", function(c, label, plate)
+			local tag = c.town.self.t.hud.part_tag
+			assert_true(tag ~= nil, label .. ": the ribbon has no Part 2 tag")
+			local _, tag_bottom = lbox(c, tag)
+			local _, _, _, plate_top = lbox(c, plate)
+			assert_true(tag_bottom - plate_top >= 6, label .. string.format(": the tag (bottom %.1f) and the note (top %.1f) are %.1f px apart", tag_bottom, plate_top, tag_bottom - plate_top))
+			assert_true(tag_bottom - plate_top <= 30, label .. string.format(": the note hangs %.1f px under the tag", tag_bottom - plate_top))
+		end)
+	end)
+
+	-- The songbook button (80 x 80, x 612-692, y 988-1068) hangs under the day / concert toggle at the right edge of the
+	-- screen, in the rows of the note (y 940-1016). The plate was 580 wide (x 70-650) and the button lay over its right end;
+	-- with the note anchored to the top like the button that happened in every window shape. Both are anchored to the top, so
+	-- the gap between them holds in every shape. The plate is narrower now, and the longest text ("no connection") still
+	-- sits on it at full size.
+	it("keeps the loading note off the songbook button, with its text on the plate, in every window shape", function()
+		for _, mode in ipairs({ "loading", "offline" }) do
+			each_room_note(mode, function(c, label, plate, text)
+				local btn = c.town.self.t.hud.notebook_btn
+				assert_true(btn ~= nil, label .. ": no songbook button")
+				local px0, py0, px1, py1 = lbox(c, plate)
+				local bx0, by0, bx1, by1 = lbox(c, btn)
+				-- the gap between the two boxes: the largest of the four distances (negative while they overlap)
+				local gap = math.max(bx0 - px1, px0 - bx1, by0 - py1, py0 - by1)
+				assert_true(gap >= 8, label .. string.format(": the note (x %.0f to %.0f, y %.0f to %.0f) and the songbook button (x %.0f to %.0f, y %.0f to %.0f) are %.1f px apart",
+					px0, px1, py0, py1, bx0, bx1, by0, by1, gap))
+				assert_true(px0 >= 16 and px1 <= 704, label .. string.format(": the note (x %.0f to %.0f) is closer than 16 px to the edge of the design area", px0, px1))
+				local tx0, _, tx1 = lbox(c, text)
+				assert_true(tx0 - px0 >= 10 and px1 - tx1 >= 10, label .. string.format(": the text (x %.0f to %.0f) is not inside the plate (x %.0f to %.0f) by 10 px", tx0, tx1, px0, px1))
+				assert_true(c.E.text_px(text) >= 26, label .. string.format(": the text is drawn at %.1f px (28 is its size)", c.E.text_px(text)))
+			end)
+		end
 	end)
 end)
 

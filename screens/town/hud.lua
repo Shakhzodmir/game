@@ -293,19 +293,24 @@ function Hud:build_task(parent)
 		return
 	end
 	if cv.kind == "back" then
-		-- another district is on display: one tap takes the player back to the one being built
+		-- another district is on display: one tap takes the player to the one being built. As a rule it lies after the one on
+		-- display (cv.dir = 1: the arrow points right, the room slides in from the right); one that a content update
+		-- reopened can lie before it (cv.dir = -1): the arrow then stands on the left, points left and the room comes from
+		-- the left. The QA target keeps its name "back".
+		local side = cv.dir < 0 and -1 or 1
 		local card = s:button({ parent = parent, x = x, y = y, w = 588, h = 128, style = "white",
-			on_click = function() town:browse_to(cv.district, 1) end })
+			on_click = function() town:browse_to(cv.district, cv.dir) end })
 		s:anchor(card.node, "bottom")
 		self.card = card.node
 		self:target("back", self:bottom(x, y))
-		local arrow = s:image(card.node, "ui/icons/arrow", 232, 4, { w = 72, h = 72 })
-			or s:circle(card.node, 232, 4, 56, "white")
+		local arrow = s:image(card.node, "ui/icons/arrow", 232 * side, 4, { w = 72, h = 72 })
+			or s:circle(card.node, 232 * side, 4, 56, "white")
+		if arrow and side < 0 then gui.set_euler(arrow, vmath.vector3(0, 0, 180)) end
 		if arrow and not fx.reduced() then
 			local p = gui.get_position(arrow)
-			gui.animate(arrow, "position.x", p.x + 10, gui.EASING_INOUTSINE, 0.5, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+			gui.animate(arrow, "position.x", p.x + 10 * side, gui.EASING_INOUTSINE, 0.5, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
 		end
-		kit.label({ ui = s }, card.node, i18n.t("town.back_to", { name = i18n.name(cv.name) }), -34, 4, {
+		kit.label({ ui = s }, card.node, i18n.t("town.go_to", { name = i18n.name(cv.name) }), -34 * side, 4, {
 			font = "button", size = 32, color = "text", max_width = 440, lines = 2,
 		})
 		return

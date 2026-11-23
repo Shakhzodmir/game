@@ -20,8 +20,9 @@
 -- leaves out the unlimited lives of a chest that has not opened yet (hud.lua lives_view).
 -- The district on display (town.district) can differ from the one being built (town.focus): the
 -- player pages through the open districts with the ribbon arrows or a swipe on the scene; the
--- card then offers the way back, and the track of the district on display plays (unless the player
--- picked a song in the jukebox: that song goes on, client/songs.lua).
+-- card then leads to the one being built (views.card: to the right of the one on display as a rule, to the
+-- left after a content update reopened an earlier district), and the track of the district on display plays
+-- (unless the player picked a song in the jukebox: that song goes on, client/songs.lua).
 -- Bus in: meta_changed, lives_tick, language_changed, settings_changed,
 -- save_reset, screen_leaving, popup_request (app.open_popup), reward_pushed,
 -- meta_qa (client/meta_qa.lua).
@@ -70,7 +71,14 @@ local REGISTRY = {
 }
 
 local NOTE_COLORS = { "red", "orange", "yellow", "green", "blue", "purple" }
-local ROOM_NOTE_Y = 990 -- the "loading the district" note, under the ribbon
+-- the "loading the district" note, under the ribbon: its top edge (y + 38) clears the "Part 2" tag on the lower edge of
+-- the ribbon (bottom edge 1026) by 10 px. The note is anchored to the top like the ribbon and the songbook button (a
+-- phone's safe area moves all three), so they never touch in any window shape. The plate is as wide as the two district
+-- arrows with the ribbon between them (x 28 to 590, hud.lua ARROW_PREV_X / ARROW_NEXT_X; it shares their centre with the
+-- ribbon and the tag) and ends 22 px short of the songbook button (x 612 to 692, y 988 to 1068), which hangs in the rows of
+-- the note. The text keeps 20 px to the ends of the plate (the longest one, "no connection", is 509 px wide at 28 px).
+local ROOM_NOTE_Y = 978
+local ROOM_NOTE_X, ROOM_NOTE_W = 310, 560
 local SWIPE_MIN = 90   -- logical px of a horizontal swipe that pages the districts
 local TAP_SLOP = 26    -- a press and release further apart than this is a drag, not a tap
 
@@ -146,8 +154,9 @@ function Town:room_note(missing, pending, got, total)
 	end
 	if not text then return end
 	self.note = s:layer(self.c_note)
-	s:round(self.note, 360, ROOM_NOTE_Y, 580, 76, "white", { alpha = 0.92 })
-	s:text(self.note, text, 360, ROOM_NOTE_Y + 2, { font = "body", size = 28, color = "text", max_width = 540 })
+	s:anchor(self.note, "top")
+	s:round(self.note, ROOM_NOTE_X, ROOM_NOTE_Y, ROOM_NOTE_W, 76, "white", { alpha = 0.92 })
+	s:text(self.note, text, ROOM_NOTE_X, ROOM_NOTE_Y + 2, { font = "body", size = 28, color = "text", max_width = ROOM_NOTE_W - 40 })
 end
 
 function Town:room_check(dt)

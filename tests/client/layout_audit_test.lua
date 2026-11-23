@@ -250,12 +250,33 @@ end)
 
 describe("text layout audit: screens", function()
 	it("keeps the texts of the town screen apart and inside their plates", function()
+		-- plain / rich: the district being built on display; back / back_left: another district is on display and the card
+		-- at the bottom leads to the one being built (the longest district name of the first five, after it or before it)
+		local setups = {
+			plain = function(app) H.win(app, 13) end,
+			rich = rich,
+			back = function(app) H.win(app, 13); H.build_tasks(app, "cafe"); H.build_tasks(app, "jazz") end, -- the square is being built
+			back_left = function(app) -- an update gave the finished café a new task: it is being built again, the jazz bar stays open
+				H.win(app, 13)
+				H.build_tasks(app, "cafe")
+				table.remove(app.meta.s.town.cafe.done)
+			end,
+		}
 		local bad = run_cases("town screen", SIZES, LANGS, function(lang, w, case, report)
-			H.with_town({ language = lang, window = w, setup = function(app) if case then rich(app) else H.win(app, 13) end end }, function(c)
+			H.with_town({ language = lang, window = w, setup = function(app) setups[case](app) end }, function(c)
 				c.run(1)
-				report(case and "rich" or "plain", A.check(c))
+				if case == "back" then
+					c.E.bus.publish("meta_qa", { action = "browse", id = "cafe" })
+					c.run(1.5)
+					assert_eq(c.app.ui.card, "back", "the café is on display")
+				elseif case == "back_left" then
+					c.E.bus.publish("meta_qa", { action = "browse", id = "jazz" })
+					c.run(1.5)
+					assert_eq(c.app.ui.card, "back", "the jazz bar is on display")
+				end
+				report(case, A.check(c))
 			end)
-		end, { false, true })
+		end, { "plain", "rich", "back", "back_left" })
 		fail_on(bad, "town screen texts")
 	end)
 

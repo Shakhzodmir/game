@@ -829,6 +829,39 @@ describe("meta windows: jukebox", function()
 		end
 	end)
 
+	-- The genre name of a district is the label of its tab: one line, 130 px wide, shrunk to fit. A long name is drawn so
+	-- small that it cannot be read: "K-pop: баллада и данс" (district 19) was drawn at 10 px of 23. The genres of districts
+	-- 16-18 are drawn at 13.8 px and more; no Part 2 genre may go below 13 px.
+	it("draws the genre names of the Part 2 districts on their tabs at 13 px at least", function()
+		local i18n = require("client.i18n")
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			G.with_town({ language = lang, setup = function(app)
+				for _, d in ipairs(app.meta:districts()) do
+					if d.id == "fan_meeting" then break end
+					G.build_tasks(app, d.id) -- the districts before the fan meeting are built: its tab and those before it are open
+				end
+			end }, function(c)
+				open(c, "jukebox")
+				local checked, small = {}, {}
+				for _, d in ipairs(c.app.district_list) do
+					local data = c.app.district_by_id[d.id]
+					if data.part == 2 and c.app.meta:district(d.id).available then
+						tab_to(c, d.id)
+						local label = i18n.name(data.genre)
+						local node = c.town:find(label)
+						assert_true(node ~= nil, lang .. ": no tab label '" .. label .. "' for " .. d.id .. " in: " .. texts(c))
+						local px = c.E.text_px(node)
+						if px < 13 then small[#small + 1] = string.format("%s '%s' is drawn at %.1f px", d.id, label, px) end
+						checked[#checked + 1] = d.id
+					end
+				end
+				assert_eq(table.concat(small, "; "), "", lang .. ": genre names drawn too small")
+				assert_true(#checked >= 4, lang .. ": checked " .. table.concat(checked, ", "))
+				assert_eq(checked[4], "fan_meeting")
+			end)
+		end
+	end)
+
 	it("stays small: its nodes, and taps of at least 80 px", function()
 		local ui = require("client.ui")
 		local seen = {}
