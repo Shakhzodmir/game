@@ -123,13 +123,16 @@ ROOMS = {
         ("neon_sign", 360, 540, 110),
     ]),
     # district 17: the places of the jazz bar items its placeholders borrow (TASK_FROM of make_part2_placeholders.py)
+    # district 17: the places fitted to the producer's club room (a round stage with bulbs at y 570-690, a free floor
+    # below it; the top bar covers y < 235 and the task card y > 835): vibes, drums and piano on the stage, the double
+    # bass, the neon note and the muted trumpet on the floor
     "late_club": ("3x2", [
-        ("drums", 382, 330, 121),
-        ("double_bass", 578, 560, 91),
-        ("piano", 240, 586, 166),
-        ("vibes", 160, 722, 154),
-        ("muted_trumpet", 568, 738, 121),
-        ("note_sign", 160, 322, 107),
+        ("drums", 330, 600, 121),
+        ("double_bass", 170, 765, 91),
+        ("piano", 520, 575, 166),
+        ("vibes", 135, 595, 154),
+        ("muted_trumpet", 555, 770, 121),
+        ("note_sign", 360, 765, 107),
     ]),
     # district 18: the places of the street band square items its placeholders borrow (TASK_FROM)
     "nations_fest": ("3x2", [
