@@ -183,6 +183,7 @@ function goodClaims(n, extra = {}) { return { iss: "https://accounts.google.com"
 	assert.equal(JSON.parse(ls.getItem("glow_oidc_t_pend:" + rec2.s)).r, rec2.r);
 	const list = json(G.listPending("t", env));
 	assert.deepEqual(list.map((x) => [x.rec.s, x.src, x.beacon]), [[rec2.s, "ss", false], [rec.s, "ls", true]], "the tab's record first, then the shared ones; the beacon is marked");
+	assert.deepEqual([G.readPending("t", rec.s, env).rec.s, G.readPending("t", rec.s, env).src], [rec.s, "ls"], "asked for one state, the tab's own record of ANOTHER state is not the answer");
 	ss.removeItem("glow_oidc_t_pend");
 	assert.deepEqual(json(G.readPending("t", rec2.s, env)), { rec: json(rec2), src: "ls", beacon: false });
 	assert.equal(G.readPending("t", rec.s, env).beacon, true);
@@ -212,6 +213,9 @@ function goodClaims(n, extra = {}) { return { iss: "https://accounts.google.com"
 	assert.equal(removed, 4, "old attempt, old answer, two broken answers");
 	assert.equal([...world.ls.keys()].length, before - 4);
 	assert.ok(ls.getItem("unrelated") && ls.getItem("glow_oidc_t_pend:" + rec2.s) && ls.getItem("glow_oidc_t_res:" + rec2.s));
+	ss.setItem("glow_oidc_t_pend", JSON.stringify({ s: "oldss", t: t - 16 * 60_000 }));
+	assert.equal(G.sweep("t", env), 1, "an old attempt in this tab's own storage goes too");
+	assert.equal(ss.getItem("glow_oidc_t_pend"), null);
 	// done: nothing of the attempt is left, and the marker goes only with its own state
 	G.markOwn("t", rec2.s, env);
 	G.clearFlow("t", rec2.s, env);
@@ -433,11 +437,12 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	// the game's pop-up has no such button: a stray window must never start a second copy of the game
 	const g = await starter({ dest: "g", noListen: true });
 	const gp = retPage(g, { frag: fragFor(g.rec), refuseClose: true });
+	assert.match(textOf(gp), /^Done\. Go back to the game\./, "first it says the answer is handed over");
 	await waitFor(() => gp.closeCalls === 1, 6000);
 	await sleep(500);
 	assert.equal(gp.document.getElementById("b").hidden, true);
 	assert.equal(g.world.ls.get("glow_oidc_t_ret"), undefined, "no return record for the game");
-	assert.match(textOf(gp), /Done\. Go back to the game\./);
+	assert.match(textOf(gp), /^Close this window \(the Done or Close button\) and go back to the game\. In Safari, close this tab/, "a window the browser will not close says how to leave it (a Safari tab has no Done button)");
 	assert.ok(g.world.ls.get("glow_oidc_res:" + g.rec.s), "the game's own mailbox key");
 }
 {
@@ -494,16 +499,62 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 	assert.deepEqual(p2.navs, []);
 }
 {
-	// the starter's own window (the marker is there): popup mode goes back at once; the page there takes the answer from the mailbox
+	// the starter's own window (the marker is there): popup mode goes back once nobody alive answers the ping; the page there takes
+	// the answer from the mailbox
 	for (const [dest, want] of [["t", "auth_test.html"], ["g", "./"]]) {
 		const st = await starter({ dest, noListen: true });
 		st.G.markOwn(dest, st.rec.s, {});
 		const page = retPage(st, { frag: fragFor(st.rec), opener: null });
+		assert.deepEqual(page.navs, [], "it waits for a pong first");
+		await waitFor(() => page.replaced.length === 1, 4000);
 		assert.deepEqual(page.replaced, [want], "a fixed target for destination " + dest);
 		assert.equal(page.closeCalls, 0);
 		await sleep(30);
-		if (dest === "t") assert.equal(JSON.parse(st.world.ls.get("glow_oidc_t_ret")).rep, 1);
+		if (dest === "t") { const rr = JSON.parse(st.world.ls.get("glow_oidc_t_ret")); assert.deepEqual([rr.rep, rr.pong], [1, 0]); }
 		assert.ok(st.world.ls.get(st.key), "the answer waits in the mailbox for the page that loads next");
+	}
+	{
+		// ... but a live starter answers the ping: then the marker came from a COPY of the starter's storage (taken after the
+		// marker was written), this is a pop-up, and a second copy of the game on one save must never start
+		for (const dest of ["t", "g"]) {
+			const st = await starter({ dest }); // a live listener
+			st.G.markOwn(dest, st.rec.s, {});
+			const copyAfterMarker = new Map(st.win.ssMap);
+			const page = retPage(st, { frag: fragFor(st.rec), ss: copyAfterMarker, scale: 1 });
+			await waitFor(() => st.log.relay.length === 1, 3000);
+			await sleep(900); // longer than the page's whole pong wait (400 ms): nothing may navigate afterwards either
+			assert.deepEqual(page.navs, [], "dest " + dest + ": a live starter, so this window is a pop-up and goes nowhere");
+			st.h.ack("bc");
+			await waitFor(() => page.closeCalls === 1, 4000);
+			assert.equal(page.closeCalls, 1, "dest " + dest + ": it closes like any pop-up once the starter has the answer");
+			if (dest === "t") { const rr = JSON.parse(st.world.ls.get("glow_oidc_t_ret")); assert.deepEqual([rr.pong, rr.rep, rr.ack], [1, 0, 1]); }
+			st.h.stop();
+		}
+	}
+	{
+		// the answer for an attempt that is no longer open (the starter gave up and deleted its beacon): the pop-up's COPY of the record
+		// is not "open", so nothing is written into the shared storage; the channels that keep nothing still carry it, and a live
+		// starter that is still there takes it all the same
+		const st = await starter({ dest: "g", noListen: true });
+		st.world.ls.delete("glow_oidc_pend:" + st.rec.s); // what the end of a try does
+		const page = retPage(st, { frag: fragFor(st.rec), refuseClose: true });
+		assert.equal(st.world.ls.get(st.key), undefined, "no mailbox entry for an attempt that is over");
+		assert.equal(allStored(st).includes("ya29"), false, "no token in the shared storage");
+		assert.equal(page.posted.filter((p) => p.bc).length, 1, "the answer still goes to the channels that keep nothing");
+		assert.match(textOf(page), /^This sign-in has already ended or was started in another window\. Close this window and sign in again\./, "it does not say 'Done'");
+		await waitFor(() => page.closeCalls === 1, 6000);
+		await sleep(500);
+		assert.match(textOf(page), /^This sign-in has already ended.*In Safari, close this tab/, "and a window that stays says how to leave it");
+		// a starter that is alive and listening still gets the answer (its attempt is open in ITS memory) and tells this window so
+		const live = await starter({ dest: "g" });
+		live.world.ls.delete("glow_oidc_pend:" + live.rec.s);
+		const p2 = retPage(live, { frag: fragFor(live.rec), scale: 0.5 });
+		await waitFor(() => live.log.relay.length === 1);
+		assert.equal(live.log.relay.length, 1, "a live starter has it by the channels that keep nothing");
+		live.h.ack("bc");
+		await waitFor(() => /^Done\./.test(textOf(p2)));
+		assert.match(textOf(p2), /^Done\. Go back to the game\./, "the ack turns the text into 'Done'");
+		live.h.stop();
 	}
 	// a copy of the starter's storage made BEFORE the marker was written (what window.open gives a child) is not the starter's window
 	const st = await starter({ noListen: true });
@@ -549,9 +600,41 @@ const textOf = (win) => win.document.getElementById("m").textContent + " | " + w
 		st = await starter({ mode: "p", noListen: true, c: "home" });
 		st.G.markOwn("t", st.rec.s, {});
 		page = retPage(st, { frag: fragFor(st.rec), opener: null, standalone });
-		await sleep(100);
+		if (goes) await waitFor(() => page.navs.length === 1, 4000); else await sleep(400);
 		assert.equal(page.navs.length === 1, goes, "pop-up mode, home attempt, standalone=" + standalone);
 	}
+}
+{
+	// a pong or an ack of ANOTHER attempt is none of this page's business: it neither keeps the starter's own window from going back
+	// nor closes a pop-up early (other attempts of the same origin share the channel)
+	const st = await starter({ mode: "r", noListen: true });
+	st.G.markOwn("t", st.rec.s, {});
+	const other = makeWindow(st.world, { href: ORIGIN + "/game/other.html", core: true });
+	const ch = new other.BroadcastChannel("glow_oidc_t");
+	const page = retPage(st, { frag: fragFor(st.rec), opener: null });
+	ch.postMessage({ k: "glow_oidc_pong", s: "pt.foreignattempt123456" });
+	await waitFor(() => page.replaced.length === 1, 4000);
+	assert.deepEqual(page.replaced, ["auth_test.html"], "a foreign pong does not make the page stay");
+	assert.equal(JSON.parse(st.world.ls.get("glow_oidc_t_ret")).pong, 0);
+	const st2 = await starter({ noListen: true });
+	const other2 = makeWindow(st2.world, { href: ORIGIN + "/game/other.html", core: true });
+	const ch2 = new other2.BroadcastChannel("glow_oidc_t");
+	const p2 = retPage(st2, { frag: fragFor(st2.rec), scale: 1 });
+	ch2.postMessage({ k: "glow_oidc_ack", s: "pt.foreignattempt123456" });
+	await sleep(400);
+	assert.equal(p2.closeCalls, 0, "a foreign ack does not close the window");
+}
+{
+	// a starter that takes the answer out of the mailbox without a word (its channels are gone) still lets the window close early:
+	// the emptied mailbox counts as the ack
+	const st = await starter({ noListen: true });
+	const page = retPage(st, { frag: fragFor(st.rec), scale: 1 });
+	assert.ok(st.world.ls.get(st.key));
+	st.world.ls.delete(st.key); // the starter took it
+	await waitFor(() => page.closeCalls === 1, 1500);
+	assert.equal(page.closeCalls, 1, "closed well before the two seconds the page waits for a word");
+	const rr = JSON.parse(st.world.ls.get("glow_oidc_t_ret"));
+	assert.deepEqual([rr.ack, rr.via], [1, "ls"]);
 }
 {
 	// words by the device; a Google error is passed on as it is (the page judges nothing)
@@ -747,6 +830,7 @@ const verdict = (L, extra = {}) => json(L.G.validate(L.got.relay, L.rec, { clien
 	const st = await starter({ noListen: true });
 	st.G.markOwn("t", st.rec.s, {});
 	const page = retPage(st, { frag: fragFor(st.rec), opener: null, ss: st.win.ssMap });
+	await waitFor(() => page.replaced.length === 1, 4000); // after the short wait for a live starter's pong
 	assert.deepEqual(page.replaced, ["auth_test.html"]);
 	const next = makeWindow(st.world, { href: ORIGIN + "/game/auth_test.html", core: true, ss: st.win.ssMap }); // the same tab, a new page
 	const G2 = next.window.glowOidc;

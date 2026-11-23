@@ -63,7 +63,7 @@
 //   (A = google.com OAuthProvider credential with the raw nonce, B = the same id_token without a nonce, T = the access token)
 (function () {
 	"use strict";
-	var VERSION = "2026-11-23d";
+	var VERSION = "2026-11-24b"; // the same as web/glow_auth.js: the game asks for both files with it, so a change here is a release of both
 	var GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 	var ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 	var K_RELAY = "glow_oidc", K_ACK = "glow_oidc_ack", K_PING = "glow_oidc_ping", K_PONG = "glow_oidc_pong";

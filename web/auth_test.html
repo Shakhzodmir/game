@@ -116,7 +116,7 @@
 <textarea id="out" readonly style="display:none;width:100%;height:160px"></textarea>
 
 <script src="auth_config.js"></script>
-<script src="glow_oidc.js?v=2026-11-23d"></script>
+<script src="glow_oidc.js?v=2026-11-24b"></script>
 <script>
 (function () {
 	"use strict";
@@ -937,10 +937,39 @@
 		if (kind === "B") return m.signInWithCredential(auth, m.GoogleAuthProvider.credential(v.idToken));
 		return m.signInWithCredential(auth, m.GoogleAuthProvider.credential(null, v.accessToken));
 	}
+	// Two pages can hold the same answer (a live starter and a page that loaded meanwhile, a sheet over the app). ONE exchanges it: a
+	// second exchange of the same id_token fails as a duplicate credential, and that would read like the nonce rule's verdict. The
+	// claim goes to the first page; a page whose record is its own memory only (nothing stored, nobody else's claim) goes on.
+	function mayExchange(rec) {
+		if (G.claim("t", rec.s, {}, { by: instance })) return true;
+		var now = G.readPending("t", rec.s, {}), by = now && now.rec && now.rec.cl && now.rec.cl.by;
+		return !by || by === instance;
+	}
+	// this page stops watching an attempt that another page finishes; nothing is deleted (that page does it when it is done)
+	function releaseFlow(f) {
+		f.done = true; f.reported = true;
+		if (f.tick) { var i = ticks.indexOf(f.tick); if (i >= 0) ticks.splice(i, 1); f.tick = null; }
+		try { if (f.h) f.h.stop(); } catch (e) { /* none */ }
+		if (f.ww) f.ww.stop();
+		delete flows[f.rec.s];
+	}
+	// what the game's own code (web/glow_auth.js oidcFatal and oidcOrder) would have done with these results: A first; the access
+	// token (T) only after a refusal for the NONCE, and only when the id_token vouches for it (at_hash ok); any other refusal ends it.
+	// This page tries more (to learn what each strategy does), so ok=1 proves the game works only when prod is A or AT.
+	function prodWould(res, ath) {
+		if (res.A === "skip") return "na";
+		if (res.A === "ok") return "A";
+		return res.A === "auth/missing-or-invalid-nonce" && ath === "ok" && res.T === "ok" ? "AT" : "none";
+	}
 	function runExchange(f) {
 		var rec = f.rec;
-		var taken = G.claim("t", rec.s, {}, { by: instance });
-		if (!taken && f.src !== "ls") log("Тест " + f.n + ": ответ уже разбирает другая страница; продолжаю у себя, потому что запись о попытке у меня в памяти.");
+		if (!mayExchange(rec)) {
+			log("Тест " + f.n + ": ответ уже разбирает другая страница (она заняла его раньше); эта страница его не трогает.");
+			releaseFlow(f);
+			var why = [["why", "claimed_elsewhere"], ["resumed", f.resumed || "no"], ["src", f.src || "-"]], human = "Тест " + f.n + ": ответ взяла другая страница; её строка RESULT важнее этой.";
+			if (f.run.ended) lateResult(f.n, false, why, human, f.t0); else endRun(f.run, false, why, human);
+			return;
+		}
 		var v = G.validate(f.relay, rec, { clientId: CLIENT_ID });
 		if (!v.ok) {
 			finishFlow(f, false, [["why", v.check], ["reason", v.reason || "-"]], "Тест " + f.n + ": ответ Google не принят: " + v.code + (v.check === "denied" ? " (вы отменили вход на странице Google)" : ""));
@@ -954,7 +983,7 @@
 			var startedEx = Date.now();
 			return G.exchange({ order: order, attempt: function (kind) { return signInWith(kind, v, rec); } }).then(function (x) {
 				if (x.results.A !== "skip" && !x.fatal) lsSet("glow_diag_credA", x.results.A === "ok" ? "ok" : "fail"); // a network error says nothing about the nonce rule
-				var base = [["cred", x.cred], ["A", x.results.A], ["B", x.results.B], ["T", x.results.T], ["ath", ath], ["skew", v.skew == null ? "na" : v.skew]];
+				var base = [["cred", x.cred], ["A", x.results.A], ["B", x.results.B], ["T", x.results.T], ["ath", ath], ["prod", prodWould(x.results, ath)], ["skew", v.skew == null ? "na" : v.skew]];
 				if (!x.ok) {
 					finishFlow(f, false, [["why", "credential"]].concat(base), "Тест " + f.n + ": Firebase не принял ни один способ (A: " + x.results.A + ", B: " + x.results.B + ", T: " + x.results.T + ").");
 					return;
@@ -974,6 +1003,7 @@
 		var run = beginRun("8", "свой вход через окно Google", function () { if (f) { abortFlow(f); try { if (f.win) f.win.close(); } catch (e) { /* none */ } } });
 		if (!run) return;
 		prep.p = null; ready.p = false;
+		rec.t = Date.now(); // the attempt ages from the TAP (the game does the same), not from when its nonce was made at page load
 		rec.w = wid; rec.c = ctxHome(); rec.cm = credMode;
 		var f = newFlow(8, run, rec);
 		// the tap: nothing asynchronous before window.open
@@ -1013,6 +1043,7 @@
 		var run = beginRun("9", "свой вход всей страницей", function () { if (f) abortFlow(f); });
 		if (!run) return;
 		prep.r = null; ready.r = false;
+		rec.t = Date.now(); // ages from the TAP: a page that was open for a quarter of an hour must not have its attempt swept as stale on the way back
 		rec.w = wid; rec.c = ctxHome(); rec.cm = credMode;
 		run.navigating = true;
 		var f = newFlow(9, run, rec);
@@ -1040,6 +1071,15 @@
 
 	// after a load or a restore: an answer waits in the mailbox, or an attempt of an earlier page load is still open -------------------------------
 	var handled = {};
+	// The record in THIS tab's own storage can be a COPY: a window opened from the page that started the sign-in gets one when it
+	// opens, and it has the record but not the marker (the starter writes the marker after window.open). Such a window, say the
+	// Google window that cannot close itself and was sent here by its button, must never finish the attempt: the starter, or the
+	// reloaded starter, does, and the same answer exchanged twice looks like a failed credential in the report.
+	function notMine(pend) {
+		if (pend.src !== "ss" || G.isOwn("t", pend.rec.s, {})) return false;
+		log("Тест " + (pend.rec.m === "r" ? 9 : 8) + ": в хранилище этой вкладки лежит копия попытки другого окна (нет метки «это окно начало вход»): не трогаю, ответ заберёт то окно.");
+		return true;
+	}
 	function resumeFlows(trigger) {
 		if (!G) return;
 		try { G.sweep("t", {}); } catch (e) { /* none */ }
@@ -1057,6 +1097,7 @@
 				try { G.clearFlow("t", mail.state, {}); } catch (e) { /* none */ }
 				return;
 			}
+			if (notMine(pend)) { handled[mail.state] = 1; return; }
 			handled[mail.state] = 1;
 			consumeResumed(pend, mail.relay, trigger);
 		});
@@ -1067,6 +1108,7 @@
 			var age = (Date.now() - (rec.t || 0)) / 1000;
 			var n = rec.m === "r" ? 9 : 8;
 			if (p.src !== "ss" && age < 60) return; // a copy of another page's attempt, and a young one: that page may be running it
+			if (notMine(p)) { handled[rec.s] = 1; return; }
 			handled[rec.s] = 1;
 			if (n === 9) {
 				// we went to Google and came back to a page load with no answer: wait a little, in case the answer is being written

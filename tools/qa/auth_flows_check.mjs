@@ -435,6 +435,83 @@ for (const [flow, expectOk] of [["firebase", false], ["shim", true]]) {
 	assert.match(notes(g)[0].textContent, /^google glow\/cancel-waiting ios-tab \d+s v\S+ shim$/);
 }
 {
+	// our Cancel and the bound must END the SDK's window too. With the stand-in's "closed" always false nothing else would: the real
+	// window would stay open, the SDK's operation would live on, and a late account pick would sign in (or link Google) AFTER the
+	// game was told "closed". So the stand-in says closed once the try is over, and the real window is closed with it.
+	for (const [op, how] of [["sign_in_google", "Cancel"], ["sign_in_google", "the bound"], ["link_google", "Cancel"], ["link_google", "the bound"]]) {
+		const holder = {}; let given = null;
+		const cur = { uid: "P5", email: "p@id.glow.invalid", emailVerified: false, displayName: "", providerData: [{ providerId: "password" }] };
+		const sdk = fakeSdk({ current: op === "link_google" ? cur : null, popup: (...a) => sdkPopup(holder, { answerMs: 600, onOpen: (w) => { given = w; } })(...a) });
+		const g = game({ cfg: { googleIos: "shim" }, sdk, test: { cancelLookMs: 10, lookMs: 10, popupMs: how === "the bound" ? 250 : 60000 } });
+		holder.g = g;
+		const real = realWindow(0);
+		g.open = () => real;
+		if (op === "link_google") assert.ok((await ask(g, "restore")).ok);
+		const id = startCall(g, op, ["en"]);
+		assert.ok(await waitFor(() => cards(g).length === 1));
+		tapCard(g).click();
+		assert.ok(await waitFor(() => given !== null), "the SDK was given its window");
+		assert.equal(given.closed, false, "alive and waiting for the player");
+		if (how === "Cancel") cancelCard(g).click();
+		const r = await waitLine(g, id);
+		assert.deepEqual(lineOf(r), { ok: false, reason: how === "Cancel" ? "popup_closed" : "popup_timeout" }, op + ", " + how);
+		assert.equal(real.closes, 1, op + ", " + how + ": the real window is closed when the try ends");
+		assert.equal(given.closed, true, op + ", " + how + ": the stand-in now says closed, so the SDK ends its own operation");
+		await sleep(750); // the answer would have come at 600 ms
+		if (op === "sign_in_google") assert.equal(sdk.auth.currentUser, null, how + ": a late pick signs nobody in");
+		else assert.deepEqual(cur.providerData.map((p) => p.providerId), ["password"], how + ": a late pick links nothing");
+		if (op === "link_google") assert.ok((await ask(g, "cloud_get")).ok, "the game's account is still the one it knows");
+	}
+	// ... and a try that ends BEFORE the SDK calls window.open (the SDK waits for its helper frame first) opens no window at all
+	{
+		const holder = {}, opens = []; let result = "pending";
+		const sdk = fakeSdk({ popup: () => new Promise((resolve, reject) => setTimeout(() => {
+			const w = holder.g.open("https://auth.example/handler", "name", "features");
+			if (!w) return reject(err("auth/popup-blocked"));
+			result = "opened"; resolve({ user: null });
+		}, 250)) });
+		const g = game({ cfg: { googleIos: "shim" }, sdk, test: { cancelLookMs: 10 } });
+		holder.g = g;
+		const mine = (g.open = () => { opens.push(1); return realWindow(0); });
+		const id = startCall(g, "sign_in_google", ["en"]);
+		assert.ok(await waitFor(() => cards(g).length === 1));
+		tapCard(g).click();
+		await sleep(40);
+		cancelCard(g).click();
+		assert.deepEqual(lineOf(await waitLine(g, id)), { ok: false, reason: "popup_closed" });
+		await sleep(400); // the SDK's helper frame is ready now and asks for its window
+		assert.deepEqual([opens.length, result], [0, "pending"], "no window opens after the player pressed Cancel");
+		assert.equal(g.open, mine, "window.open is the page's own again");
+	}
+	// ... and a player who presses Cancel and taps again at once: the new try is not chained onto what the ended one left on window.open
+	{
+		const holder = {}, opens = []; let calls = 0;
+		const sdk = fakeSdk({ popup: (kind, mkUser, auth) => new Promise((resolve, reject) => {
+			const mine = ++calls, delay = mine === 1 ? 300 : 30; // the first call's helper frame is slow, the second's is warm
+			setTimeout(() => {
+				const w = holder.g.open("https://auth.example/handler", "name", "features");
+				if (!w) return reject(err("auth/popup-blocked"));
+				setTimeout(() => { auth.currentUser = mkUser("g-" + mine); resolve({ user: auth.currentUser }); }, 40);
+			}, delay);
+		}) });
+		const g = game({ cfg: { googleIos: "shim" }, sdk, test: { cancelLookMs: 10, lookMs: 10 } });
+		holder.g = g;
+		g.open = () => { opens.push(1); return realWindow(0); };
+		const id1 = startCall(g, "sign_in_google", ["en"]);
+		assert.ok(await waitFor(() => cards(g).length === 1));
+		tapCard(g).click();
+		await sleep(40);
+		cancelCard(g).click();
+		assert.equal((await waitLine(g, id1)).reason, "popup_closed");
+		const id2 = startCall(g, "sign_in_google", ["en"]);
+		assert.ok(await waitFor(() => cards(g).length === 1));
+		tapCard(g).click();
+		const r2 = await waitLine(g, id2);
+		assert.deepEqual([r2.ok, r2.f.uid], [true, "g-2"], "the second try gets its own window and its own answer");
+		assert.equal(opens.length, 1, "...which is the only window so far (the first try's own call has not come yet)");
+	}
+}
+{
 	// a link through the shim
 	const holder = {};
 	const cur = { uid: "P2", email: "p@id.glow.invalid", emailVerified: false, displayName: "", providerData: [{ providerId: "password" }] };
@@ -624,6 +701,26 @@ for (const [name, sc, wantReason, wantCode] of [
 }
 
 {
+	// (e0) the game gave up (Cancel, the bound) and Google's window answers later: the answer is never written into the shared
+	// storage. The pop-up holds a COPY of the starter's record (taken when it opened), so the return page must not take that for
+	// "the attempt is still open"; the shared storage's beacon says it, and every end of a try deletes the beacon
+	for (const how of ["Cancel", "the bound"]) {
+		const world = popupWorld({ stay: true }), sdk = fakeSdk();
+		const g = game({ world, cfg: OIDC_POPUP, sdk, test: { popupMs: how === "the bound" ? 300 : 60000, lookMs: 5, cancelLookMs: 5 } });
+		const id = await tapped(g);
+		const p = { ...world.google[0].params }, child = world.pages[0];
+		if (how === "Cancel") cancelCard(g).click();
+		assert.deepEqual(lineOf(await waitLine(g, id)), { ok: false, reason: how === "Cancel" ? "popup_closed" : "popup_timeout" });
+		assert.deepEqual([oidcKeys(g), stopped(g)], [[], true], how + ": nothing of the attempt is left on the starter's side");
+		assert.ok(child.ssMap.has("glow_oidc_pend"), "(the pop-up's own copy of the record is still there: it proves nothing)");
+		loadReturn(world, { href: RETURN_URL + "#" + answerFrag(p), from: child, opener: g, sc: {} }); // Google's window finishes now
+		await sleep(900);
+		assert.deepEqual(worldKeys(world), [], how + ": no answer, no token and no record lingers in the shared storage");
+		assert.equal(sdk.calls.length, 0, "and nobody is signed in by it");
+	}
+}
+
+{
 	// (e) a stale answer: attempt 1 is cancelled, its window answers late, attempt 2 is waiting; nobody is signed in by it
 	const world = popupWorld({ stay: true }), sdk = fakeSdk();
 	const g = game({ world, cfg: OIDC_POPUP, sdk });
@@ -697,6 +794,31 @@ for (const [name, sc, wantReason, wantCode] of [
 }
 
 {
+	// (g2) a Cancel (or the bound) while credential A is in the air: if A is then refused for its nonce, T is NOT started. The game
+	// was told "closed" already; a sign-in made after that would switch the account under it
+	for (const how of ["Cancel", "the bound"]) {
+		const world = popupWorld(), sdk = fakeSdk({ current: pwUser("P1") });
+		sdk.m.signInWithCredential = async (a, cred) => {
+			sdk.calls.push(["signInWithCredential", cred.kind]);
+			if (cred.kind === "A") { await sleep(500); throw err("auth/missing-or-invalid-nonce"); } // slow, then refused for the nonce
+			sdk.auth.currentUser = sdk.mkUser("g-late");
+			return { user: sdk.auth.currentUser };
+		};
+		const g = game({ world, cfg: OIDC_POPUP, sdk, test: { cancelLookMs: 50, lookMs: 50, popupMs: how === "the bound" ? 350 : 60000 } });
+		assert.ok((await ask(g, "restore")).ok);
+		const id = await tapped(g);
+		assert.ok(await waitFor(() => sdk.calls.length === 1), "credential A is in the air");
+		if (how === "Cancel") cancelCard(g).click(); // (the bound ends it by itself while A is still in the air)
+		const r = await waitLine(g, id, 6000);
+		assert.deepEqual(lineOf(r), { ok: false, reason: how === "Cancel" ? "popup_closed" : "popup_timeout" }, how);
+		await sleep(900);
+		assert.deepEqual(sdk.calls.map((c) => c[1]), ["A"], how + ": no new credential is tried after the game was told");
+		assert.equal(sdk.auth.currentUser.uid, "P1", how + ": nobody signed in after the game was told it failed");
+		assert.ok((await ask(g, "cloud_get")).ok, how + ": the game's account is still the one it knows");
+	}
+}
+
+{
 	// (h) the bound: 240 s in real life; the Home Screen app's shorter bound is the SDK window's, not ours
 	for (const home of [false, true]) {
 		const world = popupWorld({ stay: true }), sdk = fakeSdk();
@@ -708,6 +830,27 @@ for (const [name, sc, wantReason, wantCode] of [
 		assert.deepEqual(lineOf(r), { ok: false, reason: "popup_timeout" }, "ends at the long bound, said as a timeout");
 		assert.deepEqual([oidcKeys(g), stopped(g), cards(g).length, world.pages[0].closeCalls], [[], true, 0, 1]);
 	}
+}
+
+{
+	// (h2) the time limit looks once more before it gives up. A page that slept in the background (the player was in Google's tab for
+	// minutes) can have its limit due before its own re-read of the mailbox has run; an answer found at that moment is still taken.
+	// Here the page's re-reads are switched off (it "sleeps"), so only the limit's own look can find the answer
+	const world = popupWorld({ stay: true }), sdk = fakeSdk();
+	const g = game({ world, cfg: OIDC_POPUP, sdk, test: { popupMs: 700, lookMs: 5 } });
+	const realListen = g.window.glowOidc.listen;
+	g.window.glowOidc.listen = (o) => realListen({ ...o, pollMs: 100000 });
+	const id = await tapped(g);
+	const p = { ...world.google[0].params };
+	await sleep(250);
+	g.localStorage.setItem("glow_oidc_res:" + p.state, JSON.stringify({ k: "glow_oidc", v: 1, h: answerFrag(p), q: "", t: Date.now(), d: {} })); // no event reaches this page
+	const r = await waitLine(g, id, 6000);
+	assert.deepEqual([r.ok, r.f.uid], [true, "u2002"], "the limit's last look found the answer, and the sign-in went through");
+	assert.deepEqual(sdk.calls, [["signInWithCredential", "A"]]);
+	assert.deepEqual([oidcKeys(g), stopped(g), cards(g).length], [[], true, 0]);
+	// with nothing to find, the limit is the limit
+	const w2 = popupWorld({ stay: true }), g2 = game({ world: w2, cfg: OIDC_POPUP, sdk: fakeSdk(), test: { popupMs: 300, lookMs: 5 } });
+	assert.deepEqual(lineOf(await waitLine(g2, await tapped(g2))), { ok: false, reason: "popup_timeout" });
 }
 
 {
@@ -866,6 +1009,20 @@ for (const [name, o, want] of [
 	assert.equal((await ask(g3, "restore")).f.ret, undefined);
 }
 {
+	// another page of the same window has claimed the attempt (two loads of one tab): this one leaves the answer to it
+	const world = popupWorld({ delay: 120 }), g1 = game({ world, cfg: OIDC_POPUP, sdk: fakeSdk() });
+	await tapped(g1);
+	kill(g1);
+	assert.ok(await waitFor(() => [...world.ls.keys()].some((k) => k.indexOf("glow_oidc_res:") === 0)));
+	const rec = JSON.parse(g1.ssMap.get("glow_oidc_pend"));
+	rec.cl = { t: Date.now(), by: "the-other-load" };
+	g1.ssMap.set("glow_oidc_pend", JSON.stringify(rec));
+	const sdk2 = fakeSdk(), g2 = game({ world, ss: g1.ssMap, cfg: OIDC_POPUP, sdk: sdk2 });
+	const r = await ask(g2, "restore");
+	assert.deepEqual([r.ok, r.f.ret, sdk2.calls.length], [true, undefined, 0], "it does not exchange what another load is exchanging");
+	assert.ok([...world.ls.keys()].some((k) => k.indexOf("glow_oidc_res:") === 0), "and does not delete it");
+}
+{
 	// ... a link too, only for the account that asked
 	for (const same of [true, false]) {
 		const world = popupWorld({ delay: 120 }), s1 = fakeSdk({ current: pwUser("P1") });
@@ -916,6 +1073,20 @@ for (const [name, sc, ret, noted] of [
 	assert.deepEqual([r.ok, r.f.ret], [true, "timeout"]);
 	assert.ok(Date.now() - t0 < 2000);
 	assert.match(notes(g2)[0].textContent, /^google glow\/restore-timeout /);
+}
+{
+	// the game waits 40 s for "restore" in all, the SDK's loading included: a slow SDK leaves the finish only what is left of the wait
+	// (here the game's wait is shortened to 1.4 s and the SDK takes 1 s; the finish's own limit would be 5 s), but never less than the minimum
+	for (const [sdkMs, gameWaitMs, minMs, wantMax] of [[1000, 1400, 100, 1900], [400, 300, 250, 1400]]) {
+		const world = popupWorld({ delay: 100 }), g1 = game({ world, cfg: OIDC_POPUP, sdk: fakeSdk() });
+		await tapped(g1); kill(g1);
+		assert.ok(await waitFor(() => [...world.ls.keys()].some((k) => k.indexOf("glow_oidc_res:") === 0)));
+		const slow = fakeSdk({ hang: true });
+		const t0 = Date.now(), g2 = game({ world, ss: g1.ssMap, cfg: OIDC_POPUP, sdk: slow, test: { sdk: () => sleep(sdkMs).then(() => slow), restoreMs: 5000, gameWaitMs, restoreMinMs: minMs } });
+		const r = await ask(g2, "restore");
+		assert.deepEqual([r.ok, r.f.ret], [true, "timeout"], "gameWait " + gameWaitMs);
+		assert.ok(Date.now() - t0 < wantMax, "the finish gave up at about the end of the game's wait, not after its own 5 s: " + (Date.now() - t0) + " ms");
+	}
 }
 {
 	// old answers are swept at the start; a flow that is off never reads any of it

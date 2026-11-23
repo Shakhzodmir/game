@@ -19,13 +19,16 @@
 	The state of an attempt says what to do: its first letter is the mode (p = Google's window is a pop-up, r = the whole page
 	went to Google), its second the destination (g = the game, t = the phone test page web/auth_test.html). The keys below
 	are the ones web/glow_oidc.js keysFor() names.
-	The mailbox gets the answer only when a record of the attempt with the same state is visible HERE (this storage): anyone
-	can start Google's sign-in with our public client id, and a stray answer must not linger in storage. When no record is
-	visible, the answer is still offered to the channels that keep nothing, and the page says the storage is another one.
-	A window opened with window.open gets a COPY of the opener's sessionStorage, so the pending record in it proves nothing
-	about "this is the starter's window". The marker written by the starter right AFTER window.open (a copy never has it) or
-	right before location.assign does: only a window with the marker for this state goes back to the starter's page, and
-	only when no live starter answers a ping (a second copy of the game on one save must never start).
+	The mailbox gets the answer only when the attempt is visible HERE as still OPEN: anyone can start Google's sign-in with
+	our public client id, and a stray answer must not linger in storage. For a whole page that went to Google that is its own
+	pending record. For a pop-up it is the beacon in the SHARED storage, because the pop-up's own sessionStorage is a COPY of
+	the starter's made when it opened: the starter may have given up long ago (Cancel, the time limit) and deleted the beacon
+	with the rest of its attempt, and a late answer must not be left lying in storage then. When nothing qualifies, the answer
+	is still offered to the channels that keep nothing (a live starter takes it from them), and the page says so.
+	The copy proves nothing about "this is the starter's window" either. The marker written by the starter right AFTER
+	window.open (a copy never has it) or right before location.assign does: only a window with the marker for this state goes
+	back to the starter's page, and only when no live starter answers a ping (a second copy of the game on one save must
+	never start; the ping guards both modes: a copy taken after the marker would look like the starter's own window).
 -->
 <style>
 	body { margin: 0; padding: 28px 20px; font: 18px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; background: #F4EEFF; color: #2B2345; text-align: center; }
@@ -84,14 +87,17 @@
 		ru: { nothing: "Здесь нечего делать.", doneT: "Готово. Закройте это окно и вернитесь на страницу проверки.", doneG: "Готово. Вернитесь в игру.",
 			closeT: "Закройте это окно (кнопка «Готово» или «Закрыть») и вернитесь на страницу проверки.", closeG: "Закройте это окно (кнопка «Готово» или «Закрыть») и вернитесь в игру.",
 			other: "Это окно не видит игру: у него другое хранилище. Закройте его и войдите ещё раз.", back: "Вернуться на страницу проверки",
+			gone: "Этот вход уже закончился или начат в другом окне. Закройте это окно и войдите ещё раз.", tab: "В Safari закройте вкладку: значок вкладок, затем «×».",
 			op: "связь с окном", st: "общее хранилище", yes: "да", no: "нет", err: "Что-то пошло не так. Закройте это окно." },
 		ko: { nothing: "여기서 할 일이 없습니다.", doneT: "완료되었습니다. 이 창을 닫고 확인 페이지로 돌아가세요.", doneG: "완료되었습니다. 게임으로 돌아가세요.",
 			closeT: "이 창을 닫고(완료 또는 닫기 버튼) 확인 페이지로 돌아가세요.", closeG: "이 창을 닫고(완료 또는 닫기 버튼) 게임으로 돌아가세요.",
 			other: "이 창은 게임을 볼 수 없습니다(저장 공간이 다릅니다). 창을 닫고 다시 로그인하세요.", back: "확인 페이지로 돌아가기",
+			gone: "이 로그인은 이미 끝났거나 다른 창에서 시작되었습니다. 이 창을 닫고 다시 로그인하세요.", tab: "Safari에서는 탭 아이콘을 눌러 이 탭을 닫으세요.",
 			op: "창 연결", st: "공유 저장소", yes: "예", no: "아니요", err: "문제가 생겼습니다. 이 창을 닫으세요." },
 		en: { nothing: "Nothing to do here.", doneT: "Done. Close this window and go back to the test page.", doneG: "Done. Go back to the game.",
 			closeT: "Close this window (the Done or Close button) and go back to the test page.", closeG: "Close this window (the Done or Close button) and go back to the game.",
 			other: "This window cannot see the game: its storage is another one. Close it and sign in again.", back: "Back to the test page",
+			gone: "This sign-in has already ended or was started in another window. Close this window and sign in again.", tab: "In Safari, close this tab from the tab switcher (the tabs icon, then ×).",
 			op: "link to the opener", st: "shared storage", yes: "yes", no: "no", err: "Something went wrong. Close this window." }
 	};
 	var W = S[lang] || S.en;
@@ -136,8 +142,12 @@
 		var relay = { k: "glow_oidc", v: 1, h: hash, q: search, t: now(), d: diag };
 		var ret = { s: state, st: "relayed", ack: 0, via: "", ms: -1, ct: 0, pong: -1, rep: 0, d: diag, t: now() };
 		function saveRet() { ret.t = now(); try { if (K.ret && ls) ls.setItem(K.ret, JSON.stringify(ret)); } catch (e) { /* none */ } }
-		var stored = false;
-		try { if (known && ls) { ls.setItem(K.res + state, JSON.stringify(relay)); stored = true; } } catch (e12) { /* none */ }
+		// The answer goes into the mailbox only for an attempt that is still OPEN. A pop-up holds a COPY of the starter's
+		// sessionStorage made when it opened, so the record in it proves nothing: the starter may have given up long ago (Cancel,
+		// the time limit) and deleted its attempt. The record that says "still open" is the one in the SHARED storage, which every
+		// end of a try deletes. (A whole page that went to Google comes back to its own window: its own storage is the proof.)
+		var live = mode === "p" ? pLS : known, stored = false;
+		try { if (live && ls) { ls.setItem(K.res + state, JSON.stringify(relay)); stored = true; } } catch (e12) { /* none */ }
 
 		// 5. hand it over: nothing here needs a live window.opener --------------------------------------------------------
 		var bc = null, onAck = null, onPong = null;
@@ -173,35 +183,47 @@
 			tm = setTimeout(function () { end(""); }, limit);
 		}
 
-		if (mode === "p") {
-			// a pop-up: the page that opened us waits for the answer. When this IS the starter's own window (iOS put the return
-			// where the starter was), nobody is waiting here any more: go back, and that page takes the answer from the mailbox
-			say(dest === "g" ? W.doneG : W.doneT);
-			if (own && homeOk) return leave();
+		var okText = dest === "g" ? W.doneG : W.doneT, closeText = dest === "g" ? W.closeG : W.closeT;
+		// The starter's own window goes back to the starter's page, unless somebody is alive there (a pong): then this is another
+		// window over a live page, and starting the page again would put a second copy of the game on one save.
+		function pingThenLeave(onLive) {
+			var settled = false, tmPong = null;
+			onPong = function () { if (settled) return; settled = true; onPong = null; clearTimeout(tmPong); onLive(); };
+			try { if (bc) bc.postMessage({ k: "glow_oidc_ping", s: state }); } catch (e17) { /* none */ }
+			tmPong = setTimeout(function () { if (settled) return; settled = true; onPong = null; ret.pong = 0; leave(); }, 400);
+		}
+		// mode p, Google's window: the page that opened it waits for the answer; this window has done its part and closes
+		function popupEnd() {
 			wait(2000, function (via) {
 				ret.ack = via ? 1 : 0; ret.via = via; ret.ms = now() - tPost; ret.st = "acked"; ret.ct = 1; saveRet();
+				if (via && !stored) say(okText); // the starter has it after all, by a channel that keeps nothing in the storage
 				try { window.close(); } catch (e16) { /* the browser refuses for a window it did not open: the text stays */ }
-				setTimeout(function () {
+				setTimeout(function () { // still here: the browser did not close it, so say how to leave
+					say((stored || via ? closeText : W.gone) + " " + W.tab);
 					if (dest !== "t") return;
 					bEl.textContent = W.back; bEl.hidden = false;
 					bEl.addEventListener("click", function () { try { location.replace(target); } catch (e) { /* none */ } });
 				}, 400);
 			});
-			return;
 		}
-		// mode r: the whole page went to Google. The starter's own window goes back to the starter's page, unless somebody
-		// is alive there (a pong): then this is another window over a live page, and starting the page again would double it
+
+		if (mode === "p") {
+			// a pop-up. When the marker says this IS the starter's own window (iOS put the return where the starter was), nobody is
+			// waiting here any more: go back, and that page takes the answer from the mailbox. A live starter that answers the ping
+			// means the marker came from a copy of the starter's storage, so this is a pop-up after all: it stays and closes.
+			say(stored ? okText : W.gone);
+			if (!(own && homeOk)) return popupEnd();
+			return pingThenLeave(function () { ret.pong = 1; saveRet(); popupEnd(); });
+		}
+		// mode r: the whole page went to Google
 		function stay(pong) {
-			say((dest === "g" ? W.closeG : W.closeT) + (known ? "" : " " + W.other));
+			say(closeText + (known ? "" : " " + W.other));
 			ret.pong = pong ? 1 : 0; ret.st = "stay"; saveRet();
 			wait(2000, function (via) { ret.ack = via ? 1 : 0; ret.via = via; ret.ms = now() - tPost; saveRet(); });
 		}
 		if (!(own && homeOk)) return stay(false);
-		say(dest === "g" ? W.doneG : W.doneT);
-		var settled = false, tmPong = null;
-		onPong = function () { if (settled) return; settled = true; onPong = null; clearTimeout(tmPong); stay(true); };
-		try { if (bc) bc.postMessage({ k: "glow_oidc_ping", s: state }); } catch (e17) { /* none */ }
-		tmPong = setTimeout(function () { if (settled) return; settled = true; onPong = null; ret.pong = 0; leave(); }, 400);
+		say(okText);
+		pingThenLeave(function () { stay(true); });
 	} catch (e18) {
 		say(W.err);
 	}
