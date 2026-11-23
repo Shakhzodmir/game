@@ -5937,12 +5937,25 @@ LOUDNESS = {
 # districts at the same peak: this brings it in line and keeps notes + music in a level under 0 dBTP.
 LEVEL_TRIM = {"block": -1.0}
 
+# Polarity of a layer inside its district (-1.0 = the stem is played upside down; the notes, the rhythm, the loudness
+# and the sound of the stem alone do not change). The common gain of a district is limited by its loudest combination
+# (tasks + tension, tasks + party, tasks alone), measured as a true peak, and a layer whose attacks fall on the same
+# beats as the task stems' and swing the same way adds to them peak on peak. The tension layer of sunset_bossa
+# (the palm-muted pluck on the chord roots, the held root and the hats, all on the downbeats of the cajon, the bass and
+# the nylon guitar) took tasks + tension to 1.2 dB above the task mix alone, so the quietest theme of all was held
+# down by it. Upside down, the same layer takes that combination 0.6 dB BELOW the task mix and the whole district can
+# sit 1.2 dB louder under the same -1.15 dBTP (tools/audio/gen_audio.py then finds the tasks alone the loudest
+# combination). Lowering the layer instead buys little: 1.5 dB less tension is +0.2 dB, 6 dB less is +0.6 dB.
+# Remove an entry and re-render the district to go back.
+STEM_POLARITY = {"sunset_bossa": {"tension": -1.0}}
+
 
 def render_district(d):
     """Render every stem of district d (dict from districts.json).
     Returns (song, {stem_id: raw signal}, {stem_id: sample rate}) in task
     order + tension + party. `song` is the 22.05 kHz grid; stems listed in
-    HI_RATE are rendered on the same grid at 44.1 kHz."""
+    HI_RATE are rendered on the same grid at 44.1 kHz. A layer listed in
+    STEM_POLARITY comes out upside down."""
     spec = DISTRICTS[d["id"]]
     s = spec["song"](d)
     hi = s.at_rate(SR_HI)
@@ -5952,6 +5965,8 @@ def render_district(d):
     for k, fn in fns:
         ss = hi if k in HI_RATE.get(d["id"], ()) else s
         out[k] = np.asarray(fn(ss), dtype=float)
+        if k in STEM_POLARITY.get(d["id"], {}):
+            out[k] = out[k] * STEM_POLARITY[d["id"]][k]
         rates[k] = ss.sr
         assert len(out[k]) == ss.n, (d["id"], k, len(out[k]), ss.n)
         assert np.all(np.isfinite(out[k])), (d["id"], k)

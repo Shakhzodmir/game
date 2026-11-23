@@ -10249,35 +10249,38 @@
     2
    ],
    "stem_gain_db": {
-    "perc": -9.43,
-    "guitar": -14.18,
-    "bass": -7.99,
-    "shaker": -10.89,
-    "keys": -25.15,
-    "flute": -20.13,
-    "tension": -13.07,
-    "party": -12.75
+    "perc": -8.1,
+    "guitar": -12.84,
+    "bass": -6.65,
+    "shaker": -9.55,
+    "keys": -23.81,
+    "flute": -18.8,
+    "tension": -11.73,
+    "party": -11.42
+   },
+   "polarity": {
+    "tension": -1.0
    },
    "combos": {
     "tasks": {
-     "peak_dbfs": -2.3,
-     "true_peak_dbtp": -2.27,
-     "lufs": -22.3
-    },
-    "tasks+tension": {
-     "peak_dbfs": -1.08,
-     "true_peak_dbtp": -1.07,
-     "lufs": -21.5
-    },
-    "tasks+party": {
-     "peak_dbfs": -2.97,
-     "true_peak_dbtp": -2.88,
+     "peak_dbfs": -1.03,
+     "true_peak_dbtp": -1.03,
      "lufs": -21.0
     },
+    "tasks+tension": {
+     "peak_dbfs": -1.55,
+     "true_peak_dbtp": -1.43,
+     "lufs": -20.2
+    },
+    "tasks+party": {
+     "peak_dbfs": -1.83,
+     "true_peak_dbtp": -1.83,
+     "lufs": -19.7
+    },
     "all stems (never played together)": {
-     "peak_dbfs": -1.5,
-     "true_peak_dbtp": -1.45,
-     "lufs": -20.4
+     "peak_dbfs": -0.99,
+     "true_peak_dbtp": -0.98,
+     "lufs": -19.1
     }
    },
    "tension_delta_lu": 0.8,
@@ -10287,7 +10290,7 @@
      "stem": "perc",
      "task": "sunset_cajon",
      "cost": 1,
-     "stem_lufs": -28.4,
+     "stem_lufs": -27.1,
      "mix_before_lufs": null,
      "stem_vs_mix_lu": null,
      "delta_lu": null
@@ -10296,8 +10299,8 @@
      "stem": "guitar",
      "task": "veranda_guitar",
      "cost": 4,
-     "stem_lufs": -29.6,
-     "mix_before_lufs": -28.4,
+     "stem_lufs": -28.3,
+     "mix_before_lufs": -27.1,
      "stem_vs_mix_lu": -1.2,
      "delta_lu": 2.36
     },
@@ -10305,8 +10308,8 @@
      "stem": "bass",
      "task": "tide_speaker",
      "cost": 5,
-     "stem_lufs": -29.9,
-     "mix_before_lufs": -26.0,
+     "stem_lufs": -28.6,
+     "mix_before_lufs": -24.7,
      "stem_vs_mix_lu": -3.9,
      "delta_lu": 1.28
     },
@@ -10314,8 +10317,8 @@
      "stem": "shaker",
      "task": "sunset_bar",
      "cost": 5,
-     "stem_lufs": -31.6,
-     "mix_before_lufs": -24.7,
+     "stem_lufs": -30.3,
+     "mix_before_lufs": -23.4,
      "stem_vs_mix_lu": -6.8,
      "delta_lu": 0.68
     },
@@ -10323,8 +10326,8 @@
      "stem": "keys",
      "task": "dune_hammock",
      "cost": 5,
-     "stem_lufs": -30.7,
-     "mix_before_lufs": -24.1,
+     "stem_lufs": -29.4,
+     "mix_before_lufs": -22.7,
      "stem_vs_mix_lu": -6.7,
      "delta_lu": 0.74
     },
@@ -10332,17 +10335,17 @@
      "stem": "flute",
      "task": "lantern_palm",
      "cost": 6,
-     "stem_lufs": -29.3,
-     "mix_before_lufs": -23.3,
+     "stem_lufs": -28.0,
+     "mix_before_lufs": -22.0,
      "stem_vs_mix_lu": -6.0,
      "delta_lu": 0.98
     }
    ],
    "brightness": {
-    "centroid_hz": 1229,
+    "centroid_hz": 1230,
     "hf_2k_8k_vs_mid_db": -7.2,
-    "air_8k_16k_vs_mid_db": -14.1,
-    "share_below_150hz_pct": 23.2
+    "air_8k_16k_vs_mid_db": -14.2,
+    "share_below_150hz_pct": 23.1
    },
    "key_reading": {
     "tasks": {
@@ -10353,7 +10356,7 @@
     },
     "tasks+party": {
      "major": 0.91,
-     "relative_minor": 0.65,
+     "relative_minor": 0.64,
      "best": "C maj",
      "best_r": 0.91
     },
@@ -10371,8 +10374,8 @@
     }
    },
    "mix_seam": {
-    "step_vs_beats": 0.041,
-    "click_vs_beats": 0.567
+    "step_vs_beats": 0.087,
+    "click_vs_beats": 0.697
    },
    "stems": [
     {
@@ -10380,20 +10383,20 @@
      "duration": 20.0,
      "samples": 441000,
      "sample_rate": 22050,
-     "peak_dbfs": -8.33,
-     "true_peak_dbtp": -8.11,
-     "rms_dbfs": -27.8,
-     "bytes": 101158,
+     "peak_dbfs": -6.92,
+     "true_peak_dbtp": -6.91,
+     "rms_dbfs": -26.48,
+     "bytes": 101877,
      "stem": "perc",
      "task": "sunset_cajon",
      "cost": 1,
-     "loudness_db": -27.7,
-     "lufs": -28.4,
-     "centroid_hz": 776,
-     "harmony_in_scale_pct": 67.5,
+     "loudness_db": -26.3,
+     "lufs": -27.1,
+     "centroid_hz": 779,
+     "harmony_in_scale_pct": 67.6,
      "seam": {
-      "step_vs_beats": 0.057,
-      "click_vs_beats": 0.925,
+      "step_vs_beats": 0.156,
+      "click_vs_beats": 0.954,
       "codec_edge": 0.68
      }
     },
@@ -10402,21 +10405,21 @@
      "duration": 20.0,
      "samples": 441000,
      "sample_rate": 22050,
-     "peak_dbfs": -7.15,
-     "true_peak_dbtp": -7.15,
-     "rms_dbfs": -31.11,
-     "bytes": 100313,
+     "peak_dbfs": -5.86,
+     "true_peak_dbtp": -5.85,
+     "rms_dbfs": -29.77,
+     "bytes": 101593,
      "stem": "guitar",
      "task": "veranda_guitar",
      "cost": 4,
-     "loudness_db": -28.7,
-     "lufs": -29.6,
-     "centroid_hz": 1566,
-     "harmony_in_scale_pct": 89.6,
+     "loudness_db": -27.4,
+     "lufs": -28.3,
+     "centroid_hz": 1565,
+     "harmony_in_scale_pct": 89.7,
      "seam": {
-      "step_vs_beats": 0.015,
-      "click_vs_beats": 0.063,
-      "codec_edge": 0.61
+      "step_vs_beats": 0.002,
+      "click_vs_beats": 0.064,
+      "codec_edge": 0.7
      }
     },
     {
@@ -10424,21 +10427,21 @@
      "duration": 20.0,
      "samples": 441000,
      "sample_rate": 22050,
-     "peak_dbfs": -10.08,
-     "true_peak_dbtp": -9.98,
-     "rms_dbfs": -30.02,
-     "bytes": 66712,
+     "peak_dbfs": -8.73,
+     "true_peak_dbtp": -8.62,
+     "rms_dbfs": -28.69,
+     "bytes": 67203,
      "stem": "bass",
      "task": "tide_speaker",
      "cost": 5,
-     "loudness_db": -29.7,
-     "lufs": -29.9,
+     "loudness_db": -28.4,
+     "lufs": -28.6,
      "centroid_hz": 600,
      "harmony_in_scale_pct": 73.3,
      "seam": {
-      "step_vs_beats": 0.013,
-      "click_vs_beats": 0.001,
-      "codec_edge": 0.67
+      "step_vs_beats": 0.023,
+      "click_vs_beats": 0.002,
+      "codec_edge": 0.76
      }
     },
     {
@@ -10446,21 +10449,21 @@
      "duration": 20.0,
      "samples": 882000,
      "sample_rate": 44100,
-     "peak_dbfs": -12.98,
-     "true_peak_dbtp": -12.57,
-     "rms_dbfs": -34.87,
-     "bytes": 176375,
+     "peak_dbfs": -10.8,
+     "true_peak_dbtp": -10.79,
+     "rms_dbfs": -33.54,
+     "bytes": 177405,
      "stem": "shaker",
      "task": "sunset_bar",
      "cost": 5,
-     "loudness_db": -30.9,
-     "lufs": -31.6,
-     "centroid_hz": 7409,
+     "loudness_db": -29.6,
+     "lufs": -30.3,
+     "centroid_hz": 7406,
      "harmony_in_scale_pct": 57.1,
      "seam": {
       "step_vs_beats": 0.021,
-      "click_vs_beats": 0.002,
-      "codec_edge": 0.22
+      "click_vs_beats": 0.003,
+      "codec_edge": 0.21
      }
     },
     {
@@ -10468,21 +10471,21 @@
      "duration": 20.0,
      "samples": 441000,
      "sample_rate": 22050,
-     "peak_dbfs": -15.05,
-     "true_peak_dbtp": -15.04,
-     "rms_dbfs": -30.97,
-     "bytes": 67246,
+     "peak_dbfs": -13.71,
+     "true_peak_dbtp": -13.69,
+     "rms_dbfs": -29.63,
+     "bytes": 68072,
      "stem": "keys",
      "task": "dune_hammock",
      "cost": 5,
-     "loudness_db": -30.8,
-     "lufs": -30.7,
+     "loudness_db": -29.4,
+     "lufs": -29.4,
      "centroid_hz": 453,
      "harmony_in_scale_pct": 100.0,
      "seam": {
-      "step_vs_beats": 0.447,
-      "click_vs_beats": 0.259,
-      "codec_edge": 0.46
+      "step_vs_beats": 0.441,
+      "click_vs_beats": 0.256,
+      "codec_edge": 0.44
      }
     },
     {
@@ -10490,20 +10493,20 @@
      "duration": 20.0,
      "samples": 441000,
      "sample_rate": 22050,
-     "peak_dbfs": -18.22,
-     "true_peak_dbtp": -18.2,
-     "rms_dbfs": -29.2,
-     "bytes": 99250,
+     "peak_dbfs": -16.85,
+     "true_peak_dbtp": -16.84,
+     "rms_dbfs": -27.87,
+     "bytes": 99470,
      "stem": "flute",
      "task": "lantern_palm",
      "cost": 6,
-     "loudness_db": -28.6,
-     "lufs": -29.3,
+     "loudness_db": -27.3,
+     "lufs": -28.0,
      "centroid_hz": 1022,
      "harmony_in_scale_pct": 98.8,
      "seam": {
-      "step_vs_beats": 0.089,
-      "click_vs_beats": 0.162,
+      "step_vs_beats": 0.086,
+      "click_vs_beats": 0.154,
       "codec_edge": 0.16
      }
     },
@@ -10512,21 +10515,21 @@
      "duration": 20.0,
      "samples": 441000,
      "sample_rate": 22050,
-     "peak_dbfs": -11.33,
-     "true_peak_dbtp": -10.68,
-     "rms_dbfs": -30.03,
-     "bytes": 119374,
+     "peak_dbfs": -10.59,
+     "true_peak_dbtp": -9.32,
+     "rms_dbfs": -28.7,
+     "bytes": 119858,
      "stem": "tension",
      "task": null,
      "cost": null,
-     "loudness_db": -28.6,
-     "lufs": -29.3,
-     "centroid_hz": 1848,
+     "loudness_db": -27.2,
+     "lufs": -27.9,
+     "centroid_hz": 1847,
      "harmony_in_scale_pct": 99.3,
      "seam": {
-      "step_vs_beats": 0.067,
-      "click_vs_beats": 0.633,
-      "codec_edge": 0.55
+      "step_vs_beats": 0.011,
+      "click_vs_beats": 0.577,
+      "codec_edge": 0.57
      }
     },
     {
@@ -10534,21 +10537,21 @@
      "duration": 20.0,
      "samples": 441000,
      "sample_rate": 22050,
-     "peak_dbfs": -10.44,
-     "true_peak_dbtp": -9.83,
-     "rms_dbfs": -27.75,
-     "bytes": 121978,
+     "peak_dbfs": -8.96,
+     "true_peak_dbtp": -8.63,
+     "rms_dbfs": -26.41,
+     "bytes": 122196,
      "stem": "party",
      "task": null,
      "cost": null,
-     "loudness_db": -26.5,
-     "lufs": -27.2,
-     "centroid_hz": 1738,
+     "loudness_db": -25.2,
+     "lufs": -25.9,
+     "centroid_hz": 1739,
      "harmony_in_scale_pct": 99.7,
      "seam": {
-      "step_vs_beats": 0.018,
-      "click_vs_beats": 0.505,
-      "codec_edge": 0.31
+      "step_vs_beats": 0.009,
+      "click_vs_beats": 0.501,
+      "codec_edge": 0.32
      }
     }
    ]
@@ -21266,7 +21269,7 @@
    "with_music_beat": 0
   }
  },
- "total_bytes": 35849333,
+ "total_bytes": 35854601,
  "counts": {
   "notes": 66,
   "sfx": 40,
@@ -21297,7 +21300,7 @@
   "Music `nations_fest`: 8 stems, identical duration (364966 samples at 22.05 kHz): PASS; worst realistic mix -1.34 dBTP / -1.60 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -3.39): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `fan_meeting`: 8 stems, identical duration (415059 samples at 22.05 kHz): PASS; worst realistic mix -1.06 dBTP / -1.06 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.08): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `punk_garage`: 8 stems, identical duration (246140 samples at 22.05 kHz): PASS; worst realistic mix -1.34 dBTP / -1.35 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -4.48): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
-  "Music `sunset_bossa`: 8 stems, identical duration (441000 samples at 22.05 kHz): PASS; worst realistic mix -1.07 dBTP / -1.08 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.15): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
+  "Music `sunset_bossa`: 8 stems, identical duration (441000 samples at 22.05 kHz): PASS; worst realistic mix -1.03 dBTP / -1.03 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -5.85): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `night_carnival`: 8 stems, identical duration (302400 samples at 22.05 kHz): PASS; worst realistic mix -1.08 dBTP / -1.22 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -7.30): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Songs `cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.6 … 28.2 s within 16–32: PASS; worst mix -1.17 dBTP / -1.31 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.6) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 89.7): PASS; seams clean: PASS.",
   "Songs `jazz`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.1 … 29.1 s within 16–32: PASS; worst mix -1.23 dBTP / -1.23 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.5 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.19): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
@@ -21336,7 +21339,7 @@
   "Songs `ambient`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.7 … 30.0 s within 16–32: PASS; worst mix -4.46 dBTP / -4.46 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 91.8): PASS; seams clean: PASS.",
   "Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.",
   "Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
-  "Notes, SFX and district music 17.75 MB ≤ 30 MB: PASS.",
+  "Notes, SFX and district music 17.76 MB ≤ 30 MB: PASS.",
   "Songs 137 files, 16.44 MB ≤ 24 MB: PASS."
  ]
 }
