@@ -1370,3 +1370,486 @@ describe("screens/town: Bit listens to the layer that enters", function()
 		end)
 	end)
 end)
+
+-- The soft glow of the item the next star buys (the grey instruments looked like closed decoration: ChatGPT review,
+-- section 1, row 1). The rule is client/views.lua item_glow (unit tests: tests/client/meta_views_test.lua); here the nodes:
+-- screens/town/scene.lua draws them, screens/town/town.gui_script asks every frame.
+describe("screens/town: the glow of the item the next star buys", function()
+	local SCENE = "/screens/town/town.gui"
+
+	-- the glow nodes of the town (a halo with its light inside it), all rooms
+	local function auras(c)
+		local out = {}
+		for _, n in ipairs(c.E.alive_nodes(c.E.scene(SCENE))) do
+			if n.id == "aura" then out[#out + 1] = n end
+		end
+		return out
+	end
+
+	-- the live animations of a node and of the nodes under it
+	local function anims_of(c, node)
+		local count = 0
+		for _, a in ipairs(c.E.scene(SCENE).anims) do
+			local p = a.node
+			while p do
+				if p == node then
+					count = count + 1
+					break
+				end
+				p = p.parent
+			end
+		end
+		return count
+	end
+
+	-- the animated properties of a node and of the nodes under it (the stub keeps one animation per component: a scale
+	-- is three), as a sorted list without repeats
+	local function anim_fields(c, node)
+		local seen, out = {}, {}
+		for _, a in ipairs(c.E.scene(SCENE).anims) do
+			local p = a.node
+			while p do
+				if p == node then
+					if not seen[a.field] then
+						seen[a.field] = true
+						out[#out + 1] = a.field
+					end
+					break
+				end
+				p = p.parent
+			end
+		end
+		table.sort(out)
+		return out
+	end
+
+	local function item_of(c, id) return c.town.self.t.scene.items[id] end
+
+	-- the scene asked directly (its calls need the GUI context of the town script)
+	local function set_glow(c, spec)
+		c.town:ctx(function() c.town.self.t.scene:set_glow(spec) end)
+	end
+
+	-- the silhouette that shares a holder with a glow
+	local function silhouette_of(halo)
+		for _, n in ipairs(halo.parent.children) do
+			if n ~= halo then return n end
+		end
+	end
+
+	local function is_inside(node, root)
+		local p = node
+		while p do
+			if p == root then return true end
+			p = p.parent
+		end
+		return false
+	end
+
+	it("glows the first silhouette once the first star is in the purse: right under it, warm, soft, and the hint stays", function()
+		G.with_town({}, function(c)
+			assert_eq(#auras(c), 0, "no star yet: only grey silhouettes")
+			assert_eq(c.app.ui.glow, nil)
+		end)
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local t = c.town.self.t
+			local halos = auras(c)
+			assert_eq(#halos, 1)
+			assert_eq(c.app.ui.glow, "turntable")
+			assert_eq(t.scene:glowing(), "turntable")
+			local halo, e = halos[1], item_of(c, "turntable")
+			assert_eq(e.aura, halo)
+			-- in the holder of the item, on its centre, drawn right under its grey silhouette
+			assert_eq(halo.parent, e.holder)
+			assert_near(halo.pos.x, e.x, 0.01)
+			assert_near(halo.pos.y, e.y, 0.01)
+			local order = {}
+			for i, n in ipairs(e.holder.children) do order[n] = i end
+			assert_true(order[halo] < order[e.node], "the glow is drawn under the silhouette, never over it")
+			assert_true(c.E.visible(e.node))
+			assert_near(e.node.color.w, 1, 0.01, "the silhouette is as it was")
+			-- a soft disc (no edge), warm, not opaque, bigger than the item but not the room
+			assert_eq(halo.texture, "px_soft")
+			assert_true(halo.color.x >= halo.color.y and halo.color.y > halo.color.z, "warm: red >= green > blue")
+			assert_true(halo.color.w > 0.2 and halo.color.w < 0.9, "soft: alpha " .. halo.color.w)
+			assert_true(halo.size.x > e.w and halo.size.y > e.h and halo.size.x < 500 and halo.size.y < 500)
+			-- it belongs to the scene (it leaves with it), not to the bars: the hint and the card are untouched
+			assert_true(is_inside(halo, t.c_scene))
+			assert_false(is_inside(halo, t.c_ui))
+			assert_eq(c.app.ui.hint, "town_first_task")
+			assert_true(c.town:has_text("Buy the first layer: the town will play music!", true), G.dump(c.town))
+			assert_true(t.hud.hint ~= nil and t.hud.card ~= nil)
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	it("glows later items too, from the moment their stars are in the purse, and not before", function()
+		G.with_town({ setup = function(app) G.win(app, 1); G.build_tasks(app, "cafe", 2) end }, function(c)
+			assert_eq(c.app.meta:next_task().id, "piano") -- costs 2, one star is left
+			assert_eq(c.app.meta:stars(), 1)
+			assert_eq(#auras(c), 0)
+			assert_eq(c.app.ui.glow, nil)
+			assert_eq(c.app.ui.hint, nil, "no hint any more: the glow is not the hint")
+			G.give_stars(c.app, 1)
+			c.step(3)
+			assert_eq(#auras(c), 1)
+			assert_eq(c.app.ui.glow, "piano")
+			local halo = auras(c)[1]
+			assert_eq(halo.parent, item_of(c, "piano").holder)
+			assert_near(halo.pos.x, 160, 0.01)
+			assert_near(halo.pos.y, 1280 - 690, 0.01)
+			-- the restored items have their own gold glow and none of this one
+			assert_eq(item_of(c, "turntable").aura, nil)
+			assert_eq(item_of(c, "lamps").aura, nil)
+			assert_true(item_of(c, "turntable").glow ~= nil)
+		end)
+	end)
+
+	it("breathes: the halo swells a little and the light inside it brightens, 1.6 s a breath", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local ui = require("client.ui")
+			local AURA = require("screens.town.scene").AURA
+			local halo = auras(c)[1]
+			assert_true(halo ~= nil)
+			local light = halo.children[1]
+			assert_true(light ~= nil and light.blend == c.E.gui.BLEND_ADD, "the light inside the halo adds its colour to the room")
+			c.run(1) -- it has grown in by now
+			assert_true(ui.is_pulsing(halo))
+			local series, bright = {}, {}
+			for i = 1, 60 * 5 do
+				c.step(1)
+				series[i], bright[i] = halo.scale.x, light.color.w
+			end
+			local lo, hi, i_lo, i_hi = math.huge, 0, 1, 1
+			for i, s in ipairs(series) do
+				if s < lo then lo, i_lo = s, i end
+				if s > hi then hi, i_hi = s, i end
+			end
+			assert_true(hi - lo >= 0.03 and hi - lo <= 0.1, "a small amplitude: " .. string.format("%.3f", hi - lo))
+			assert_near(lo, 1, 0.005)
+			local peaks = {}
+			for i = 2, #series - 1 do
+				if series[i] >= series[i - 1] and series[i] > series[i + 1] and series[i] > (lo + hi) / 2 then peaks[#peaks + 1] = i end
+			end
+			assert_true(#peaks >= 2, "peaks " .. #peaks)
+			local period = (peaks[#peaks] - peaks[1]) / (#peaks - 1) / 60
+			assert_near(period, 1.6, 0.05, "one breath")
+			-- the light follows the halo: brightest when the halo is biggest, at a share of it when it is smallest
+			assert_near(bright[i_hi], AURA.light.alpha, 0.01)
+			assert_near(bright[i_lo], AURA.light.alpha * AURA.dim, 0.01)
+			assert_true(AURA.dim >= 0.5 and AURA.dim < 1, "a gentle change of brightness")
+			assert_same(anim_fields(c, halo), { "color", "scale" }, "the breath and nothing else runs")
+			assert_near(halo.color.w, AURA.halo.alpha, 1e-6, "the halo itself keeps its strength")
+		end)
+	end)
+
+	it("stands still with reduced motion: the same glow at full strength at once, no pulse, no animation", function()
+		local strength
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			c.run(1.2)
+			strength = auras(c)[1].color.w
+		end)
+		G.with_town({ setup = function(app) G.win(app, 1); app.set_setting("reduced_motion", true) end }, function(c)
+			local ui = require("client.ui")
+			local halo = auras(c)[1]
+			assert_true(halo ~= nil)
+			assert_true(c.app.reduced_motion())
+			assert_false(ui.is_pulsing(halo))
+			assert_eq(anims_of(c, halo), 0)
+			assert_near(halo.color.w, strength, 1e-6, "as strong as the one that breathes")
+			assert_near(halo.scale.x, 1, 1e-6)
+			local light = halo.children[1]
+			assert_near(light.color.w, require("screens.town.scene").AURA.light.alpha, 1e-6, "the light at its full strength")
+			c.run(3)
+			assert_near(halo.scale.x, 1, 1e-6)
+			assert_near(halo.color.w, strength, 1e-6)
+			assert_near(light.color.w, require("screens.town.scene").AURA.light.alpha, 1e-6)
+			assert_eq(anims_of(c, halo), 0)
+			assert_eq(c.app.ui.glow, "turntable")
+		end)
+	end)
+
+	it("changes to a standing glow when the player asks for less motion in the middle of a visit", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local ui = require("client.ui")
+			c.run(1)
+			assert_true(ui.is_pulsing(auras(c)[1]))
+			c.app.set_setting("reduced_motion", true) -- the room is drawn again
+			c.run(0.5)
+			assert_eq(#auras(c), 1, "one glow, not two")
+			local halo = auras(c)[1]
+			assert_false(ui.is_pulsing(halo))
+			assert_eq(anims_of(c, halo), 0)
+			c.app.set_setting("reduced_motion", false)
+			c.run(0.5)
+			assert_eq(#auras(c), 1)
+			assert_true(ui.is_pulsing(auras(c)[1]))
+		end)
+	end)
+
+	it("goes out when the purchase starts, stays out while the show runs, and comes back on the next item", function()
+		G.with_town({ setup = function(app) G.win(app, 1); G.give_stars(app, 1) end }, function(c)
+			assert_eq(c.app.ui.glow, "turntable") -- two stars: the turntable and the lamps are both within reach
+			tap_target(c, "task")
+			c.step(2)
+			assert_true(c.app.ui.busy)
+			assert_eq(#auras(c), 0, "no glow while the stars fly and the item lights up")
+			assert_eq(c.app.ui.glow, nil)
+			for _ = 1, 60 * 4 do
+				c.step(1)
+				if not c.app.ui.busy then break end
+				assert_eq(#auras(c), 0, "still none at " .. string.format("%.2f", c.E.clock))
+			end
+			assert_false(c.app.ui.busy)
+			c.step(3)
+			assert_eq(c.app.meta:next_task().id, "lamps")
+			assert_eq(#auras(c), 1)
+			assert_eq(c.app.ui.glow, "lamps")
+			assert_eq(item_of(c, "turntable").aura, nil, "the item that was just built has its own gold glow")
+			assert_true(item_of(c, "turntable").glow ~= nil)
+		end)
+		-- one star only: the turntable is built and the lamps (1 star) are out of reach: nothing glows at the end
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			tap_target(c, "task")
+			wait_for(c, function() return not c.app.ui.busy end, 6, "the task animation")
+			c.run(1)
+			assert_eq(c.app.meta:stars(), 0)
+			assert_eq(#auras(c), 0)
+			assert_eq(c.app.ui.glow, nil)
+		end)
+	end)
+
+	it("lights a tap on it: the glowing silhouette is bought like the card", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			assert_eq(c.app.ui.glow, "turntable")
+			c.tap(370, 1280 - 712) -- the silhouette of the turntable
+			c.step(3)
+			assert_true(c.app.ui.busy)
+			assert_eq(c.app.ui.step, "task")
+			assert_eq(c.app.meta:district("cafe").done, 1)
+		end)
+	end)
+
+	it("takes its nodes and its animation away with it", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local t = c.town.self.t
+			c.run(1)
+			local halo = auras(c)[1]
+			local with = c.town:stats()
+			local pulse = anims_of(c, halo)
+			assert_true(pulse > 0)
+			set_glow(c, nil)
+			local without = c.town:stats()
+			assert_eq(#auras(c), 0)
+			assert_eq(without.nodes, with.nodes - 2, "the halo and the light inside it")
+			assert_eq(without.anims, with.anims - pulse, "the pulse")
+			assert_eq(t.scene:glowing(), nil)
+			assert_eq(item_of(c, "turntable").aura, nil)
+			-- lit again, and again taken away: the same counts, nothing piles up
+			for _ = 1, 3 do
+				set_glow(c, { district = "cafe", id = "turntable" })
+				c.run(1)
+				assert_eq(#auras(c), 1)
+				set_glow(c, nil)
+			end
+			local again = c.town:stats()
+			assert_eq(again.nodes, without.nodes)
+			assert_eq(again.anims, without.anims)
+		end)
+	end)
+
+	it("is not lit twice for one item, and a glow asked for a grey item that is not there or is built does nothing", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			set_glow(c, { district = "cafe", id = "turntable" })
+			set_glow(c, { district = "cafe", id = "turntable" })
+			assert_eq(#auras(c), 1)
+			set_glow(c, { district = "cafe", id = "no_such_item" })
+			assert_eq(#auras(c), 0)
+			set_glow(c, { district = "jazz", id = "stage_light" }) -- a room that is not on display
+			assert_eq(#auras(c), 0)
+			set_glow(c, { district = "cafe", id = "turntable" })
+			assert_eq(#auras(c), 1)
+		end)
+		-- an item that is built (restored) never takes one
+		G.with_town({ setup = function(app) G.win(app, 1); G.build_tasks(app, "cafe", 1) end }, function(c)
+			set_glow(c, { district = "cafe", id = "turntable" })
+			assert_eq(#auras(c), 0)
+			assert_eq(item_of(c, "turntable").aura, nil)
+		end)
+	end)
+
+	it("keeps the same glow through a change of language and counts no extra nodes", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local halo = auras(c)[1]
+			local base = c.town:stats().nodes
+			c.app.set_setting("language", "ru")
+			c.step(10)
+			assert_true(c.town:has_text("Проигрыватель", true), G.dump(c.town))
+			assert_eq(#auras(c), 1)
+			assert_eq(auras(c)[1], halo, "the room is not drawn again for a change of words")
+			assert_eq(c.app.ui.glow, "turntable")
+			c.app.set_setting("language", "ko")
+			c.step(10)
+			assert_eq(#auras(c), 1)
+			assert_eq(auras(c)[1], halo)
+			c.app.set_setting("language", "en")
+			c.step(10)
+			assert_eq(auras(c)[1], halo)
+			assert_true(c.town:stats().nodes <= base + 4, "nodes " .. c.town:stats().nodes .. " vs " .. base)
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	it("is covered by a window and shines again when it closes", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			assert_eq(#auras(c), 1)
+			c.app.open_popup("shop")
+			c.step(30)
+			assert_eq(c.app.ui.popup, "shop")
+			assert_eq(#auras(c), 0, "no glow behind a window")
+			assert_eq(c.app.ui.glow, nil)
+			c.app.close_popup()
+			c.run(0.8)
+			assert_eq(c.app.ui.popup, nil)
+			assert_eq(#auras(c), 1)
+			assert_eq(c.app.ui.glow, "turntable")
+			-- and the windows the town opens itself
+			c.app.open_popup("settings")
+			c.step(30)
+			assert_eq(#auras(c), 0)
+			c.app.close_popup()
+			c.run(0.8)
+			assert_eq(#auras(c), 1)
+		end)
+	end)
+
+	it("is not in the concert look and comes back with the day look", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			assert_eq(#auras(c), 1)
+			tap_target(c, "view")
+			c.run(1.5)
+			assert_eq(c.app.meta:view("cafe"), "concert")
+			assert_eq(#auras(c), 0, "the concert has its own light")
+			assert_eq(c.app.ui.glow, nil)
+			tap_target(c, "view")
+			c.run(1.5)
+			assert_eq(c.app.meta:view("cafe"), "day")
+			assert_eq(#auras(c), 1)
+			assert_eq(c.app.ui.glow, "turntable")
+			-- and under reduced motion, where the look changes at once
+			c.app.set_setting("reduced_motion", true)
+			c.run(0.5)
+			tap_target(c, "view")
+			c.run(0.3)
+			assert_eq(#auras(c), 0)
+			tap_target(c, "view")
+			c.run(0.3)
+			assert_eq(#auras(c), 1)
+		end)
+	end)
+
+	it("has nothing to light in a complete town, whatever the purse holds", function()
+		G.with_town({ setup = function(app)
+			for _, d in ipairs(app.meta:districts()) do G.build_tasks(app, d.id) end
+			G.give_stars(app, 50)
+		end }, function(c)
+			assert_eq(c.app.ui.card, "done")
+			assert_eq(#auras(c), 0)
+			assert_eq(c.app.ui.glow, nil)
+		end)
+	end)
+
+	it("glows only in the district the item stands in: paging away takes it along, paging back brings it", function()
+		G.with_town({ setup = function(app) G.build_tasks(app, "cafe"); G.give_stars(app, 1) end }, function(c)
+			local t = c.town.self.t
+			assert_eq(c.app.ui.district, "jazz")
+			assert_eq(c.app.meta:next_task().id, "stage_light")
+			assert_eq(c.app.ui.glow, "stage_light")
+			assert_eq(#auras(c), 1)
+			-- every glow stays on its own item, however the rooms slide
+			local function on_their_items()
+				for _, halo in ipairs(auras(c)) do
+					local sil = silhouette_of(halo)
+					assert_true(sil ~= nil, "a glow with no silhouette beside it")
+					local ax, ay = c.E.centre(halo)
+					local sx, sy = c.E.centre(sil)
+					assert_near(ax, sx, 0.5, "the glow follows its item")
+					assert_near(ay, sy, 0.5, "the glow follows its item")
+				end
+			end
+			-- to the finished cafe: no item of it is the next one, the jazz room leaves with its own glow
+			tap_target(c, "nav_prev")
+			local left_with_it = 0
+			for _ = 1, 60 * 2 do
+				c.step(1)
+				on_their_items()
+				if #auras(c) > 0 and c.app.ui.sliding then left_with_it = left_with_it + 1 end
+				if c.app.ui.district == "cafe" and not c.app.ui.sliding then break end
+			end
+			assert_eq(c.app.ui.district, "cafe")
+			assert_true(left_with_it > 5, "the old room carried its glow out: " .. left_with_it)
+			c.run(0.5)
+			assert_eq(#auras(c), 0, "the cafe has no item to light")
+			assert_eq(c.app.ui.glow, nil)
+			assert_eq(c.app.ui.card, "back")
+			-- and back to the district being built: the glow is there, on the item, while the room slides in
+			tap_target(c, "back")
+			local came_with_it = 0
+			for _ = 1, 60 * 2 do
+				c.step(1)
+				on_their_items()
+				if #auras(c) > 0 and c.app.ui.sliding then came_with_it = came_with_it + 1 end
+				if c.app.ui.district == "jazz" and not c.app.ui.sliding then break end
+			end
+			assert_eq(c.app.ui.district, "jazz")
+			assert_true(came_with_it > 5, "the room slid in with the glow on it: " .. came_with_it)
+			c.run(0.5)
+			assert_eq(#auras(c), 1)
+			assert_eq(c.app.ui.glow, "stage_light")
+			assert_eq(auras(c)[1].parent, t.scene.items.stage_light.holder)
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	it("does not glow in the finished district when the next task of another one is affordable", function()
+		-- the player is on the finished cafe page while the jazz bar is being built and its first item is in reach
+		G.with_town({ setup = function(app) G.build_tasks(app, "cafe"); G.give_stars(app, 3) end }, function(c)
+			assert_true(c.app.meta:next_task().affordable)
+			tap_target(c, "nav_prev")
+			wait_for(c, function() return c.app.ui.district == "cafe" and not c.app.ui.sliding end, 3, "paging back")
+			c.run(1)
+			assert_eq(c.app.ui.card, "back")
+			assert_eq(#auras(c), 0)
+			assert_eq(c.app.ui.glow, nil)
+			for _, d in ipairs(c.app.meta:district("cafe").tasks) do
+				assert_eq(item_of(c, d.id).aura, nil, d.id)
+			end
+		end)
+	end)
+
+	it("is lit again for a new save and put out for a reset", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			assert_eq(#auras(c), 1)
+			c.app.reset_save(7, c.E.clock) -- a new save: no star
+			c.run(0.5)
+			assert_eq(#auras(c), 0)
+			assert_eq(c.app.ui.glow, nil)
+			G.give_stars(c.app, 1)
+			c.step(3)
+			assert_eq(#auras(c), 1)
+			assert_eq(c.app.ui.glow, "turntable")
+		end)
+	end)
+
+	it("is not drawn for a silhouette that has no picture yet (the web build downloads the rooms)", function()
+		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
+			local e = item_of(c, "turntable")
+			-- an entry without a picture: nothing to glow behind
+			set_glow(c, nil)
+			assert_eq(#auras(c), 0)
+			e.node = nil
+			set_glow(c, { district = "cafe", id = "turntable" })
+			assert_eq(#auras(c), 0, "no glow without its item")
+		end)
+	end)
+end)

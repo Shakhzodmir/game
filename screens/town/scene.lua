@@ -12,7 +12,12 @@
 --   scene:item_pos(task_id)          --> x, y (logical)
 --   scene:item_at(x, y)              --> task id and its entry under a point | nil
 --   scene:twinkle(fx)                --> a sparkle on a random restored item
+--   scene:set_glow(spec)             -- {district, id} | nil: the grey item the next star buys glows softly (see M.AURA)
+--   scene:glowing()                  --> the id of the item that glows in the room on display | nil
 --   scene:keep()                     --> loose images to keep in memory
+-- The glow of the next item (views.item_glow, asked every frame by the town) is a child of the item's own holder, right
+-- under its silhouette: it travels with the room (paging, parallax), dies with the item when it is built or the room
+-- is drawn again, and a room drawn while the glow is wanted gets it at once.
 -- A room is built in layers (bottom to top): bg (sky, the picture), mid, items, over, fg. While paging districts each
 -- layer slides by its own factor (content/rooms.json parallax: the foreground travels farthest) and mid / fg drift a
 -- few pixels; the living details of a room (blinking lights, steam, notes, specks: screens/town/life.lua) sit in
@@ -117,6 +122,78 @@ local function item_motion(node, id)
 end
 M.item_motion = item_motion
 
+-- The soft glow behind the grey silhouette of the item the next star buys. No pictures: two soft discs of the UI
+-- (px_soft) stretched to the item, size = the item's size * mul + pad. The halo is an ordinary alpha blend, so it tints
+-- pale and cool rooms; the light inside it is additive, so it also lifts the warm floors, where a warm tint alone does
+-- not show (checked on the cafe, the stadium, the sky club and the arcade rooms: a light floor, a green one, a white one,
+-- a violet one). It breathes unless the player asked for less motion: the halo swells by `pulse` and the light brightens
+-- from `dim` of its strength to all of it, once per `period` seconds (a full breath, there and back); with less motion it
+-- is the same glow at its full strength, standing still. `swell`: seconds a glow takes to grow in when it is lit while the
+-- room is on display (a room drawn with it, or a player who asked for less motion, gets it at once).
+M.AURA = {
+	halo = { color = "#FFC15E", alpha = 0.75, mul = 1.8, pad = 90 },
+	light = { color = "#FFD27A", alpha = 0.5, mul = 1.2, pad = 50, add = true },
+	pulse = 0.06,
+	dim = 0.7,
+	period = 1.6,
+	swell = 0.5,
+}
+
+local function aura_disc(s, parent, x, y, e, p)
+	local n = s:box(parent, x, y, e.w * p.mul + p.pad, e.h * p.mul + p.pad, { texture = "px_soft", color = p.color, alpha = p.alpha })
+	if p.add then gui.set_blend_mode(n, gui.BLEND_ADD) end
+	return n
+end
+
+local function set_alpha(node, a)
+	local c = gui.get_color(node)
+	gui.set_color(node, vmath.vector4(c.x, c.y, c.z, a))
+end
+
+-- Does the item `id` of district `did`, drawn now, get the glow? A grey one named by set_glow, in the day look of its room.
+local function aura_wanted(self, did, id, done)
+	local g = self.glow
+	return g ~= nil and not done and g.district == did and g.id == id and app.meta:view(did) == "day"
+end
+
+-- Puts the glow under the silhouette of item entry `e` (one that has a picture: nothing to glow behind otherwise).
+-- swell: grows in softly when it is lit on a room that is on display.
+local function add_aura(self, e, swell)
+	if e.aura or not e.node then return end
+	local A = M.AURA
+	local halo = aura_disc(self.ui, e.holder, e.x, e.y, e, A.halo)
+	local light = aura_disc(self.ui, halo, 0, 0, e, A.light)
+	gui.set_id(halo, "aura")
+	gui.move_below(halo, e.node)
+	e.aura = halo
+	if fx.reduced() then return end -- the same glow at its full strength, standing still
+	-- a breath starts from the low of the light (the halo at its rest size) and climbs to the peak at half the period
+	local low = A.light.alpha * A.dim
+	local function breathe()
+		ui.pulse(halo, A.pulse, A.period)
+		gui.animate(light, "color.w", A.light.alpha, gui.EASING_INOUTSINE, A.period, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+	end
+	if swell and A.swell > 0 then
+		local sc = gui.get_scale(halo)
+		gui.set_scale(halo, sc * 0.6)
+		set_alpha(halo, 0)
+		set_alpha(light, 0)
+		gui.animate(halo, "color.w", A.halo.alpha, gui.EASING_OUTQUAD, A.swell)
+		gui.animate(light, "color.w", low, gui.EASING_OUTQUAD, A.swell)
+		gui.animate(halo, "scale", sc, gui.EASING_OUTQUAD, A.swell, 0, breathe)
+	else
+		set_alpha(light, low)
+		breathe()
+	end
+end
+
+local function drop_aura(self, e)
+	if not e.aura then return end
+	ui.stop_pulse(e.aura)
+	self.ui:clear(e.aura)
+	e.aura = nil
+end
+
 -- Draws one item in its restored / not restored look into holder.
 local function draw_item(self, layer, did, t, it, items)
 	local s = self.ui
@@ -145,6 +222,7 @@ local function draw_item(self, layer, did, t, it, items)
 				gui.set_color(e.node, grey and vmath.vector4(1, 1, 1, 0.75) or vmath.vector4(0.92, 0.92, 1, 0.45))
 			end
 		end
+		if aura_wanted(self, did, t.id, false) then add_aura(self, e, false) end
 	end
 	items[t.id] = e
 	return e
@@ -293,6 +371,32 @@ function Scene:refresh()
 			if t.done and self.room and self.room.life then self.room.life:wake(t.id) end
 		end
 	end
+end
+
+-- The grey item named by spec ({district, id}) glows, or nothing glows (nil). The room on display takes it at once (the
+-- glow grows in); a room drawn later (a rebuild, a crossfade, a slide) is drawn with it. A room that is sliding or fading
+-- out keeps what it had until it is gone: the glow leaves with its item.
+function Scene:set_glow(spec)
+	local g = self.glow
+	if (g == nil and spec == nil) or (g and spec and g.district == spec.district and g.id == spec.id) then return end
+	self.glow = spec and { district = spec.district, id = spec.id } or nil
+	local room = self.room
+	if not room then return end
+	for id, e in pairs(self.items or {}) do -- order-free: every item is looked at on its own
+		if aura_wanted(self, room.did, id, e.done) then
+			add_aura(self, e, true)
+		else
+			drop_aura(self, e)
+		end
+	end
+end
+
+-- The id of the item that glows in the room on display, or nil.
+function Scene:glowing()
+	for id, e in pairs(self.items or {}) do -- order-free: at most one item glows
+		if e.aura then return id end
+	end
+	return nil
 end
 
 -- The item under a logical point (topmost first): task id, entry.

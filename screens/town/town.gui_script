@@ -4,9 +4,10 @@
 -- content is rebuilt on its own):
 --   scene  - sky, district background (+ edge extension), the task items
 --            (screens/town/scene.lua): restored = full colour, gold glow,
---            idle bob; not restored = <task>_ghost.png. Rebuilt when the
---            district or the view (day / concert) changes; a finished task
---            only redraws its item.
+--            idle bob; not restored = <task>_ghost.png, and the one the next star
+--            buys glows softly once the stars suffice (views.item_glow, sync_glow).
+--            Rebuilt when the district or the view (day / concert) changes; a
+--            finished task only redraws its item.
 --   bit    - Bit next to the task card (anchored to the safe bottom)
 --   ui     - top bar, ribbon, task card, "Level N", navigation (screens/town/hud.lua)
 --   popups - the meta windows (client/popups.lua + gui/*.lua)
@@ -103,6 +104,7 @@ function Town:publish()
 	u.hint = self.hud and self.hud.hint and self.hud.hint.id or nil
 	u.card = self.hud and self.hud.card_kind or nil
 	u.view = self.scene and self.scene.view or nil
+	u.glow = self.scene and self.scene:glowing() or nil
 	u.busy = self.show:busy()
 	u.step = self.show:name()
 	u.steps_started = self.show.started
@@ -347,6 +349,25 @@ function Town:finger_down()
 	return (self.press_age or 0) < 1
 end
 
+-- The soft glow of the item the next star buys (views.item_glow: the stars suffice, the district and the look on display
+-- are the item's, no show runs, no window covers the town). Asked every frame, but worked out again only when something
+-- it reads has changed: the meta, the district on display, a show, a window, the screen leaving (a reset drops the memory
+-- of the last answer, see on_bus). The scene draws and takes the glow away (scene:set_glow); a room that is drawn later
+-- carries it by itself.
+function Town:sync_glow()
+	local meta = app.meta
+	local busy = self.show:busy()
+	local covered = self.leaving or self.popups:count() > 0
+	local rev = meta:revision()
+	if meta == self.glow_meta and rev == self.glow_rev and self.district == self.glow_district
+		and busy == self.glow_busy and covered == self.glow_covered then
+		return
+	end
+	self.glow_meta, self.glow_rev, self.glow_district, self.glow_busy, self.glow_covered = meta, rev, self.district, busy, covered
+	self.scene:set_glow(views.item_glow(meta, self.district, { busy = busy, covered = covered }))
+	self:publish()
+end
+
 -- A tap on the task card (or the QA command / a tap on the item of the task).
 function Town:on_task(shown)
 	if self.show:busy() or self.sliding then return end
@@ -473,6 +494,7 @@ local function on_bus(self, topic, p)
 		self.fx:clear()
 		self.hold.coins, self.hold.stars, self.hold.infinite = 0, 0, 0
 		self.built, self.built_t = nil, nil -- a new save: nothing built, no layer waiting to be heard
+		self.glow_rev = nil -- (the glow is asked again: the meta is a new one)
 		self.dirty_scene, self.dirty_ui = true, true
 	elseif topic == "screen_leaving" then
 		self.leaving = true
@@ -600,6 +622,7 @@ function Town:update(dt)
 		end
 	end
 	self:room_check(dt)
+	self:sync_glow()
 	self.show:update()
 	if self.ui.pressed then self.press_age = (self.press_age or 0) + dt end
 	self.popups:update(dt)
