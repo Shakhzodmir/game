@@ -167,6 +167,15 @@ ROOMS = {
         ("dune_hammock", 596, 800, 200),
         ("lantern_palm", 76, 694, 150),
     ]),
+    # district 22: the places of the carnival items its placeholders borrow (the tasks go in the order of the carnival)
+    "night_carnival": ("3x2", [
+        ("timbales", 210, 800, 150),
+        ("torches", 520, 812, 128),
+        ("feather_dancer", 452, 716, 150),
+        ("montuno_piano", 272, 722, 200),
+        ("night_congas", 92, 716, 136),
+        ("horn_section", 628, 700, 82),
+    ]),
 }
 
 
