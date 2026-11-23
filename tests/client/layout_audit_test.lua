@@ -258,12 +258,20 @@ end)
 
 describe("text layout audit: screens", function()
 	it("keeps the texts of the town screen apart and inside their plates", function()
+		-- cases: level 14 (a streak of 2, the three notes beside the label), the rich late game, a new player (level 1) and level 11
+		-- (the widest label before the streak counts): no notes, the label alone and centred on the button
+		local STATES = {
+			plain = function(app) H.win(app, 13) end,
+			rich = rich,
+			fresh = function() end,
+			eleven = function(app) H.win(app, 10) end,
+		}
 		local bad = run_cases("town screen", SIZES, LANGS, function(lang, w, case, report)
-			H.with_town({ language = lang, window = w, setup = function(app) if case then rich(app) else H.win(app, 13) end end }, function(c)
+			H.with_town({ language = lang, window = w, setup = function(app) STATES[case](app) end }, function(c)
 				c.run(1)
-				report(case and "rich" or "plain", A.check(c))
+				report(case, A.check(c))
 			end)
-		end, { false, true })
+		end, { "plain", "rich", "fresh", "eleven" })
 		fail_on(bad, "town screen texts")
 	end)
 

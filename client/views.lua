@@ -10,7 +10,8 @@
 --   views.card(meta, viewing)                --> what the card above the level button shows
 --   views.browse(meta, viewing)              --> the open districts the player can page through
 --   views.town_hint(meta, task)              --> the hint to show over the town | nil
---   views.level_button(meta, levels)         --> {level, tag, notes, all_done}
+--   views.level_button(meta, levels)         --> {level, difficulty, tag, notes, streak, streak_active, all_done}
+--                                                notes is empty until the streak counts (level 12)
 --   views.start(meta, n, info, now, levels, free_up_to) --> the start window of level n
 --   views.start_boosters(meta, level)        --> the three pre-level slots
 --   views.shop_boosters(meta)                --> every booster pack, by the level it opens at
@@ -164,15 +165,22 @@ function M.town_hint(meta, task)
 end
 
 -- The green "Level N" button: {level, difficulty, tag (i18n key or nil),
--- notes = {{lit, booster, unlocked}} (the hit streak), streak_active,
+-- notes = {{lit, booster, unlocked}} (the hit streak), streak (wins in a row), streak_active,
 -- all_done}. levels = client/levels.lua (or anything with difficulty(n)
 -- and tag(difficulty)).
+--
+-- The three notes belong to a hit streak that counts: from level 12 on (`streak_active`, the same flag that makes the
+-- start window show its streak line). Before that no streak exists, `notes` is EMPTY and the button is only its label
+-- (three pale notes with nothing to count read as a separate counter: review of the first minutes, section 1). From
+-- level 12 the three notes are there, lit as many as there are wins in a row.
 function M.level_button(meta, levels)
 	local n = meta:level_to_play()
 	local streak = meta:streak()
 	local notes = {}
-	for i, s in ipairs(streak.slots or {}) do
-		notes[i] = { lit = s.lit and true or false, booster = s.booster, unlocked = s.unlocked and true or false }
+	if streak.active then
+		for i, s in ipairs(streak.slots or {}) do
+			notes[i] = { lit = s.lit and true or false, booster = s.booster, unlocked = s.unlocked and true or false }
+		end
 	end
 	if not n then
 		return { all_done = true, notes = notes, streak_active = streak.active }
