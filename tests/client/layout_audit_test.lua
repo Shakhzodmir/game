@@ -1,6 +1,7 @@
 -- The text layout audit (tests/client/layout_audit.lua) over every window and screen of the game, in every
 -- language, in the window shapes the game meets and with the worst numbers and names: no text sticks out of
--- its button, card, pill or window, none is smaller than 15 px, none lies over another one.
+-- its button, card, pill or window, none is smaller than 15 px, none lies over another one, and a small caption in the
+-- soft colour keeps 4.5:1 against the plate it is printed on.
 -- New texts and windows get caught here: add a case to CASES / LEVEL_CASES for a new window.
 
 local H = require("tests.client.meta_gui_helper")
@@ -28,6 +29,12 @@ local SETUPS = {
 		H.win(app, 20)
 		c.E.clock = c.E.clock + 3 * 3600
 		for _ = 1, 5 do assert(require("client.flow").debug_lose()) end
+		app.commit("test")
+	end,
+	somelives = function(app, c) -- two lives lost: the "3/5" pill, the refill button and its hint
+		H.win(app, 20)
+		c.E.clock = c.E.clock + 3 * 3600
+		for _ = 1, 2 do assert(require("client.flow").debug_lose()) end
 		app.commit("test")
 	end,
 	infinite = function(app) H.win(app, 30); app.meta:grant({ infinite_minutes = 90 }, "test", app.now()); app.commit("test") end,
@@ -136,7 +143,7 @@ end
 -- town windows: {name, params, setup name}
 local CASES = {
 	{ "start" }, { "start", nil, "rich" }, { "start", nil, "nolives" }, { "start", nil, "late" }, { "start", nil, "fresh" },
-	{ "lives" }, { "lives", nil, "rich" }, { "lives", nil, "nolives" }, { "lives", nil, "infinite" },
+	{ "lives" }, { "lives", nil, "rich" }, { "lives", nil, "fresh" }, { "lives", nil, "somelives" }, { "lives", nil, "nolives" }, { "lives", nil, "infinite" },
 	{ "shop", { tab = "boosters" } }, { "shop", { tab = "boosters" }, "rich" }, { "shop", { tab = "boosters" }, "late" },
 	{ "shop", { tab = "coins" } }, { "shop", { tab = "coins" }, "rich" }, { "shop", { tab = "coins" }, "nolives" },
 	{ "settings" }, { "settings", nil, "fresh" },
@@ -289,6 +296,36 @@ describe("text layout audit: the tool itself", function()
 			victim.text = victim.text .. " WWWWWWWWWWWWWWWWWWWWWWWWWWWW"
 			local list = A.check(c, { window = true })
 			assert_true(#list >= 1, "the audit did not see the long text")
+		end)
+	end)
+
+	it("measures the WCAG contrast of two colours", function()
+		assert_near(A.contrast(1, 1, 1, 0, 0, 0), 21, 1e-9)
+		assert_near(A.contrast(0, 0, 0, 1, 1, 1), 21, 1e-9)
+		assert_near(A.contrast(0.3, 0.2, 0.4, 0.3, 0.2, 0.4), 1, 1e-9)
+		-- the producer's two inks on white: the main text 12.6:1, the soft caption at least 4.5:1 on every plate of the game
+		assert_near(A.contrast(0x3D / 255, 0x28 / 255, 0x5D / 255, 1, 1, 1), 12.65, 0.01)
+	end)
+
+	it("sees a soft caption on a plate that is too dark for it", function()
+		H.with_town({ language = "en", setup = function(app) H.win(app, 13) end }, function(c)
+			c.app.open_popup("settings")
+			c.run(0.6)
+			assert_same(A.check(c, { window = true }), {})
+			local soft = require("client.ui").color("text_soft")
+			local victim
+			for _, r in ipairs(A.texts(c, { window = true })) do
+				local col = r.node.color
+				if not victim and math.abs(col.x - soft.x) < 0.004 and math.abs(col.y - soft.y) < 0.004 and math.abs(col.z - soft.z) < 0.004 then
+					victim = r.node
+				end
+			end
+			assert_true(victim ~= nil, "the settings window has a soft caption")
+			-- the plate under it as dark as a purple button: no contrast left
+			victim.parent.color = vmath.vector4(0.42, 0.2, 0.8, 1)
+			local list = A.check(c, { window = true, skip_overlap = true })
+			assert_true(#list >= 1, "the audit did not see the dark plate")
+			assert_true(list[1]:find("soft caption", 1, true) ~= nil, list[1])
 		end)
 	end)
 

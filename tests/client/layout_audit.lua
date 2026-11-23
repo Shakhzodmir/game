@@ -3,7 +3,9 @@
 --   1. the text (wrapped like the engine wraps it, when it has a line-break width) lies inside the nearest
 --      sized box it sits on (a button, a card, a pill, a plate), and
 --   2. it does not overlap another visible text in a way that makes it unreadable, and
---   3. it lies inside the panel of the window and the logical screen (the same test as G.overflows).
+--   3. it lies inside the panel of the window and the logical screen (the same test as G.overflows), and
+--   4. a text in the soft caption colour (ui.PALETTE.text_soft) keeps the WCAG contrast of small text (4.5:1) against the
+--      plate it is printed on (A.plate: the boxes it sits in, composited over white).
 -- All numbers are logical px (720x1280 design area), slack `tol`.
 --
 --   local A = require("tests.client.layout_audit")
@@ -118,6 +120,43 @@ local function container(E, n)
 	return nil
 end
 
+-- WCAG 2.x relative luminance and contrast ratio of colours given as 0..1 channels.
+local function lin(c)
+	if c <= 0.03928 then return c / 12.92 end
+	return ((c + 0.055) / 1.055) ^ 2.4
+end
+
+local function luminance(r, g, b)
+	return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+end
+
+function A.contrast(r1, g1, b1, r2, g2, b2)
+	local a, b = luminance(r1, g1, b1), luminance(r2, g2, b2)
+	if a < b then a, b = b, a end
+	return (a + 0.05) / (b + 0.05)
+end
+
+-- What a text is printed on: the sized boxes it sits in (a pill, a card, a row, the white panel of a window) composited
+-- from the outside in over white; nil when it sits on no sized box (a text on the picture of a room or a board).
+-- Returns r, g, b (0..1).
+function A.plate(E, n)
+	local chain = {}
+	local p = n.parent
+	while p do
+		if p.kind == "box" and p.size.x > 0 and p.size.y > 0 and E.visible(p) then chain[#chain + 1] = p end
+		p = p.parent
+	end
+	if #chain == 0 then return nil end
+	local r, g, b = 1, 1, 1
+	for i = #chain, 1, -1 do
+		local c = chain[i].color
+		r, g, b = r + (c.x - r) * c.w, g + (c.y - g) * c.w, b + (c.z - b) * c.w
+	end
+	return r, g, b
+end
+
+A.SOFT_NORM = 4.5 -- the contrast small text needs (WCAG 1.4.3)
+
 local function under(n, anc)
 	local p = n
 	while p do
@@ -179,6 +218,7 @@ function A.check(c, opts)
 	local tol = opts.tol or 1.5
 	local rows = A.texts(c, opts)
 	local out = {}
+	local soft = require("client.ui").color("text_soft")
 	-- a window lives in the 720x1280 design area (inside every window shape); a screen anchors to the window edges
 	local sx0, sy0, sx1, sy1 = 0, 0, 720, 1280
 	if not opts.window then
@@ -196,6 +236,15 @@ function A.check(c, opts)
 		local d = math.max(sx0 - x0, x1 - sx1, sy0 - y0, y1 - sy1)
 		if d > tol then out[#out + 1] = string.format("%s is %.1f px out of the screen", short(r.text), d) end
 		if r.font_px < 15 - 0.01 then out[#out + 1] = string.format("%s is only %.1f px tall", short(r.text), r.font_px) end
+		local col = r.node.color
+		if math.abs(col.x - soft.x) < 0.004 and math.abs(col.y - soft.y) < 0.004 and math.abs(col.z - soft.z) < 0.004 then
+			local pr, pg, pb = A.plate(c.E, r.node)
+			local ratio = pr and A.contrast(col.x, col.y, col.z, pr, pg, pb)
+			if ratio and ratio < A.SOFT_NORM then
+				out[#out + 1] = string.format("%s is a soft caption on a plate (#%02X%02X%02X) with only %.2f:1 (small text needs %.1f:1)",
+					short(r.text), math.floor(pr * 255 + 0.5), math.floor(pg * 255 + 0.5), math.floor(pb * 255 + 0.5), ratio, A.SOFT_NORM)
+			end
+		end
 	end
 	if not opts.skip_overlap then
 		for i = 1, #rows do

@@ -40,7 +40,7 @@ local M = {}
 
 M.PALETTE = {
 	text = "#3D285D",
-	text_soft = "#88739F",
+	text_soft = "#6F5B8B", -- small captions: >= 4.5:1 on white and on every pastel plate they sit on (was #88739F: 4.2:1 on white, 3.2 on #E9DBFF)
 	white = "#FFFFFF",
 	sky_top = "#43BFFF",
 	sky = "#86DDFF",
