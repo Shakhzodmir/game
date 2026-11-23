@@ -175,7 +175,7 @@ describe("web/engine_template.html: the preview of a link to the game", function
 		assert_eq(h, 630, "height")
 		assert_eq(one("og:image:width"), tostring(w), "the tag tells the real width")
 		assert_eq(one("og:image:height"), tostring(h), "and the real height")
-		-- WhatsApp shows no picture for a file over about 300 KB (a plain full-colour PNG of the logo card is 360 KB, tools/art/make_og_image.py brings it to 260)
+		-- the limit for this picture (WhatsApp is said to show none over about 300 KB); a plain full-colour PNG of the logo card is 360 KB, tools/art/make_og_image.py brings it to 260
 		assert_true(#bytes <= 300 * 1000, "web/" .. name .. " is " .. #bytes .. " bytes")
 	end)
 

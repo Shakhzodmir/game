@@ -7,12 +7,13 @@ Writes web/og.png, 1200x630 (the 1.91:1 card that Facebook, Telegram, WhatsApp, 
 in the middle, on the violet gradient and the soft glow of the app icon (tools/art/make_app_icon.py), and no text.
 web/engine_template.html names it in og:image and twitter:image; tools/build_web.sh copies it next to index.html.
 
-The file has to stay under about 300 KB: WhatsApp shows no picture for a bigger one. A plain full-colour PNG of this card is
-about 360 KB, because a smooth glow is a gradient in two directions (one more step in every row) and the logo carries about one
-level of noise in all its smooth areas, which no PNG filter can predict. Two changes that nobody can see bring it to about
-260 KB and keep every colour exact (no palette, no dithering): the background is read from one colour ramp in 64 slices
-(neighbouring slices differ by about one level), and the logo is smoothed by a bilateral filter that takes the noise away and
-leaves the edges alone (the colour moves by 0.6 CIELAB units on average, 2 at the 99th percentile).
+The file stays under 300 KB (the limit set for this picture; WhatsApp is said to drop a bigger preview). A plain full-colour
+PNG of this card is about 360 KB, because a smooth glow is a gradient in two directions (one more step in every row) and the
+logo carries about one level of noise in all its smooth areas, which no PNG filter can predict. Two changes that nobody can
+see bring it to about 260 KB and keep it a full-colour PNG (no palette, no dithering): the background is read from one colour
+ramp in 64 slices (neighbouring slices differ by about one level), and the logo is smoothed by a bilateral filter that takes
+the noise away and leaves the edges alone (the colour moves by 0.6 CIELAB units on average, 2.1 at the 99th percentile, 4.2
+at worst).
 """
 import os
 import sys
@@ -24,7 +25,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 LOGO = os.path.join(ROOT, "assets", "images", "logo", "logo.png")
 OUT = os.path.join(ROOT, "web", "og.png")
 W, H = 1200, 630
-MAX_BYTES = 300 * 1000        # WhatsApp: a preview picture over about 300 KB is dropped
+MAX_BYTES = 300 * 1000        # the limit for this picture (WhatsApp is said to drop a bigger preview picture)
 LOGO_WIDTH = 0.62             # of the card
 RAMP_STEPS = 64               # slices of the background
 # the background is one scalar field s (0 = the dark bottom of the gradient, 0.5 = its light top, up to 1 = the glow) read through a
@@ -87,7 +88,7 @@ def main():
     size = os.path.getsize(OUT)
     print("wrote web/og.png %dx%d, %d bytes" % (W, H, size))
     if size > MAX_BYTES:
-        sys.exit("web/og.png is over %d bytes: WhatsApp would drop the picture" % MAX_BYTES)
+        sys.exit("web/og.png is over %d bytes, the limit for the link-preview picture" % MAX_BYTES)
 
 
 if __name__ == "__main__":
