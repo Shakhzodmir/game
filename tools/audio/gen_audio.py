@@ -23,7 +23,8 @@ Levels (all measured on the decoded files; analysis.py has the meters):
     limiter under a -3 dBTP ceiling (lower for the per-match 'clear');
   * music: stems at relative loudness targets (music.LOUDNESS), then one common
     gain per district so that the loudest combination the game really plays
-    (task stems, + tension, + party) has a true peak of about -1.15 dBTP;
+    (task stems, + tension, + party) has a true peak of about -1.15 dBTP (a layer
+    may be played upside down, music.STEM_POLARITY, when that lowers the peak);
   * songs: one full mix per file, levelled to SONG_LUFS (integrated, the loop treated as a loop) under a
     true-peak ceiling of about -1.15 dBTP by a looped limiter (it only trims drum transients);
   * MIXER (copied to the manifest) is the playback contract for the engine:
@@ -412,6 +413,7 @@ def build_district(d):
         "exact_seconds": round(d["bars"] * 4 * 60.0 / d["bpm"], 6),
         "chords": [c.name for c in song.chords], "chord_beats": [c.dur for c in song.chords],
         "stem_gain_db": {k: round(dsp.amp_db(gains[k] * common), 2) for k in raw},
+        **({"polarity": dict(music.STEM_POLARITY[d["id"]])} if d["id"] in music.STEM_POLARITY else {}),
         "combos": combo_stats,
         "tension_delta_lu": round(combo_stats["tasks+tension"]["lufs"] - combo_stats["tasks"]["lufs"], 2),
         "party_delta_lu": round(combo_stats["tasks+party"]["lufs"] - combo_stats["tasks"]["lufs"], 2),
@@ -727,6 +729,12 @@ def write_report(man):
           f"Key reading (Krumhansl, major vs relative minor): " + "; ".join(
               f"{kn} {v['major']:.2f} / {v['relative_minor']:.2f} (best {v['best']})" for kn, v in kr.items()) + ".")
         a("")
+        if dd.get("polarity"):
+            a("Polarity: " + ", ".join(f"`{k}` is played upside down" for k in dd["polarity"]) + " (`music.STEM_POLARITY`): "
+              "its attacks sit on the beats of the task stems and swing the same way, so right side up the combination with "
+              "it was the loudest peak of the district; upside down the task stems alone are, and the whole district is "
+              "louder at the same peak. Same notes, same loudness of the layer.")
+            a("")
         a("| Stem | Task (cost) | Hz | Gain dB | Peak dBFS | dBTP | LUFS | In-scale % | Step/beats | Click/beats | Codec edge |")
         a("|---|---|---|---|---|---|---|---|---|---|---|")
         for s in dd["stems"]:
