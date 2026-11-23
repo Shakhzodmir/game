@@ -2,28 +2,37 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GLOW test">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>GLOW: проверка входа через Google</title>
 <!--
-	Diagnostic page for the sign-in with Google (tools/build_web.sh copies it next to index.html):
+	Diagnostic page for the sign-in with Google (tools/build_web.sh copies it, and auth_echo.html, next to index.html):
 	https://shakhzodmir.github.io/game/auth_test.html
 	It runs the same Firebase calls as the game in a separate Firebase app instance ("diag"), so it never touches the
 	player's real session, and shows step by step what the phone's browser does. Nothing is stored or sent anywhere
-	except to Google and Firebase themselves; the e-mail on the screen is masked. The page signs out at once.
+	except to Google and Firebase themselves (test 6 also visits httpbin.org and comes straight back); the e-mail on
+	the screen is masked. The page signs out at once.
+	Tests 4-6 are experiments for the iPhone Home Screen app (standalone): can a window opened from the page talk back,
+	does the Firebase pop-up work when the SDK is not told it runs standalone, and does a trip to another site and back
+	land in the same app.
 -->
 <style>
 	* { box-sizing: border-box; }
-	body { margin: 0; padding: 16px; font: 16px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; background: #F4EEFF; color: #2B2345; }
+	body { margin: 0; padding: 16px; padding-top: max(16px, env(safe-area-inset-top)); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; background: #F4EEFF; color: #2B2345; }
 	h1 { font-size: 21px; margin: 0 0 8px; }
 	p { margin: 0 0 12px; }
 	button { display: block; width: 100%; margin: 0 0 12px; padding: 16px 12px; font-family: inherit; font-weight: bold; font-size: 17px;
 		line-height: 1.2; color: #fff; background: #7B5CE0; border: 0; border-radius: 14px; }
 	button.alt { background: #2BC98A; }
 	button.gray { background: #B9A9F0; color: #2B2345; }
+	button.exp { background: #E8892B; }
 	button[disabled] { opacity: .45; }
 	.box { background: #fff; border-radius: 14px; padding: 12px; margin: 0 0 14px; font-size: 14px; word-break: break-word; }
 	.box b { color: #5B3FC4; }
+	h2 { font-size: 16px; margin: 18px 0 8px; color: #5B3FC4; }
 	#log div { padding: 6px 0; border-bottom: 1px solid #EEE7FF; font-size: 14px; word-break: break-word; }
 	#log .ok { color: #0B7A4B; font-weight: bold; }
 	#log .bad { color: #C21D4B; font-weight: bold; }
@@ -37,9 +46,15 @@
 
 <div class="box" id="env">Собираю данные о браузере…</div>
 
+<h2>Основные проверки</h2>
 <button id="b1" class="alt" disabled>1. Вход через Google (всплывающее окно)</button>
 <button id="b2" disabled>2. Вход через Google (переход на страницу Google)</button>
 <button id="b3" class="gray">3. Проверка всплывающих окон</button>
+
+<h2>Опыты для приложения с экрана «Домой»</h2>
+<button id="b4" class="exp">4. Окно, открытое отсюда, отвечает странице?</button>
+<button id="b5" class="exp" disabled>5. Вход через Google, браузеру не сказано «приложение»</button>
+<button id="b6" class="exp">6. Уйти на другой сайт и вернуться</button>
 
 <div class="box"><div id="log"></div></div>
 
@@ -78,11 +93,19 @@
 	function errText(e) {
 		return (e && e.code ? e.code : "?") + (e && e.message ? " | " + String(e.message).slice(0, 160) : "");
 	}
+	function getFlag(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+	function setFlag(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
 
 	// the environment ------------------------------------------------------------------------------------------
 	var ua = navigator.userAgent || "";
-	var standalone = navigator.standalone === true;
-	try { standalone = standalone || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches); } catch (e) { /* none */ }
+	function isStandalone() {
+		if (navigator.standalone === true) return true;
+		try {
+			return !!(window.matchMedia && (matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches ||
+				matchMedia("(display-mode: minimal-ui)").matches));
+		} catch (e) { return false; }
+	}
+	var standalone = isStandalone();
 	var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 	var inapp = /FBAN|FBAV|FB_IAB|Instagram|KAKAOTALK|NAVER\(|Line\/|MicroMessenger|Telegram|TikTok|musical_ly|Snapchat|Twitter|; wv\)/i.test(ua) ||
 		(/iPhone|iPad|iPod/.test(ua) && !navigator.standalone && !/Safari\//.test(ua));
@@ -96,8 +119,11 @@
 		rq.onerror = function () { idb = "НЕТ"; render(); };
 	} catch (e) { idb = "НЕТ (" + (e && e.name) + ")"; }
 	function render() {
+		var dm = "";
+		try { dm = ["standalone", "fullscreen", "minimal-ui", "browser"].filter(function (k) { return matchMedia("(display-mode: " + k + ")").matches; }).join(",") || "?"; } catch (e) { dm = "?"; }
 		var rows = [
 			["Страница открыта как", standalone ? "<b>приложение с экрана «Домой» (standalone)</b>" : "обычная вкладка браузера"],
+			["navigator.standalone / display-mode", String(navigator.standalone) + " / " + dm],
 			["Похоже на браузер внутри приложения (Telegram, Instagram…)", inapp ? "<b>ДА</b>" : "нет"],
 			["iPhone / iPad", ios ? "да" : "нет"],
 			["Языки", (navigator.language || "?") + " / часовой пояс " + (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return "?"; } })()],
@@ -111,7 +137,17 @@
 	}
 	render();
 	lines.push("User-Agent: " + ua);
-	lines.push("standalone=" + standalone + " inapp=" + inapp + " ios=" + ios + " lang=" + (navigator.language || "?"));
+	lines.push("standalone=" + standalone + " navigator.standalone=" + navigator.standalone + " inapp=" + inapp + " ios=" + ios + " lang=" + (navigator.language || "?"));
+	document.addEventListener("visibilitychange", function () { log("Страница " + (document.hidden ? "скрыта (ушли в другое окно)" : "снова видна")); });
+
+	// the way back from test 6 (a trip to another site) -----------------------------------------------------------
+	if (/[?&]ret=1(&|$)/.test(location.search)) {
+		var left = getFlag("glow_diag_ext");
+		log("Тест 6: вернулись с другого сайта. Адрес: …" + location.pathname.slice(-20) + location.search + location.hash +
+			". Страница открыта как " + (standalone ? "приложение «Домой» (standalone)" : "обычная вкладка (или окно «Готово» поверх приложения)") +
+			". Хранилище то же, что до ухода: " + (left ? "ДА" : "НЕТ") + ". История переходов: " + history.length + ". Откуда: " + (document.referrer || "не указано") + ".", "ok");
+		setFlag("glow_diag_ext", null);
+	}
 
 	// the SDK, loaded in advance so that a button handler can call the sign-in at once (inside the tap) ----------
 	var sdkStart = Date.now();
@@ -124,60 +160,87 @@
 		log("Firebase загружен за " + ((Date.now() - sdkStart) / 1000).toFixed(1) + " с", "ok");
 		document.getElementById("b1").disabled = false;
 		document.getElementById("b2").disabled = false;
+		document.getElementById("b5").disabled = false;
 		return m.getRedirectResult(auth).then(function (r) {
 			if (r && r.user) {
 				log("Вернулись со страницы Google: вход выполнен (" + mask(r.user.email) + ", провайдер " + ((r.providerId) || "google.com") + ")", "ok");
 				return m.signOut(auth);
 			}
-			var flag = ""; try { flag = localStorage.getItem("glow_diag_redirect") || ""; } catch (e) { /* none */ }
-			if (flag) {
+			if (getFlag("glow_diag_redirect")) {
 				log("Вернулись на страницу, но результата входа нет. Либо вы отменили вход, либо браузер потерял результат (так бывает на iPhone). Если вы выбрали аккаунт и дошли до конца, этот способ здесь не работает.", "bad");
 			}
 		}, function (e) {
 			log("Возврат со страницы Google: ошибка " + errText(e), "bad");
-		}).then(function () { try { localStorage.removeItem("glow_diag_redirect"); } catch (e) { /* none */ } });
+		}).then(function () { setFlag("glow_diag_redirect", null); });
 	}).catch(function (e) {
 		log("Не удалось загрузить Firebase: " + errText(e) + " (возможно, серверы Google недоступны или медленны)", "bad");
 	});
 
-	// 1. the pop-up window, called inside the tap --------------------------------------------------------------
+	// 1 and 5. the pop-up window, called inside the tap -------------------------------------------------------------
 	var busy = false;
-	document.getElementById("b1").addEventListener("click", function () {
+	function popupTest(title, masked) {
 		if (!auth || busy) return;
 		busy = true;
 		var started = Date.now();
-		var blurred = false, back = false;
+		var blurred = false;
 		function onBlur() { blurred = true; }
-		function onFocus() { if (blurred) back = true; }
 		window.addEventListener("blur", onBlur);
-		window.addEventListener("focus", onFocus);
-		log("Тест 1: открываю окно входа Google…");
+		var had = Object.getOwnPropertyDescriptor(navigator, "standalone");
+		var tampered = false;
+		if (masked) {
+			try {
+				Object.defineProperty(navigator, "standalone", { configurable: true, get: function () { return false; } });
+				tampered = true;
+				log("navigator.standalone временно = false: Firebase думает, что это обычная вкладка.");
+			} catch (e) { log("Не удалось подменить navigator.standalone: " + errText(e), "bad"); }
+		}
+		log(title + ": открываю окно входа Google…");
+		var settled = false;
+		var hint = setTimeout(function () {
+			if (!settled) log("Прошло 20 с, ответа нет. Если окно Google открылось и вы вошли, закройте его и вернитесь сюда; если окно не открывалось, браузер его молча проглотил.");
+		}, 20000);
+		var giveUp = setTimeout(function () {
+			if (!settled) { settled = true; busy = false; cleanup(); log(title + ": ответа нет за 90 с. Дальше ждать нет смысла; можно запускать другие тесты.", "bad"); }
+		}, 90000);
+		function cleanup() {
+			clearTimeout(hint); clearTimeout(giveUp);
+			window.removeEventListener("blur", onBlur);
+			if (tampered) {
+				try { if (had) Object.defineProperty(navigator, "standalone", had); else delete navigator.standalone; } catch (e) { /* none */ }
+			}
+		}
 		var p;
 		try {
 			p = m.signInWithPopup(auth, new m.GoogleAuthProvider()); // called synchronously in the tap: the best case
 		} catch (e) { p = Promise.reject(e); }
 		p.then(function (r) {
+			if (settled) return;
+			settled = true;
 			log("Вход выполнен за " + ((Date.now() - started) / 1000).toFixed(1) + " с: " + mask(r.user && r.user.email) + ". Всплывающее окно работает.", "ok");
 			return m.signOut(auth);
 		}, function (e) {
+			if (settled) return;
+			settled = true;
 			var sec = ((Date.now() - started) / 1000).toFixed(1);
 			var code = e && e.code;
 			if (code === "auth/popup-blocked") log("Браузер заблокировал окно (auth/popup-blocked), прошло " + sec + " с", "bad");
-			else if (code === "auth/popup-closed-by-user") log("Окно закрылось без результата (auth/popup-closed-by-user) через " + sec + " с. Если вы выбрали аккаунт, а окно закрылось само, результат не дошёл до игры." +
+			else if (code === "auth/popup-closed-by-user") log("Окно закрылось без результата (auth/popup-closed-by-user) через " + sec + " с. Если вы выбрали аккаунт, а окно закрылось само, результат не дошёл до страницы." +
 				(blurred ? " Страница теряла фокус: окно открывалось." : " Страница не теряла фокус: окно, возможно, не открывалось."), "bad");
 			else log("Ошибка: " + errText(e) + " (прошло " + sec + " с)", "bad");
 		}).then(function () {
-			window.removeEventListener("blur", onBlur);
-			window.removeEventListener("focus", onFocus);
+			if (!busy) return;
 			busy = false;
+			cleanup();
 		});
-	});
+	}
+	document.getElementById("b1").addEventListener("click", function () { popupTest("Тест 1", false); });
+	document.getElementById("b5").addEventListener("click", function () { popupTest("Тест 5", true); });
 
 	// 2. the redirect: the whole page goes to Google and comes back -----------------------------------------------
 	document.getElementById("b2").addEventListener("click", function () {
 		if (!auth || busy) return;
 		log("Тест 2: перехожу на страницу Google. После выбора аккаунта вы вернётесь сюда, и здесь появится результат.");
-		try { localStorage.setItem("glow_diag_redirect", String(Date.now())); } catch (e) { /* none */ }
+		setFlag("glow_diag_redirect", String(Date.now()));
 		try {
 			m.signInWithRedirect(auth, new m.GoogleAuthProvider()).catch(function (e) { log("Ошибка перехода: " + errText(e), "bad"); });
 		} catch (e) { log("Ошибка перехода: " + errText(e), "bad"); }
@@ -190,6 +253,54 @@
 		if (!w) { log("Браузер НЕ дал открыть всплывающее окно (window.open вернул пусто).", "bad"); return; }
 		log("Всплывающее окно открылось. Связь с ним: " + (function () { try { return w.opener === window ? "есть (opener)" : "нет (opener потерян)"; } catch (e) { return "нет доступа"; } })(), "ok");
 		setTimeout(function () { try { w.close(); } catch (e) { /* none */ } }, 1200);
+	});
+
+	// 4. a window opened from here: does it keep the way back (opener, storage, broadcast) ------------------------
+	var echoOpen = false;
+	document.getElementById("b4").addEventListener("click", function () {
+		if (echoOpen) return;
+		echoOpen = true;
+		var got = [];
+		var started = Date.now();
+		setFlag("glow_echo", null);
+		function arrived(how, info) {
+			got.push(how);
+			log("Из окна пришло сообщение (" + how + "): opener в окне " + (info && info.opener ? "был" : "не было") + ", оно открыто как " + (info && info.standalone ? "приложение" : "вкладка") + ".", "ok");
+		}
+		function onMessage(ev) { if (ev.origin === location.origin && ev.data && ev.data.glowEcho) arrived("postMessage", ev.data.glowEcho); }
+		function onStorage(ev) { if (ev.key === "glow_echo" && ev.newValue) { var i = null; try { i = JSON.parse(ev.newValue); } catch (e) { /* none */ } arrived("общее хранилище", i); } }
+		window.addEventListener("message", onMessage);
+		window.addEventListener("storage", onStorage);
+		var bc = null;
+		try { bc = new BroadcastChannel("glow_echo"); bc.onmessage = function (ev) { arrived("BroadcastChannel", ev.data); }; } catch (e) { /* none */ }
+		log("Тест 4: открываю тестовое окно…");
+		var w = null;
+		try { w = window.open("auth_echo.html", "_blank"); } catch (e) { log("window.open выбросил ошибку: " + errText(e), "bad"); }
+		if (!w) log("Окно не открылось как окно (window.open вернул пусто). Возможно, оно открылось поверх приложения, смотрите экран.");
+		else log("window.open вернул окно. opener со стороны окна проверит оно само.");
+		var poll = setInterval(function () {
+			var closed = false;
+			try { closed = !w || w.closed; } catch (e) { closed = false; }
+			var waited = (Date.now() - started) / 1000;
+			if (waited > 40 || (closed && waited > 3)) {
+				clearInterval(poll);
+				window.removeEventListener("message", onMessage);
+				window.removeEventListener("storage", onStorage);
+				try { if (bc) bc.close(); } catch (e) { /* none */ }
+				echoOpen = false;
+				if (!got.length) log("Тест 4: от окна ничего не пришло ни одним способом: связи между страницей и открытым окном нет.", "bad");
+				else log("Тест 4 завершён. Работают способы: " + got.join(", "), "ok");
+			}
+		}, 500);
+		log("Закройте тестовое окно (кнопка «Готово» или «Закрыть»), когда прочитаете, и вернитесь сюда.");
+	});
+
+	// 6. a trip to another site and back ------------------------------------------------------------------------------
+	document.getElementById("b6").addEventListener("click", function () {
+		var back = location.origin + location.pathname + "?ret=1#probe=" + Date.now();
+		log("Тест 6: ухожу на другой сайт (httpbin.org) и сразу возвращаюсь сюда. Если страница не вернулась сама, нажмите «Готово» или «Назад».");
+		setFlag("glow_diag_ext", String(Date.now()));
+		location.href = "https://httpbin.org/redirect-to?status_code=302&url=" + encodeURIComponent(back);
 	});
 
 	// the report ---------------------------------------------------------------------------------------------------

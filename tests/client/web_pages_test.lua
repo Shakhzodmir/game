@@ -142,6 +142,16 @@ describe("web/auth_test.html: the phone-side check of the sign-in with Google", 
 		assert_true(has(s, 'window.open("about:blank"'))
 	end)
 
+	it("has the experiments for the Home Screen app: a window that answers, the SDK told it is not standalone, a trip to another site", function()
+		assert_true(has(s, 'window.open("auth_echo.html"'))
+		assert_true(has(s, 'Object.defineProperty(navigator, "standalone"'), "test 5 masks navigator.standalone")
+		assert_true(has(s, "delete navigator.standalone"), "and puts it back")
+		assert_true(has(s, "?ret=1") and has(s, "httpbin.org/redirect-to"), "test 6 goes out and comes back")
+		local e = slurp("web/auth_echo.html")
+		assert_true(has(e, "window.opener.postMessage") and has(e, "BroadcastChannel") and has(e, "localStorage"))
+		assert_false(has(e:lower(), "firebase"), "the echo window knows nothing about the sign-in")
+	end)
+
 	it("holds no keys, names or addresses, and masks the e-mail it shows", function()
 		local low = s:lower()
 		for _, bad in ipairs({ "@gmail", "aigpa", "c:\\", "c:/users", "aiza", "api_key", "secret" }) do
