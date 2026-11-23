@@ -314,7 +314,7 @@ function M.build(e)
 			return b
 		end
 		arrow(-150, "<", "page_prev", -1)
-		s:text(body, i18n.t("jukebox.page", { page = page, pages = pages }), 0, py, { font = "button", size = 30, color = "text_soft", max_width = 160 })
+		s:text(body, i18n.t("jukebox.page", { page = page, pages = pages }), 0, py, { font = "button", size = 30, color = "text", max_width = 160 })
 		arrow(150, ">", "page_next", 1)
 	end
 
