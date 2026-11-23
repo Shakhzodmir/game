@@ -134,14 +134,16 @@ ROOMS = {
         ("muted_trumpet", 555, 770, 121),
         ("note_sign", 360, 765, 107),
     ]),
-    # district 18: the places of the street band square items its placeholders borrow (TASK_FROM)
+    # district 18: the places fitted to the producer's festival plaza (a tiled floor from y 692; the top bar covers
+    # y < 235 and the task card y > 835): drums, accordion, steel pan and tent on the floor, the shell stage on the
+    # plaza behind them, the garland across the sky under the painted ones
     "nations_fest": ("3x2", [
-        ("taiko", 330, 700, 158),
-        ("festival_tent", 380, 520, 173),
-        ("steel_pan", 600, 580, 118),
-        ("flag_garland", 360, 322, 456),
-        ("accordion", 560, 716, 62),
-        ("shell_stage", 596, 432, 93),
+        ("taiko", 135, 752, 190),
+        ("festival_tent", 600, 728, 200),
+        ("steel_pan", 458, 766, 150),
+        ("flag_garland", 360, 470, 500),
+        ("accordion", 285, 775, 130),
+        ("shell_stage", 360, 634, 240),
     ]),
     # district 19: the places of the K-pop stadium items its placeholders borrow (TASK_FROM)
     "fan_meeting": ("3x2", [
