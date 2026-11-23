@@ -712,15 +712,26 @@ describe("meta windows: jukebox", function()
 
 	local function cafe_done(app) G.build_tasks(app, "cafe") end
 
+	-- the row of genre tabs pages (the open tabs first, the dark ones after them): turn to the page that holds the
+	-- genre, then tap it
+	local function tab_to(c, tab)
+		for _ = 1, c.app.ui.jukebox.tab_pages do -- (a full turn: the row wraps round; 10 pages with thirty tabs)
+			if c.app.ui.popup_targets["tab_" .. tab] then break end
+			wtap(c, "tabs_next")
+		end
+		wtap(c, "tab_" .. tab)
+	end
+
 	it("opens on the genre being built: a tab per district, the theme, the songs, the way home", function()
 		G.with_town({ setup = cafe_done }, function(c)
 			open(c, "jukebox")
-			for _, text in ipairs({ "Jukebox", "Pick a song", "Lo-fi", "Jazz", "Jazz Bar", "Layers: 0/7", "Bossa Breeze", "112 BPM",
+			for _, text in ipairs({ "Jukebox", "Pick a song", "Lo-fi", "Jazz", "Classical", "Jazz Bar", "Layers: 0/7", "Bossa Breeze", "112 BPM",
 				"Moonlight Ballad", "Scat Parade", "Boogie Mouse", "Return the town music" }) do
 				assert_true(has(c, text), "no '" .. text .. "' in: " .. texts(c))
 			end
 			assert_eq(c.app.ui.jukebox.tab, "jazz")
-			for _, name in ipairs({ "tab_cafe", "tab_jazz", "tab_square", "tabs_prev", "tabs_next", "back_home", "play_jazz",
+			assert_true(c.app.ui.popup_targets.tab_square == nil, "the open tabs come first: the square is dark and on a later page")
+			for _, name in ipairs({ "tab_cafe", "tab_jazz", "tab_classical", "tabs_prev", "tabs_next", "back_home", "play_jazz",
 				"play_bossa_breeze", "play_scat_parade", "close" }) do
 				assert_true(c.app.ui.popup_targets[name] ~= nil, "no target " .. name)
 			end
@@ -739,7 +750,7 @@ describe("meta windows: jukebox", function()
 				assert_true(has(c, text), "no '" .. text .. "' in: " .. texts(c))
 			end
 			assert_false(has(c, "Bossa Breeze"), "the songs of the other genre are gone")
-			wtap(c, "tab_square")
+			tab_to(c, "square")
 			assert_eq(c.app.ui.jukebox.tab, "square")
 			assert_true(has(c, "? ? ?"), texts(c))
 			assert_true(has(c, "Build Jazz Bar to unlock"), texts(c))
@@ -858,15 +869,6 @@ describe("meta windows: jukebox", function()
 			assert_same(c.E.audit(), {})
 		end)
 	end)
-
-	-- the row of genre tabs pages: turn to the page that holds the genre, then tap it
-	local function tab_to(c, tab)
-		for _ = 1, c.app.ui.jukebox.tab_pages do -- (a full turn: the row wraps round; 10 pages with fifteen districts)
-			if c.app.ui.popup_targets["tab_" .. tab] then break end
-			wtap(c, "tabs_next")
-		end
-		wtap(c, "tab_" .. tab)
-	end
 
 	it("fits every genre, picked or not, in both languages and every window size", function()
 		for _, lang in ipairs({ "en", "ru" }) do

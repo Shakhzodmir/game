@@ -3,6 +3,8 @@
 -- district first (a finished district plays its full song, the one being built the layers built so far), then
 -- the songs of the genre, all playable at once in an open genre. A locked genre is a dark silhouette with what
 -- opens it. A "now playing" strip with a bouncing equalizer and Bit dancing to the beat of the song.
+-- The row puts the open tabs first and the dark ones after them (client/views.lua jukebox), so the first
+-- pages of the row are the ones that play.
 --
 -- A pick is KEPT: it is saved with the prefs (meta:song) and every place that starts music plays it
 -- (client/songs.lua), so closing the window does not bring the district track back. It is cleared by tapping
@@ -46,7 +48,8 @@ local function page_count(count)
 	return math.max(1, math.ceil(count / rows_per_page(count)))
 end
 
--- The tab to show first: the genre of the picked song, else the district on display.
+-- The tab to show first: the genre of the picked song, else the district on display (open tabs in practice: a pick
+-- needs an open genre, the town pages only through open districts); the row opens on the page that holds it.
 local function first_tab(vm)
 	for _, tab in ipairs(vm.tabs) do
 		if tab.playing then return tab.id end

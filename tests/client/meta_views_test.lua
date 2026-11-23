@@ -313,6 +313,50 @@ describe("client.views (meta screens)", function()
 		assert_eq(bare.tabs[1].genre.en, "Lo-fi Café")
 	end)
 
+	it("puts the open jukebox tabs first and keeps the order of the town inside the open ones and inside the dark ones", function()
+		-- a stand-in for the meta (only what views.jukebox reads): the open districts need not be the first ones, a district
+		-- where the player already did something stays open when the one before it is still dark
+		local function district(i, available, complete)
+			return { id = "d" .. i, index = i, name = { en = "District " .. i }, available = available, complete = complete or false,
+				done = complete and 3 or 0, total = 3, unmuted = {} }
+		end
+		local function genre(id, unlock_index, open)
+			return { id = id, group = "modern", name = { en = id }, unlock = "d" .. unlock_index, unlock_index = unlock_index,
+				open = open, songs = { id .. "_a", id .. "_b" } }
+		end
+		local fake = {
+			districts = function()
+				return { district(1, true, true), district(2, false), district(3, true), district(4, false), district(5, true) }
+			end,
+			song = function() return nil end,
+			-- the order of the file is not the order of the town: the tabs are the first district's, then the others'
+			genres = function()
+				return { genre("g1", 1, true), genre("g2", 2, false), genre("g3", 3, true), genre("g4", 1, true), genre("g5", 4, false) }
+			end,
+		}
+		local vm = views.jukebox(fake, nil, nil)
+		local ids, states = {}, {}
+		for i, tab in ipairs(vm.tabs) do ids[i], states[i] = tab.id, tab.state end
+		assert_same(ids, { "d1", "d3", "d5", "g1", "g4", "g3", "d2", "d4", "g2", "g5" })
+		assert_same(states, { "complete", "current", "current", "open", "open", "open", "locked", "locked", "locked", "locked" })
+		-- tab.index is the place in the order of the town (it picks the colour of a district), whatever the place in the row
+		local index = {}
+		for i, tab in ipairs(vm.tabs) do index[i] = tab.index end
+		assert_same(index, { 1, 3, 5, 6, 7, 9, 2, 4, 8, 10 })
+		assert_eq(vm.tabs[2].color, views.district_color(3))
+		-- the rows follow their tab, wherever it stands
+		assert_eq(#vm.songs.g3, 2)
+		assert_true(vm.songs.g3[1].playable)
+		assert_false(vm.songs.g2[1].playable)
+		-- with nothing open but the first district the order of the town is kept as it was
+		local bare = {
+			districts = function() return { district(1, true), district(2, false), district(3, false) } end,
+			song = function() return nil end,
+		}
+		local plain = views.jukebox(bare, nil, nil)
+		assert_same({ plain.tabs[1].id, plain.tabs[2].id, plain.tabs[3].id }, { "d1", "d2", "d3" })
+	end)
+
 	it("says what the card above the level button shows for the district on display", function()
 		local m = H.new()
 		local cv = views.card(m, "cafe")
