@@ -987,9 +987,9 @@ describe("screens/town: hit-streak notes of locked boosters (decisions.md item 1
 			assert_eq(c.app.meta:level_to_play(), 16)
 			assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 2, note_off = 1, lock = 1 })
 		end)
-		-- before level 12 no streak runs: plain empty notes, no padlocks (the whole widget is not there yet)
+		-- before level 12 no streak runs: no notes at all, so no padlocks either (the whole widget is not there yet)
 		G.with_town({}, function(c)
-			assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 0, note_off = 3, lock = 0 })
+			assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 0, note_off = 0, lock = 0 })
 		end)
 		-- level 12: the streak starts, only the Riff slot is open
 		G.with_town({ setup = function(app) G.win(app, 11) end }, function(c)
@@ -1026,6 +1026,190 @@ describe("screens/town: hit-streak notes of locked boosters (decisions.md item 1
 			assert_eq(pops, 1)
 			assert_false(c.app.ui.busy)
 			assert_eq(steps ~= nil, true)
+		end)
+	end)
+end)
+
+-- The review of the first minutes (chatgpt/FROM_CHATGPT.md section 1, our answer in FROM_CLAUDE.md): three pale notes in the
+-- level button look like a separate counter while no streak exists. They are drawn only once the streak counts (level 12 on,
+-- views.level_button); before that the label stands alone, centred on the button.
+describe("screens/town: the streak notes of the level button belong to a streak that counts", function()
+	local i18n = require("client.i18n")
+
+	-- x0, x1 (logical px) of a node; a text is measured with the real advances of its font, like the layout audit does
+	local function span(c, n)
+		local x0, _, x1 = c.E.rect(n)
+		local a, b = c.E.to_logical(x0, 0), c.E.to_logical(x1, 0)
+		return math.min(a, b), math.max(a, b)
+	end
+
+	local function child_with_anim(node, anim)
+		for _, ch in ipairs(node.children or {}) do
+			if ch.anim == anim then return ch end
+		end
+		return nil
+	end
+
+	-- The level button of the town on display: the HUD, its label, the play icon at its left end and the size of the label's
+	-- font in logical px (as the audit measures it, shrink to fit included).
+	local function parts(c, level)
+		local hud = c.town.self.t.hud
+		local text = i18n.t("town.level", { n = level })
+		local label = c.town:find(text)
+		assert_true(label ~= nil, "no label '" .. text .. "' in: " .. G.dump(c.town))
+		local icon = child_with_anim(hud.level_btn, "ui_icons_play_dark")
+		assert_true(icon ~= nil, "no play icon on the level button")
+		local font_px
+		for _, row in ipairs(A.texts(c)) do
+			if row.node == label then font_px = row.font_px end
+		end
+		return hud, label, icon, font_px
+	end
+
+	it("draws no notes before the streak counts and stands the label alone, centred on the button, in every language", function()
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			for _, level in ipairs({ 1, 9, 11 }) do
+				G.with_town({ language = lang, setup = function(app) if level > 1 then G.win(app, level - 1) end end }, function(c)
+					local what = lang .. " level " .. level
+					assert_eq(c.app.meta:level_to_play(), level)
+					local hud, label, icon, font_px = parts(c, level)
+					-- the rule of the view model reaches the screen: nothing of the streak is drawn
+					assert_eq(#hud.level_view.notes, 0, what)
+					assert_eq(#hud.notes, 0, what)
+					assert_same(flipbooks(c, "note_on", "note_off", "lock"), { note_on = 0, note_off = 0, lock = 0 })
+					-- centred: the middle of the measured text is the middle of the button (the pulse scales both about it)
+					local lx0, lx1 = span(c, label)
+					local bx0, bx1 = span(c, hud.level_btn)
+					assert_near((lx0 + lx1) / 2, (bx0 + bx1) / 2, 0.6, what .. ": the label is not centred")
+					-- inside the button, clear of the play icon at its left end
+					local _, ix1 = span(c, icon)
+					assert_true(lx0 - ix1 >= 8, string.format("%s: the label starts %.1f px after the play icon", what, lx0 - ix1))
+					assert_true(bx1 - lx1 >= 8, what .. ": the label reaches the edge of the button")
+					-- the full 48 px of the label (the room is there: nothing is shrunk), and the layout stays clean
+					assert_true(font_px >= 47 and font_px <= 50, what .. ": the label is " .. tostring(font_px) .. " px")
+					assert_eq(#c.E.audit(), 0, what)
+					local bad = A.check(c)
+					assert_eq(#bad, 0, what .. ": " .. table.concat(bad, "; "))
+				end)
+			end
+		end
+	end)
+
+	it("keeps the label beside the three notes once the streak counts (level 12 on): left of the first note, clear of the play icon", function()
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			for _, level in ipairs({ 12, 14, 30 }) do
+				G.with_town({ language = lang, setup = function(app) G.win(app, level - 1) end }, function(c)
+					local what = lang .. " level " .. level
+					local hud, label, icon, font_px = parts(c, level)
+					assert_eq(#hud.level_view.notes, 3, what)
+					assert_eq(#hud.notes, 3, what)
+					local lx0, lx1 = span(c, label)
+					local nx0 = span(c, hud.notes[1])
+					local _, ix1 = span(c, icon)
+					assert_true(lx1 <= nx0 + 1, string.format("%s: the label ends at %.1f, the first note starts at %.1f", what, lx1, nx0))
+					assert_true(lx0 - ix1 >= 8, string.format("%s: the label starts %.1f px after the play icon", what, lx0 - ix1))
+					assert_true(font_px >= 36, what .. ": the label is " .. tostring(font_px) .. " px")
+					assert_eq(#c.E.audit(), 0, what)
+					local bad = A.check(c)
+					assert_eq(#bad, 0, what .. ": " .. table.concat(bad, "; "))
+				end)
+			end
+		end
+	end)
+
+	it("lets the notes and the label follow the streak while the town is shown, the button itself staying as it was", function()
+		G.with_town({ language = "ru", setup = function(app) G.win(app, 10) end }, function(c)
+			local t = c.town.self.t
+			local base = c.app.ui.targets.level
+			local w, h = t.hud.level_btn.size.x, t.hud.level_btn.size.y
+			local function check(what, level, notes, flip)
+				c.run(1.5) -- (the HUD is drawn again once the meta says it changed and the show is idle)
+				local hud, label = parts(c, level)
+				assert_eq(#hud.notes, notes, what)
+				assert_same(flipbooks(c, "note_on", "note_off", "lock"), flip, what)
+				-- the same button: its size and its QA target
+				assert_eq(hud.level_btn.size.x, w, what)
+				assert_eq(hud.level_btn.size.y, h, what)
+				assert_near(c.app.ui.targets.level.x, base.x, 0.01, what)
+				assert_near(c.app.ui.targets.level.y, base.y, 0.01, what)
+				local lx0, lx1 = span(c, label)
+				local bx0, bx1 = span(c, hud.level_btn)
+				local off = (lx0 + lx1) / 2 - (bx0 + bx1) / 2
+				if notes == 0 then
+					assert_near(off, 0, 0.6, what .. ": the label stands alone and centred")
+				else
+					assert_true(off < -20, string.format("%s: the label made room for the notes (%.1f px off the middle)", what, off))
+				end
+				assert_eq(#c.E.audit(), 0, what)
+				local bad = A.check(c)
+				assert_eq(#bad, 0, what .. ": " .. table.concat(bad, "; "))
+			end
+			check("level 11", 11, 0, { note_on = 0, note_off = 0, lock = 0 })
+			G.win(c.app, 1) -- level 11 won: the streak counts from the next level on, nothing is lit yet
+			check("level 12", 12, 3, { note_on = 0, note_off = 3, lock = 2 })
+			G.win(c.app, 1) -- level 12 won: the streak starts, the Riff note lights up
+			check("level 13, a streak of 1", 13, 3, { note_on = 1, note_off = 2, lock = 2 })
+			assert(require("client.flow").debug_lose()) -- a loss puts the streak out: the notes stay (the streak counts from level 12), none lit
+			check("level 13 after a loss", 13, 3, { note_on = 0, note_off = 3, lock = 2 })
+			c.app.reset_save(7, c.E.clock) -- a new save: level 1, no streak, the notes are gone and the label is centred again
+			check("a new save", 1, 0, { note_on = 0, note_off = 0, lock = 0 })
+		end)
+	end)
+
+	it("lets the streak pop do nothing, without a fault, when the button has no notes", function()
+		G.with_town({}, function(c)
+			local t = c.town.self.t
+			local nodes = c.town:stats().nodes
+			c.town:ctx(function()
+				for _, i in ipairs({ 0, 1, 2, 3, 4 }) do
+					assert_false(t.hud:note_open(i), "note " .. i)
+					assert_false(t.hud:streak_pop(i), "note " .. i)
+				end
+			end)
+			assert_eq(c.town:stats().nodes, nodes, "a pop without notes draws nothing")
+			-- the reward step of a result that carries a streak, on a town whose button has no notes: no pop, the step ends
+			local pops = 0
+			local real = t.hud.streak_pop
+			t.hud.streak_pop = function(self, i)
+				local ok = real(self, i)
+				if ok then pops = pops + 1 end
+				return ok
+			end
+			c.app.push_reward({ won = true, streak = 3, level_id = 14 })
+			c.run(3)
+			assert_eq(pops, 0)
+			assert_false(c.app.ui.busy, "the show ends")
+			assert_eq(#c.E.audit(), 0)
+		end)
+	end)
+
+	it("opens the start window from the QA target and from the label of the level button, with notes and without", function()
+		for _, level in ipairs({ 3, 14 }) do
+			G.with_town({ setup = function(app) G.win(app, level - 1) end }, function(c)
+				tap_target(c, "level")
+				c.step(30)
+				assert_eq(c.app.ui.popup, "start", "the QA target, level " .. level)
+				c.app.close_popup()
+				c.run(0.6)
+				c.town:tap_text(i18n.t("town.level", { n = level }))
+				c.step(30)
+				assert_eq(c.app.ui.popup, "start", "the label, level " .. level)
+			end)
+		end
+	end)
+
+	it("is a still button with reduced motion, with notes and without: no pulse (the pulse is there without the setting)", function()
+		local ui = require("client.ui")
+		for _, level in ipairs({ 5, 14 }) do
+			G.with_town({ setup = function(app) G.win(app, level - 1); app.set_setting("reduced_motion", true) end }, function(c)
+				local hud = c.town.self.t.hud
+				assert_true(c.app.reduced_motion())
+				assert_false(ui.is_pulsing(hud.level_btn), "level " .. level)
+				assert_eq(#hud.notes, level == 5 and 0 or 3)
+			end)
+		end
+		G.with_town({ setup = function(app) G.win(app, 4) end }, function(c)
+			assert_true(ui.is_pulsing(c.town.self.t.hud.level_btn))
 		end)
 	end)
 end)

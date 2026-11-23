@@ -442,6 +442,13 @@ end
 -- The round "Map" button at the right end of the level row (the level button is narrower to make room).
 M.LEVEL_X, M.LEVEL_W, M.NOTE_X = 288, 470, 100
 M.MAP_X, M.MAP_W = 620, 150
+-- The label of the level button (x from the middle of the button, at most this wide in px). The play icon sits at the left end
+-- (its right edge 157 px left of the middle). Beside the three notes of a running streak the label gives way to them: 34 px left
+-- of the middle, 216 px at most (it ends where the first note starts). Without notes (no streak yet) it stands alone, centred
+-- on the button, and may take the room up to the same 15 px of air next to the icon: 2 x (157 - 15) = 284 px, which the
+-- longest label before level 12 ("Уровень 11", 283 px at 48 px) fills without shrinking.
+M.LABEL_X, M.LABEL_W = -34, 216
+M.LABEL_ALONE_X, M.LABEL_ALONE_W = 0, 284
 
 function Hud:build_map_button(parent)
 	local s = self.ui
@@ -486,15 +493,18 @@ function Hud:build_level(parent)
 	s:anchor(b.node, "bottom")
 	self.level_btn = b.node
 	self:target("level", self:bottom(x, y))
+	-- the label gives way to the notes of a running streak; with no streak (no notes) it stands alone, centred on the button
 	if b.label then
-		gui.set_position(b.label, vmath.vector3(-34, 6, 0))
-		b.label_info.max_width = 216
+		local alone = #v.notes == 0
+		gui.set_position(b.label, vmath.vector3(alone and M.LABEL_ALONE_X or M.LABEL_X, 6, 0))
+		b.label_info.max_width = alone and M.LABEL_ALONE_W or M.LABEL_W
 		s:_fit_text(b.label, b.label_info)
 	end
-	-- hit streak: three notes inside the button. Once the streak runs (level 12 on) the note of a booster that
-	-- is still locked is drawn closed; before that nothing runs and the notes are plain empty ones.
+	-- hit streak: three notes inside the button, drawn only while a streak counts (level 12 on: views.level_button leaves
+	-- `notes` empty before that, nothing is drawn and the streak pop has nothing to light). The note of a booster that is
+	-- still locked is drawn closed.
 	for i, note in ipairs(v.notes) do
-		local closed = v.streak_active and note.unlocked == false
+		local closed = note.unlocked == false
 		self.notes[i] = kit.note({ ui = s }, b.node, M.NOTE_X + (i - 1) * 42, 6, { lit = note.lit, unlocked = not closed }, 52, 0.55)
 		self.closed[i] = closed
 	end
@@ -513,13 +523,14 @@ function Hud:note_pos(i)
 	return self:bottom(M.LEVEL_X + M.NOTE_X + (i - 1) * 42, M.LEVEL_Y + 6)
 end
 
--- Is there a streak note `i` that can light up (its booster is unlocked)?
+-- Is there a streak note `i` that can light up (its booster is unlocked)? False for a button without notes (no streak
+-- counts yet, the all-done button, the HUD before its first drawing) and for any index no note has.
 function Hud:note_open(i)
 	return self.notes ~= nil and self.notes[i] ~= nil and not self.closed[i]
 end
 
 -- Lights the streak note `i` with a pop and sparkles. A closed note (its booster is still locked) stays
--- closed: false.
+-- closed, and a button without notes has nothing to light: false, nothing drawn, nothing to fault on.
 function Hud:streak_pop(i)
 	if not self:note_open(i) then return false end
 	local n = self.notes[i]
