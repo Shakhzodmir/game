@@ -881,4 +881,175 @@ for (const [name, sc, ret, noted] of [
 }
 
 console.log("auth_flows_check: part 3 (oidc_popup, restore) ok");
+
+// ------------------------------------------------------------------------------------------------------------------------
+// 4. oidc_redirect: the whole page goes to Google and comes back
+// ------------------------------------------------------------------------------------------------------------------------
+const REDIRECT = { googleIos: "oidc_redirect" };
+const paramsOf = (u) => Object.fromEntries(new URL(u).searchParams);
+const mailboxKeys = (world) => [...world.ls.keys()].filter((k) => k.indexOf("glow_oidc_res:") === 0);
+// a page of the game that taps the card and waits until the page is about to leave
+async function leaving(o = {}) {
+	const world = o.world || popupWorld(o.sc || {});
+	const sdk = o.sdk || fakeSdk(o.sdkOpts || {});
+	const g = game({ world, cfg: o.cfg || REDIRECT, sdk, ua: o.ua, standalone: o.standalone, test: { flushMs: 30, ...(o.test || {}) } });
+	if (o.restore) await ask(g, "restore");
+	const id = startCall(g, o.op || "sign_in_google", ["en"]);
+	assert.ok(await waitFor(() => cards(g).length === 1), "the card");
+	tapCard(g).click();
+	return { world, sdk, g, id };
+}
+
+{
+	// (a) the start: the card says where we go, the save gets its moment, then ONE navigation to Google with a state of our own
+	const { world, g } = await leaving();
+	assert.equal(tapCard(g).textContent, "Going to Google…");
+	assert.equal(tapCard(g).disabled, true);
+	assert.equal(g.navs.length, 0, "not at once: the game's last save reaches the browser's storage first");
+	assert.ok(await waitFor(() => g.navs.length === 1), "then the page leaves");
+	await sleep(120);
+	assert.equal(g.navs.length, 1, "once");
+	const u = new URL(g.navs[0]);
+	assert.equal(u.origin + u.pathname, "https://accounts.google.com/o/oauth2/v2/auth");
+	const q = paramsOf(g.navs[0]);
+	assert.deepEqual([q.client_id, q.redirect_uri, q.response_type, q.prompt], [CLIENT, RETURN_URL, "id_token token", "select_account"]);
+	assert.match(q.state, /^rg\.[A-Za-z0-9_-]{24}$/, "r = the whole page, g = the game");
+	assert.equal(world.google.length, 0, "no second window");
+	const rec = JSON.parse(g.ssMap.get("glow_oidc_pend"));
+	assert.deepEqual([rec.m, rec.op, rec.s === q.state, g.ssMap.get("glow_oidc_own") === q.state, sha256hex(rec.r) === q.nonce], ["r", "in", true, true, true], "the attempt and the marker are in this tab's storage before it leaves");
+	assert.equal(JSON.parse(world.ls.get("glow_oidc_pend:" + q.state)).r, undefined, "the shared storage holds only the beacon: no raw nonce");
+	// a page that is still here answers a ping: a window that did not start this never loads a second copy of the game
+	const probe = makeWindow(world, { href: ORIGIN + "/game/auth_return.html" });
+	const heard = [];
+	const ch = new probe.BroadcastChannel("glow_oidc");
+	ch.onmessage = (ev) => heard.push(ev.data);
+	ch.postMessage({ k: "glow_oidc_ping", s: q.state });
+	assert.ok(await waitFor(() => heard.length === 1));
+	assert.deepEqual(heard[0], { k: "glow_oidc_pong", s: q.state });
+}
+
+{
+	// (b) the whole page went; Google answers to the return page IN THAT WINDOW; the game loads again and finishes the sign-in
+	const { world, g, id } = await leaving();
+	assert.ok(await waitFor(() => g.navs.length === 1));
+	const p = paramsOf(g.navs[0]);
+	kill(g); // the page is gone: it left for Google
+	const page = loadReturn(world, { href: RETURN_URL + "#" + answerFrag(p), from: g, opener: null, sc: { ua: IPHONE } });
+	assert.ok(await waitFor(() => page.replaced.length === 1, 4000), "the return page sends the window back");
+	assert.deepEqual(page.replaced, ["./"], "to the game, a fixed place");
+	assert.equal(mailboxKeys(world).length, 1, "with the answer in the mailbox");
+	const sdk2 = fakeSdk();
+	const g2 = game({ world, ss: g.ssMap, cfg: REDIRECT, sdk: sdk2 });
+	const r = await ask(g2, "restore");
+	assert.deepEqual([r.ok, r.f.uid, r.f.ret, sdk2.calls], [true, "u2002", "ok", [["signInWithCredential", "A"]]], "the game signs the player in at its start");
+	assert.deepEqual([oidcKeys(g2), notes(g2).length], [[], 0]);
+	assert.ok((await ask(g2, "cloud_get")).ok, "and knows the account");
+}
+
+{
+	// (c) the page is still alive when the answer arrives (a sheet over the app): it finishes the sign-in itself, and the
+	// window that carried the answer is told to stay where it is, so there is never a second copy of the game
+	const { world, sdk, g, id } = await leaving();
+	assert.ok(await waitFor(() => g.navs.length === 1));
+	const p = paramsOf(g.navs[0]);
+	const sheet = makeWindow(world, { href: "https://accounts.google.com/chooser", ss: g.ssMap }); // a copy of this tab's storage, marker and all
+	const page = loadReturn(world, { href: RETURN_URL + "#" + answerFrag(p), from: sheet, opener: null, sc: {} });
+	const r = await waitLine(g, id);
+	assert.deepEqual([r.ok, r.f.uid, sdk.calls], [true, "u2002", [["signInWithCredential", "A"]]]);
+	await sleep(350);
+	assert.deepEqual(page.replaced, [], "the sheet did not load the game over the live page");
+	assert.deepEqual([cards(g).length, oidcKeys(g), stopped(g)], [0, [], true]);
+}
+
+{
+	// (d) Back from Google (the page comes from the browser's cache, nothing runs again): nothing is coming; the card must not hang
+	const { world, sdk, g, id } = await leaving();
+	assert.ok(await waitFor(() => g.navs.length === 1));
+	g.dispatch("pageshow", { persisted: true });
+	const r = await waitLine(g, id);
+	assert.deepEqual(lineOf(r), { ok: false, reason: "cancelled" }, "the player's own Back: silent");
+	assert.deepEqual([cards(g).length, oidcKeys(g), stopped(g), sdk.calls.length, notes(g).length], [0, [], true, 0, 0]);
+	const id3 = startCall(g, "sign_in_google", ["en"]);
+	assert.ok(await waitFor(() => cards(g).length === 1), "and the page is free for the next try (not 'busy')");
+	cancelCard(g).click();
+	await waitLine(g, id3);
+	// ... but when the answer IS there at that moment (Back after the return page ran), it is taken
+	const b = await leaving();
+	assert.ok(await waitFor(() => b.g.navs.length === 1));
+	const sheet = makeWindow(b.world, { href: "https://accounts.google.com/chooser", ss: b.g.ssMap });
+	loadReturn(b.world, { href: RETURN_URL + "#" + answerFrag(paramsOf(b.g.navs[0])), from: sheet, opener: null, sc: {} });
+	b.g.dispatch("pageshow", { persisted: true });
+	assert.equal((await waitLine(b.g, b.id)).ok, true);
+}
+
+{
+	// (e) a fresh load with an attempt but no answer (the Back button after the cache was dropped): dropped, silently
+	const { world, g } = await leaving();
+	assert.ok(await waitFor(() => g.navs.length === 1));
+	kill(g);
+	const g2 = game({ world, ss: g.ssMap, cfg: REDIRECT, sdk: fakeSdk() });
+	const r = await ask(g2, "restore");
+	assert.deepEqual([r.ok, r.f.ret, notes(g2).length, oidcKeys(g2)], [true, "cancelled", 0, []]);
+}
+
+for (const [name, sc, ret, noted] of [
+	["Cancel on Google's page", { error: "access_denied" }, "cancelled", false],
+	["another error of Google's", { error: "invalid_request" }, "error", true],
+	["a wrong nonce", { badNonce: true }, "error", true],
+]) {
+	const { world, g } = await leaving({ sc });
+	assert.ok(await waitFor(() => g.navs.length === 1));
+	kill(g);
+	// the fake Google's own answer for this request: ask it like a window would
+	const child = world.openFrom(g, g.navs[0], "x");
+	await waitFor(() => child.page && child.page.replaced);
+	const sdk2 = fakeSdk(), g2 = game({ world, ss: g.ssMap, cfg: REDIRECT, sdk: sdk2 });
+	const r = await ask(g2, "restore");
+	assert.deepEqual([name, r.ok, r.f.ret, sdk2.calls.length, notes(g2).length > 0], [name, true, ret, 0, noted]);
+	assert.deepEqual(oidcKeys(g2), [], name);
+}
+
+{
+	// (f) a link by the whole page: only for the account that asked
+	for (const same of [true, false]) {
+		const world = popupWorld(), s1 = fakeSdk({ current: pwUser("P1") });
+		const g1 = game({ world, cfg: REDIRECT, sdk: s1, test: { flushMs: 30 } });
+		await ask(g1, "restore");
+		const id = startCall(g1, "link_google", ["en"]);
+		assert.ok(await waitFor(() => cards(g1).length === 1));
+		tapCard(g1).click();
+		assert.ok(await waitFor(() => g1.navs.length === 1));
+		assert.deepEqual([JSON.parse(g1.ssMap.get("glow_oidc_pend")).op, JSON.parse(g1.ssMap.get("glow_oidc_pend")).u], ["link", "P1"]);
+		kill(g1);
+		const sheet = makeWindow(world, { href: "https://accounts.google.com/chooser", ss: g1.ssMap });
+		loadReturn(world, { href: RETURN_URL + "#" + answerFrag(paramsOf(g1.navs[0])), from: sheet, opener: null, sc: {} });
+		assert.ok(await waitFor(() => mailboxKeys(world).length === 1));
+		const s2 = fakeSdk({ current: pwUser(same ? "P1" : "P7") }), g2 = game({ world, ss: g1.ssMap, cfg: REDIRECT, sdk: s2 });
+		const r = await ask(g2, "restore");
+		if (same) assert.deepEqual([r.f.ret, r.f.google, s2.calls], ["linked", "1", [["linkWithCredential", "A"]]]);
+		else assert.deepEqual([r.f.ret, s2.calls.length], ["error", 0]);
+	}
+}
+
+{
+	// (g) Cancel during the moment before the page leaves: it does not leave; the Home Screen app's record says so
+	const { world, g, id } = await leaving({ test: { flushMs: 400 } });
+	cancelCard(g).click();
+	assert.deepEqual(lineOf(await waitLine(g, id)), { ok: false, reason: "popup_closed" });
+	await sleep(500);
+	assert.deepEqual([g.navs.length, oidcKeys(g), stopped(g)], [0, [], true], "the page stays; nothing is left behind");
+	const h = await leaving({ ua: IPHONE_HOME, standalone: true, cfg: { googleIosHome: "oidc_redirect" } });
+	assert.equal(JSON.parse(h.g.ssMap.get("glow_oidc_pend")).c, "home", "a Home Screen app's attempt is finished only in a Home Screen window");
+	assert.ok(await waitFor(() => h.g.navs.length === 1));
+	// a page that cannot leave says so
+	const f = game({ world: popupWorld(), cfg: REDIRECT, sdk: fakeSdk(), test: { flushMs: 20 } });
+	f.location.assign = () => { throw new Error("blocked"); };
+	const id2 = startCall(f, "sign_in_google", ["en"]);
+	assert.ok(await waitFor(() => cards(f).length === 1));
+	tapCard(f).click();
+	assert.deepEqual(lineOf(await waitLine(f, id2)), { ok: false, reason: "error" });
+	assert.match(notes(f)[0].textContent, /^google glow\/oidc-assign /);
+}
+
+console.log("auth_flows_check: part 4 (oidc_redirect) ok");
 process.exit(0);
