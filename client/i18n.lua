@@ -728,6 +728,7 @@ local S = {
 	["nav.chart"] = { en = "Chart", ru = "Чарт" },
 	["nav.jukebox"] = { en = "Jukebox", ru = "Автомат" },
 	["nav.soon"] = { en = "Soon", ru = "Скоро" },
+	["nav.notebook"] = { en = "Songbook", ru = "Блокнот" }, -- the tab that stands where Band and Chart are not shown (en as the window's title)
 	["tutorial.town"] = {
 		en = "Spend stars to bring the town back to life",
 		ru = "Трать звёзды, чтобы вернуть городу жизнь",

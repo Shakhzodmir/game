@@ -219,6 +219,7 @@ return {
 	["nav.jukebox"] = "주크박스",
 	["nav.shop"] = "상점",
 	["nav.soon"] = "곧 만나요",
+	["nav.notebook"] = "노래 수첩",
 	["map.title"] = "지도",
 	["map.button"] = "지도",
 	["map.back"] = "마을",

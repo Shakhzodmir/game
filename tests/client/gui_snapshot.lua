@@ -6,7 +6,9 @@
 --   python3 tests/client/gui_snapshot.py <out.json> <out.png> [scale = 0.75]
 --
 -- Run from the repository root. Scenarios:
---   town            a fresh save: the first task, "Level 1", the navigation
+--   town            a fresh save: the first task, "Level 1", the navigation (four tabs: no server, so no Band and Chart)
+--   town_social     the same with a (mock) server connected: Band and Chart are back, the songbook has its small button
+--   town_song       a finished song waits: the pink dot on the songbook tab
 --   town_ready      one star in the purse: the task card pulses
 --   town_streak     level 14 with a hit streak (notes lit, Hard / Super Hard tag when the level has it)
 --   town_concert    the same district in its concert look
@@ -91,6 +93,19 @@ end
 function S.town_streak()
 	win(13)
 	win(2)
+	app.commit("snapshot")
+end
+-- the navigation when a server is connected: Band and Chart come back (five tabs, the songbook keeps its small button)
+function S.town_social()
+	require("client.services.social").set_provider(require("client.services.social_mock").new())
+	main.self.t.dirty_ui = true
+end
+-- a finished song waits to be looked at: the pink dot sits on the songbook tab (the town would offer the song by
+-- itself and open the notebook over it: it is told it did)
+function S.town_song()
+	for _ = 1, 20 do assert(flow.debug_win(3, false, true)) end
+	rewards.clear()
+	main.self.t.offered_song = app.meta:songbook_pending()
 	app.commit("snapshot")
 end
 function S.town_concert()

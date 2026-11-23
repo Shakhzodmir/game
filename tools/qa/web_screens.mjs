@@ -342,7 +342,7 @@ async function songbookChecks(browser) {
 	await sleep(1500);
 	check((await state(p)).app.ui.popup === null || (await state(p)).app.ui.popup === undefined,
 		'songbook: an unfinished song is not offered', (await state(p)).app.ui.popup);
-	// the notebook from the town button: five lines on the page (the town swallows taps while the stars of the win still fly in)
+	// the notebook from its tab of the town's navigation (the QA name `notebook`): five lines on the page (the town swallows taps while the stars of the win still fly in)
 	await waitFor(p, s => !s.app.ui.busy, 'the town settles after the win', 20000);
 	await tapTarget(p, 'notebook');
 	await waitFor(p, s => s.app.ui.popup === 'notebook', 'the notebook', 8000);
