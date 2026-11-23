@@ -168,8 +168,9 @@ describe("town.restore: districts this build does not know", function()
 			local ok, t = pcall(town.restore, raw, data)
 			util.str_less = real
 			assert_true(ok, tostring(t))
-			-- about one comparison per id; sorting them all took about fifteen
-			assert_true(calls < 3 * n, calls .. " comparisons for " .. n .. " ids")
+			-- one or two comparisons per id (the order of the walk is another one on every run: 22,000 to 45,000 for
+			-- 20,000 ids); sorting them all took fifteen per id
+			assert_true(calls < 5 * n, calls .. " comparisons for " .. n .. " ids")
 			for i = 1, KEEP.districts do assert_true(t[string.format("z%05d", i)] ~= nil, "z" .. i) end
 			assert_eq(t[string.format("z%05d", KEEP.districts + 1)], nil, "the first one over the cap")
 		end)
