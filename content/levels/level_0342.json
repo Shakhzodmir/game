@@ -1,46 +1,35 @@
 {
   "id": 342, "version": 1,
   "size": [9, 10],
-  "moves": 20,
+  "moves": 27,
   "difficulty": "easy",
   "colors": ["red", "orange", "yellow", "green", "purple"],
   "goals": [
-    {"type": "break", "item": "balloon", "count": 12},
-    {"type": "break", "item": "noise", "count": 8},
-    {"type": "collect", "color": "red", "count": 40}
+    {"type": "break", "item": "balloon", "count": 8},
+    {"type": "break", "item": "noise", "count": 6},
+    {"type": "collect", "color": "red", "count": 30}
   ],
   "cells": [
     ".#######.",
     "#########",
     "#########",
     "#########",
+    "###...###",
+    "###...###",
     "#########",
     "#########",
     "#########",
-    "#########",
-    "#########",
-    "#########"
+    ".#######."
+  ],
+  "spawners": [
+    [0, 1], [1, 0], [2, 0], [3, 0], [3, 6], [4, 0], [4, 6], [5, 0],
+    [5, 6], [6, 0], [7, 0], [8, 1]
   ],
   "slots": [
-    {"at": [1, 4], "type": "balloon", "color": "red"},
-    {"at": [3, 4], "type": "balloon", "color": "yellow"},
-    {"at": [5, 4], "type": "balloon", "color": "red"},
-    {"at": [7, 4], "type": "balloon", "color": "yellow"},
-    {"at": [2, 6], "type": "balloon", "color": "yellow"},
-    {"at": [4, 6], "type": "balloon", "color": "red"},
-    {"at": [6, 6], "type": "balloon", "color": "yellow"},
-    {"at": [4, 2], "type": "balloon", "color": "red"},
-    {"at": [2, 2], "type": "balloon", "color": "yellow"},
-    {"at": [6, 2], "type": "balloon", "color": "yellow"},
-    {"at": [0, 6], "type": "balloon", "color": "red"},
-    {"at": [8, 6], "type": "balloon", "color": "red"},
-    {"at": [0, 8], "type": "noise"},
-    {"at": [2, 9], "type": "noise"},
-    {"at": [6, 9], "type": "noise"},
-    {"at": [8, 8], "type": "noise"},
-    {"at": [1, 1], "type": "noise"},
-    {"at": [7, 1], "type": "noise"},
-    {"at": [4, 8], "type": "noise"},
-    {"at": [8, 3], "type": "noise"}
+    {"at": [1, 2], "type": "balloon", "color": "red"}, {"at": [7, 2], "type": "balloon", "color": "red"}, {"at": [1, 7], "type": "balloon", "color": "red"},
+    {"at": [7, 7], "type": "balloon", "color": "red"}, {"at": [2, 3], "type": "balloon", "color": "yellow"}, {"at": [6, 3], "type": "balloon", "color": "yellow"},
+    {"at": [2, 6], "type": "balloon", "color": "yellow"}, {"at": [6, 6], "type": "balloon", "color": "yellow"}, {"at": [2, 1], "type": "noise"},
+    {"at": [6, 1], "type": "noise"}, {"at": [0, 4], "type": "noise"}, {"at": [8, 4], "type": "noise"},
+    {"at": [3, 7], "type": "noise"}, {"at": [5, 7], "type": "noise"}
   ]
 }

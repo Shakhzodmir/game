@@ -1,37 +1,28 @@
 {
   "id": 351, "version": 1,
   "size": [9, 9],
-  "moves": 24,
+  "moves": 22,
   "difficulty": "medium",
   "colors": ["orange", "yellow", "green", "blue", "purple"],
   "goals": [
-    {"type": "break", "item": "hay", "count": 6},
-    {"type": "break", "item": "noise", "count": 6},
-    {"type": "collect", "color": "blue", "count": 70}
+    {"type": "break", "item": "hay", "count": 4},
+    {"type": "break", "item": "noise", "count": 4},
+    {"type": "collect", "color": "blue", "count": 40}
   ],
   "cells": [
+    "#.#.#.#.#",
+    "#.#.#.#.#",
     "#########",
     "#########",
     "#########",
     "#########",
     "#########",
-    "#########",
-    "#########",
-    "#########",
-    "#########"
+    "#.#.#.#.#",
+    "#.#.#.#.#"
   ],
   "slots": [
-    {"at": [1, 7], "type": "hay", "hp": 2, "gift": "none"},
-    {"at": [3, 7], "type": "hay", "hp": 2, "gift": "none"},
-    {"at": [5, 7], "type": "hay", "hp": 2, "gift": "none"},
-    {"at": [7, 7], "type": "hay", "hp": 2, "gift": "none"},
-    {"at": [0, 5], "type": "hay", "hp": 2, "gift": "none"},
-    {"at": [8, 5], "type": "hay", "hp": 2, "gift": "none"},
-    {"at": [0, 2], "type": "noise"},
-    {"at": [2, 2], "type": "noise"},
-    {"at": [4, 2], "type": "noise"},
-    {"at": [6, 2], "type": "noise"},
-    {"at": [8, 2], "type": "noise"},
-    {"at": [4, 5], "type": "noise"}
+    {"at": [1, 6], "type": "hay", "hp": 2, "gift": "none"}, {"at": [7, 6], "type": "hay", "hp": 2, "gift": "none"}, {"at": [0, 4], "type": "hay", "hp": 2, "gift": "none"},
+    {"at": [8, 4], "type": "hay", "hp": 2, "gift": "none"}, {"at": [0, 2], "type": "noise"}, {"at": [4, 2], "type": "noise"},
+    {"at": [8, 2], "type": "noise"}, {"at": [4, 4], "type": "noise"}
   ]
 }
