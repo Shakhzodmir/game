@@ -48,6 +48,7 @@ HI_RATE = {
     "late_club": set(),  # every stem at 22.05 kHz: soft brushes and a dark ride after midnight, little above 9 kHz
     "nations_fest": {"shaker", "party"},  # the shakers and tambourines of the crowd keep their sparkle
     "fan_meeting": set(),  # every stem at 22.05 kHz: a soft ballad-and-dance mix, the arpeggio ends below 9 kHz
+    "punk_garage": set(),  # every stem at 22.05 kHz: distorted guitars, a rock kit and claps, little lives above 10 kHz
 }
 
 
@@ -5023,13 +5024,150 @@ def fan_meeting_hook(s):
     return room(s, b, 0.22, 1.5, "hook", damp=6500)
 
 
+# =========================== PUNK GARAGE (A major) - Part 2
+
+def punk_garage_song(d):
+    # Part 2, district 20: the rock garage of district 5 turned into a pop-punk rehearsal at 172 BPM in A major.
+    # One chord a bar, power chords all the way: A D A E | A D A E. The fifths of the power chords are E, A and B, so
+    # the tonic is held by the bass roots and by a lead that keeps landing on A, C# and D (C# is the major third:
+    # with it the loop cannot read as F# minor, and E, the dominant, takes only two bars in eight).
+    A, E, D = 9, 4, 2
+    maj = [0, 4, 7]
+    return Song(d, progression([
+        (4, A, maj, "A"), (4, D, maj, "D"), (4, A, maj, "A"), (4, E, maj, "E"),
+        (4, A, maj, "A"), (4, D, maj, "D"), (4, A, maj, "A"), (4, E, maj, "E"),
+    ]))
+
+
+def punk_garage_beat(s):
+    """The beat-up drum kit: a fast pop-punk beat. Kick on one and three (plus a push on the 'and' of two or four,
+    by turns), snare on two and four, open 8th hats with an open hat off the beat before every bar line, a crash
+    on the top of each half and a snare roll into bars four and eight."""
+    k = kit("rock", s.sr)
+    oh = kit("dance", s.sr)["ohat"]  # the rock kit has no open hat
+    r = dsp.rng(s.id, "beat")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt, v in ((0, 1.0), (2, 0.95), (1.5 if bar % 2 == 0 else 3.5, 0.8)):
+            hit(s, b, k["kick"], o + bt, v, r, 0.003)
+        for bt in (1, 3):
+            if bar in (3, 7) and bt == 3:
+                continue
+            hit(s, b, k["snare"], o + bt, 1.0, r, 0.003)
+        for i in range(8):
+            if bar in (3, 7) and i >= 6:
+                continue
+            hit(s, b, k["hat"], o + i * 0.5, 0.75 if i % 2 == 0 else 0.5, r, 0.003)
+        if bar not in (3, 7):
+            hit(s, b, oh, o + 3.5, 0.45, r, 0.0)
+        if bar in (3, 7):
+            for j in range(8):
+                hit(s, b, k["snare"], o + 2 + j * 0.25, 0.45 + 0.07 * j, r, 0.002)
+    for bar in (0, 4):
+        s.add(b, k["crash"][0], bar * 4, 0.7)
+    b = dsp.drive(b / dsp.peak(b) * 1.4, 1.5)
+    return room(s, b, 0.16, 0.8, "beat", damp=5000, predelay=0.008)
+
+
+def punk_garage_rhythm(s):
+    """The amp stack: down-picked power chords in 8ths, open on the downbeats of one and three and palm-muted
+    chugs between, through a loud amp."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "rhythm")
+    for c in s.chords:
+        R = nearest(c.root, 43, 40, 51)
+        for i in range(8):
+            opened = i in (0, 4)
+            x = power_chord(R, s.sec(0.9 if opened else 0.4), s.sr, muted=not opened, key=i % 2)
+            s.add(b, x, c.start + i * 0.5, 1.0 if opened else 0.8, dt=r.normal(0, 0.003))
+    b = b / dsp.peak(b)
+    b = dsp.loop_apply(b, lambda z: ins.amp_sim(z, s.sr, gain=9.0, tone=4200))
+    return room(s, b / dsp.peak(b), 0.14, 0.9, "rhythm", damp=4000)
+
+
+def punk_garage_bass(s):
+    """The bass guitar: a pick on the chord root in driving 8ths, jumping an octave on the last 8th of every
+    fourth bar (into the next phrase), through a little tube drive."""
+    b = s.zeros()
+    r = dsp.rng(s.id, "bass")
+    for c in s.chords:
+        R = nearest(c.root, 33, 28, 39)
+        for i in range(8):
+            m = R + 12 if (i == 7 and c.start % 16 == 12) else R
+            x = ins.guitar(m, s.sec(0.46), s.sr, bright=0.55, t60=1.2, pick=0.12, mute=0.04, key=i % 2, damp=0.45)
+            s.add(b, x, c.start + i * 0.5, 1.0 if i % 2 == 0 else 0.85, dt=r.normal(0, 0.003))
+    b = b / dsp.peak(b)
+    b = dsp.loop_apply(b, lambda z: dsp.tube(z * 1.8, 1.2, s.sr, 0.1))
+    b = loop_eq(s, b, "peak", 900, 3.0, 1.0)
+    return loop_filter(s, b, "lp", 3500)
+
+
+def punk_garage_claps(s):
+    """The garage door: handclaps on two and four (three hands each), and a quick triple clap on the last
+    8th beats of bars four and eight into the next phrase."""
+    k = kit("dance", s.sr)
+    r = dsp.rng(s.id, "claps")
+    b = s.zeros()
+    for bar in range(s.bars):
+        o = bar * 4
+        for bt in (1, 3):
+            for j in range(3):
+                hit(s, b, k["clap"], o + bt, 0.55, r, 0.008)
+        if bar in (3, 7):
+            for bt in (3.0, 3.5, 3.75):
+                hit(s, b, k["clap"], o + bt, 0.5, r, 0.004)
+    return room(s, b, 0.16, 0.9, "claps", damp=6000)
+
+
+def punk_garage_gang(s):
+    """The shared mic: the gang shouts hey at the end of bars two, four, six and eight."""
+    b = s.zeros()
+    for bar, bt, key in ((1, 3.0, "a"), (3, 2.5, "b"), (3, 3.0, "c"), (3, 3.5, "d"), (5, 3.0, "e"),
+                         (7, 2.0, "f"), (7, 2.5, "g"), (7, 3.0, "h"), (7, 3.5, "i")):
+        s.add(b, ins.crowd_hey(s.sr, f"{s.id}/{key}", voices=7, f_lo=110, f_hi=200), bar * 4 + bt, 1.0, dt=-0.03)
+    return room(s, b, 0.25, 1.0, "gang", damp=4500)
+
+
+# The hook of the gig posters: A major, A4-C#6 (A, C# and D are the long notes, E and B only pass by: the hook states the
+# tonic and its major third, so the power chords' fifths cannot pull the loop toward E)
+# bar -> (beat, beats, midi[, vel, opts])
+PG_LEAD = bars({
+    0: [(0.0, 0.5, 73), (0.5, 0.5, 73), (1.0, 1.0, 81, 0.9, {"bend": 2}), (2.0, 0.5, 76), (2.5, 0.5, 73),
+        (3.0, 1.0, 69)],
+    1: [(0.0, 1.0, 74), (1.0, 0.5, 78), (1.5, 0.5, 74), (2.0, 1.0, 81), (3.0, 0.5, 78), (3.5, 0.5, 74)],
+    2: [(0.0, 0.5, 73), (0.5, 0.5, 76), (1.0, 1.0, 73), (2.0, 0.5, 69), (2.5, 0.5, 73), (3.0, 1.0, 81)],
+    3: [(0.0, 1.0, 80), (1.0, 0.5, 76), (1.5, 0.5, 71), (2.0, 0.5, 80), (2.5, 0.5, 78), (3.0, 1.0, 73)],
+    4: [(0.0, 1.0, 85, 0.9, {"bend": 2}), (1.0, 0.5, 81), (1.5, 0.5, 76), (2.0, 1.0, 73), (3.0, 0.5, 76),
+        (3.5, 0.5, 73)],
+    5: [(0.0, 0.5, 78), (0.5, 0.5, 81), (1.0, 1.0, 78), (2.0, 0.5, 74), (2.5, 0.5, 78), (3.0, 1.0, 81)],
+    6: [(0.0, 0.5, 81), (0.5, 0.5, 85), (1.0, 1.0, 81), (2.0, 0.5, 76), (2.5, 0.5, 73), (3.0, 1.0, 69)],
+    7: [(0.0, 0.5, 80), (0.5, 0.5, 83), (1.0, 1.0, 80), (2.0, 0.5, 76), (2.5, 0.5, 78), (3.0, 0.5, 80),
+        (3.5, 0.5, 81)],
+})
+
+
+def punk_garage_lead(s):
+    """The gig posters: the lead-guitar hook, a saw through a loud amp with a little bend into the long notes."""
+    src, env, onset = render_line(s, events(s, PG_LEAD), osc="saw", glide=0.006, legato_gap=0.004, attack=0.003,
+                                  release=0.045, vib_rate=5.6, vib_depth=0.22, vib_delay=0.28, key="pglead")
+    x = src * (env * (0.55 + 0.45 * np.clip(onset, 0, 1)))
+    x = dsp.highpass(x, 250, s.sr, 2)
+    x = ins.amp_sim(x / dsp.peak(x), s.sr, gain=9.0, tone=4200, key_hz=1600)
+    x = dsp.highpass(x, 140, s.sr, 2)
+    b = wrap(s, x / dsp.peak(x))
+    b = echo(s, b, 0.5, 0.18, 0.3, 3, 2500)
+    return room(s, b, 0.18, 1.2, "lead", damp=4000)
+
+
 # ============================================ tension / party (shared)
 
 # The drum kit of every district (kit() names), used by its tension and party layers.
 KITS = {"cafe": "lofi", "jazz": "jazz", "square": "street", "stadium": "dance", "garage": "rock",
         "beach": "beach", "carnival": "carnival", "cinema": "cinema", "bazaar": "bazaar", "skyclub": "skyclub",
         "block": "block", "island": "island", "ranch": "ranch", "bluesclub": "bluesclub", "arcade": "arcade",
-        "midnight_cafe": "midnight", "late_club": "jazz", "nations_fest": "street", "fan_meeting": "dance"}
+        "midnight_cafe": "midnight", "late_club": "jazz", "nations_fest": "street", "fan_meeting": "dance",
+        "punk_garage": "rock"}
 
 # Districts whose theme sounds in the relative minor of their key (the night versions of Part 2,
 # docs/design/part2-districts.md): the tension layer holds the fifth of that minor tonic.
@@ -5064,7 +5202,7 @@ def tension_stem(s, style):
         if style == "midnight_cafe":  # the electric piano, darker and softer than the café's, the 8ths a little lazy
             x = ins.epiano(m, round(s.sec(0.25), 4), s.sr, vel=0.55, bright=0.8, release=0.1)
             bt = sw8(bt, 0.2)
-        elif style == "garage":
+        elif style in ("garage", "punk_garage"):
             x = power_chord(m - 12 if m > 52 else m, s.sec(0.3), s.sr, muted=True, key=0)
         elif style in ("jazz", "late_club"):
             x = upright(m - 12, s.sec(0.4), s.sr)
@@ -5097,14 +5235,15 @@ def tension_stem(s, style):
         else:
             x = ins.pluck_synth(m, s.sr, dur=0.22, cutoff=1500, decay=0.05)
         s.add(pb, x, bt, v)
-    if style == "garage":
+    if style in ("garage", "punk_garage"):
         pb = dsp.loop_apply(pb / dsp.peak(pb), lambda z: ins.amp_sim(z, s.sr, gain=8.0))
     if style in ("cafe", "midnight_cafe"):
         pb = loop_filter(s, pb, "hp", 180)
     b = b / dsp.peak(b) * 0.55 + pb / dsp.peak(pb)
     # the fifth of the tonic the district sounds in (a night version of Part 2 sounds in the relative minor)
     home = mc_home(s) if style in RELATIVE_MINOR else s.tonic
-    fifth = nearest((home + 7) % 12, 76, 70, 82)
+    fifth = nearest((home + (4 if style == "punk_garage" else 7)) % 12, 76, 70, 82)  # the pop-punk garage holds the
+    # major third instead: the power chords already sound its fifth, E, all the time
     tr = s.zeros()
     if style == "ranch":  # no synthesizer in the barn: a fiddle shivers on two strings, the fifth and the root above it
         hold = round(s.sec(s.beats) - 0.5, 4)
@@ -5256,7 +5395,7 @@ def party_stem(s, style):
                 hit(s, b, lk["shaker"], o + i * 0.25, 0.6 if i % 2 else 0.35, r, 0.003)
             for bt in range(4):
                 hit(s, b, dk["ohat"], o + bt + 0.5, 0.35, r, 0.0)
-        if style in ("stadium", "garage", "square", "nations_fest", "fan_meeting"):
+        if style in ("stadium", "garage", "square", "nations_fest", "fan_meeting", "punk_garage"):
             for bt in range(4):
                 hit(s, b, dk["kick"], o + bt, 0.5, r, 0.0)
         if style == "carnival":  # the bongo bell of the mambo section: the beats, and the off-beats of 2 and 4
@@ -5299,7 +5438,7 @@ def party_stem(s, style):
             for j, m in enumerate(vo[ci]):
                 if style in ("stadium", "fan_meeting"):
                     x = ins.supersaw(m, s.sec(0.3), s.sr, attack=0.003, release=0.08, key=j)
-                elif style == "garage":
+                elif style in ("garage", "punk_garage"):
                     x = ins.organ(m, s.sec(0.3), s.sr, bars=(8, 0, 8, 8, 0, 6, 0, 0, 4), perc=0.3, click=0.3)
                 elif style in ("cafe", "beach"):
                     x = ins.epiano(m, s.sec(0.3), s.sr, vel=0.8, bright=1.0, release=0.1)
@@ -5408,6 +5547,9 @@ DISTRICTS = {
     "fan_meeting": dict(song=fan_meeting_song, stems={
         "beat": fan_meeting_beat, "piano": fan_meeting_piano, "bass": fan_meeting_bass,
         "strings": fan_meeting_strings, "arp": fan_meeting_arp, "hook": fan_meeting_hook}),
+    "punk_garage": dict(song=punk_garage_song, stems={
+        "beat": punk_garage_beat, "rhythm": punk_garage_rhythm, "bass": punk_garage_bass,
+        "claps": punk_garage_claps, "gang": punk_garage_gang, "lead": punk_garage_lead}),
 }
 
 # Relative stem loudness (gated K-weighted dB, see dsp.loudness). Only the
@@ -5455,6 +5597,8 @@ LOUDNESS = {
     "nations_fest": {"beat": -16, "bass": -19, "steelpan": -19.5, "shaker": -20, "lead": -18, "brass": -18.5,
                      "tension": -18, "party": -16},
     "fan_meeting": {"beat": -16.5, "piano": -18.5, "bass": -19, "strings": -20, "arp": -21, "hook": -18,
+                    "tension": -18, "party": -16},
+    "punk_garage": {"beat": -15, "rhythm": -18, "bass": -19, "claps": -19, "gang": -16, "lead": -18,
                     "tension": -18, "party": -16},
 }
 

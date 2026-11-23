@@ -9878,6 +9878,341 @@
      }
     }
    ]
+  },
+  "punk_garage": {
+   "id": "punk_garage",
+   "bpm": 172,
+   "key": "A",
+   "bars": 8,
+   "sample_rate": 22050,
+   "loop_samples": 246140,
+   "loop_samples_44100": 492280,
+   "loop_seconds": 11.162812,
+   "exact_seconds": 11.162791,
+   "chords": [
+    "A",
+    "D",
+    "A",
+    "E",
+    "A",
+    "D",
+    "A",
+    "E"
+   ],
+   "chord_beats": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "stem_gain_db": {
+    "beat": -11.4,
+    "rhythm": -17.71,
+    "bass": -18.04,
+    "claps": -8.86,
+    "gang": -11.8,
+    "lead": -20.12,
+    "tension": -15.48,
+    "party": -11.92
+   },
+   "combos": {
+    "tasks": {
+     "peak_dbfs": -2.97,
+     "true_peak_dbtp": -2.93,
+     "lufs": -18.3
+    },
+    "tasks+tension": {
+     "peak_dbfs": -1.35,
+     "true_peak_dbtp": -1.34,
+     "lufs": -17.7
+    },
+    "tasks+party": {
+     "peak_dbfs": -1.72,
+     "true_peak_dbtp": -1.64,
+     "lufs": -17.2
+    },
+    "all stems (never played together)": {
+     "peak_dbfs": -0.9,
+     "true_peak_dbtp": -0.87,
+     "lufs": -16.6
+    }
+   },
+   "tension_delta_lu": 0.6,
+   "party_delta_lu": 1.1,
+   "unlock": [
+    {
+     "stem": "beat",
+     "task": "drum_kit",
+     "cost": 1,
+     "stem_lufs": -22.4,
+     "mix_before_lufs": null,
+     "stem_vs_mix_lu": null,
+     "delta_lu": null
+    },
+    {
+     "stem": "rhythm",
+     "task": "amp_stack",
+     "cost": 4,
+     "stem_lufs": -26.2,
+     "mix_before_lufs": -22.4,
+     "stem_vs_mix_lu": -3.8,
+     "delta_lu": 1.5
+    },
+    {
+     "stem": "bass",
+     "task": "bass_guitar",
+     "cost": 5,
+     "stem_lufs": -27.2,
+     "mix_before_lufs": -20.9,
+     "stem_vs_mix_lu": -6.3,
+     "delta_lu": 0.88
+    },
+    {
+     "stem": "claps",
+     "task": "garage_door",
+     "cost": 5,
+     "stem_lufs": -28.0,
+     "mix_before_lufs": -20.0,
+     "stem_vs_mix_lu": -8.0,
+     "delta_lu": 0.46
+    },
+    {
+     "stem": "gang",
+     "task": "mic_stand",
+     "cost": 5,
+     "stem_lufs": -24.0,
+     "mix_before_lufs": -19.6,
+     "stem_vs_mix_lu": -4.4,
+     "delta_lu": 0.5
+    },
+    {
+     "stem": "lead",
+     "task": "gig_posters",
+     "cost": 6,
+     "stem_lufs": -26.3,
+     "mix_before_lufs": -19.1,
+     "stem_vs_mix_lu": -7.2,
+     "delta_lu": 0.74
+    }
+   ],
+   "brightness": {
+    "centroid_hz": 1084,
+    "hf_2k_8k_vs_mid_db": -5.5,
+    "air_8k_16k_vs_mid_db": -17.5,
+    "share_below_150hz_pct": 31.9
+   },
+   "key_reading": {
+    "tasks": {
+     "major": 0.92,
+     "relative_minor": 0.58,
+     "best": "A maj",
+     "best_r": 0.92
+    },
+    "tasks+party": {
+     "major": 0.95,
+     "relative_minor": 0.54,
+     "best": "A maj",
+     "best_r": 0.95
+    },
+    "party alone": {
+     "major": 0.83,
+     "relative_minor": 0.4,
+     "best": "E maj",
+     "best_r": 0.86
+    },
+    "tension alone": {
+     "major": 0.58,
+     "relative_minor": 0.28,
+     "best": "C# min",
+     "best_r": 0.78
+    }
+   },
+   "mix_seam": {
+    "step_vs_beats": 0.014,
+    "click_vs_beats": 0.366
+   },
+   "stems": [
+    {
+     "path": "assets/music/punk_garage/beat.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -8.59,
+     "true_peak_dbtp": -7.85,
+     "rms_dbfs": -21.65,
+     "bytes": 68286,
+     "stem": "beat",
+     "task": "drum_kit",
+     "cost": 1,
+     "loudness_db": -22.3,
+     "lufs": -22.4,
+     "centroid_hz": 944,
+     "harmony_in_scale_pct": 93.9,
+     "seam": {
+      "step_vs_beats": 0.022,
+      "click_vs_beats": 0.155,
+      "codec_edge": 0.27
+     }
+    },
+    {
+     "path": "assets/music/punk_garage/rhythm.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -15.16,
+     "true_peak_dbtp": -15.15,
+     "rms_dbfs": -26.66,
+     "bytes": 53553,
+     "stem": "rhythm",
+     "task": "amp_stack",
+     "cost": 4,
+     "loudness_db": -25.5,
+     "lufs": -26.2,
+     "centroid_hz": 1201,
+     "harmony_in_scale_pct": 90.9,
+     "seam": {
+      "step_vs_beats": 0.044,
+      "click_vs_beats": 0.537,
+      "codec_edge": 0.39
+     }
+    },
+    {
+     "path": "assets/music/punk_garage/bass.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -14.3,
+     "true_peak_dbtp": -14.29,
+     "rms_dbfs": -27.98,
+     "bytes": 61338,
+     "stem": "bass",
+     "task": "bass_guitar",
+     "cost": 5,
+     "loudness_db": -26.4,
+     "lufs": -27.2,
+     "centroid_hz": 1398,
+     "harmony_in_scale_pct": 66.5,
+     "seam": {
+      "step_vs_beats": 0.141,
+      "click_vs_beats": 0.312,
+      "codec_edge": 0.54
+     }
+    },
+    {
+     "path": "assets/music/punk_garage/claps.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -4.63,
+     "true_peak_dbtp": -4.48,
+     "rms_dbfs": -31.83,
+     "bytes": 51351,
+     "stem": "claps",
+     "task": "garage_door",
+     "cost": 5,
+     "loudness_db": -26.3,
+     "lufs": -28.0,
+     "centroid_hz": 2336,
+     "harmony_in_scale_pct": 81.5,
+     "seam": {
+      "step_vs_beats": 0.024,
+      "click_vs_beats": 0.009,
+      "codec_edge": 0.05
+     }
+    },
+    {
+     "path": "assets/music/punk_garage/gang.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -9.06,
+     "true_peak_dbtp": -9.05,
+     "rms_dbfs": -28.18,
+     "bytes": 28700,
+     "stem": "gang",
+     "task": "mic_stand",
+     "cost": 5,
+     "loudness_db": -23.5,
+     "lufs": -24.0,
+     "centroid_hz": 501,
+     "harmony_in_scale_pct": 71.7,
+     "seam": {
+      "step_vs_beats": 0.188,
+      "click_vs_beats": 0.059,
+      "codec_edge": 0.44
+     }
+    },
+    {
+     "path": "assets/music/punk_garage/lead.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -15.03,
+     "true_peak_dbtp": -15.02,
+     "rms_dbfs": -26.37,
+     "bytes": 46721,
+     "stem": "lead",
+     "task": "gig_posters",
+     "cost": 6,
+     "loudness_db": -25.6,
+     "lufs": -26.3,
+     "centroid_hz": 1050,
+     "harmony_in_scale_pct": 99.3,
+     "seam": {
+      "step_vs_beats": 0.133,
+      "click_vs_beats": 0.775,
+      "codec_edge": 0.57
+     }
+    },
+    {
+     "path": "assets/music/punk_garage/tension.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -12.51,
+     "true_peak_dbtp": -12.32,
+     "rms_dbfs": -26.86,
+     "bytes": 75798,
+     "stem": "tension",
+     "task": null,
+     "cost": null,
+     "loudness_db": -25.5,
+     "lufs": -26.3,
+     "centroid_hz": 1435,
+     "harmony_in_scale_pct": 95.5,
+     "seam": {
+      "step_vs_beats": 0.016,
+      "click_vs_beats": 0.765,
+      "codec_edge": 0.73
+     }
+    },
+    {
+     "path": "assets/music/punk_garage/party.ogg",
+     "duration": 11.1628,
+     "samples": 246140,
+     "sample_rate": 22050,
+     "peak_dbfs": -9.23,
+     "true_peak_dbtp": -8.97,
+     "rms_dbfs": -24.05,
+     "bytes": 71732,
+     "stem": "party",
+     "task": null,
+     "cost": null,
+     "loudness_db": -23.3,
+     "lufs": -23.9,
+     "centroid_hz": 1334,
+     "harmony_in_scale_pct": 98.0,
+     "seam": {
+      "step_vs_beats": 0.036,
+      "click_vs_beats": 0.489,
+      "codec_edge": 0.35
+     }
+    }
+   ]
   }
  },
  "songs": {
@@ -15639,6 +15974,314 @@
     "codec_edge": 0.73
    }
   },
+  "three_chord_summer": {
+   "id": "three_chord_summer",
+   "genre": "punk_garage",
+   "bpm": 188,
+   "key": "A",
+   "bars": 16,
+   "path": "assets/music/songs/three_chord_summer.ogg",
+   "duration": 20.4255,
+   "samples": 450383,
+   "sample_rate": 22050,
+   "peak_dbfs": -4.97,
+   "true_peak_dbtp": -4.12,
+   "rms_dbfs": -19.04,
+   "bytes": 124252,
+   "loop_samples": 450383,
+   "loop_samples_44100": 900766,
+   "loop_seconds": 20.425533,
+   "exact_seconds": 20.425532,
+   "chords": [
+    "A",
+    "E",
+    "D",
+    "A",
+    "A",
+    "E",
+    "D",
+    "E",
+    "A",
+    "E",
+    "D",
+    "A",
+    "D",
+    "A",
+    "E",
+    "A"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "guitar",
+    "bass",
+    "lead",
+    "gang"
+   ],
+   "lufs": -19.8,
+   "lufs_target": -20.0,
+   "limiter_gr_db": 0.0,
+   "limiter_energy_gr_db": 0.0,
+   "centroid_hz": 728,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -5.7,
+    "air_8k_16k_vs_mid_db": -16.9,
+    "share_below_150hz_pct": 57.4
+   },
+   "key_reading": {
+    "major": 0.88,
+    "relative_minor": 0.52,
+    "best": "A maj",
+    "best_r": 0.88
+   },
+   "harmony_in_scale_pct": 92.0,
+   "harmony_in_scale_full_mix_pct": 88.4,
+   "seam": {
+    "step_vs_beats": 0.032,
+    "click_vs_beats": 0.269,
+    "codec_edge": 0.38
+   }
+  },
+  "garage_sale_anthem": {
+   "id": "garage_sale_anthem",
+   "genre": "punk_garage",
+   "bpm": 148,
+   "key": "A",
+   "bars": 12,
+   "path": "assets/music/songs/garage_sale_anthem.ogg",
+   "duration": 19.4595,
+   "samples": 429081,
+   "sample_rate": 22050,
+   "peak_dbfs": -2.38,
+   "true_peak_dbtp": -2.34,
+   "rms_dbfs": -19.27,
+   "bytes": 113452,
+   "loop_samples": 429081,
+   "loop_samples_44100": 858162,
+   "loop_seconds": 19.459456,
+   "exact_seconds": 19.459459,
+   "chords": [
+    "A",
+    "D",
+    "E",
+    "A",
+    "A",
+    "D",
+    "E",
+    "D",
+    "A",
+    "E",
+    "D",
+    "A"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "tamb",
+    "guitar",
+    "bass",
+    "lead",
+    "gang"
+   ],
+   "lufs": -19.8,
+   "lufs_target": -20.0,
+   "limiter_gr_db": 0.0,
+   "limiter_energy_gr_db": 0.0,
+   "centroid_hz": 871,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -6.0,
+    "air_8k_16k_vs_mid_db": -14.7,
+    "share_below_150hz_pct": 50.1
+   },
+   "key_reading": {
+    "major": 0.88,
+    "relative_minor": 0.55,
+    "best": "A maj",
+    "best_r": 0.88
+   },
+   "harmony_in_scale_pct": 92.6,
+   "harmony_in_scale_full_mix_pct": 93.0,
+   "seam": {
+    "step_vs_beats": 0.064,
+    "click_vs_beats": 0.079,
+    "codec_edge": 0.47
+   }
+  },
+  "loud_neighbours": {
+   "id": "loud_neighbours",
+   "genre": "punk_garage",
+   "bpm": 176,
+   "key": "A",
+   "bars": 12,
+   "path": "assets/music/songs/loud_neighbours.ogg",
+   "duration": 16.3636,
+   "samples": 360818,
+   "sample_rate": 22050,
+   "peak_dbfs": -4.96,
+   "true_peak_dbtp": -4.58,
+   "rms_dbfs": -19.12,
+   "bytes": 97455,
+   "loop_samples": 360818,
+   "loop_samples_44100": 721636,
+   "loop_seconds": 16.363628,
+   "exact_seconds": 16.363636,
+   "chords": [
+    "A",
+    "A",
+    "D",
+    "E",
+    "A",
+    "A",
+    "D",
+    "E",
+    "A",
+    "A",
+    "D",
+    "E"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "guitar",
+    "bass",
+    "lead",
+    "gang"
+   ],
+   "lufs": -19.8,
+   "lufs_target": -20.0,
+   "limiter_gr_db": 0.0,
+   "limiter_energy_gr_db": 0.0,
+   "centroid_hz": 814,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -5.5,
+    "air_8k_16k_vs_mid_db": -15.9,
+    "share_below_150hz_pct": 54.6
+   },
+   "key_reading": {
+    "major": 0.88,
+    "relative_minor": 0.57,
+    "best": "A maj",
+    "best_r": 0.88
+   },
+   "harmony_in_scale_pct": 94.2,
+   "harmony_in_scale_full_mix_pct": 92.3,
+   "seam": {
+    "step_vs_beats": 0.198,
+    "click_vs_beats": 0.14,
+    "codec_edge": 0.4
+   }
+  },
+  "unplugged_garage": {
+   "id": "unplugged_garage",
+   "genre": "punk_garage",
+   "bpm": 84,
+   "key": "A",
+   "bars": 8,
+   "path": "assets/music/songs/unplugged_garage.ogg",
+   "duration": 22.8571,
+   "samples": 504000,
+   "sample_rate": 22050,
+   "peak_dbfs": -1.41,
+   "true_peak_dbtp": -1.26,
+   "rms_dbfs": -20.08,
+   "bytes": 123210,
+   "loop_samples": 504000,
+   "loop_samples_44100": 1008000,
+   "loop_seconds": 22.857143,
+   "exact_seconds": 22.857143,
+   "chords": [
+    "A",
+    "D",
+    "E",
+    "A",
+    "A",
+    "D",
+    "E",
+    "A"
+   ],
+   "chord_beats": [
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0,
+    4.0
+   ],
+   "parts": [
+    "drums",
+    "guitar",
+    "bass",
+    "lead"
+   ],
+   "lufs": -19.9,
+   "lufs_target": -20.0,
+   "limiter_gr_db": -2.73,
+   "limiter_energy_gr_db": -0.3,
+   "centroid_hz": 1124,
+   "brightness": {
+    "hf_2k_8k_vs_mid_db": -7.9,
+    "air_8k_16k_vs_mid_db": -17.9,
+    "share_below_150hz_pct": 14.8
+   },
+   "key_reading": {
+    "major": 0.94,
+    "relative_minor": 0.59,
+    "best": "A maj",
+    "best_r": 0.94
+   },
+   "harmony_in_scale_pct": 98.3,
+   "harmony_in_scale_full_mix_pct": 95.6,
+   "seam": {
+    "step_vs_beats": 0.022,
+    "click_vs_beats": 0.003,
+    "codec_edge": 0.64
+   }
+  },
   "salon_morning": {
    "id": "salon_morning",
    "genre": "classical",
@@ -19314,16 +19957,16 @@
      "orange"
     ]
    ],
-   "with_music_dbtp": -0.1,
+   "with_music_dbtp": -0.02,
    "with_music_combo": [
-    1,
+    4,
     [
-     "green",
-     "orange"
+     "blue",
+     "green"
     ]
    ],
-   "with_music_district": "cinema",
-   "with_music_beat": 28
+   "with_music_district": "unplugged_garage",
+   "with_music_beat": 16
   },
   "3": {
    "notes_clear_dbtp": -2.52,
@@ -19357,12 +20000,12 @@
    "with_music_beat": 0
   }
  },
- "total_bytes": 32413577,
+ "total_bytes": 33329425,
  "counts": {
   "notes": 66,
   "sfx": 40,
-  "music": 160,
-  "songs": 125
+  "music": 168,
+  "songs": 129
  },
  "checks": [
   "Notes: 66 files, phone M-max -20.04 … -19.93 LUFS within -20 ± 1: PASS; true peak ≤ -7 dBTP (max -7.07): PASS; max pitch error 1.60 cents < 5: PASS; YIN hears the written pitch on every note: PASS; purple C4–E4 harmonics 1–2 within 10 dB of the loudest: PASS; lengths 0.6–1.2 s: PASS.",
@@ -19387,6 +20030,7 @@
   "Music `late_club`: 8 stems, identical duration (504000 samples at 22.05 kHz): PASS; worst realistic mix -1.18 dBTP / -1.19 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -4.43): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `nations_fest`: 8 stems, identical duration (364966 samples at 22.05 kHz): PASS; worst realistic mix -1.34 dBTP / -1.60 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -3.39): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Music `fan_meeting`: 8 stems, identical duration (415059 samples at 22.05 kHz): PASS; worst realistic mix -1.06 dBTP / -1.06 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -6.08): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
+  "Music `punk_garage`: 8 stems, identical duration (246140 samples at 22.05 kHz): PASS; worst realistic mix -1.34 dBTP / -1.35 dBFS ≤ -1.0: PASS; no stem above -0.3 dBTP (max -4.48): PASS; every unlocked layer within 10 LU of the mix it joins: PASS; seams clean: PASS.",
   "Songs `cafe`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.6 … 28.2 s within 16–32: PASS; worst mix -1.17 dBTP / -1.31 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.6) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 89.7): PASS; seams clean: PASS.",
   "Songs `jazz`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.1 … 29.1 s within 16–32: PASS; worst mix -1.23 dBTP / -1.23 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.5 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.19): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
   "Songs `square`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.8 … 25.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.27 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.4) and ≤ 1 dB of the energy (max 0.04): PASS; in the key of the genre ≥ 85 % (min 94.5): PASS; seams clean: PASS.",
@@ -19406,6 +20050,7 @@
   "Songs `late_club`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 19.2 … 32.0 s within 16–32: PASS; worst mix -1.05 dBTP / -1.06 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.7 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.8) and ≤ 1 dB of the energy (max 0.01): PASS; in the key of the genre ≥ 85 % (min 90.0): PASS; seams clean: PASS.",
   "Songs `nations_fest`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 16.6 … 24.0 s within 16–32: PASS; worst mix -1.29 dBTP / -1.51 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.7) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 95.4): PASS; seams clean: PASS.",
   "Songs `fan_meeting`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 17.5 … 26.7 s within 16–32: PASS; worst mix -1.51 dBTP / -1.58 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 99.4): PASS; seams clean: PASS.",
+  "Songs `punk_garage`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 16.4 … 22.9 s within 16–32: PASS; worst mix -1.26 dBTP / -1.41 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.8 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 2.7) and ≤ 1 dB of the energy (max 0.30): PASS; in the key of the genre ≥ 85 % (min 92.0): PASS; seams clean: PASS.",
   "Songs `classical`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 29.1 s within 16–32: PASS; worst mix -1.10 dBTP / -1.34 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.9) and ≤ 1 dB of the energy (max 0.23): PASS; in the key of the genre ≥ 85 % (min 98.4): PASS; seams clean: PASS.",
   "Songs `folk`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.0 … 27.7 s within 16–32: PASS; worst mix -1.04 dBTP / -1.22 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 1.7) and ≤ 1 dB of the energy (max 0.08): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
   "Songs `latin`: 4 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 20.9 … 24.0 s within 16–32: PASS; worst mix -1.13 dBTP / -1.15 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.6 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 3.4) and ≤ 1 dB of the energy (max 0.36): PASS; in the key of the genre ≥ 85 % (min 91.2): PASS; seams clean: PASS.",
@@ -19421,7 +20066,7 @@
   "Songs `ambient`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.7 … 30.0 s within 16–32: PASS; worst mix -4.46 dBTP / -4.46 dBFS ≤ -1.0: PASS; loudness -20.0 … -20.0 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max -0.0) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 91.8): PASS; seams clean: PASS.",
   "Songs `cinematic`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 26.2 … 30.5 s within 16–32: PASS; worst mix -1.05 dBTP / -1.07 dBFS ≤ -1.0: PASS; loudness -20.0 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.1) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 95.9): PASS; seams clean: PASS.",
   "Songs `chiptune`: 3 songs besides the layered theme (>= 3): PASS; every loop exactly bars x 4 x 60 / bpm long, 24.0 … 27.4 s within 16–32: PASS; worst mix -1.43 dBTP / -1.43 dBFS ≤ -1.0: PASS; loudness -19.9 … -19.9 LUFS within -20.0 ± 1: PASS; limiter takes ≤ 5 dB at a peak (max 0.3) and ≤ 1 dB of the energy (max -0.00): PASS; in the key of the genre ≥ 85 % (min 97.6): PASS; seams clean: PASS.",
-  "Notes, SFX and district music 15.91 MB ≤ 30 MB: PASS.",
-  "Songs 125 files, 15.00 MB ≤ 24 MB: PASS."
+  "Notes, SFX and district music 16.35 MB ≤ 30 MB: PASS.",
+  "Songs 129 files, 15.44 MB ≤ 24 MB: PASS."
  ]
 }

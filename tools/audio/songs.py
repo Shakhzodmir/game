@@ -4275,6 +4275,152 @@ def after_encore(s):
     return {"drums": d, "keys": keys, "bass": bass, "chops": chops}
 
 
+# =================================================== PUNK GARAGE (A) - Part 2
+# Four songs of the pop-punk garage: three_chord_summer is a fast skate-punk sprint, garage_sale_anthem a mid-tempo
+# sing-along with claps, loud_neighbours a stop-start punk tune that halts for a drum fill, unplugged_garage the
+# same garage with the amps off.
+
+
+def bar_tune(s, table, rests=0, alt=None, alt_from=None):
+    """A tune with one 4-beat bar per chord of the song, the bar picked by the degree of the chord's root
+    (0 = I, 5 = IV, 7 = V) from `table` ({degree: tune bar}); the first `rests` bars are silent and the bars from
+    `alt_from` on take `alt` (the second half of the tune, usually an octave higher) when it is given."""
+    bars_ = []
+    for i, c in enumerate(s.chords):
+        assert abs(c.dur - 4.0) < 1e-9
+        t = alt if (alt is not None and alt_from is not None and i >= alt_from) else table
+        bars_.append("r:4" if i < rests else t[(c.root - s.tonic) % 12])
+    return tune(" | ".join(bars_), s.tonic, 4)
+
+
+def three_chord_summer(s):
+    """188 BPM skate-punk: a galloping kick, snare on two and four, a crash on every fourth bar and a snare roll into
+    it, down-picked power chords, a driving bass, a shouted guitar hook that climbs in the second half and the
+    crowd shouting hey at the end of each phrase."""
+    r = dsp.rng(s.id, "summer")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "rock")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X.x.X...X.x.", r, gain=0.95)
+    hits(s, d, k["snare"], "....X.......X...", r, gain=1.0)
+    hits(s, d, k["hat"], "x.x.x.x.x.x.x.x.", r, gain=0.7)
+    hits(s, d, k["crash"], {0: "X...............", 4: "X...............", 8: "X...............",
+                            12: "X..............."}, r, gain=0.6)
+    for bar in (3, 7, 11, 15):
+        for j in range(8):
+            hit(s, d, k["snare"], bar * 4 + 2 + j * 0.25, 0.4 + 0.07 * j, r, 0.002)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.4, 1.5), 0.16, 0.8, "drums", damp=5000, predelay=0.008)
+    gtr = punk_guitar(s, ch, set(range(8)), r, amp=9.0, accent=(0, 4), open_len=1.7)
+    gtr = room(s, gtr, 0.12, 0.8, "gtr", damp=4000)
+    bass = line(s, ch, lambda c, n, i: [(q * 0.5, 0.46, root_of(c, 33, 28, 39), 1.0 if q % 2 == 0 else 0.8)
+                                        for q in range(8)], v_gbass, r=r)
+    bass = loop_filter(s, dsp.loop_apply(bass / dsp.peak(bass), lambda z: dsp.tube(z * 1.8, 1.2, s.sr, 0.1)), "lp", 3500)
+    low = {0: "3:.5 3:.5 5:.5 3:.5 1+:1 5:1", 7: "7:.5 7:.5 2+:.5 7:.5 5:1 7:1", 5: "6:.5 6:.5 1+:.5 6:.5 4:1 6:1"}
+    high = {0: "5:.5 5:.5 1+:.5 5:.5 3+:1 1+:1", 7: "7:.5 7:.5 2+:.5 7:.5 5+:1 2+:1",
+            5: "6:.5 6:.5 1+:.5 6:.5 4+:1 1+:1"}
+    lead = room(s, mono(s, bar_tune(s, low, rests=4, alt=high, alt_from=8), "guitar", key="summer"), 0.14, 0.9, "lead",
+                damp=4000)
+    gg = gang(s, [(3, 3.0), (7, 3.0), (11, 3.0), (15, 3.0), (15, 3.5)], level=1.0)
+    return {"drums": d, "guitar": gtr, "bass": bass, "lead": lead, "gang": room(s, gg, 0.25, 1.0, "gang", damp=4500)}
+
+
+def garage_sale_anthem(s):
+    """148 BPM sing-along: a stomping kick, handclaps layered on the snare, a jingling tambourine, crunchy power
+    chords, a bass walking on the 8ths and a whoa-oh synth lead with the crowd answering."""
+    r = dsp.rng(s.id, "sale")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "rock")
+    kd = kits(s, "dance")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X...X.x.X...", r, gain=0.95)
+    hits(s, d, k["snare"], "....X.......X...", r, gain=0.9)
+    hits(s, d, kd["clap"], "....x.......x...", r, gain=0.7, jit=0.008)
+    hits(s, d, k["hat"], "x.x.x.x.x.x.x.x.", r, gain=0.55)
+    hits(s, d, k["crash"], {0: "X...............", 4: "X...............", 8: "X..............."}, r, gain=0.55)
+    for bar in (3, 7, 11):
+        for j in range(4):
+            hit(s, d, k["snare"], bar * 4 + 3 + j * 0.25, 0.4 + 0.1 * j, r, 0.002)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.3, 1.4), 0.18, 0.9, "drums", damp=5000, predelay=0.008)
+    tb = s.zeros()
+    tt = [ins.tambourine(s.sr, key=i, hit=0.0) for i in range(4)]
+    hits(s, tb, tt, "x.o.x.o.x.o.x.o.", r, gain=0.55)
+    gtr = punk_guitar(s, ch, set(range(8)), r, amp=8.0, accent=(0, 3, 4), open_len=0.9)
+    gtr = room(s, gtr, 0.16, 0.9, "gtr", damp=4000)
+    bass = line(s, ch, lambda c, n, i: [(q * 0.5, 0.46, root_of(c, 33, 28, 39) + (12 if q == 7 else 0),
+                                         1.0 if q % 2 == 0 else 0.8) for q in range(8)], v_gbass, r=r)
+    bass = loop_filter(s, dsp.loop_apply(bass / dsp.peak(bass), lambda z: dsp.tube(z * 1.6, 1.2, s.sr, 0.1)), "lp", 3500)
+    sing = {0: "5:1 5:.5 3:.5 1+:1 5:1", 5: "6:1 6:.5 4:.5 1+:1 6:1", 7: "7:1 7:.5 5:.5 2+:1 7:1"}
+    lead = mono(s, bar_tune(s, sing, rests=2), "lead", key="sale")
+    lead = room(s, echo(s, lead, 0.75, 0.15, 0.3, 2, 5000), 0.18, 1.1, "lead", damp=6000)
+    gg = gang(s, [(1, 3.0), (3, 3.0), (5, 3.0), (7, 3.0), (9, 3.0), (11, 2.5), (11, 3.0)], level=0.9, key="sale")
+    return {"drums": d, "tamb": room(s, tb, 0.12, 0.8, "tamb", damp=6000), "guitar": gtr, "bass": bass, "lead": lead,
+            "gang": room(s, gg, 0.25, 1.0, "gang", damp=4500)}
+
+
+def loud_neighbours(s):
+    """176 BPM stop-start punk: bars of fast chugging that stop dead on the fourth and eighth bar - one open chord,
+    a drum fill and the crowd shouting - and a barking bass that jumps an octave on the off-beats."""
+    r = dsp.rng(s.id, "neighbours")
+    t, ch = s.tonic, s.chords
+    k = kits(s, "rock")
+    run = bs("1-3,5-7,9-11")
+    d = s.zeros()
+    hits(s, d, k["kick"], "X...X.x.X...X.x.", r, gain=0.95, mask=run)
+    hits(s, d, k["snare"], "....X.......X...", r, gain=1.0, mask=run)
+    hits(s, d, k["hat"], "x.x.x.x.x.x.x.x.", r, gain=0.7, mask=run)
+    for bar in (3, 7, 11):  # the stop: one hit, then the fill
+        hit(s, d, k["kick"], bar * 4, 1.0, r, 0.002)
+        hit(s, d, k["crash"], bar * 4, 0.9, r, 0.0)
+        for j, bt in enumerate((2.0, 2.5, 3.0, 3.25, 3.5, 3.75)):
+            hit(s, d, k["snare"], bar * 4 + bt, 0.55 + 0.08 * j, r, 0.002)
+    hits(s, d, k["crash"], {0: "X...............", 4: "X...............", 8: "X..............."}, r, gain=0.6)
+    d = room(s, dsp.drive(d / dsp.peak(d) * 1.4, 1.5), 0.16, 0.8, "drums", damp=5000, predelay=0.008)
+    chug = [c for c in ch if int(c.start // 4) % s.bars in run]
+    stop = [c for c in ch if int(c.start // 4) % s.bars not in run]
+    gtr = punk_guitar(s, chug, set(range(8)), r, amp=9.0, accent=(0, 4), open_len=1.7)
+    gtr = gtr + punk_guitar(s, stop, {0}, r, amp=9.0, accent=(0,), open_len=1.6)
+    gtr = room(s, gtr, 0.12, 0.8, "gtr", damp=4000)
+
+    def bark(c, n, i):
+        R = root_of(c, 33, 28, 39)
+        if int(c.start // 4) % s.bars not in run:
+            return [(0, 1.5, R, 1.0)]
+        return [(q * 0.5, 0.4, R + (12 if q % 4 == 3 else 0), 1.0 if q % 2 == 0 else 0.8) for q in range(8)]
+    bass = line(s, ch, bark, v_gbass, r=r)
+    bass = loop_filter(s, dsp.loop_apply(bass / dsp.peak(bass), lambda z: dsp.tube(z * 1.8, 1.2, s.sr, 0.1)), "lp", 3500)
+    hook = {0: "1+:.5 1+:.5 r:.5 5:.5 3+:1 1+:1", 7: "2+:.5 2+:.5 r:.5 7:.5 5+:1 2+:1",
+            5: "4+:.5 4+:.5 r:.5 6:.5 1+:1 4+:1"}
+    tn = bar_tune(s, hook)
+    tn = [e for e in tn if int(e[0] // 4) in run]  # the hook halts with the guitars
+    lead = room(s, mono(s, tn, "guitar", key="neighbours"), 0.14, 0.9, "lead", damp=4000)
+    gg = gang(s, [(3, 2.0), (3, 3.0), (7, 2.0), (7, 3.0), (11, 2.0), (11, 2.5), (11, 3.0), (11, 3.5)], level=1.0,
+              key="neighbours")
+    return {"drums": d, "guitar": gtr, "bass": bass, "lead": lead, "gang": room(s, gg, 0.25, 1.0, "gang", damp=4500)}
+
+
+def unplugged_garage(s):
+    """84 BPM, amps off: a strummed acoustic guitar with a bright pick, a soft box kick and claps on two and four,
+    a round bass, and a gentle bell tune on top."""
+    r = dsp.rng(s.id, "unplugged")
+    t, ch = s.tonic, s.chords
+    kd = kits(s, "dance")
+    d = s.zeros()
+    hits(s, d, kd["kick"], "x.......x.....o.", r, gain=0.6)
+    hits(s, d, kd["clap"], "....x.......x...", r, gain=0.55, jit=0.01)
+    d = room(s, d, 0.14, 1.0, "drums", damp=6000)
+    strum = [(0, 1.0, 0.8), (1.5, 0.5, 0.5), (2.0, 1.0, 0.7), (3.0, 0.5, 0.55), (3.5, 0.5, 0.6)]
+    gtr = strum_comp(s, ch, voicing(ch, 52, 72, 60), lambda c, i: within(c, strum), r=r, bright=0.6, t60=1.2,
+                     mute=0.05, spread=0.012)
+    gtr = room(s, loop_filter(s, gtr, "hp", 80), 0.2, 1.3, "guitar", damp=5500)
+    bass = line(s, ch, lambda c, n, i: [(0, 1.9, root_of(c, 38, 33, 46), 0.85), (2, 1.9, root_of(c, 38, 33, 46), 0.75)],
+                v_gbass, r=r)
+    bass = loop_filter(s, bass, "lp", 2500)
+    soft = {0: "3:1 5:1 1+:2", 5: "4:1 6:1 1+:2", 7: "2:1 7:1 5:2"}
+    lead = mono(s, bar_tune(s, soft, rests=1), "bell", key="unplugged")
+    lead = room(s, echo(s, lead, 0.75, 0.2, 0.3, 2, 4500), 0.22, 1.4, "lead", damp=5500)
+    return {"drums": d, "guitar": gtr, "bass": bass, "lead": lead}
+
+
 # ============================================================ registry
 
 # id -> (progression, function, {part: relative loudness dB}). The progression is the song's harmony;
@@ -4446,6 +4592,14 @@ SONGS = {
                   {"drums": -17, "gang": -22, "brass": -21, "lead": -18, "bass": -20}),
     "after_encore": ("Imaj7:4 vi7:4 ii7:4 V7sus4:4 Imaj7:4 iii7:4 IVmaj7:2 V7sus4:2 Iadd9:4", after_encore,
                      {"drums": -18, "keys": -20, "bass": -20, "chops": -19}),
+    # punk_garage (A major) - Part 2
+    "three_chord_summer": ("I:4 V:4 IV:4 I:4 I:4 V:4 IV:4 V:4 I:4 V:4 IV:4 I:4 IV:4 I:4 V:4 I:4", three_chord_summer,
+                           {"drums": -15}),
+    "garage_sale_anthem": ("I:4 IV:4 V:4 I:4 I:4 IV:4 V:4 IV:4 I:4 V:4 IV:4 I:4", garage_sale_anthem,
+                           {"drums": -16}),
+    "loud_neighbours": ("I:4 I:4 IV:4 V:4 I:4 I:4 IV:4 V:4 I:4 I:4 IV:4 V:4", loud_neighbours, {"drums": -15}),
+    "unplugged_garage": ("I:4 IV:4 V:4 I:4 I:4 IV:4 V:4 I:4", unplugged_garage,
+                         {"drums": -22, "guitar": -18, "bass": -22, "lead": -20}),
 }
 
 

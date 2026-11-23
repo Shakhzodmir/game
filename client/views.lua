@@ -70,6 +70,7 @@ M.DISTRICT_COLORS = {
 	"#FF9EC7", "#C9A7FF", "#FFD36E", "#7FC8FF", "#8BE39A", "#4FD1C5", "#FF8A5C", "#E0566F", "#2F9FB0",
 	"#A65CF2", "#F2741D", "#6FBF3A", "#B23A2E", "#2E5FB8", "#F02FC2",
 	"#4B3FA6", "#9C6B45", "#E8A317", "#D45D9E",
+	"#3DB2E0",
 }
 
 -- Store products shown in the shop's coins tab, in display order, with
