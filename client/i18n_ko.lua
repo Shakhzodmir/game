@@ -2,7 +2,8 @@
 --
 -- Style: polite casual (해요체), short, the tone of a casual mobile game. One plural form: a counted phrase is
 -- a plain string with {n}. Terms (docs/design/decisions.md, glossary; docs/handoff/WP-3.md lists the choices):
---   booster 부스터, district 구역, town 마을, Beat/drum stem 비트, concert 콘서트, piece 조각, match 매치,
+--   booster 부스터, district 구역, town 마을, Beat stem 리듬 (비트 is the name of the mascot Bit: the first layer of a
+--   district must not share it), drum stem 드럼, concert 콘서트, piece 조각, match 매치,
 --   lives 하트, coins 코인, stars 별, hit streak 히트 연속, Songbird 노래새, Disco ball 디스코볼.
 -- Every {placeholder} must match en and ru (tests/client/i18n_test.lua checks it).
 -- Hangul used here is baked into the ko fonts by tools/gen_defold.py (only the syllables that occur).
@@ -360,7 +361,7 @@ return {
 
 	["stem.arp"] = "아르페지오",
 	["stem.bass"] = "베이스",
-	["stem.beat"] = "비트",
+	["stem.beat"] = "리듬",
 	["stem.brass"] = "금관악기",
 	["stem.brushes"] = "브러시",
 	["stem.choir"] = "합창",

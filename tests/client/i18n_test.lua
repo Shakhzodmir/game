@@ -57,6 +57,29 @@ describe("client.i18n", function()
 		assert_eq(n, total)
 	end)
 
+	-- Bit is the mascot (ru Бит, ko 비트); the first layer of five districts must not carry its name
+	it("calls the first layer of a district by a name of its own, not the mascot's", function()
+		local layer = { en = "Beat", ru = "Ударные", ko = "리듬" }
+		local mascot = { ru = "Бит", ko = "비트" }
+		local text = { ru = "Добавит в трек: Ударные", ko = "트랙에 추가: 리듬", en = "Adds Beat to the track" }
+		for _, lang in ipairs(i18n.LANGUAGES) do
+			i18n.set_language(lang)
+			assert_eq(i18n.t("stem.beat"), layer[lang], lang)
+			assert_eq(i18n.t("town.task_adds", { stem = i18n.t("stem.beat") }), text[lang], lang)
+			assert_eq(i18n.t("town.layer_added", { stem = i18n.t("stem.beat") }), "+ " .. layer[lang] .. "!", lang)
+			if mascot[lang] then
+				assert_true(string.find(i18n.t("win.song_line"), mascot[lang], 1, true) ~= nil, lang .. ": the mascot keeps its name")
+				assert_true(string.find(i18n.t("stem.beat"), mascot[lang], 1, true) == nil, lang .. ": the layer is not named like the mascot")
+			end
+		end
+		-- the content id is not the name: the stem stays "beat" (saves, audio files and the tests know it by that id)
+		local f = assert(io.open("content/districts.json", "r"))
+		local data = json.decode(f:read("*a"))
+		f:close()
+		assert_eq(data.districts[1].id, "cafe")
+		assert_eq(data.districts[1].tasks[1].stem, "beat")
+	end)
+
 	it("names districts, genres, songs and tasks in ko", function()
 		local f = assert(io.open("content/districts.json", "r"))
 		local data = json.decode(f:read("*a"))

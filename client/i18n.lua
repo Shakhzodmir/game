@@ -483,7 +483,8 @@ local S = {
 	["tutorial.tap_continue"] = { en = "Tap to continue", ru = "Нажми, чтобы продолжить" },
 
 	-- music stems (layer names shown by tasks and the jukebox) -------------------------------------------------------
-	["stem.beat"] = { en = "Beat", ru = "Бит" },
+	-- (ru "Ударные", not "Бит": Bit is the mascot, and this is the name on the first card of five districts)
+	["stem.beat"] = { en = "Beat", ru = "Ударные" },
 	["stem.vinyl"] = { en = "Vinyl crackle", ru = "Треск винила" },
 	["stem.keys"] = { en = "Keys", ru = "Клавиши" },
 	["stem.bass"] = { en = "Bass", ru = "Бас" },

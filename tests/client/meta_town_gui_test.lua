@@ -291,7 +291,7 @@ describe("screens/town/town.gui_script", function()
 		end)
 		G.with_town({ setup = function(app) G.win(app, 1) end }, function(c)
 			assert_eq(c.app.ui.hint, "town_first_task")
-			assert_true(c.town:has_text("Spend stars to bring the town back to life", true), G.dump(c.town))
+			assert_true(c.town:has_text("Buy the first layer: the town will play music!", true), G.dump(c.town))
 			c.app.set_setting("language", "ru") -- rebuilds the bars: the hint is still one analytics event
 			c.step(5)
 			assert_eq(count_events("tutorial_step"), 1)
@@ -301,7 +301,7 @@ describe("screens/town/town.gui_script", function()
 			wait_for(c, function() return not c.app.ui.busy end, 6, "the task")
 			assert_eq(c.app.ui.hint, nil)
 			assert_true(c.app.meta:tutorial_seen("town_first_task"))
-			assert_false(c.town:has_text("Spend stars to bring the town back to life", true))
+			assert_false(c.town:has_text("Buy the first layer: the town will play music!", true))
 		end)
 		-- the hint is remembered: a new visit does not show it again
 		G.with_town({ setup = function(app)
@@ -311,6 +311,36 @@ describe("screens/town/town.gui_script", function()
 		end }, function(c)
 			assert_eq(c.app.ui.hint, nil)
 		end)
+	end)
+
+	-- The first purchase is the first music a new player hears (nothing plays before it): the bubble over the very first
+	-- task says so. It sits in a bubble of two lines.
+	it("promises music in the hint over the first task, in every language, within the bubble", function()
+		local want = {
+			en = "Buy the first layer: the town will play music!",
+			ru = "Купи первый слой: в городе зазвучит музыка!",
+			ko = "첫 레이어를 추가하면 마을에 음악이 울려 퍼져요!",
+		}
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			G.with_town({ language = lang, setup = function(app) G.win(app, 1) end }, function(c)
+				assert_eq(c.app.ui.hint, "town_first_task", lang)
+				local node = c.town:find(want[lang])
+				assert_true(node ~= nil, lang .. ": the hint is on the screen: " .. G.dump(c.town))
+				-- no shrinking to a whisper: the bubble holds two lines of 28 px
+				local px = c.E.text_px(node)
+				assert_true(px >= 24, lang .. ": the hint is only " .. string.format("%.1f", px) .. " px")
+				-- ...and the words wrap into two lines at most in the width of the bubble (490 logical px), in the font the
+				-- text really uses
+				local lines = c.town:ctx(function()
+					local font = gui.get_font_resource(gui.get_font(node))
+					local one = resource.get_text_metrics(font, "Ag").height
+					local m = resource.get_text_metrics(font, want[lang], { width = 490, line_break = true })
+					return math.floor(m.height / one + 0.5)
+				end)
+				assert_true(lines <= 2, lang .. ": the hint takes " .. lines .. " lines")
+				assert_eq(#c.E.audit(), 0, lang .. ": every glyph of the hint is in the font")
+			end)
+		end
 	end)
 
 	it("rebuilds the town and its windows when the language changes", function()
