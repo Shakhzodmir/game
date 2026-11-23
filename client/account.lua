@@ -19,16 +19,23 @@ function M.short(text, n)
 	return text:sub(1, n - 3) .. "..."
 end
 
--- reason -> i18n key; "cancelled" says nothing (the player closed the popup himself)
+-- reason -> i18n key; "cancelled" says nothing (the player said no himself: the Cancel of the form or of the Google card).
+-- A Google window that went away on its own is "popup_closed", not "cancelled": on a phone that is also what a window
+-- that opened somewhere else and never came back looks like, and a silent game made it look like "nothing happens".
 function M.error_key(reason)
 	local key = "auth.err." .. tostring(reason)
 	if reason ~= "error" and i18n.has(key) then return key end
 	return "auth.err.error"
 end
 
-local function fail(reason)
+local SOFT = { popup_closed = true } -- often the player's own doing: blue, not the pink of an error
+
+-- ctx "link": the player is already signed in (with ID and password), so "use ID and password" would be no advice
+local function fail(reason, ctx)
 	if reason == "cancelled" then return end
-	app.toast_key(M.error_key(reason), nil, { color = "pink" })
+	local key = M.error_key(reason)
+	if ctx == "link" and reason == "home_app" then key = "auth.err.home_app_link" end
+	app.toast_key(key, nil, { color = SOFT[reason] and "blue" or "pink", duration = 4 })
 end
 
 -- The texts of the browser's sign-in form (it shows them; the game never sees what is typed).
@@ -69,7 +76,7 @@ function M.sign_in_id(mode, done) auth.password_form(mode, M.form_labels(mode), 
 
 function M.link_google(done)
 	auth.link_google(function(ok, why)
-		if ok then app.toast_key("account.linked", nil, { color = "gold" }) else fail(why) end
+		if ok then app.toast_key("account.linked", nil, { color = "gold" }) else fail(why, "link") end
 		if done then done(ok, why) end
 	end)
 end

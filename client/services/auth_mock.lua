@@ -3,6 +3,7 @@
 --   local mock = require("client.services.auth_mock").new()
 --   auth.set_provider(mock)
 --   mock.google_next = {sub = "g1", email = "a@gmail.com", name = "Anna"}     -- who the Google popup picks
+--   mock.google_error = "popup_closed"                                         -- the popup ends with this reason instead
 --   mock.form_next = {id = "anna_7", password = "secret123"}                  -- what the sign-in form returns
 --   mock.online = false                                                       -- every call answers "offline"
 --   mock.too_many = true                                                      -- a password reset answers "too_many"
@@ -93,6 +94,11 @@ function M.new(opts)
 
 	function m.sign_in_google(cb)
 		if not begin("sign_in_google", cb) then return end
+		if m.google_error then -- a reason the window ends with (popup_closed, popup_timeout, home_app, ...)
+			local why = m.google_error
+			m.google_error = nil
+			return reply(cb, false, why)
+		end
 		local g = m.google_next
 		m.google_next = nil
 		if not g then return reply(cb, false, "cancelled") end
@@ -129,6 +135,11 @@ function M.new(opts)
 		if not begin("link_google", cb) then return end
 		local a = me()
 		if not a then return reply(cb, false, "no_user") end
+		if m.google_error then -- the same switch as for sign_in_google
+			local why = m.google_error
+			m.google_error = nil
+			return reply(cb, false, why)
+		end
 		local g = m.google_next
 		m.google_next = nil
 		if not g then return reply(cb, false, "cancelled") end

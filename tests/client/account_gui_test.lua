@@ -156,6 +156,114 @@ describe("account windows", function()
 	end)
 end)
 
+-- What the player is told when Google's window ends without a sign-in (a phone has no console: silence looks like a bug)
+describe("google sign-in feedback", function()
+	local function toast_now(c) return type(c.app.overlay.toast) == "string" and c.app.overlay.toast or "" end
+
+	it("stays silent when the player said no himself (the Cancel of the Google card)", function()
+		with_account({ welcomed = true }, function(c, m)
+			open(c, "account")
+			wtap(c, "google") -- the mock answers "cancelled"
+			c.run(3)
+			assert_eq(c.app.overlay.toast, nil, "a 'no' is silent")
+			assert_eq(auth.user(), nil)
+		end)
+	end)
+
+	it("explains a Google window that closed or never answered, in the game's language", function()
+		for _, case in ipairs({
+			{ "en", "popup_closed", "The Google window closed" },
+			{ "ru", "popup_closed", "Окно Google закрылось" },
+			{ "en", "popup_timeout", "Google did not answer" },
+			{ "en", "home_app", "Google does not answer here" },
+			{ "ru", "home_app", "Здесь Google не отвечает" },
+			{ "en", "popup_blocked", "Window blocked" },
+		}) do
+			with_account({ welcomed = true, language = case[1] }, function(c, m)
+				open(c, "account")
+				m.google_error = case[2]
+				wtap(c, "google")
+				c.run(0.7)
+				assert_true(toast_now(c):find(case[3], 1, true) ~= nil, case[2] .. ": " .. toast_now(c))
+				assert_eq(auth.user(), nil)
+				assert_eq(c.app.ui.popup, "account", "the window stays: ID and password are one tap away")
+			end)
+		end
+	end)
+
+	it("shows a closed window as a soft blue 4 s toast and the other failures in pink", function()
+		for _, case in ipairs({ { "popup_closed", "blue" }, { "popup_timeout", "pink" }, { "home_app", "pink" }, { "popup_blocked", "pink" } }) do
+			with_account({ welcomed = true }, function(c, m)
+				local seen
+				local real = c.app.toast_key
+				c.app.toast_key = function(key, vars, opts)
+					seen = { key = key, color = opts and opts.color, duration = opts and opts.duration }
+					return real(key, vars, opts)
+				end
+				open(c, "account")
+				m.google_error = case[1]
+				wtap(c, "google")
+				c.app.toast_key = real
+				assert_true(seen ~= nil, case[1] .. ": a toast")
+				assert_eq(seen.key, "auth.err." .. case[1])
+				assert_eq(seen.color, case[2], case[1])
+				assert_eq(seen.duration, 4)
+			end)
+		end
+	end)
+
+	it("tells an ID account that taps 'Link Google' in the Home Screen app that Google does not answer there", function()
+		with_account({ welcomed = true }, function(c, m)
+			open(c, "account")
+			m.form_next = { id = "Anna_7", password = "secret123" }
+			wtap(c, "create")
+			c.run(0.6)
+			assert_eq(auth.user().id, "anna_7")
+			m.google_error = "home_app"
+			wtap(c, "link_google")
+			local seen = {}
+			for _ = 1, 40 do -- the toast queue shows "Signed in" first
+				c.run(0.25)
+				local t = c.app.overlay.toast
+				if type(t) == "string" then seen[#seen + 1] = t end
+			end
+			local all = table.concat(seen, " | ")
+			assert_true(all:find("does not answer in the Home Screen app", 1, true) ~= nil, all)
+			assert_true(all:find("Use ID and password", 1, true) == nil, "he is signed in with ID already: " .. all)
+		end)
+	end)
+
+	it("shows every Google failure toast at a readable size in en, ru and ko", function()
+		for _, lang in ipairs({ "en", "ru", "ko" }) do
+			G.with_town({ town = false, language = lang }, function(c)
+				for _, k in ipairs({ "popup_blocked", "popup_closed", "popup_timeout", "home_app", "home_app_link", "inapp_browser", "browser_unsupported" }) do
+					c.app.toast_key("auth.err." .. k, nil, { duration = 1 })
+					c.overlay:run(0.8)
+					local list = c.overlay:smallest_texts(1)
+					assert_true(list[1] ~= nil, lang .. " " .. k .. ": the toast is on screen")
+					-- the toast is ONE line scaled to the canvas width: a long text becomes tiny (15 px is the project's floor)
+					assert_true(list[1].px >= 18, lang .. " " .. k .. ": only " .. string.format("%.1f", list[1].px) .. " px")
+					c.overlay:run(3)
+				end
+			end)
+		end
+	end)
+
+	it("answers a second tap while a window is out with 'busy', not with a second window", function()
+		with_account({ welcomed = true }, function(c, m)
+			m.manual = true -- the answer is held: the window is "out"
+			open(c, "account")
+			wtap(c, "google")
+			assert_eq(c.app.overlay.toast, nil)
+			wtap(c, "google")
+			c.run(0.7)
+			assert_true(toast_now(c):find("still working", 1, true) ~= nil, toast_now(c))
+			assert_eq(#m.calls, 1, "one window")
+			m.manual = false
+		end)
+	end)
+end)
+
 -- "Forgot password?", "Forgot your ID?" and the privacy policy link (WP-18)
 local platform = require("client.platform")
 

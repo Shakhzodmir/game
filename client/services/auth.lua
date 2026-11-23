@@ -19,7 +19,8 @@
 --   auth.cloud_get(function(ok, reason, doc) end)    -- doc = {code, previous} or nil: no cloud save yet
 --   auth.cloud_put(code, previous_code, cb)          auth.cloud_delete(cb)
 -- Every callback gets (ok, reason, data). Reasons (stable ids, texts are in client/i18n.lua "auth.err_*"):
---   unavailable, busy, offline, timeout, cancelled, popup_blocked, inapp_browser, browser_unsupported, bad_credentials, id_taken, email_in_use,
+--   unavailable, busy, offline, timeout, cancelled, popup_closed, popup_timeout, home_app, popup_blocked, inapp_browser,
+--   browser_unsupported, bad_credentials, id_taken, email_in_use,
 --   weak_password, bad_id, bad_email, need_recent_login, already_linked, too_many, not_enabled, bad_domain,
 --   denied, no_user, error.
 -- user = {uid, kind = "google" | "password", id (login id of an ID account), email, email_verified,

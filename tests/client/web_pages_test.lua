@@ -126,6 +126,17 @@ describe("the build and the publishing step carry the pages", function()
 	end)
 end)
 
+describe("the sign-in scripts of the game page", function()
+	it("carry the version of glow_auth.js in their address, so a phone that holds an older copy asks again", function()
+		local js = slurp("web/glow_auth.js")
+		local version = js:match('var VERSION = "([%d%-]+%a?)"')
+		assert_true(version ~= nil, "VERSION in web/glow_auth.js")
+		local page = slurp("web/engine_template.html")
+		assert_true(has(page, 'src="glow_auth.js?v=' .. version .. '"'), "engine_template.html must ask for glow_auth.js?v=" .. version)
+		assert_true(has(page, 'src="auth_config.js?v=' .. version .. '"'), "and for auth_config.js with the same version")
+	end)
+end)
+
 describe("web/auth_test.html: the phone-side check of the sign-in with Google", function()
 	local s = slurp("web/auth_test.html")
 
