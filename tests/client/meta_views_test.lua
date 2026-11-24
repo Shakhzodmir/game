@@ -157,7 +157,7 @@ describe("client.views (meta screens)", function()
 		assert_same(vm.tabs[18].genre, { en = "World Parade", ru = "Парад наций", ko = "월드 퍼레이드" })
 		-- (district 19: the tab is 130 px wide; "K-pop: баллада и данс" was drawn at 10 px, and a plain "K-pop" would read
 		-- like the tab of the K-pop stadium)
-		assert_same(vm.tabs[19].genre, { en = "K-pop Lite", ru = "К-поп лайт", ko = "발라드와 댄스" })
+		assert_same(vm.tabs[19].genre, { en = "K-pop Lite", ru = "К-поп лайт", ko = "케이팝 라이트" })
 		for _, lang in ipairs({ "en", "ru", "ko" }) do
 			local seen = {}
 			for i = 1, #all do
