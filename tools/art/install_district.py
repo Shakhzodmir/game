@@ -154,14 +154,16 @@ ROOMS = {
         ("accordion", 285, 775, 130),
         ("shell_stage", 360, 634, 240),
     ]),
-    # district 19: the places of the K-pop stadium items its placeholders borrow (TASK_FROM)
+    # district 19: the places fitted to the producer's fan meeting hall (a wooden floor from y 640 in front of the painted
+    # stage; the top bar covers y < 235 and the task card y > 835): the piano, the stage and the photo wall in the back row,
+    # the basket, the lightsticks and the tall microphone in front
     "fan_meeting": ("3x2", [
-        ("small_stage", 360, 560, 181),
-        ("piano", 140, 540, 204),
-        ("photo_wall", 360, 330, 162),
-        ("lightsticks", 560, 710, 140),
-        ("gift_basket", 142, 330, 151),
-        ("mic_stand", 578, 326, 128),
+        ("small_stage", 345, 686, 190),
+        ("piano", 120, 690, 210),
+        ("photo_wall", 540, 700, 156),
+        ("lightsticks", 452, 756, 132),
+        ("gift_basket", 262, 752, 140),
+        ("mic_stand", 652, 690, 128),
     ]),
     # district 20: the places of the rock garage items its placeholders borrow (TASK_FROM)
     "punk_garage": ("3x2", [

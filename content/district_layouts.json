@@ -1177,56 +1177,56 @@
       "small_stage": {
         "image": "assets/images/districts/fan_meeting/small_stage.png",
         "ghost": "assets/images/districts/fan_meeting/small_stage_ghost.png",
-        "x": 360,
-        "y": 560,
-        "scale": 0.72,
-        "w": 251,
-        "h": 212
+        "x": 345,
+        "y": 686,
+        "scale": 0.7,
+        "w": 271,
+        "h": 253
       },
       "piano": {
         "image": "assets/images/districts/fan_meeting/piano.png",
         "ghost": "assets/images/districts/fan_meeting/piano_ghost.png",
-        "x": 140,
-        "y": 540,
-        "scale": 0.62,
-        "w": 329,
-        "h": 176
+        "x": 120,
+        "y": 690,
+        "scale": 0.7,
+        "w": 300,
+        "h": 325
       },
       "photo_wall": {
         "image": "assets/images/districts/fan_meeting/photo_wall.png",
         "ghost": "assets/images/districts/fan_meeting/photo_wall_ghost.png",
-        "x": 360,
-        "y": 330,
-        "scale": 0.6,
-        "w": 270,
-        "h": 191
+        "x": 540,
+        "y": 700,
+        "scale": 0.7,
+        "w": 223,
+        "h": 209
       },
       "lightsticks": {
         "image": "assets/images/districts/fan_meeting/lightsticks.png",
         "ghost": "assets/images/districts/fan_meeting/lightsticks_ghost.png",
-        "x": 560,
-        "y": 710,
-        "scale": 0.64,
-        "w": 219,
-        "h": 205
+        "x": 452,
+        "y": 756,
+        "scale": 0.7,
+        "w": 189,
+        "h": 228
       },
       "gift_basket": {
         "image": "assets/images/districts/fan_meeting/gift_basket.png",
         "ghost": "assets/images/districts/fan_meeting/gift_basket_ghost.png",
-        "x": 142,
-        "y": 330,
-        "scale": 0.62,
-        "w": 244,
-        "h": 219
+        "x": 262,
+        "y": 752,
+        "scale": 0.7,
+        "w": 200,
+        "h": 214
       },
       "mic_stand": {
         "image": "assets/images/districts/fan_meeting/mic_stand.png",
         "ghost": "assets/images/districts/fan_meeting/mic_stand_ghost.png",
-        "x": 578,
-        "y": 326,
-        "scale": 0.6,
-        "w": 214,
-        "h": 222
+        "x": 652,
+        "y": 690,
+        "scale": 0.7,
+        "w": 183,
+        "h": 417
       }
     }
   },
