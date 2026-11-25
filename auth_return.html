@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>GLOW</title>
+<!--
+	The page Google sends the player back to after the sign-in (https://shakhzodmir.github.io/game/auth_return.html: the exact
+	address is registered at Google as the redirect URI of the project's web client, so it must not change and takes no
+	query). FROZEN and logic-free on purpose: it loads nothing from outside (see the CSP above), judges nothing and parses no
+	token. It only (1) takes the answer out of the address and wipes it from the address bar and the history at once,
+	(2) hands the raw answer to the page that waits for it, over the channels that do not depend on a live window.opener:
+	the shared-storage mailbox, a BroadcastChannel and, when the link is alive, window.opener.postMessage to OUR OWN origin,
+	(3) closes itself, or goes back to the starter's page when it is the starter's own window. The waiting page (web/glow_oidc.js)
+	checks state, nonce, audience and the rest.
+	The state of an attempt says what to do: its first letter is the mode (p = Google's window is a pop-up, r = the whole page
+	went to Google), its second the destination (g = the game, t = the phone test page web/auth_test.html). The keys below
+	are the ones web/glow_oidc.js keysFor() names.
+	The mailbox gets the answer only when the attempt is visible HERE as still OPEN: anyone can start Google's sign-in with
+	our public client id, and a stray answer must not linger in storage. For a whole page that went to Google that is its own
+	pending record. For a pop-up it is the beacon in the SHARED storage, because the pop-up's own sessionStorage is a COPY of
+	the starter's made when it opened: the starter may have given up long ago (Cancel, the time limit) and deleted the beacon
+	with the rest of its attempt, and a late answer must not be left lying in storage then. When nothing qualifies, the answer
+	is still offered to the channels that keep nothing (a live starter takes it from them), and the page says so.
+	The copy proves nothing about "this is the starter's window" either. The marker written by the starter right AFTER
+	window.open (a copy never has it) or right before location.assign does: only a window with the marker for this state goes
+	back to the starter's page, and only when no live starter answers a ping (a second copy of the game on one save must
+	never start; the ping guards both modes: a copy taken after the marker would look like the starter's own window).
+-->
+<style>
+	body { margin: 0; padding: 28px 20px; font: 18px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; background: #F4EEFF; color: #2B2345; text-align: center; }
+	h1 { font-size: 22px; margin: 0 0 14px; color: #5B3FC4; }
+	p { margin: 0 0 12px; }
+	#d { font-size: 13px; color: #6B5A99; word-break: break-word; }
+	button { margin-top: 8px; padding: 14px 18px; font-family: inherit; font-weight: bold; font-size: 17px; line-height: 1.2; color: #fff; background: #7B5CE0; border: 0; border-radius: 14px; }
+</style>
+</head>
+<body>
+<h1>GLOW</h1>
+<p id="m">&#8230;</p>
+<p id="d"></p>
+<button id="b" type="button" hidden></button>
+<script>
+(function () {
+	"use strict";
+	var framed = false;
+	try { framed = window.top !== window.self; } catch (e0) { framed = true; }
+	if (framed) { try { document.documentElement.textContent = ""; } catch (e1) { /* none */ } return; }
+
+	var mEl = document.getElementById("m"), dEl = document.getElementById("d"), bEl = document.getElementById("b");
+	function now() { return Date.now(); }
+	function dec(x) { try { return decodeURIComponent(String(x).replace(/\+/g, " ")); } catch (e) { return String(x); } }
+	function param(str, name) {
+		var parts = str ? str.split("&") : [], i, kv, j;
+		for (i = 0; i < parts.length; i++) {
+			kv = parts[i]; j = kv.indexOf("=");
+			if (dec(j < 0 ? kv : kv.slice(0, j)) === name) return j < 0 ? "" : dec(kv.slice(j + 1));
+		}
+		return "";
+	}
+	function names(str) {
+		var parts = str ? str.split("&") : [], out = [], i, kv, j;
+		for (i = 0; i < parts.length && out.length < 12; i++) { kv = parts[i]; j = kv.indexOf("="); out.push(dec(j < 0 ? kv : kv.slice(0, j)).replace(/[^A-Za-z0-9_.-]/g, "").slice(0, 24)); }
+		return out.join(",");
+	}
+	function store(kind) { try { return window[kind]; } catch (e) { return null; } } // blocked storage throws on access
+	function sget(st, k) { try { return st ? st.getItem(k) : null; } catch (e) { return null; } }
+	function pend(st, k, state) {
+		var v = sget(st, k), r = null;
+		try { r = v ? JSON.parse(v) : null; } catch (e) { r = null; }
+		return r && typeof r === "object" && r.s === state ? r : null;
+	}
+
+	// 1. the answer out of the address, at once ------------------------------------------------------------------------------
+	var hash = "", search = "";
+	try { hash = String(location.hash || "").replace(/^#/, ""); } catch (e2) { /* none */ }
+	try { search = String(location.search || "").replace(/^\?/, ""); } catch (e3) { /* none */ }
+	try { history.replaceState(null, "", location.pathname); } catch (e4) { /* none */ }
+
+	// 2. the words (ru / ko / en by the device) ------------------------------------------------------------------------------
+	var lang = "en";
+	try { lang = String(navigator.language || "en").slice(0, 2).toLowerCase(); } catch (e5) { /* none */ }
+	var S = {
+		ru: { nothing: "Здесь нечего делать.", doneT: "Готово. Закройте это окно и вернитесь на страницу проверки.", doneG: "Готово. Вернитесь в игру.",
+			closeT: "Закройте это окно (кнопка «Готово» или «Закрыть») и вернитесь на страницу проверки.", closeG: "Закройте это окно (кнопка «Готово» или «Закрыть») и вернитесь в игру.",
+			other: "Это окно не видит игру: у него другое хранилище. Закройте его и войдите ещё раз.", back: "Вернуться на страницу проверки",
+			gone: "Этот вход уже закончился или начат в другом окне. Закройте это окно и войдите ещё раз.", tab: "В Safari закройте вкладку: значок вкладок, затем «×».",
+			op: "связь с окном", st: "общее хранилище", yes: "да", no: "нет", err: "Что-то пошло не так. Закройте это окно." },
+		ko: { nothing: "여기서 할 일이 없습니다.", doneT: "완료되었습니다. 이 창을 닫고 확인 페이지로 돌아가세요.", doneG: "완료되었습니다. 게임으로 돌아가세요.",
+			closeT: "이 창을 닫고(완료 또는 닫기 버튼) 확인 페이지로 돌아가세요.", closeG: "이 창을 닫고(완료 또는 닫기 버튼) 게임으로 돌아가세요.",
+			other: "이 창은 게임을 볼 수 없습니다(저장 공간이 다릅니다). 창을 닫고 다시 로그인하세요.", back: "확인 페이지로 돌아가기",
+			gone: "이 로그인은 이미 끝났거나 다른 창에서 시작되었습니다. 이 창을 닫고 다시 로그인하세요.", tab: "Safari에서는 탭 아이콘을 눌러 이 탭을 닫으세요.",
+			op: "창 연결", st: "공유 저장소", yes: "예", no: "아니요", err: "문제가 생겼습니다. 이 창을 닫으세요." },
+		en: { nothing: "Nothing to do here.", doneT: "Done. Close this window and go back to the test page.", doneG: "Done. Go back to the game.",
+			closeT: "Close this window (the Done or Close button) and go back to the test page.", closeG: "Close this window (the Done or Close button) and go back to the game.",
+			other: "This window cannot see the game: its storage is another one. Close it and sign in again.", back: "Back to the test page",
+			gone: "This sign-in has already ended or was started in another window. Close this window and sign in again.", tab: "In Safari, close this tab from the tab switcher (the tabs icon, then ×).",
+			op: "link to the opener", st: "shared storage", yes: "yes", no: "no", err: "Something went wrong. Close this window." }
+	};
+	var W = S[lang] || S.en;
+	function say(text) { try { mEl.textContent = text; } catch (e) { /* none */ } }
+	function line(text) { try { dEl.textContent = text; } catch (e) { /* none */ } }
+	function yn(v) { return v ? W.yes : W.no; }
+
+	try {
+		var ss = store("sessionStorage"), ls = store("localStorage");
+		var opener = false, sa = 0, dm = "?";
+		try { opener = !!window.opener; } catch (e6) { /* none */ }
+		try { sa = navigator.standalone === true ? 1 : 0; } catch (e7) { /* none */ }
+		try {
+			var modes = ["standalone", "fullscreen", "minimal-ui", "browser"], i;
+			for (i = 0; i < modes.length; i++) if (window.matchMedia("(display-mode: " + modes[i] + ")").matches) { dm = modes[i]; break; }
+		} catch (e8) { /* none */ }
+		var vs = ""; try { vs = String(document.visibilityState || ""); } catch (e9) { /* none */ }
+
+		// 3. no state: nothing to relay. A breadcrumb tells the test page WHAT arrived (names and lengths only, never values) ---
+		var state = param(hash, "state") || param(search, "state");
+		var sm = /^([pr])([gt])\.[A-Za-z0-9_-]{8,}$/.exec(state);
+		if (!sm) {
+			var crumb = { nostate: 1, hl: hash.length, ql: search.length, keys: names(hash) + "|" + names(search), sa: sa, dm: dm, op: opener ? 1 : 0, vs: vs, t: now() };
+			try { crumb.ua = String(navigator.userAgent || "").slice(-40); } catch (e10) { /* none */ }
+			try { if (ls) ls.setItem("glow_oidc_t_ret", JSON.stringify(crumb)); } catch (e11) { /* none */ }
+			say(W.nothing);
+			line("hash " + crumb.hl + ", query " + crumb.ql + ", sa " + sa + ", " + dm + ", " + W.op + ": " + yn(opener) + (crumb.keys !== "|" ? ", " + crumb.keys : ""));
+			return;
+		}
+
+		var mode = sm[1], dest = sm[2];
+		var K = dest === "g"
+			? { pend: "glow_oidc_pend", res: "glow_oidc_res:", chan: "glow_oidc", ret: "", own: "glow_oidc_own" }
+			: { pend: "glow_oidc_t_pend", res: "glow_oidc_t_res:", chan: "glow_oidc_t", ret: "glow_oidc_t_ret", own: "glow_oidc_t_own" };
+		var target = dest === "g" ? "./" : "auth_test.html"; // fixed: never taken from a parameter
+
+		// 4. what this storage knows about the attempt ----------------------------------------------------------------------
+		var pSS = pend(ss, K.pend, state), pLS = pend(ls, K.pend + ":" + state, state), known = pSS || pLS;
+		var own = sget(ss, K.own) === state;
+		var homeOk = !(known && known.c === "home") || sa === 1; // an attempt of a Home Screen app is finished only in a Home Screen window
+		var diag = { op: opener ? 1 : 0, sa: sa, dm: dm, ss: pSS ? 1 : 0, ls: pLS ? 1 : 0, own: own ? 1 : 0, hl: history.length, vs: vs, c: known && known.c ? String(known.c) : "" };
+		var relay = { k: "glow_oidc", v: 1, h: hash, q: search, t: now(), d: diag };
+		var ret = { s: state, st: "relayed", ack: 0, via: "", ms: -1, ct: 0, pong: -1, rep: 0, d: diag, t: now() };
+		function saveRet() { ret.t = now(); try { if (K.ret && ls) ls.setItem(K.ret, JSON.stringify(ret)); } catch (e) { /* none */ } }
+		// The answer goes into the mailbox only for an attempt that is still OPEN. A pop-up holds a COPY of the starter's
+		// sessionStorage made when it opened, so the record in it proves nothing: the starter may have given up long ago (Cancel,
+		// the time limit) and deleted its attempt. The record that says "still open" is the one in the SHARED storage, which every
+		// end of a try deletes. (A whole page that went to Google comes back to its own window: its own storage is the proof.)
+		var live = mode === "p" ? pLS : known, stored = false;
+		try { if (live && ls) { ls.setItem(K.res + state, JSON.stringify(relay)); stored = true; } } catch (e12) { /* none */ }
+
+		// 5. hand it over: nothing here needs a live window.opener --------------------------------------------------------
+		var bc = null, onAck = null, onPong = null;
+		try {
+			bc = new BroadcastChannel(K.chan);
+			bc.onmessage = function (ev) {
+				var d = ev && ev.data;
+				if (!d || d.s !== state) return;
+				if (d.k === "glow_oidc_ack" && onAck) onAck("bc");
+				else if (d.k === "glow_oidc_pong" && onPong) onPong();
+			};
+			bc.postMessage(relay);
+		} catch (e13) { bc = null; }
+		try { if (window.opener) window.opener.postMessage(relay, location.origin); } catch (e14) { /* none */ }
+		saveRet();
+		if (dest === "t") line(W.op + ": " + yn(opener) + ", " + W.st + ": " + yn(pSS || pLS) + ", sa " + sa + ", " + dm + (own ? ", own" : ""));
+		var tPost = now();
+
+		function leave() { ret.rep = 1; ret.st = "navigating"; saveRet(); try { location.replace(target); } catch (e) { /* none */ } }
+		function wait(limit, done) { // the starter's word that it has the answer (BroadcastChannel, message, mailbox emptied)
+			var over = false, tm = null, iv = null;
+			function end(via) {
+				if (over) return;
+				over = true;
+				onAck = null;
+				try { clearTimeout(tm); clearInterval(iv); window.removeEventListener("message", onMsg); } catch (e) { /* none */ }
+				done(via);
+			}
+			function onMsg(ev) { if (ev && ev.origin === location.origin && ev.data && ev.data.k === "glow_oidc_ack" && ev.data.s === state) end("pm"); }
+			onAck = end;
+			try { window.addEventListener("message", onMsg); } catch (e15) { /* none */ }
+			iv = setInterval(function () { if (stored && sget(ls, K.res + state) === null) end("ls"); }, 100);
+			tm = setTimeout(function () { end(""); }, limit);
+		}
+
+		var okText = dest === "g" ? W.doneG : W.doneT, closeText = dest === "g" ? W.closeG : W.closeT;
+		// The starter's own window goes back to the starter's page, unless somebody is alive there (a pong): then this is another
+		// window over a live page, and starting the page again would put a second copy of the game on one save.
+		function pingThenLeave(onLive) {
+			var settled = false, tmPong = null;
+			onPong = function () { if (settled) return; settled = true; onPong = null; clearTimeout(tmPong); onLive(); };
+			try { if (bc) bc.postMessage({ k: "glow_oidc_ping", s: state }); } catch (e17) { /* none */ }
+			tmPong = setTimeout(function () { if (settled) return; settled = true; onPong = null; ret.pong = 0; leave(); }, 400);
+		}
+		// mode p, Google's window: the page that opened it waits for the answer; this window has done its part and closes
+		function popupEnd() {
+			wait(2000, function (via) {
+				ret.ack = via ? 1 : 0; ret.via = via; ret.ms = now() - tPost; ret.st = "acked"; ret.ct = 1; saveRet();
+				if (via && !stored) say(okText); // the starter has it after all, by a channel that keeps nothing in the storage
+				try { window.close(); } catch (e16) { /* the browser refuses for a window it did not open: the text stays */ }
+				setTimeout(function () { // still here: the browser did not close it, so say how to leave
+					say((stored || via ? closeText : W.gone) + " " + W.tab);
+					if (dest !== "t") return;
+					bEl.textContent = W.back; bEl.hidden = false;
+					bEl.addEventListener("click", function () { try { location.replace(target); } catch (e) { /* none */ } });
+				}, 400);
+			});
+		}
+
+		if (mode === "p") {
+			// a pop-up. When the marker says this IS the starter's own window (iOS put the return where the starter was), nobody is
+			// waiting here any more: go back, and that page takes the answer from the mailbox. A live starter that answers the ping
+			// means the marker came from a copy of the starter's storage, so this is a pop-up after all: it stays and closes.
+			say(stored ? okText : W.gone);
+			if (!(own && homeOk)) return popupEnd();
+			return pingThenLeave(function () { ret.pong = 1; saveRet(); popupEnd(); });
+		}
+		// mode r: the whole page went to Google
+		function stay(pong) {
+			say(closeText + (known ? "" : " " + W.other));
+			ret.pong = pong ? 1 : 0; ret.st = "stay"; saveRet();
+			wait(2000, function (via) { ret.ack = via ? 1 : 0; ret.via = via; ret.ms = now() - tPost; saveRet(); });
+		}
+		if (!(own && homeOk)) return stay(false);
+		say(okText);
+		pingThenLeave(function () { stay(true); });
+	} catch (e18) {
+		say(W.err);
+	}
+})();
+</script>
+</body>
+</html>
