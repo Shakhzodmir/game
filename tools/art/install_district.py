@@ -165,14 +165,16 @@ ROOMS = {
         ("gift_basket", 262, 752, 140),
         ("mic_stand", 652, 690, 128),
     ]),
-    # district 20: the places of the rock garage items its placeholders borrow (TASK_FROM)
+    # district 20: the places fitted to the producer's pop-punk garage (a sandy floor from y 590; the top bar covers y < 235
+    # and the task card y > 835): the drum kit and the amp stack on the floor, the bass and the microphone on the right,
+    # the half open door over the painted side door, the gig posters on the left wall
     "punk_garage": ("3x2", [
-        ("drum_kit", 286, 662, 180),
-        ("amp_stack", 112, 640, 109),
-        ("bass_guitar", 232, 470, 67),
-        ("garage_door", 536, 372, 209),
-        ("mic_stand", 636, 690, 65),
-        ("gig_posters", 112, 430, 111),
+        ("drum_kit", 300, 745, 200),
+        ("amp_stack", 112, 705, 125),
+        ("bass_guitar", 470, 735, 80),
+        ("garage_door", 535, 392, 200),
+        ("mic_stand", 610, 730, 72),
+        ("gig_posters", 108, 470, 120),
     ]),
     # district 21: the places of the beach items its placeholders borrow (the tasks go in the order of the beach)
     "sunset_bossa": ("3x2", [

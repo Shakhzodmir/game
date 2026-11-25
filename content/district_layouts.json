@@ -1238,56 +1238,56 @@
       "drum_kit": {
         "image": "assets/images/districts/punk_garage/drum_kit.png",
         "ghost": "assets/images/districts/punk_garage/drum_kit_ghost.png",
-        "x": 286,
-        "y": 662,
+        "x": 300,
+        "y": 745,
         "scale": 0.7,
-        "w": 257,
-        "h": 221
+        "w": 286,
+        "h": 243
       },
       "amp_stack": {
         "image": "assets/images/districts/punk_garage/amp_stack.png",
         "ghost": "assets/images/districts/punk_garage/amp_stack_ghost.png",
         "x": 112,
-        "y": 640,
-        "scale": 0.56,
-        "w": 195,
-        "h": 283
+        "y": 705,
+        "scale": 0.7,
+        "w": 179,
+        "h": 281
       },
       "bass_guitar": {
         "image": "assets/images/districts/punk_garage/bass_guitar.png",
         "ghost": "assets/images/districts/punk_garage/bass_guitar_ghost.png",
-        "x": 232,
-        "y": 470,
-        "scale": 0.56,
-        "w": 119,
-        "h": 237
+        "x": 470,
+        "y": 735,
+        "scale": 0.7,
+        "w": 114,
+        "h": 216
       },
       "garage_door": {
         "image": "assets/images/districts/punk_garage/garage_door.png",
         "ghost": "assets/images/districts/punk_garage/garage_door_ghost.png",
-        "x": 536,
-        "y": 372,
-        "scale": 1.0,
-        "w": 209,
-        "h": 183
+        "x": 535,
+        "y": 392,
+        "scale": 0.7,
+        "w": 286,
+        "h": 280
       },
       "mic_stand": {
         "image": "assets/images/districts/punk_garage/mic_stand.png",
         "ghost": "assets/images/districts/punk_garage/mic_stand_ghost.png",
-        "x": 636,
-        "y": 690,
-        "scale": 0.46,
-        "w": 141,
-        "h": 290
+        "x": 610,
+        "y": 730,
+        "scale": 0.7,
+        "w": 103,
+        "h": 257
       },
       "gig_posters": {
         "image": "assets/images/districts/punk_garage/gig_posters.png",
         "ghost": "assets/images/districts/punk_garage/gig_posters_ghost.png",
-        "x": 112,
-        "y": 430,
-        "scale": 0.5,
-        "w": 221,
-        "h": 239
+        "x": 108,
+        "y": 470,
+        "scale": 0.7,
+        "w": 171,
+        "h": 163
       }
     }
   },
