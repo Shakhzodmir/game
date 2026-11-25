@@ -14,7 +14,7 @@
 	var ID_DOMAIN = "id.glow.invalid";
 	var RECENT_MS = 5 * 60 * 1000; // deleting an account needs a sign-in from the last five minutes
 	var MAX_CODE = 200000;
-	var VERSION = "2026-11-24b"; // printed in the small diagnostic line, so a screenshot says which script the phone runs; glow_oidc.js has the same one
+	var VERSION = "2026-11-25a"; // printed in the small diagnostic line, so a screenshot says which script the phone runs; glow_oidc.js has the same one
 	var T_ = (window.glowAuth && window.glowAuth._test) || {};
 	var POPUP_MS = T_.popupMs || 4 * 60 * 1000; // Google's window may stay open this long (a slow link, a code by SMS)
 	var HOME_POPUP_MS = T_.homePopupMs || T_.popupMs || 90 * 1000; // an iPhone Home Screen app: the SDK cannot see that window, so less
@@ -831,6 +831,8 @@
 				return resolve(null);
 			}
 			if (!G.claim("g", rec.s, {}, { by: INSTANCE })) { rec = null; return resolve(null); } // another page of this window is on it
+			var giveBack = function () { try { if (!done && rec) G.unclaim("g", rec.s, {}, { by: INSTANCE }); } catch (e) { /* none */ } }; // this page is going: the next one may take over
+			try { window.addEventListener("pagehide", giveBack); } catch (e) { /* none */ }
 			var linkUser = null;
 			if (rec.op === "link") {
 				if (!first || first.uid !== rec.u) return finish("error", "glow/oidc-link-user"); // the account that asked is not the one signed in now

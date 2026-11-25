@@ -456,6 +456,12 @@ end)
 describe("web/glow_oidc.js: the shared core of our own sign-in with Google", function()
 	local s = slurp("web/glow_oidc.js")
 
+	it("hands a claim back when its page is unloaded (the Home Screen app reloads the page when the Google sheet closes)", function()
+		assert_true(has(s, "function unclaim(") and has(s, "unclaim: unclaim"), "the core offers unclaim")
+		assert_true(has(slurp("web/glow_auth.js"), 'G.unclaim("g"'), "the game gives its claim back on pagehide")
+		assert_true(has(slurp("web/auth_test.html"), 'G.unclaim("t"'), "the test page gives its claim back on pagehide")
+	end)
+
 	it("is plain ES5-style script that loads by a script tag and by node, and touches nothing of the browser until called", function()
 		assert_true(has(s, '(function () {\n\t"use strict";') or has(s, '(function () {\r\n\t"use strict";'))
 		assert_true(has(s, 'if (typeof module === "object" && module && module.exports) module.exports = api;'))

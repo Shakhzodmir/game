@@ -49,6 +49,7 @@
 //                                key written afterwards is the one thing a child never has), or right before location.assign
 //   claim(dest, state, env, {by}) -> pending|null: marks the attempt as being consumed; another page that claims it within
 //                                60 s gets null. Delete the attempt (clearFlow) when the exchange has settled
+//   unclaim(dest, state, env, {by}) -> boolean: hands this page's claim back (on pagehide), so the next page loads it at once
 //   listMail(dest, env), readRelay(dest, state, env)  the answers waiting in the shared-storage mailbox
 //   listen({dest, state, win, onRelay, onSeen, ...}) -> {stop, ack, setWin, poke, count, state}
 //                                waits for the answer of ONE state on every channel: BroadcastChannel, message events (same
@@ -63,7 +64,7 @@
 //   (A = google.com OAuthProvider credential with the raw nonce, B = the same id_token without a nonce, T = the access token)
 (function () {
 	"use strict";
-	var VERSION = "2026-11-24b"; // the same as web/glow_auth.js: the game asks for both files with it, so a change here is a release of both
+	var VERSION = "2026-11-25a"; // the same as web/glow_auth.js: the game asks for both files with it, so a change here is a release of both
 	var GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 	var ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 	var K_RELAY = "glow_oidc", K_ACK = "glow_oidc_ack", K_PING = "glow_oidc_ping", K_PONG = "glow_oidc_pong";
@@ -356,6 +357,21 @@
 		return rec;
 	}
 
+	// A page that is being unloaded (an iPhone Home Screen app reloads its page when the Google sheet closes) hands its claim back,
+	// so the page that loads next can finish the same answer at once instead of waiting 60 s for the claim to expire. Only the
+	// claim of THIS page ({by}) is released; another page's claim is left alone. Returns true when a claim was released.
+	function unclaim(dest, state, o, opts) {
+		var e = envOf(o), k = keysFor(dest), by = (opts && opts.by) || "", got = readPending(dest, state, o), rec, json, copy;
+		if (!got || !got.rec || !got.rec.cl || got.rec.cl.by !== by) return false;
+		rec = got.rec;
+		delete rec.cl;
+		json = JSON.stringify(rec);
+		if (got.src === "ss") sset(e.ss, k.pend, json);
+		copy = pj(sget(e.ls, k.pend + ":" + state));
+		if (got.src === "ls" || (copy && copy.r)) sset(e.ls, k.pend + ":" + state, json);
+		return true;
+	}
+
 	// the wait ------------------------------------------------------------------------------------------------------------
 	function listen(opts) {
 		opts = opts || {};
@@ -472,7 +488,7 @@
 		version: VERSION, prepare: prepare, authUrl: authUrl, keysFor: keysFor, parseState: parseState, parseParams: parseParams,
 		relayParams: relayParams, relayState: relayState, jwtClaims: jwtClaims, validate: validate, checkAtHash: checkAtHash,
 		reasonOf: reasonOf, savePending: savePending, readPending: readPending, listPending: listPending, listMail: listMail,
-		readRelay: readRelay, markOwn: markOwn, isOwn: isOwn, clearFlow: clearFlow, sweep: sweep, claim: claim, listen: listen,
+		readRelay: readRelay, markOwn: markOwn, isOwn: isOwn, clearFlow: clearFlow, sweep: sweep, claim: claim, unclaim: unclaim, listen: listen,
 		credOrder: credOrder, exchange: exchange, codeOf: codeOf,
 		kinds: { relay: K_RELAY, ack: K_ACK, ping: K_PING, pong: K_PONG }, endpoint: GOOGLE_AUTH
 	};

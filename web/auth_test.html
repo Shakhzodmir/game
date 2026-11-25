@@ -116,7 +116,7 @@
 <textarea id="out" readonly style="display:none;width:100%;height:160px"></textarea>
 
 <script src="auth_config.js"></script>
-<script src="glow_oidc.js?v=2026-11-24b"></script>
+<script src="glow_oidc.js?v=2026-11-25a"></script>
 <script>
 (function () {
 	"use strict";
@@ -439,6 +439,7 @@
 		Object.keys(flows).forEach(function (s) {
 			var f = flows[s];
 			if (f.n === 9 && !f.leftAt) { f.leftAt = Date.now(); f.ph = sec(f.assignAt); ssSet("glow_diag_ph", JSON.stringify({ s: s, ph: f.ph })); }
+			try { G.unclaim("t", s, {}, { by: instance }); } catch (e) { /* none */ } // hand the answer back: the page that loads next finishes it
 		});
 	});
 	window.addEventListener("pageshow", function (ev) {
